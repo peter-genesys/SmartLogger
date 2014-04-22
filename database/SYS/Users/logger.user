@@ -18,6 +18,7 @@ grant create table to logger;
 grant create procedure to logger;
 grant create trigger to logger;
 grant create synonym to logger;
+grant create view to logger;
 
 -- QUOTAS
 ALTER USER logger QUOTA UNLIMITED ON USERS;
