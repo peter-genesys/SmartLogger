@@ -1,0 +1,5 @@
+create table aop_source (
+ package_name VARCHAR2(30)
+,log_flag     VARCHAR2(2)
+,text         CLOB
+,load_datetime DATE);
