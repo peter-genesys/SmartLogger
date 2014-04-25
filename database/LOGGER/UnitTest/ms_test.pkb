@@ -16,51 +16,7 @@ CREATE OR REPLACE PACKAGE BODY ms_test AS
  
    END;
  
- /*********************************************************************
- * MODULE:       check_messages_state
- * PURPOSE:      fail if doing a full run and message_pkg is active.
- * RETURNS:
- * NOTES:
- * HISTORY:
- * When        Who       What
- * ----------- --------- ----------------------------------------------
- * 17/03/2005 pab       Original version
- *********************************************************************/
- PROCEDURE check_messages_state(i_max_records IN NUMBER)
- IS
-     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'check_messages_state');
- BEGIN
-
-    IF i_max_records > 100 AND
-       NOT ms_metacode.f_is_metacode_pkg_silent THEN
-       ms_logger.fatal(l_node, 'Messages should NOT be active for a full run'); RAISE NO_DATA_FOUND;
-    END IF;
- END;
- 
-   /*********************************************************************
-   * MODULE:       output_message_status
-   * PURPOSE:      output message status with dbms_output
-   * RETURNS:
-   * NOTES:
-   * HISTORY:
-   * When        Who       What
-   * ----------- --------- ----------------------------------------------
-   * 28/07/2005 pab       Original version
-   *********************************************************************/
-
-
-   PROCEDURE output_message_status
-   IS
-     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'output_message_status');
-   BEGIN
-
-     IF ms_metacode.f_is_metacode_pkg_silent THEN
-       dbms_output.put_line( 'Messages are NOT active');
-     ELSE
-       ms_logger.info(l_node,  'Messages are active');
-     END IF;
-
-   END;
+  
 
 /*********************************************************************
 * MODULE:       f_elapsed_time
@@ -120,7 +76,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.oracle_error(l_node); RAISE;
+      ms_logger.trap_error(l_node); RAISE;
 
   END error_node;
 
@@ -150,7 +106,7 @@ END f_elapsed_time;
     ms_logger.param(l_node, 'i_date    ' ,i_date    );
     ms_logger.param(l_node, 'i_boolean ' ,i_boolean );
 
-    output_message_status;
+    --output_message_status;
 
     l_start_time := SYSDATE;
 
@@ -168,7 +124,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.oracle_error(l_node); --DO NOT RAISE;
+      ms_logger.trap_error(l_node); --DO NOT RAISE;
 
   END test_exception_propagation;
 
@@ -197,7 +153,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.oracle_error(l_node); RAISE;
+      ms_logger.trap_error(l_node); RAISE;
 
   END test_node;
 
@@ -229,7 +185,7 @@ END f_elapsed_time;
     ms_logger.param(l_node, 'i_date    ' ,i_date    );
     ms_logger.param(l_node, 'i_boolean ' ,i_boolean );
 
-    output_message_status;
+    --output_message_status;
 
     l_start_time := SYSDATE;
 
@@ -247,7 +203,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.oracle_error(l_node); --DO NOT RAISE;
+      ms_logger.trap_error(l_node); --DO NOT RAISE;
 
   END test_message_tree;
   
@@ -303,7 +259,7 @@ END f_elapsed_time;
     ms_logger.param( l_node, 'i_date    ' ,i_date    );
     ms_logger.param( l_node, 'i_boolean ' ,i_boolean );
 
-    output_message_status;
+    --output_message_status;
 
     l_start_time := SYSDATE;
 
@@ -338,7 +294,7 @@ END f_elapsed_time;
 
     
  
-    output_message_status;
+    --output_message_status;
 
     l_start_time := SYSDATE;
 
@@ -356,7 +312,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.oracle_error(l_node); --DO NOT RAISE;
+      ms_logger.trap_error(l_node); --DO NOT RAISE;
 
   END test_internal_error;
 
@@ -381,7 +337,7 @@ END f_elapsed_time;
  
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.oracle_error(l_node); RAISE;
+      ms_logger.trap_error(l_node); RAISE;
 
   END msg_mode_node;
   
@@ -409,7 +365,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.oracle_error(l_node); RAISE;
+      ms_logger.trap_error(l_node); RAISE;
 
   END max_nest_test;  
 
@@ -438,11 +394,11 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.oracle_error(l_node); --DO NOT RAISE;
+      ms_logger.trap_error(l_node); --DO NOT RAISE;
 
   END test_unit_msg_mode;
   
- 
+ /*
   --------------------------------------------------------------------
   --std_single_loop_proc
   --------------------------------------------------------------------
@@ -473,14 +429,14 @@ END f_elapsed_time;
       
     EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.oracle_error(l_node); RAISE;
+       ms_logger.trap_error(l_node); RAISE;
     END;
  
      
  
    EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.oracle_error(l_node); --DO NOT RAISE;
+       ms_logger.trap_error(l_node); --DO NOT RAISE;
   END;
   
   --------------------------------------------------------------------
@@ -513,14 +469,14 @@ END f_elapsed_time;
       
     EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.oracle_error(l_node); RAISE;
+       ms_logger.trap_error(l_node); RAISE;
     END;
  
      
  
    EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.oracle_error(l_node); --DO NOT RAISE;
+       ms_logger.trap_error(l_node); --DO NOT RAISE;
   END;
   
   --------------------------------------------------------------------
@@ -550,21 +506,21 @@ END f_elapsed_time;
           END IF;
         EXCEPTION
          WHEN OTHERS THEN
-           ms_logger.oracle_error(l_node); --DO NOT RAISE;
+           ms_logger.trap_error(l_node); --DO NOT RAISE;
            
         END;
       END LOOP;
       
    EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.oracle_error(l_node); RAISE;
+       ms_logger.trap_error(l_node); RAISE;
     END;
  
      
  
    EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.oracle_error(l_node); --DO NOT RAISE;
+       ms_logger.trap_error(l_node); --DO NOT RAISE;
   END;
   
   
@@ -595,21 +551,21 @@ END f_elapsed_time;
           END IF;
         EXCEPTION
          WHEN OTHERS THEN
-           ms_logger.oracle_error(l_node); RAISE;
+           ms_logger.trap_error(l_node); RAISE;
       END;
       END LOOP;
       
     EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.oracle_error(l_node); RAISE;
+       ms_logger.trap_error(l_node); RAISE;
     END;
  
    EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.oracle_error(l_node); --DO NOT RAISE;
+       ms_logger.trap_error(l_node); --DO NOT RAISE;
   END;
-  
-  
+ 
+  */
    --------------------------------------------------------------------
    --raise_an_oracle_error
    --------------------------------------------------------------------
@@ -627,7 +583,7 @@ END f_elapsed_time;
  
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.oracle_error(l_node); RAISE;
+        ms_logger.trap_error(l_node); RAISE;
   END raise_an_oracle_error;
  
    --------------------------------------------------------------------
@@ -646,9 +602,9 @@ END f_elapsed_time;
  
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.oracle_error(l_node); --DO NOT RAISE;
+        ms_logger.trap_error(l_node); --DO NOT RAISE;
   END trap_an_oracle_error;
-  
+ 
    --------------------------------------------------------------------
    --raise_then_trap_oracle_error
    --------------------------------------------------------------------
@@ -669,7 +625,7 @@ END f_elapsed_time;
   
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.oracle_error(l_node); --DO NOT RAISE;
+        ms_logger.trap_error(l_node); --DO NOT RAISE;
   END raise_then_trap_oracle_error;
  
  
@@ -681,33 +637,97 @@ END f_elapsed_time;
   PROCEDURE test_unit_types  IS
 
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'test_unit_types');
+    x_user_def EXCEPTION;
+   
+    PROCEDURE exit_a_proc IS
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'exit_a_proc');
+ 
+    BEGIN
+ 
+      ms_logger.comment(l_node,'Test that popping the proc works');
+ 
+    END;  
+	
+	
+	
+    PROCEDURE trap_unhandled_error IS
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'trap_unhandled_error');
+
+
+    BEGIN
+ 
+      ms_logger.comment(l_node,'Test an unhandled user defined error');
+      RAISE x_user_def;
+ 
+    EXCEPTION
+      WHEN OTHERS THEN
+        ms_logger.trap_error(l_node); --DO NOT RAISE;
+    
+    END; --trap_unhandled_error
+	
+	
+    PROCEDURE raise_unhandled_error IS
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'raise_unhandled_error');
+
+
+    BEGIN
+ 
+      ms_logger.comment(l_node,'Test an unhandled user defined error');
+      RAISE x_user_def;
+ 
+    EXCEPTION
+      WHEN OTHERS THEN
+        ms_logger.raise_error(l_node); RAISE;
+    
+    END; --raise_unhandled_error
+	
+	
+	
+	
+
+	
+    PROCEDURE double_exit_recovery1 IS
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'double_exit_recovery1');
+
+      PROCEDURE double_exit_recovery2 IS
+        l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'double_exit_recovery2');
+      
+      BEGIN
+      
+        ms_logger.comment(l_node,'Test Logger tracks node, next comment...');
+      
+      EXCEPTION
+        WHEN OTHERS THEN
+          ms_logger.trap_error(l_node); --DO NOT RAISE;
+      
+      END;  
+	  
+    BEGIN
+ 
+      double_exit_recovery2;
+ 
+    EXCEPTION
+      WHEN OTHERS THEN
+        ms_logger.trap_error(l_node); --DO NOT RAISE;
+    
+    END;  
+	
  
   BEGIN
 
 
     
-    
+    /*
     std_single_loop_proc;
     std_loop_fatal;
     special_loop_trap;
     special_loop_raise;
+    */
+    exit_a_proc;
+	ms_logger.comment(l_node,'Did it work?');
     
-    
-    
-    --BLOCKS
-    DECLARE
-      l_node ms_logger.node_typ := ms_logger.new_block(g_package_name,'exit_a_block');
- 
-    BEGIN
-    
-      
-      
-      ms_logger.comment(l_node,'Test that popping the block works');
-      
-      
- 
-    END; --exit_block_works
-    
+
+    /*
     DECLARE 
       l_node ms_logger.node_typ := ms_logger.new_block(g_package_name,'block_error_detection');
  
@@ -721,10 +741,11 @@ END f_elapsed_time;
     
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.oracle_error(l_node); --DO NOT RAISE;
+        ms_logger.trap_error(l_node); --DO NOT RAISE;
 
     END; --block_error_detection
-    
+    */
+	/*
     DECLARE 
       l_node ms_logger.node_typ := ms_logger.new_block(g_package_name,'unit_type_detection');
     
@@ -738,47 +759,37 @@ END f_elapsed_time;
     
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.oracle_error(l_node); --DO NOT RAISE;
+        ms_logger.trap_error(l_node); --DO NOT RAISE;
 
     END; --unit_type_detection
+	*/
     
-    DECLARE 
-      l_node ms_logger.node_typ := ms_logger.new_block(g_package_name,'unhandled_user_defined_error');
-      x_user_def EXCEPTION;
-
-    BEGIN
+	BEGIN
+      trap_unhandled_error;
+	EXCEPTION
+      when x_user_def then	
+	    ms_logger.comment(l_node,'Explicitly handled');
+    END;
+	
+	BEGIN
+      raise_unhandled_error;
+	EXCEPTION
+      when x_user_def then	
+	    ms_logger.comment(l_node,'Explicitly handled');
+    END;
+	  
+    
+    double_exit_recovery1;
  
-      ms_logger.comment(l_node,'Test an unhandled user defined error is treated differently to the x_error');
-      RAISE x_user_def;
-
-      
-
-    EXCEPTION
-      WHEN OTHERS THEN
-        ms_logger.oracle_error(l_node); --DO NOT RAISE;
-    
-    END; --unhandled_user_defined_error');
-    
-    DECLARE 
-      l_node ms_logger.node_typ := ms_logger.new_block(g_package_name,'missing_exit_recovery');
-
-    BEGIN
- 
-      ms_logger.comment(l_node,'Test code recovers when a pop is MISSING.');
- 
-    EXCEPTION
-      WHEN OTHERS THEN
-        ms_logger.oracle_error(l_node); --DO NOT RAISE;
-    
-    END; --missing_exit_recovery');
- 
-    
+    ms_logger.comment(l_node,'..this comment to test_unit_types');
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.oracle_error(l_node); --DO NOT RAISE;
+      ms_logger.trap_error(l_node); --DO NOT RAISE;
   
   END test_unit_types;
+  
+ 
  
 END ms_test;
 /
