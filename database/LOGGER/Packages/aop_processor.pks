@@ -1,3 +1,5 @@
+alter trigger aop_processor_trg disable;
+
 create or replace package aop_processor
 is
   function during_advise return boolean;
@@ -19,3 +21,6 @@ is
 
 end aop_processor;
 /
+show error;
+
+alter trigger aop_processor_trg enable;

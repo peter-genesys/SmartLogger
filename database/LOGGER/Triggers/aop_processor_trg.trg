@@ -7,8 +7,10 @@ declare
 BEGIN
   if ora_dict_obj_type = 'PACKAGE BODY' and 
      ora_dict_obj_name NOT IN ('AOP_PROCESSOR','MS_LOGGER','MS_METACODE','MS_TEST') then
-    add_log('NAME '||ora_dict_obj_name||'TYPE '||ora_dict_obj_type||'OWNER '||ora_dict_obj_owner);
+
     IF not aop_processor.during_advise then
+ 	  dbms_output.enable(1000000);
+	  dbms_output.put_line('AOP_PROCESSOR Create Job for '||ora_dict_obj_type||' '||ora_dict_obj_name); 
  
       dbms_job.submit
         ( JOB  => l_job

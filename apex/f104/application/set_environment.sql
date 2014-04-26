@@ -16,18 +16,18 @@ prompt  APPLICATION 104 - Logger
 --   Using SQL*Plus as the Oracle user APEX_040200 or as the owner (parsing schema) of the application
  
 -- Application Statistics:
---   Pages:                      5
---     Items:                    6
+--   Pages:                      7
+--     Items:                   11
 --     Validations:              2
---     Processes:               11
---     Regions:                 10
---     Buttons:                 11
+--     Processes:               14
+--     Regions:                 12
+--     Buttons:                 14
 --   Shared Components:
 --     Logic:
 --       Items:                  1
 --     Navigation:
 --       Tab Sets:               1
---         Tabs:                 3
+--         Tabs:                 4
 --       Breadcrumbs:            2
 --         Entries:              3
 --       NavBar Entries:         1

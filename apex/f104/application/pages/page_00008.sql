@@ -1815,7 +1815,7 @@ wwv_flow_api.create_jstree(
   p_tree_has_focus          =>'N',
   p_tree_hint_text          =>'',
   p_tree_click_action          =>'S',
-  p_selected_node          =>'P857_TRAVERSAL_ID');
+  p_selected_node          =>'P8_TRAVERSAL_ID');
 end;
 /
 declare

@@ -1,3 +1,5 @@
+alter trigger aop_processor_trg disable;
+
 create or replace package body aop_processor
 is
   -- @AOP_NEVER
@@ -21,7 +23,7 @@ is
   procedure save_source(i_object_name IN VARCHAR2
                       , i_log_flag    IN VARCHAR2
                       , i_text        IN CLOB ) IS
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'save_source',dbms_utility.format_call_stack);              
+    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'save_source');              
                       
     l_aop_source    aop_source%ROWTYPE;    
     PRAGMA AUTONOMOUS_TRANSACTION;
@@ -64,7 +66,7 @@ is
   FUNCTION tokenise(i_string      IN VARCHAR2
                   , i_delimeter   IN VARCHAR2
 				  , i_exclude     IN VARCHAR2) return APEX_APPLICATION_GLOBAL.VC_ARR2 IS
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'tokenise',dbms_utility.format_call_stack);
+    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'tokenise');
     l_raw        APEX_APPLICATION_GLOBAL.VC_ARR2;
 	l_clean      APEX_APPLICATION_GLOBAL.VC_ARR2;
 	l_index      binary_integer :=  0;
@@ -102,7 +104,7 @@ is
                      ,p_new_code in varchar2
                      ,p_pos      in out number ) IS
                      
-      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'inject',dbms_utility.format_call_stack);  
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'inject');  
     BEGIN
   
       ms_logger.param(l_node, 'p_code'          ,p_code );
@@ -128,7 +130,7 @@ is
   ) return clob
   is
   
-    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_body',dbms_utility.format_call_stack);     
+    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_body');     
     l_code clob;
   begin
     ms_logger.param(l_node, 'p_object_name  '          ,p_object_name   );
@@ -163,7 +165,7 @@ is
   , p_last_pos   in number default null
   ) return varchar2
   is
-    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'find_first_string_after',dbms_utility.format_call_stack);
+    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'find_first_string_after');
   
     l_pos    number(5); 
     l_pos2   number(5);
@@ -175,7 +177,7 @@ is
     , strip_characters_in     IN   VARCHAR2
     ) RETURN VARCHAR2
     IS
-    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'stripped_string',dbms_utility.format_call_stack);
+    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'stripped_string');
     
     -- With REGEXP_REPLACE, each character to be replaced with NULL,
     -- must be followed by a "*".
@@ -248,7 +250,7 @@ is
   , p_start_pos              in out  number  -- where in p_code should we start looking  
   ) return boolean -- indicating whether a pointcut was found 
   is
-      l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_pointcut',dbms_utility.format_call_stack);  
+      l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_pointcut');  
   
     l_pos    number(5); -- position of the @AOP string
     l_pos2   number(5);-- position of the first chr(10) following the keyword
@@ -431,7 +433,7 @@ is
 	l_no_line_endings  CLOB := UPPER(replace(replace(i_code,chr(10),' '),chr(13),' '));	
     l_string_pos      INTEGER;	
 	l_search          varchar2(2000);
-	l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_pos_end',dbms_utility.format_call_stack);	
+	l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_pos_end');	
 	l_result number;
   begin
     ms_logger.param(l_node, 'i_current_pos',i_current_pos);
@@ -464,7 +466,7 @@ is
                           ,i_package_name in varchar2
                           ,io_current_pos IN OUT INTEGER
 						  ,i_level        in integer) return boolean IS
-    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'parse_prog_unit',dbms_utility.format_call_stack);					
+    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'parse_prog_unit');					
 							
 	l_next_proc  INTEGER := NULL;
     l_next_func  INTEGER := NULL;	
@@ -588,7 +590,7 @@ is
 	ms_logger.comment(l_node, 'Injecting new node');	
     inject( p_code      => io_code  
            ,p_new_code  => rpad(' ',i_level*2+2,' ')
-           ||'l_node ms_logger.node_typ := ms_logger.'||l_inject_node||'('''||i_package_name||''','''||l_prog_unit_name||''',dbms_utility.format_call_stack);'
+           ||'l_node ms_logger.node_typ := ms_logger.'||l_inject_node||'('''||i_package_name||''','''||l_prog_unit_name||''');'
            ,p_pos      => io_current_pos);
  
     ms_logger.comment(l_node, 'Injected new node');
@@ -642,7 +644,7 @@ is
     when x_string_not_found then
 	   return false;
 	when others then
-		ms_logger.oracle_error(l_node); RAISE;
+	   ms_logger.raise_error(l_node); RAISE;
   
   END;
   
@@ -655,7 +657,7 @@ is
   ) return boolean
   is
 
-    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'weave',dbms_utility.format_call_stack); 
+    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'weave'); 
       
     l_advice_type             varchar2(250); 
     l_program_unit_to_advise  varchar2(250);
@@ -729,7 +731,7 @@ is
   , p_object_type   in varchar2
   , p_object_owner  in varchar2
   ) is
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'advise_package',dbms_utility.format_call_stack);
+    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'advise_package');
   
     l_body clob;
     l_advised boolean := false;
@@ -812,3 +814,6 @@ is
  
 end aop_processor;
 /
+show error;
+
+alter trigger aop_processor_trg enable;

@@ -1,4 +1,6 @@
 alter session set plsql_ccflags = 'intlog:false';
+--alter package ms_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings 
+--alter package ms_logger compile PLSQL_CCFlags = 'intlog:false' reuse settings 
 
 create or replace package body ms_logger is
 ------------------------------------------------------------------
