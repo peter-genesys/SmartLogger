@@ -22,7 +22,10 @@ is
   
   procedure save_source(i_object_name IN VARCHAR2
                       , i_log_flag    IN VARCHAR2
-                      , i_text        IN CLOB ) IS
+                      , i_text        IN CLOB
+                      , i_valid_yn    IN VARCHAR2
+                      , i_result      IN CLOB
+					  ) IS
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'save_source');              
                       
     l_aop_source    aop_source%ROWTYPE;    
@@ -33,11 +36,15 @@ is
     ms_logger.param(l_node, 'i_object_name'          ,i_object_name   );
     ms_logger.param(l_node, 'i_log_flag   '          ,i_log_flag      );
     --ms_logger.param(l_node, 'i_text       '          ,i_text          ); --too big.
+	ms_logger.param(l_node, 'i_valid_yn   '             ,i_valid_yn      );
+	ms_logger.param(l_node, 'i_result   '            ,i_result      );
  
      --update original source
      UPDATE aop_source
      SET   text          = i_text 
           ,load_datetime = sysdate
+		  ,valid_yn      = i_valid_yn    
+          ,result        = i_result
      WHERE package_name = i_object_name
      AND   log_flag     = i_log_flag;
      
@@ -48,6 +55,9 @@ is
        l_aop_source.log_flag      := i_log_flag;
        l_aop_source.text          := i_text;
        l_aop_source.load_datetime := sysdate;
+       l_aop_source.valid_yn      := i_valid_yn;
+       l_aop_source.result        := i_result;
+	   
     
        INSERT INTO aop_source VALUES l_aop_source;
      
@@ -748,51 +758,75 @@ is
     -- (this bail-out is primarily used for this package itself, riddled as it is with AOP instructions)
     if instr(l_body, '@AOP_NEVER') > 0 or instr(l_body, g_aop_directive) = 0 
     then
+	  g_during_advise:= false; 
       return;
     end if;
     -- remove all current advices from the package body
     --remove_aop_advices(l_body);
-
-    save_source(i_object_name => p_object_name
-              , i_log_flag    => 'N'
-              , i_text        => l_body);
+	begin
+      execute immediate cast(l_body as varchar2);
+	exception
+      when others then
+ 
+      ms_logger.raise_error(l_node);	--if an error exists in original source, its not of great importance
+	  
+      save_source(i_object_name => p_object_name
+                , i_log_flag    => 'N'
+                , i_text        => l_body
+                , i_valid_yn    => 'N'
+                , i_result      => DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+	  g_during_advise:= false; 
+	  return; -- Don't bother with AOP since the original source is invalid anyway.			
+	end;
+	
+      save_source(i_object_name => p_object_name
+                , i_log_flag    => 'N'
+                , i_text        => l_body
+                , i_valid_yn    => 'Y'
+                , i_result      => 'Success');
 
     -- manipulate source by weaving in aspects as required; only weave if the key logging not yet applied.
- 
     l_advised := weave( p_code         => l_body
                       , p_package_name => lower(p_object_name)  );
  
     -- (re)compile the source if any advises have been applied
     if l_advised
     then
-    
-      save_source(i_object_name => p_object_name
-                , i_log_flag    => 'Y'
-                , i_text        => l_body);
-    
-    
-      -- submit a job to recompile the package with the source including the newly woven aspects
-      -- note: we cannot use execute immediate l_body, as compilation is not a legal operation from a system event trigger (ORA-30511 is raised when we try)
-      execute immediate cast(l_body as varchar2);
+ 
+      -- recompile the package with the source including the newly woven aspects
+	  begin
+        execute immediate cast(l_body as varchar2);
+	  exception
+        when others then
+		
+        ms_logger.trap_error(l_node);  --if an error exists in woven source, it is a problem
+
+        save_source(i_object_name => p_object_name
+                  , i_log_flag    => 'Y'
+                  , i_text        => l_body
+	  			  , i_valid_yn    => 'N'
+	  			  , i_result      => DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+	    g_during_advise:= false; 
+	    return;  		
+	  end;
+	  
+	  save_source(i_object_name => p_object_name
+          , i_log_flag    => 'Y'
+          , i_text        => l_body
+          , i_valid_yn    => 'Y'
+          , i_result      => 'Success');
  
       --no need to register the package, since this occurs as soon as the code is executed anyway.
  
     end if;
     g_during_advise:= false; 
- 
-  exception
-    when others
-    then
-      g_during_advise:= false;    
-      for l_index in 1..5 loop
-      dbms_output.put_line(substr(DBMS_UTILITY.FORMAT_ERROR_BACKTRACE, 1+(l_index-1)*255,255));
-      end loop;
+
+  exception 
+    when others then
+      ms_logger.trap_error(l_node);	
+	  g_during_advise:= false; 
+      return;	  
 	  
-	  save_source(i_object_name => p_object_name
-          , i_log_flag    => 'Y'
-          , i_text        => DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
-	  
-      raise;
   end advise_package;
   
   procedure reapply_aspect

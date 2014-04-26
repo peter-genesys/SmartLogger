@@ -10,8 +10,10 @@ BEGIN
 
     IF not aop_processor.during_advise then
  	  dbms_output.enable(1000000);
-	  dbms_output.put_line('AOP_PROCESSOR Create Job for '||ora_dict_obj_type||' '||ora_dict_obj_name); 
+	  dbms_output.put_line('AOP_PROCESSOR_TRG Create AOP_PROCESSOR Job for '||ora_dict_obj_type||' '||ora_dict_obj_name); 
  
+      -- submit a job to weave new aspects and recompile the package 
+      -- as direct compilation is not a legal operation from a system event trigger 
       dbms_job.submit
         ( JOB  => l_job
         , WHAT => 'begin     
