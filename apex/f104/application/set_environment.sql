@@ -17,10 +17,10 @@ prompt  APPLICATION 104 - Logger
  
 -- Application Statistics:
 --   Pages:                      7
---     Items:                   11
+--     Items:                   12
 --     Validations:              2
 --     Processes:               14
---     Regions:                 12
+--     Regions:                 14
 --     Buttons:                 14
 --   Shared Components:
 --     Logic:
@@ -45,6 +45,7 @@ prompt  APPLICATION 104 - Logger
 --         Breadcrumb:           2
 --         Button:               4
 --         Report:               9
+--       Shortcuts:              1
 --     Globalization:
 --     Reports:
  

@@ -19,7 +19,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140426174034'
+ ,p_last_upd_yyyymmddhh24miss => '20140427225832'
   );
 null;
  
@@ -53,6 +53,82 @@ wwv_flow_api.create_page_plug (
   p_plug_query_headings_type=> 'COLON_DELMITED_LIST',
   p_plug_query_row_count_max => 500,
   p_plug_display_condition_type => '',
+  p_plug_caching=> 'NOT_CACHED',
+  p_plug_comment=> '');
+end;
+/
+declare
+  s varchar2(32767) := null;
+  l_clob clob;
+  l_length number := 1;
+begin
+s:=s||'"SOURCE_TEXT"';
+
+wwv_flow_api.create_page_plug (
+  p_id=> 2613729038798779 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 3,
+  p_plug_name=> 'Source Text',
+  p_region_name=>'',
+  p_parent_plug_id=>2566528761994224 + wwv_flow_api.g_id_offset,
+  p_escape_on_http_output=>'Y',
+  p_plug_template=> 17756239625931434+ wwv_flow_api.g_id_offset,
+  p_plug_display_sequence=> 20,
+  p_plug_new_grid         => true,
+  p_plug_new_grid_row     => true,
+  p_plug_new_grid_column  => true,
+  p_plug_display_column=> 1,
+  p_plug_display_point=> 'BODY_3',
+  p_plug_item_display_point=> 'ABOVE',
+  p_plug_source=> s,
+  p_plug_source_type=> 'STATIC_TEXT_WITH_SHORTCUTS',
+  p_translate_title=> 'Y',
+  p_plug_query_row_template=> 1,
+  p_plug_query_headings_type=> 'QUERY_COLUMNS',
+  p_plug_query_num_rows_type => 'NEXT_PREVIOUS_LINKS',
+  p_plug_query_row_count_max => 500,
+  p_plug_query_show_nulls_as => ' - ',
+  p_plug_display_condition_type => '',
+  p_pagination_display_position=>'BOTTOM_RIGHT',
+  p_plug_customized=>'0',
+  p_plug_caching=> 'NOT_CACHED',
+  p_plug_comment=> '');
+end;
+/
+declare
+  s varchar2(32767) := null;
+  l_clob clob;
+  l_length number := 1;
+begin
+s:=s||'"SOURCE_TEXT"';
+
+wwv_flow_api.create_page_plug (
+  p_id=> 2619519919131085 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 3,
+  p_plug_name=> 'Logged Source',
+  p_region_name=>'',
+  p_parent_plug_id=>2566528761994224 + wwv_flow_api.g_id_offset,
+  p_escape_on_http_output=>'Y',
+  p_plug_template=> 17756239625931434+ wwv_flow_api.g_id_offset,
+  p_plug_display_sequence=> 30,
+  p_plug_new_grid         => false,
+  p_plug_new_grid_row     => false,
+  p_plug_new_grid_column  => true,
+  p_plug_display_column=> 2,
+  p_plug_display_point=> 'BODY_3',
+  p_plug_item_display_point=> 'ABOVE',
+  p_plug_source=> s,
+  p_plug_source_type=> 'STATIC_TEXT_WITH_SHORTCUTS',
+  p_translate_title=> 'Y',
+  p_plug_query_row_template=> 1,
+  p_plug_query_headings_type=> 'QUERY_COLUMNS',
+  p_plug_query_num_rows_type => 'NEXT_PREVIOUS_LINKS',
+  p_plug_query_row_count_max => 500,
+  p_plug_query_show_nulls_as => ' - ',
+  p_plug_display_condition_type => '',
+  p_pagination_display_position=>'BOTTOM_RIGHT',
+  p_plug_customized=>'0',
   p_plug_caching=> 'NOT_CACHED',
   p_plug_comment=> '');
 end;
@@ -192,15 +268,16 @@ wwv_flow_api.create_page_item(
   p_item_sequence=> 20,
   p_item_plug_id => 2566528761994224+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'NO',
+  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
   p_prompt=>'Package Name',
   p_source=>'PACKAGE_NAME',
   p_source_type=> 'DB_COLUMN',
-  p_display_as=> 'NATIVE_TEXT_FIELD',
+  p_display_as=> 'NATIVE_DISPLAY_ONLY',
   p_lov_display_null=> 'NO',
   p_lov_translated=> 'N',
   p_cSize=> 32,
   p_cMaxlength=> 30,
-  p_cHeight=> null,
+  p_cHeight=> 1,
   p_new_grid=> false,
   p_begin_on_new_line=> 'YES',
   p_begin_on_new_field=> 'YES',
@@ -211,10 +288,13 @@ wwv_flow_api.create_page_item(
   p_field_alignment=> 'LEFT',
   p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
   p_is_persistent=> 'Y',
+  p_lov_display_extra=>'YES',
+  p_protection_level => 'N',
+  p_escape_on_http_output => 'Y',
   p_attribute_01 => 'N',
-  p_attribute_02 => 'N',
-  p_attribute_03 => 'N',
-  p_attribute_04 => 'TEXT',
+  p_attribute_02 => 'VALUE',
+  p_attribute_04 => 'Y',
+  p_show_quick_picks=>'N',
   p_item_comment => '');
  
  
@@ -235,15 +315,17 @@ wwv_flow_api.create_page_item(
   p_item_sequence=> 30,
   p_item_plug_id => 2566528761994224+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'NO',
+  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
   p_prompt=>'Log Flag',
   p_source=>'LOG_FLAG',
   p_source_type=> 'DB_COLUMN',
-  p_display_as=> 'NATIVE_TEXT_FIELD',
+  p_display_as=> 'NATIVE_CHECKBOX',
+  p_lov=> 'STATIC2:Y',
   p_lov_display_null=> 'NO',
   p_lov_translated=> 'N',
   p_cSize=> 32,
   p_cMaxlength=> 2,
-  p_cHeight=> null,
+  p_cHeight=> 1,
   p_new_grid=> false,
   p_begin_on_new_line=> 'YES',
   p_begin_on_new_field=> 'YES',
@@ -252,12 +334,15 @@ wwv_flow_api.create_page_item(
   p_grid_column=> null,
   p_label_alignment=> 'RIGHT',
   p_field_alignment=> 'LEFT',
+  p_read_only_when_type=>'ALWAYS',
   p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
   p_is_persistent=> 'Y',
-  p_attribute_01 => 'N',
-  p_attribute_02 => 'N',
-  p_attribute_03 => 'N',
-  p_attribute_04 => 'TEXT',
+  p_lov_display_extra=>'YES',
+  p_protection_level => 'N',
+  p_escape_on_http_output => 'Y',
+  p_attribute_01 => '1',
+  p_attribute_02 => 'VERTICAL',
+  p_show_quick_picks=>'N',
   p_item_comment => '');
  
  
@@ -282,7 +367,7 @@ wwv_flow_api.create_page_item(
   p_prompt=>'Text',
   p_source=>'TEXT',
   p_source_type=> 'DB_COLUMN',
-  p_display_as=> 'NATIVE_TEXTAREA',
+  p_display_as=> 'NATIVE_HIDDEN',
   p_lov_display_null=> 'NO',
   p_lov_translated=> 'N',
   p_cSize=> 60,
@@ -302,8 +387,6 @@ wwv_flow_api.create_page_item(
   p_protection_level => 'N',
   p_escape_on_http_output => 'Y',
   p_attribute_01 => 'Y',
-  p_attribute_02 => 'N',
-  p_attribute_03 => 'N',
   p_show_quick_picks=>'N',
   p_item_comment => '');
  
@@ -325,6 +408,7 @@ wwv_flow_api.create_page_item(
   p_item_sequence=> 50,
   p_item_plug_id => 2566528761994224+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'NO',
+  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
   p_prompt=>'Load Datetime',
   p_source=>'LOAD_DATETIME',
   p_source_type=> 'DB_COLUMN',
@@ -342,11 +426,75 @@ wwv_flow_api.create_page_item(
   p_grid_column=> null,
   p_label_alignment=> 'RIGHT',
   p_field_alignment=> 'LEFT',
+  p_read_only_when_type=>'ALWAYS',
   p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
   p_is_persistent=> 'Y',
+  p_lov_display_extra=>'YES',
+  p_protection_level => 'N',
+  p_escape_on_http_output => 'Y',
   p_attribute_04 => 'button',
   p_attribute_05 => 'N',
   p_attribute_07 => 'NONE',
+  p_show_quick_picks=>'N',
+  p_item_comment => '');
+ 
+ 
+end;
+/
+
+declare
+    h varchar2(32767) := null;
+begin
+wwv_flow_api.create_page_item(
+  p_id=>2616509810005415 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id=> 3,
+  p_name=>'P3_FORMATTED_SOURCE',
+  p_data_type=> 'VARCHAR',
+  p_is_required=> false,
+  p_accept_processing=> 'REPLACE_EXISTING',
+  p_item_sequence=> 60,
+  p_item_plug_id => 2566528761994224+wwv_flow_api.g_id_offset,
+  p_use_cache_before_default=> 'YES',
+  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
+  p_prompt=>'Source',
+  p_source=>'DECLARE'||unistr('\000a')||
+'CURSOR cu_source IS'||unistr('\000a')||
+'select Concat(Concat(''<PRE>'',text),''</PRE>'') '||unistr('\000a')||
+'from aop_source'||unistr('\000a')||
+'where rowid = :P3_ROWID;'||unistr('\000a')||
+'l_text CLOB;'||unistr('\000a')||
+'BEGIN'||unistr('\000a')||
+'OPEN cu_source;'||unistr('\000a')||
+'FETCH cu_source INTO l_text;'||unistr('\000a')||
+'CLOSE cu_source;'||unistr('\000a')||
+'htp.p( l_text);'||unistr('\000a')||
+'END;',
+  p_source_type=> 'FUNCTION_BODY',
+  p_display_as=> 'NATIVE_DISPLAY_ONLY',
+  p_lov_display_null=> 'NO',
+  p_lov_translated=> 'N',
+  p_cSize=> 30,
+  p_cMaxlength=> 4000,
+  p_cHeight=> 1,
+  p_new_grid=> true,
+  p_begin_on_new_line=> 'YES',
+  p_begin_on_new_field=> 'YES',
+  p_colspan=> null,
+  p_rowspan=> null,
+  p_grid_column=> null,
+  p_label_alignment=> 'RIGHT',
+  p_field_alignment=> 'LEFT-CENTER',
+  p_display_when_type=>'NEVER',
+  p_field_template=> 17759556027931449+wwv_flow_api.g_id_offset,
+  p_is_persistent=> 'Y',
+  p_lov_display_extra=>'YES',
+  p_protection_level => 'N',
+  p_escape_on_http_output => 'N',
+  p_attribute_01 => 'N',
+  p_attribute_02 => 'VALUE',
+  p_attribute_04 => 'Y',
+  p_show_quick_picks=>'N',
   p_item_comment => '');
  
  

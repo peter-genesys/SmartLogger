@@ -743,7 +743,8 @@ is
   ) is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'advise_package');
   
-    l_body clob;
+	l_orig_body clob;
+	l_woven_body clob;
     l_advised boolean := false;
   begin
     ms_logger.param(l_node, 'p_object_name'  ,p_object_name  );
@@ -753,18 +754,17 @@ is
     -- test for state of package; no sense in trying to post-process an invalid package
     
     -- if valid then retrieve source
-    l_body:= get_body( p_object_name, p_object_owner);
+    l_orig_body:= get_body( p_object_name, p_object_owner);
     -- check if perhaps the AOP_NEVER string is included that indicates that no AOP should be applied to a program unit
     -- (this bail-out is primarily used for this package itself, riddled as it is with AOP instructions)
-    if instr(l_body, '@AOP_NEVER') > 0 or instr(l_body, g_aop_directive) = 0 
+    if instr(l_orig_body, '@AOP_NEVER') > 0 or instr(l_orig_body, g_aop_directive) = 0 
     then
 	  g_during_advise:= false; 
       return;
     end if;
-    -- remove all current advices from the package body
-    --remove_aop_advices(l_body);
+
 	begin
-      execute immediate cast(l_body as varchar2);
+      execute immediate cast(l_orig_body as varchar2);
 	exception
       when others then
  
@@ -772,7 +772,7 @@ is
 	  
       save_source(i_object_name => p_object_name
                 , i_log_flag    => 'N'
-                , i_text        => l_body
+                , i_text        => l_orig_body
                 , i_valid_yn    => 'N'
                 , i_result      => DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
 	  g_during_advise:= false; 
@@ -781,12 +781,13 @@ is
 	
       save_source(i_object_name => p_object_name
                 , i_log_flag    => 'N'
-                , i_text        => l_body
+                , i_text        => l_orig_body
                 , i_valid_yn    => 'Y'
                 , i_result      => 'Success');
 
+	l_woven_body := l_orig_body;
     -- manipulate source by weaving in aspects as required; only weave if the key logging not yet applied.
-    l_advised := weave( p_code         => l_body
+    l_advised := weave( p_code         => l_woven_body
                       , p_package_name => lower(p_object_name)  );
  
     -- (re)compile the source if any advises have been applied
@@ -795,7 +796,7 @@ is
  
       -- recompile the package with the source including the newly woven aspects
 	  begin
-        execute immediate cast(l_body as varchar2);
+        execute immediate cast(l_woven_body as varchar2);
 	  exception
         when others then
 		
@@ -803,16 +804,28 @@ is
 
         save_source(i_object_name => p_object_name
                   , i_log_flag    => 'Y'
-                  , i_text        => l_body
+                  , i_text        => l_woven_body
 	  			  , i_valid_yn    => 'N'
 	  			  , i_result      => DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
-	    g_during_advise:= false; 
+
+		
+	    begin
+		  --reexecute the original so that we at least end up with a valid package.
+          execute immediate cast(l_orig_body as varchar2);
+	    exception
+          when others then
+		    --unlikely that we'd get an error in the original if it worked last time
+			--but trap it incase we do
+		    ms_logger.trap_error(l_node);
+		end;
+ 
+	    g_during_advise:= false; 		
 	    return;  		
 	  end;
 	  
 	  save_source(i_object_name => p_object_name
           , i_log_flag    => 'Y'
-          , i_text        => l_body
+          , i_text        => l_woven_body
           , i_valid_yn    => 'Y'
           , i_result      => 'Success');
  

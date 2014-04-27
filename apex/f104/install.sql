@@ -99,6 +99,7 @@
 @application/shared_components/globalization/language.sql
 @application/shared_components/globalization/messages.sql
 @application/shared_components/globalization/dyntranslations.sql
+@application/shared_components/user_interface/shortcuts/source_text.sql
 @application/shared_components/security/authentication/application_express.sql
 @application/shared_components/security/authentication/database.sql
 @application/shared_components/security/authentication/database_account.sql
