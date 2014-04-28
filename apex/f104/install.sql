@@ -13,7 +13,7 @@
 @application/pages/page_groups.sql
 @application/pages/page_00001.sql
 @application/pages/page_00002.sql
-@application/pages/page_00003.sql
+@application/pages/page_00004.sql
 @application/pages/page_00008.sql
 @application/pages/page_00009.sql
 @application/pages/page_00010.sql
@@ -99,7 +99,8 @@
 @application/shared_components/globalization/language.sql
 @application/shared_components/globalization/messages.sql
 @application/shared_components/globalization/dyntranslations.sql
-@application/shared_components/user_interface/shortcuts/source_text.sql
+@application/shared_components/user_interface/shortcuts/orig_text.sql
+@application/shared_components/user_interface/shortcuts/aop_text.sql
 @application/shared_components/security/authentication/application_express.sql
 @application/shared_components/security/authentication/database.sql
 @application/shared_components/security/authentication/database_account.sql

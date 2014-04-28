@@ -10,6 +10,28 @@ wwv_flow_api.create_menu (
   p_name=> ' Breadcrumb');
  
 wwv_flow_api.create_menu_option (
+  p_id=>2634224359024772 + wwv_flow_api.g_id_offset,
+  p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
+  p_parent_id=>null,
+  p_option_sequence=>10,
+  p_short_name=>'Source Code',
+  p_long_name=>'',
+  p_link=>'f?p=&FLOW_ID.:2:&SESSION.',
+  p_page_id=>2,
+  p_also_current_for_pages=> '');
+ 
+wwv_flow_api.create_menu_option (
+  p_id=>2634616333027161 + wwv_flow_api.g_id_offset,
+  p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
+  p_parent_id=>2634224359024772 + wwv_flow_api.g_id_offset,
+  p_option_sequence=>10,
+  p_short_name=>'View Source',
+  p_long_name=>'',
+  p_link=>'f?p=&FLOW_ID.:4:&SESSION.',
+  p_page_id=>4,
+  p_also_current_for_pages=> '');
+ 
+wwv_flow_api.create_menu_option (
   p_id=>17762851233931479 + wwv_flow_api.g_id_offset,
   p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
   p_parent_id=>0,
@@ -41,19 +63,6 @@ wwv_flow_api.create_menu_option (
   p_link=>'f?p=&FLOW_ID.:10:&SESSION.',
   p_page_id=>10,
   p_also_current_for_pages=> '');
- 
-null;
- 
-end;
-/
-
- 
-begin
- 
-wwv_flow_api.create_menu (
-  p_id=> 17828761582377596 + wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_name=> 'Logger');
  
 null;
  

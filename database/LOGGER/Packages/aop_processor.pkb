@@ -20,50 +20,64 @@ is
   end during_advise;
 
   
-  procedure save_source(i_object_name IN VARCHAR2
-                      , i_log_flag    IN VARCHAR2
-                      , i_text        IN CLOB
-                      , i_valid_yn    IN VARCHAR2
-                      , i_result      IN CLOB
-					  ) IS
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'save_source');              
+  function validate_source(i_name        IN VARCHAR2
+                         , i_type        IN VARCHAR2
+                         , i_text        IN CLOB
+                         , i_aop_yn      IN VARCHAR2
+					  ) RETURN boolean IS
+    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'validate_source');              
                       
     l_aop_source    aop_source%ROWTYPE;    
     PRAGMA AUTONOMOUS_TRANSACTION;
-	
+ 
   BEGIN     
  
-    ms_logger.param(l_node, 'i_object_name'          ,i_object_name   );
-    ms_logger.param(l_node, 'i_log_flag   '          ,i_log_flag      );
+    ms_logger.param(l_node, 'i_name'             ,i_name   );
+    ms_logger.param(l_node, 'i_type   '          ,i_type      );
     --ms_logger.param(l_node, 'i_text       '          ,i_text          ); --too big.
-	ms_logger.param(l_node, 'i_valid_yn   '             ,i_valid_yn      );
-	ms_logger.param(l_node, 'i_result   '            ,i_result      );
+	ms_logger.param(l_node, 'i_aop_yn   '            ,i_aop_yn      );
+
+	--Prepare record.
+    l_aop_source.name          := i_name;
+	l_aop_source.type          := i_type;
+    l_aop_source.aop_yn        := i_aop_yn;
+    l_aop_source.text          := i_text;
+    l_aop_source.load_datetime := sysdate;
+    l_aop_source.valid_yn      := 'Y';
+    l_aop_source.result        := 'Success.';
+	
+	
+    begin
+      execute immediate cast(i_text as varchar2);
+	exception
+      when others then
+	    l_aop_source.result   := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+		l_aop_source.valid_yn := 'N';
+        ms_logger.trap_error(l_node);   
+	end;
  
-     --update original source
-     UPDATE aop_source
-     SET   text          = i_text 
-          ,load_datetime = sysdate
-		  ,valid_yn      = i_valid_yn    
-          ,result        = i_result
-     WHERE package_name = i_object_name
-     AND   log_flag     = i_log_flag;
-     
-     IF SQL%ROWCOUNT = 0 THEN
-     
-       --insert original source
-       l_aop_source.package_name  := i_object_name;
-       l_aop_source.log_flag      := i_log_flag;
-       l_aop_source.text          := i_text;
-       l_aop_source.load_datetime := sysdate;
-       l_aop_source.valid_yn      := i_valid_yn;
-       l_aop_source.result        := i_result;
-	   
+ 
+    --update original source
+    UPDATE aop_source
+    SET   text          = l_aop_source.text  
+         ,load_datetime = sysdate
+		 ,valid_yn      = l_aop_source.valid_yn    
+         ,result        = l_aop_source.result
+    WHERE name   = l_aop_source.name
+	AND   type   = l_aop_source.type
+    AND   aop_yn = l_aop_source.aop_yn;
     
-       INSERT INTO aop_source VALUES l_aop_source;
+    IF SQL%ROWCOUNT = 0 THEN
+    
+      --insert original source
+ 
+      INSERT INTO aop_source VALUES l_aop_source;
+    
+    END IF;
      
-     END IF;
-     
-     COMMIT;
+    COMMIT;
+	
+	RETURN l_aop_source.valid_yn = 'Y';
    
       
   END;
@@ -762,74 +776,39 @@ is
 	  g_during_advise:= false; 
       return;
     end if;
-
-	begin
-      execute immediate cast(l_orig_body as varchar2);
-	exception
-      when others then
- 
-      ms_logger.raise_error(l_node);	--if an error exists in original source, its not of great importance
-	  
-      save_source(i_object_name => p_object_name
-                , i_log_flag    => 'N'
-                , i_text        => l_orig_body
-                , i_valid_yn    => 'N'
-                , i_result      => DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
+	
+	IF NOT  validate_source(i_name  => p_object_name
+	                      , i_type  => p_object_type
+	                      , i_text  => l_orig_body
+	                      , i_aop_yn => 'N') THEN
 	  g_during_advise:= false; 
 	  return; -- Don't bother with AOP since the original source is invalid anyway.			
-	end;
-	
-      save_source(i_object_name => p_object_name
-                , i_log_flag    => 'N'
-                , i_text        => l_orig_body
-                , i_valid_yn    => 'Y'
-                , i_result      => 'Success');
-
+	end if;		  
+ 
 	l_woven_body := l_orig_body;
     -- manipulate source by weaving in aspects as required; only weave if the key logging not yet applied.
     l_advised := weave( p_code         => l_woven_body
                       , p_package_name => lower(p_object_name)  );
  
     -- (re)compile the source if any advises have been applied
-    if l_advised
-    then
+    if l_advised then
+	
+	  IF NOT validate_source(i_name  => p_object_name
+	                       , i_type  => p_object_type
+	                       , i_text  => l_woven_body
+	                       , i_aop_yn => 'Y') THEN
  
-      -- recompile the package with the source including the newly woven aspects
-	  begin
-        execute immediate cast(l_woven_body as varchar2);
-	  exception
-        when others then
-		
-        ms_logger.trap_error(l_node);  --if an error exists in woven source, it is a problem
-
-        save_source(i_object_name => p_object_name
-                  , i_log_flag    => 'Y'
-                  , i_text        => l_woven_body
-	  			  , i_valid_yn    => 'N'
-	  			  , i_result      => DBMS_UTILITY.FORMAT_ERROR_BACKTRACE);
-
-		
-	    begin
-		  --reexecute the original so that we at least end up with a valid package.
-          execute immediate cast(l_orig_body as varchar2);
-	    exception
-          when others then
-		    --unlikely that we'd get an error in the original if it worked last time
-			--but trap it incase we do
-		    ms_logger.trap_error(l_node);
-		end;
+	    --reexecute the original so that we at least end up with a valid package.
+	    IF NOT  validate_source(i_name  => p_object_name
+	                          , i_type  => p_object_type
+	                          , i_text  => l_orig_body
+	                          , i_aop_yn => 'N') THEN
+		  --unlikely that we'd get an error in the original if it worked last time
+		  --but trap it incase we do	
+          ms_logger.fatal(l_node,'Original Source is invalid on second try.');		  
+		end if;
  
-	    g_during_advise:= false; 		
-	    return;  		
-	  end;
-	  
-	  save_source(i_object_name => p_object_name
-          , i_log_flag    => 'Y'
-          , i_text        => l_woven_body
-          , i_valid_yn    => 'Y'
-          , i_result      => 'Success');
- 
-      --no need to register the package, since this occurs as soon as the code is executed anyway.
+	  end if;	
  
     end if;
     g_during_advise:= false; 
@@ -838,8 +817,7 @@ is
     when others then
       ms_logger.trap_error(l_node);	
 	  g_during_advise:= false; 
-      return;	  
-	  
+   
   end advise_package;
   
   procedure reapply_aspect

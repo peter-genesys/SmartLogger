@@ -1,5 +1,10 @@
+drop table aop_source;
 create table aop_source (
- package_name VARCHAR2(30)
-,log_flag     VARCHAR2(2)
-,text         CLOB
-,load_datetime DATE);
+ name          VARCHAR2(30)
+,type          VARCHAR2(12)
+,aop_yn        VARCHAR2(1)
+,valid_yn      VARCHAR2(1)
+,text          CLOB
+,result        CLOB
+,load_datetime DATE
+);
