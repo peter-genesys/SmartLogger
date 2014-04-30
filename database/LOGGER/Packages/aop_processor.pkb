@@ -659,8 +659,10 @@ is
 	ms_logger.comment(l_node, 'Now find the begin so we can inject the params');
 	--Now find the begin so we can inject the params
 	io_current_pos := get_pos_end(io_code,io_current_pos,'BEGIN',false);
+ 
     inject( p_code      => io_code  
-           ,p_new_code  => l_param_injection
+           ,p_new_code  => '  begin' --extra begin so we can have a surrounding block for the AOP exception when others 
+		           ||chr(10)||l_param_injection
            ,p_pos       => io_current_pos);
 		   
 
@@ -705,6 +707,18 @@ is
     ms_logger.comment(l_node, 'move pointer to the end of this program unit');
     --move pointer to the end of this program unit (which will cause this loop to exit)
 	io_current_pos := l_end_of_unit;	
+	
+	--add the terminating exception handler of the new surrounding block
+    inject( p_code      => io_code  
+           ,p_new_code  => 'exception'
+		         ||chr(10)||'  when others then'
+				 ||chr(10)||'    ms_logger.warn_error(l_node);'
+				 ||chr(10)||'    raise;'
+				 ||chr(10)||'end '||l_prog_unit_name||';'
+           ,p_pos       => io_current_pos);
+	--NB THIS WILL NOT WORK IF THE ORIGINAL end; is of the form end prog_unit_name;
+	--WILL NEED TO DETECT THAT OCCURANCE and TRANSLATE TO END; OR PUT THIS EXCEPTION BEFORE THAT END.
+	
 	
  
     return true;
