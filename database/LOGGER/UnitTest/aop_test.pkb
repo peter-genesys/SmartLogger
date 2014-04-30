@@ -6,7 +6,7 @@ create or replace package body aop_test is
     null;
 	ms_feedback.comment('Eg of debugging message added by a developer');
 	return i_param31;
-  end;
+  end test3;
  
  
   procedure test1(i_param11 in varchar2
@@ -22,7 +22,7 @@ create or replace package body aop_test is
  
         null;
 		ms_feedback.comment('Should see this comment a 3 times');
-      end;
+      end test1aa;
  
     begin
  
@@ -42,7 +42,7 @@ create or replace package body aop_test is
 	  test1aa(i_param1aa1 => i_param1a1
 	         ,i_param1aa2 => 'DUMMY');
  
-    end;
+    end test1a;
  
   begin
 
@@ -59,7 +59,7 @@ create or replace package body aop_test is
   exception
     when others then
       ms_feedback.oracle_error;  
-  end;
+  end test1;
   
   procedure test2(i_param21 in varchar2
                  ,i_param22 in varchar2) is
@@ -71,7 +71,7 @@ create or replace package body aop_test is
   exception
     when others then
       ms_feedback.oracle_error; 
-  end;
+  end test2;
   
   
 end; 

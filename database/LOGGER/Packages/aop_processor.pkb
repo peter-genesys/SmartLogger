@@ -686,13 +686,11 @@ is
 		   
 
     --I DONT THINK THIS NEXT BIT WILL WORK WITH EMBEDED BLOCKS.		
-    --NEED TO REINSTATE search_anon_block and perhaps change END TAGGING
-	--Eg progUnit ORIG or prog_unit AOP
-
-
-
-	
-		   
+    --NEED TO REINSTATE search_anon_block 
+ 
+	--Change any program unit ending of form "end program_unit_name;" to just "end;" for simplicity
+    io_code := REGEXP_REPLACE(io_code,'end(.*)'||l_prog_unit_name||'(.*);','end;',io_current_pos,1,'i');
+ 
 	l_end_of_unit := get_pos_end(io_code,io_current_pos,' END;',false, false)-1;
 	/* NOT NEEDED
 	--Now go looking for instances of ms_feedback to convert to ms_logger call
@@ -840,10 +838,11 @@ is
     p_code := REPLACE(p_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
     
 	--Translate SIMPLE ms_feedback syntax to MORE COMPLEX ms_logger syntax
-	--Replace ms_feedback.x( with  ms_logger.x(l_node,
+	--EG ms_feedback.x(           ->  ms_logger.x(l_node,
 	p_code := REGEXP_REPLACE(p_code,'(ms_feedback)(\.)(.+)(\()','ms_logger.\3(l_node,');
 
-	--Replace routines with no params EG ms_feedback.oracle_error with ms_logger.oracle_error(l_node)
+	--Replace routines with no params 
+	--EG ms_feedback.oracle_error -> ms_logger.oracle_error(l_node)
 	p_code := REGEXP_REPLACE(p_code,'(ms_feedback)(\.)(.+)(;)','ms_logger.\3(l_node);');
 
  
