@@ -1,8 +1,11 @@
 alter trigger aop_processor_trg disable;
 
-create or replace package body aop_processor
-is
+create or replace package body aop_processor is
   -- @AOP_NEVER
+  
+--This package is not yet aware of commented code.
+--IE it will perform incorrectly on code that has been commented out.
+   
 
   g_package_name        CONSTANT VARCHAR2(30) := 'aop_processor'; 
  
@@ -289,94 +292,6 @@ is
   end find_first_string_after;
   
  
-  --------------------------------------------------------------------
-  -- search_anon_block
-  --------------------------------------------------------------------
- /* 
-  procedure search_anon_block(io_code        in out clob
-                             ,io_current_pos in out INTEGER) IS
-    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'search_anon_block');					
- 
-	--interatively and recursively find anonymous blocks beginning DECLARE/BEGIN
-	--  if DECLARE collect params again in another exposed-params-string
-	
-	--    in here there could also be additional procedures and functions...
-	
-	--  after BEGIN
-	--    inject the exposed-params-string (if any)
-	--  recursively call search_anon_block
-    --find END
-	--return pos of END
- 
-	l_next_declare   INTEGER := NULL;
-	l_next_begin     INTEGER := NULL;
-	l_next_end       INTEGER := NULL;
-    l_next 	         INTEGER := NULL;
-	l_keyword_offset INTEGER := NULL;
-	l_space_pos      INTEGER := NULL;
-	l_inject_node    VARCHAR2(200);
-	l_prog_unit_name VARCHAR2(200);
-	l_remainder      CLOB;
-  BEGIN
-    l_next_declare := INSTR(UPPER(i_code),'DECLARE',io_current_pos);
-	ms_logger.note(l_node, 'l_next_declare',l_next_declare);
-    l_next_begin := INSTR(UPPER(i_code),'BEGIN',io_current_pos);
-	ms_logger.note(l_node, 'l_next_begin',l_next_begin);
-    l_next_end := INSTR(UPPER(i_code),'END;',io_current_pos);
-	ms_logger.note(l_node, 'l_next_end',l_next_end);
-	l_next := least(l_next_declare,l_next_begin,l_next_end);
-	
-	IF l_next_end = l_next Then
-	  return; --Reached END of calling prog unit.
-	elsif l_next_declare = l_next then
-	  l_inject_node := 'new_proc';
-	  l_keyword_offset := LENGTH('DECLARE');
-	  --Search for a label if present.  (will be immediately before the DECLARE <<LABEL>>
-	  --If none, still create a node, but use no name 'anonymous'
-	  
-	  --Treat variable assignments in the declare section as params.
-	  --if next token is open-bracket 
-	  --  loop until found close-bracket
-	  --    harvest each passed param and add to the exposed-params-string   
-	  l_params := get_params_block(io_code, l_current_pos);
-	  
-	  --now search for other program units recursively with parse_prog_unit	
-	  parse_prog_unit(io_code        => io_code
-	                  ,io_current_pos => l_current_pos);
- 
-	  --inject_params
-	  inject( io_code    => io_code
-	         ,i_new_code => l_params
-	         ,io_pos     => l_current_pos);
- 
-	elsif l_next_begin = l_next then
-	  l_inject_node := 'new_func';
-	  l_keyword_offset := LENGTH('BEGIN');
-	end if;
-	
- 
-	ms_logger.note(l_node, 'l_inject_node',l_inject_node);
-	ms_logger.note(l_node, 'l_keyword_offset',l_keyword_offset);
- 
-    l_remainder := replace(replace(ltrim(substr(i_code,l_next+l_keyword_offset)),chr(10),' '),chr(13),' ');
-    l_space_pos := instr(l_remainder,' ')-1;
-	ms_logger.note(l_node, 'l_space_pos',l_space_pos);
-    l_prog_unit_name := substr(l_remainder,1,l_space_pos);
-	ms_logger.note(l_node, 'l_prog_unit_name',l_prog_unit_name);
-	
- 
-	loop --until 'END;'
-       inject_notes(io_code         => io_code
-	               ,io_current_pos  => l_current_pos);
-	   			
-       search_anon_block(i_code        => io_code
-                        ,i_current_pos => l_current_pos);				
-	end loop;	
- 
-  
-  END;
-*/  
-
 
   --------------------------------------------------------------------
   -- find_string (UNUSED)
@@ -513,9 +428,6 @@ is
 	ms_logger.note(l_node, 'l_next_begin',l_next_begin);
 	
 	l_next_end := get_pos_end(io_code,io_current_pos,'END;',false, false);
-    --THERE MAY BE AN ISSUE WITH THE LINE ABOVE.might have to trim blocknames again.	
-	/*	--Change any program unit ending of form "end program_unit_name;" to just "end;" for simplicity
-    io_code := REGEXP_REPLACE(io_code,'end(.*)'||i_block_name||'(.*);','end;',io_current_pos,1,'i');*/
 	ms_logger.note(l_node, 'l_next_end',l_next_end);
 	l_next := least(l_next_declare,l_next_begin,l_next_end);
  
@@ -549,198 +461,6 @@ is
 			   ,io_current_pos  => io_current_pos
 			   ,i_level         => i_level );
  
- /*
- 
- 
- 
-  
-    l_next_proc := get_pos_end(io_code,io_current_pos,'PROCEDURE');
-	ms_logger.note(l_node, 'l_next_proc',l_next_proc);
-	l_next_func := get_pos_end(io_code,io_current_pos,'FUNCTION'); 
-	ms_logger.note(l_node, 'l_next_func',l_next_func);
-	l_next_begin := get_pos_end(io_code,io_current_pos,'BEGIN');
-	ms_logger.note(l_node, 'l_next_begin',l_next_begin);
-	l_next_end := get_pos_end(io_code,io_current_pos,'END;');
-	l_next := least(l_next_proc,l_next_func,l_next_begin,l_next_end);
-	
-	ms_logger.note(l_node, 'l_next_end',l_next_end);
-	IF l_next IN (l_next_begin, l_next_end) Then
-	  ms_logger.comment(l_node,'No more program units found');
-	  return false;  
-	elsif l_next = l_next_proc then
-	  l_inject_node := 'new_proc';
-	elsif l_next =  l_next_func then
-	  l_inject_node := 'new_func';
-	end if;
-	ms_logger.note(l_node, 'l_inject_node',l_inject_node);
-	
-	io_current_pos := l_next;
-	
-    --l_remainder := replace(replace(ltrim(substr(io_code,io_current_pos)),chr(10),' '),chr(13),' ');
-    l_end_prog_unit_name := regexp_instr( io_code, '\(|RETURN | IS', io_current_pos, 1,0,'i');
-	ms_logger.note(l_node, 'l_end_prog_unit_name',l_end_prog_unit_name);
-	l_prog_unit_name := substr(io_code,io_current_pos,l_end_prog_unit_name-io_current_pos);
-	ms_logger.note(l_node, 'l_prog_unit_name',l_prog_unit_name);
- 
-	----if next token is open-bracket 
-	----  loop until found close-bracket
-	----    harvest each passed param and add to the exposed-params-string   
-	--l_params := get_params_prog_unit(io_code, l_current_pos);
-	--
-	
-    is_pos := get_pos_end(io_code,io_current_pos,'IS');
-    --bracket_pos := get_pos_end(io_code,io_current_pos,'(',false);   
-	bracket_pos := INSTR(io_code,'(',io_current_pos);
-	--endbracket_pos := get_pos_end(io_code,io_current_pos,')',false);
-	ms_logger.note(l_node, 'is_pos',is_pos);
-	ms_logger.note(l_node, 'bracket_pos',bracket_pos);
-	
-    if bracket_pos < is_pos then
-	  ms_logger.comment(l_node,'Found a bracket section before the IS');
-	  io_current_pos := bracket_pos + 1;
-	  endbracket_pos := INSTR(io_code,')',io_current_pos);
-	  ms_logger.note(l_node, 'endbracket_pos',endbracket_pos);
-	  --next token is open-bracket
-	  --loop thru params collecting names and types.
-	  l_count := 0;
-	  loop
-	    --comma_pos := get_pos_end(io_code,io_current_pos,',',false);
-		comma_pos := INSTR(io_code,',',io_current_pos);
-		if comma_pos = 0 then 
-		  comma_pos := 100000;
-		end if;
-		ms_logger.note(l_node, 'comma_pos',comma_pos);
-		l_param_line := substr(io_code,io_current_pos,LEAST(comma_pos,endbracket_pos)-io_current_pos);
-	    ms_logger.note(l_node, 'l_param_line',l_param_line);
-		
-        declare 
-	      l_tokens APEX_APPLICATION_GLOBAL.VC_ARR2;
-		  l_param_name VARCHAR2(100);
-		  l_param_type VARCHAR2(100);
-	    begin
-		  --ms_logger.comment(l_node, 'tokenise');
-	      l_tokens := tokenise(i_string    => l_param_line
-		                     , i_delimeter => ' '
-		              	     , i_exclude   => 'IN OUT');
- 
-	      IF l_tokens.count > 1 then
-		     ms_logger.comment(l_node, 'found l_param_name and l_param_type');
-		     l_param_name := LOWER(l_tokens(1));
-		     l_param_type := l_tokens(2);
-			 ms_logger.note(l_node, 'l_param_name',l_param_name);
-			 ms_logger.note(l_node, 'l_param_type',l_param_type);
-		     IF  l_param_type IN ('NUMBER','DATE','VARCHAR2') then
-			   ms_logger.comment(l_node, 'valid l_param_type');
-		       l_param_injection := l_param_injection||chr(10)||rpad(' ',i_level*2+2,' ')||'ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');';
-			    ms_logger.note(l_node, 'l_param_injection',l_param_injection);
-		     else
-               ms_logger.comment(l_node, 'INVALID l_param_type');			 
-		     end if;
-		   end if;
-		end;
-		
-	    exit when comma_pos > endbracket_pos or l_count > 50 or endbracket_pos = 0;
-		io_current_pos := comma_pos+1;
-		l_count := l_count+ 1;	
-      end loop;	  
-	  
-	
-	end if;
- 
- 
-    io_current_pos := get_pos_end(io_code,io_current_pos,'IS');
-	
-	ms_logger.comment(l_node, 'Injecting new node');	
-    inject( p_code      => io_code  
-           ,p_new_code  => rpad(' ',i_level*2+2,' ')
-           ||'l_node ms_logger.node_typ := ms_logger.'||l_inject_node||'('''||i_package_name||''','''||l_prog_unit_name||''');'
-           ,p_pos      => io_current_pos);
- 
-    ms_logger.comment(l_node, 'Injected new node');
-    --look for embedded prog units before the next begin or end.
-    l_count := 0;
-    WHILE parse_prog_unit(io_code         => io_code
-	                     ,i_package_name  => i_package_name 
-                         ,io_current_pos  => io_current_pos
-						 ,i_level         => i_level + 1) and l_count < 50 LOOP
-	  ms_logger.note(l_node, 'Program Units found in header',l_count);					 
-	  l_count := l_count+ 1;					 
-    END LOOP;
-  
-    ms_logger.comment(l_node, 'Finished looking for Program Units in header');
-
-	--PSUEDO-CODE
-    ----inject_params(io_code         => io_code
-	----             ,io_current_pos  => l_current_pos);
-	--			 
-	----now search for other program units recursively with parse_prog_unit	
-	--parse_prog_unit(io_code        => io_code
-	--                ,io_current_pos => l_current_pos);
-	--
-	--
-	----inject_params
-	--inject( io_code    => io_code
-	--       ,i_new_code => l_params
-	--       ,io_pos     => l_current_pos);
-	--
-	--loop --until 'END;'
-    --   inject_notes(io_code         => io_code
-	--               ,io_current_pos  => l_current_pos);
-	--   			
-    --   search_anon_block(i_code        => io_code
-    --                    ,i_current_pos => l_current_pos);				
-	--end loop;		
-
-	ms_logger.comment(l_node, 'Now find the begin so we can inject the params');
-	--Now find the begin so we can inject the params
-	io_current_pos := get_pos_end(io_code,io_current_pos,'BEGIN',false,false)-1;
-	
-	--Mark the BEGIN of the program unit.
-    splice( p_code      => io_code  
-           ,p_new_code  => '--'||l_prog_unit_name||' AOP'
-           ,p_pos       => io_current_pos);
- 
-    inject( p_code      => io_code  
-           ,p_new_code  => '  begin --'||l_prog_unit_name||' ORIG' --extra begin so we can have a surrounding block for the AOP exception when others 
-		           ||chr(10)||l_param_injection
-           ,p_pos       => io_current_pos);
-		   
-		   
-    l_count := 0;
-    WHILE parse_anon_block(io_code         => p_code
-	                      ,i_package_name  => p_package_name 
-                          ,io_current_pos  => l_current_pos
-						  ,i_level         => i_level + 1) and l_count < 50 LOOP
-	  l_count := l_count+ 1;					 
-    END LOOP;  
- 
-	--Change any program unit ending of form "end program_unit_name;" to just "end;" for simplicity
-    io_code := REGEXP_REPLACE(io_code,'end(.*)'||l_prog_unit_name||'(.*);','end;',io_current_pos,1,'i');
- 
-	l_end_of_unit := get_pos_end(io_code,io_current_pos,' END;',false, false)-1;
-	 
-    ms_logger.comment(l_node, 'move pointer to the end of this program unit');
-    --move pointer to the end of this program unit (which will cause this loop to exit)
-	io_current_pos := l_end_of_unit;
-
-	--Mark end of original program unit code.
-    splice( p_code      => io_code  
-           ,p_new_code  => '--'||l_prog_unit_name||' ORIG'
-           ,p_pos       => io_current_pos);	
-	
-	--add the terminating exception handler of the new surrounding block
-    inject( p_code      => io_code  
-           ,p_new_code  => 'exception'
-		         ||chr(10)||'  when others then'
-				 ||chr(10)||'    ms_logger.warn_error(l_node);'
-				 ||chr(10)||'    raise;'
-				 ||chr(10)||'end; --'||l_prog_unit_name||' AOP'
-           ,p_pos       => io_current_pos);
-	--NB THIS WILL NOT WORK IF THE ORIGINAL end; is of the form end prog_unit_name;
-	--WILL NEED TO DETECT THAT OCCURANCE and TRANSLATE TO END; OR PUT THIS EXCEPTION BEFORE THAT END.
-	
-	
- */
     return true;
 	
   EXCEPTION
@@ -792,10 +512,13 @@ is
   
     l_next_proc := get_pos_end(io_code,io_current_pos,'PROCEDURE');
 	ms_logger.note(l_node, 'l_next_proc',l_next_proc);
+	
 	l_next_func := get_pos_end(io_code,io_current_pos,'FUNCTION'); 
 	ms_logger.note(l_node, 'l_next_func',l_next_func);
+	
 	l_next_begin := get_pos_end(io_code,io_current_pos,'BEGIN');
 	ms_logger.note(l_node, 'l_next_begin',l_next_begin);
+	
 	l_next_end := get_pos_end(io_code,io_current_pos,'END;');
 	l_next := least(l_next_proc,l_next_func,l_next_begin,l_next_end);
 	
@@ -900,94 +623,11 @@ is
                ,i_param_injection => l_param_injection
 			   ,io_current_pos  => io_current_pos
 			   ,i_level         => i_level );
-/*	
-	
-    --look for embedded prog units before the next begin or end.
-    l_count := 0;
-    WHILE parse_prog_unit(io_code         => io_code
-	                     ,i_package_name  => i_package_name 
-                         ,io_current_pos  => io_current_pos
-						 ,i_level         => i_level + 1) and l_count < 50 LOOP
-	  ms_logger.note(l_node, 'Program Units found in header',l_count);					 
-	  l_count := l_count+ 1;					 
-    END LOOP;
-  
-    ms_logger.comment(l_node, 'Finished looking for Program Units in header');
 
-	--PSUEDO-CODE
-    ----inject_params(io_code         => io_code
-	----             ,io_current_pos  => l_current_pos);
-	--			 
-	----now search for other program units recursively with parse_prog_unit	
-	--parse_prog_unit(io_code        => io_code
-	--                ,io_current_pos => l_current_pos);
-	--
-	--
-	----inject_params
-	--inject( io_code    => io_code
-	--       ,i_new_code => l_params
-	--       ,io_pos     => l_current_pos);
-	--
-	--loop --until 'END;'
-    --   inject_notes(io_code         => io_code
-	--               ,io_current_pos  => l_current_pos);
-	--   			
-    --   search_anon_block(i_code        => io_code
-    --                    ,i_current_pos => l_current_pos);				
-	--end loop;		
-
-	ms_logger.comment(l_node, 'Now find the begin so we can inject the params');
-	--Now find the begin so we can inject the params
-	io_current_pos := get_pos_end(io_code,io_current_pos,'BEGIN',false,false)-1;
-	
-	--Mark the BEGIN of the program unit.
-    splice( p_code      => io_code  
-           ,p_new_code  => '--'||l_prog_unit_name||' AOP'
-           ,p_pos       => io_current_pos);
- 
-    inject( p_code      => io_code  
-           ,p_new_code  => '  begin --'||l_prog_unit_name||' ORIG' --extra begin so we can have a surrounding block for the AOP exception when others 
-		           ||chr(10)||l_param_injection
-           ,p_pos       => io_current_pos);
-		   
-		   
-    l_count := 0;
-    WHILE parse_anon_block(io_code         => p_code
-	                      ,i_package_name  => p_package_name 
-                          ,io_current_pos  => l_current_pos
-						  ,i_level         => i_level + 1) and l_count < 50 LOOP
-	  l_count := l_count+ 1;					 
-    END LOOP;  
- 
-	--Change any program unit ending of form "end program_unit_name;" to just "end;" for simplicity
-    io_code := REGEXP_REPLACE(io_code,'end(.*)'||l_prog_unit_name||'(.*);','end;',io_current_pos,1,'i');
- 
-	l_end_of_unit := get_pos_end(io_code,io_current_pos,' END;',false, false)-1;
-	 
-    ms_logger.comment(l_node, 'move pointer to the end of this program unit');
-    --move pointer to the end of this program unit (which will cause this loop to exit)
-	io_current_pos := l_end_of_unit;
-
-	--Mark end of original program unit code.
-    splice( p_code      => io_code  
-           ,p_new_code  => '--'||l_prog_unit_name||' ORIG'
-           ,p_pos       => io_current_pos);	
-	
-	--add the terminating exception handler of the new surrounding block
-    inject( p_code      => io_code  
-           ,p_new_code  => 'exception'
-		         ||chr(10)||'  when others then'
-				 ||chr(10)||'    ms_logger.warn_error(l_node);'
-				 ||chr(10)||'    raise;'
-				 ||chr(10)||'end; --'||l_prog_unit_name||' AOP'
-           ,p_pos       => io_current_pos);
- */
  
     return true;
 	
   EXCEPTION
-    --when x_string_not_found then
-	--   return false;
 	when others then
 	   ms_logger.oracle_error(l_node); 
 	   RAISE;
@@ -1054,10 +694,7 @@ is
 	  l_count := l_count+ 1;
 	  ms_logger.note(l_node, 'Anonymous Blocks found in body',l_count);	
     END LOOP;  
- 
-	--Change any program unit ending of form "end program_unit_name;" to just "end;" for simplicity
-    io_code := REGEXP_REPLACE(io_code,'end(.*)'||i_block_name||'(.*);','end;',io_current_pos,1,'i');
- 
+  
 	l_end_of_unit := get_pos_end(io_code,io_current_pos,' END;',false, false)-1;
 	 
     ms_logger.comment(l_node, 'move pointer to the end of this program unit');
@@ -1079,16 +716,11 @@ is
            ,p_pos       => io_current_pos);
 	
   EXCEPTION
-    --when x_string_not_found then
-	--   return false;
 	when others then
 	   ms_logger.oracle_error(l_node); 
 	   RAISE;
 	
 END;  
-  
- 
- 
   
 
   function weave
@@ -1099,19 +731,58 @@ END;
 
     l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'weave'); 
  
-    l_advised            boolean:= false;
+    l_advised            boolean := false;
 	l_current_pos        integer := 1;
-    l_count              NUMBER := 0;
- 
+    l_count              NUMBER  := 0;
+    l_end_pos            integer;  
 	
+	l_end_value          varchar2(50);
+	l_mystery_word       varchar2(50);
+ 
   begin
  
     ms_logger.param(l_node, 'p_package_name'      ,p_package_name);
+	
+	--First task will be to remove all comments or 
+	--somehow identify and remember all sections that can be ignored because they are comments
  
    
     --LATER WHEN WE WANT TO SUPPORT THE BEGIN SECTION OF A PACKAGE
 	--WE WOULD REPLACE parse_prog_unit below with parse_anon_block
-   
+ 
+	--Change any program unit ending of form "end program_unit_name;" to just "end;" for simplicity
+	--Preprocess p_code cleaning up block end statements.
+    --IE Translate "END prog_unit_name;" -> "END;"	
+	
+	--Reset the processing pointer.
+    l_current_pos := 1;
+	l_end_pos     := 1;
+	LOOP
+	  l_end_pos := REGEXP_INSTR(p_code,'end (.*);',l_current_pos,1,0,'i');
+	  EXIT WHEN l_end_pos = 0; 
+	 
+	  l_end_value := SUBSTR(REGEXP_SUBSTR(p_code,'end (.*);',l_current_pos,1,'i'),1,50);
+	  ms_logger.note(l_node, 'l_end_value'      ,l_end_value);
+	  --check that the end value was all from 1 line.
+	  if l_end_value like '%;' then
+	    l_mystery_word := trim(rtrim(substr(l_end_value,4),';'));
+	    ms_logger.note(l_node, 'l_mystery_word'      ,l_mystery_word);
+	    if l_mystery_word not in ('IF'
+	                             ,'LOOP'
+	    						   ,'CASE') then
+	      ms_logger.info(l_node, 'Replacing '||l_end_value);
+	      p_code := REGEXP_REPLACE(p_code,'end (.*);','end;',l_current_pos,1,'i');
+	    
+	    end if;
+	  end if;
+      
+	  l_current_pos := l_end_pos + 4;
+ 
+	END LOOP;
+ 
+	
+	--Reset the processing pointer.
+    l_current_pos := 1;
     --This limit is a safetly limit only.
 	--Currently stops more than 50 program units, at the top level, being processed.
     l_count := 0;
@@ -1131,11 +802,14 @@ END;
 	p_code := REGEXP_REPLACE(p_code,'(ms_feedback)(\.)(.+)(\()','ms_logger.\3(l_node,');
 
 	--Replace routines with no params 
-	--EG ms_feedback.oracle_error -> ms_logger.oracle_error(l_node)
-	p_code := REGEXP_REPLACE(p_code,'(ms_feedback)(\.)(.+)(;)','ms_logger.\3(l_node);');
-
  
     return l_advised;
+	
+  exception 
+    when others then
+      ms_logger.oracle_error(l_node);	
+	  raise;
+	
   end weave;
   
   procedure advise_package
