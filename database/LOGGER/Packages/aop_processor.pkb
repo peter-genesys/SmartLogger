@@ -53,7 +53,7 @@ is
       when others then
 	    l_aop_source.result   := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
 		l_aop_source.valid_yn := 'N';
-        ms_logger.trap_error(l_node);   
+        ms_logger.warn_error(l_node);   
 	end;
  
  
@@ -454,7 +454,7 @@ is
 					  ,i_raise_error IN boolean default false
 					  ,i_use_spaces  IN boolean default true) return integer is
 				  
-	l_no_line_endings  CLOB := UPPER(replace(replace(i_code,chr(10),' '),chr(13),' '));	
+	l_no_line_endings  CLOB := replace(replace(i_code,chr(10),' '),chr(13),' ');	
     l_string_pos      INTEGER;	
 	l_search          varchar2(2000);
 	l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_pos_end');	
@@ -469,7 +469,7 @@ is
     else
 	  l_search  := i_search;
 	end if;
-    l_string_pos := INSTR(l_no_line_endings,l_search,i_current_pos);
+    l_string_pos := INSTR(UPPER(l_no_line_endings),UPPER(l_search),i_current_pos);
 	if l_string_pos = 0 then
 	  IF i_raise_error THEN
 	    raise x_string_not_found;
@@ -497,6 +497,11 @@ is
 	l_next_begin INTEGER := NULL;
 	l_next_end   INTEGER := NULL;
     l_next 	     INTEGER := NULL;
+	l_end_of_unit  INTEGER := NULL;
+	l_feedback    INTEGER := NULL;
+	l_open_bracket INTEGER := NULL;
+	l_semi_colon   INTEGER := NULL;
+	
 	--l_keyword_offset INTEGER := NULL;
 	l_end_prog_unit_name INTEGER := NULL;
 	l_inject_node VARCHAR2(200);
@@ -657,18 +662,59 @@ is
     inject( p_code      => io_code  
            ,p_new_code  => l_param_injection
            ,p_pos       => io_current_pos);
+		   
+
+	l_end_of_unit := get_pos_end(io_code,io_current_pos,' END;',false);
+	/* NOT NEEDED
+	--Now go looking for instances of ms_feedback to convert to ms_logger call
+    --Actual REPLACE will happen later.		
+	loop
+	    ms_logger.comment(l_node, 'Looking for ms_feedback');
+	    --Find a ms_feedback   
+	    l_feedback     := get_pos_end(io_code,io_current_pos,'ms_feedback',false,false);  
+	    exit when l_feedback > l_end_of_unit;
+		
+        ms_logger.comment(l_node, 'locate the next "(" and ";"');
+        --locate the next "(" and ";"
+	    l_open_bracket := get_pos_end(io_code,l_feedback,'(',false,false);
+	    l_semi_colon   := get_pos_end(io_code,l_feedback,';',false,false);
+		
+		ms_logger.note(l_node, 'l_feedback    ',l_feedback    );
+		ms_logger.note(l_node, 'l_open_bracket',l_open_bracket);
+		ms_logger.note(l_node, 'l_semi_colon  ',l_semi_colon  );
  
+		
+		if l_open_bracket < l_semi_colon then
+		  --Add l_node to the params
+		  ms_logger.comment(l_node, 'Add l_node to the params');
+		  io_current_pos := l_open_bracket-1;
+          inject( p_code      => io_code  
+                 ,p_new_code  => 'l_node,'
+                 ,p_pos       => io_current_pos);
+		else
+		  --Add l_node as the only param
+		  ms_logger.comment(l_node, 'Add l_node as the only param');
+		  io_current_pos := l_semi_colon-2;
+          inject( p_code      => io_code  
+                 ,p_new_code  => '(l_node)'
+                 ,p_pos       => io_current_pos);
+		end if;
+
+	end loop;	   
+	*/
     ms_logger.comment(l_node, 'move pointer to the end of this program unit');
-    --move pointer to the end of this program unit.
-	io_current_pos := get_pos_end(io_code,io_current_pos,' END;',false);
-	ms_logger.comment(l_node, 'moved pointer');
+    --move pointer to the end of this program unit (which will cause this loop to exit)
+	io_current_pos := l_end_of_unit;	
+	
+ 
     return true;
 	
   EXCEPTION
     when x_string_not_found then
 	   return false;
 	when others then
-	   ms_logger.raise_error(l_node); RAISE;
+	   ms_logger.oracle_error(l_node); 
+	   RAISE;
   
   END;
   
@@ -746,6 +792,14 @@ is
     l_advised:= true;
  
     p_code := REPLACE(p_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
+    
+	--Translate SIMPLE ms_feedback syntax to MORE COMPLEX ms_logger syntax
+	--Replace ms_feedback.x( with  ms_logger.x(l_node,
+	p_code := REGEXP_REPLACE(p_code,'(ms_feedback)(\.)(.+)(\()','ms_logger.\3(l_node,');
+
+	--Replace routines with no params EG ms_feedback.oracle_error with ms_logger.oracle_error(l_node)
+	p_code := REGEXP_REPLACE(p_code,'(ms_feedback)(\.)(.+)(;)','ms_logger.\3(l_node);');
+
  
     return l_advised;
   end weave;
@@ -815,7 +869,7 @@ is
 
   exception 
     when others then
-      ms_logger.trap_error(l_node);	
+      ms_logger.oracle_error(l_node);	
 	  g_during_advise:= false; 
    
   end advise_package;

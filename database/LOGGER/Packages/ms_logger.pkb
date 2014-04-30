@@ -1187,20 +1187,18 @@ END;
 
 ------------------------------------------------------------------------
 
-PROCEDURE oracle_error( i_node            IN ms_logger.node_typ 
+PROCEDURE debug_error( i_node            IN ms_logger.node_typ 
                        ,i_warning         IN BOOLEAN  DEFAULT FALSE
                        ,i_oracle          IN BOOLEAN  DEFAULT FALSE
-                       ,i_message         IN VARCHAR2 DEFAULT NULL
-                       ,i_raise_app_error IN BOOLEAN  DEFAULT FALSE )
+                       ,i_message         IN VARCHAR2 DEFAULT NULL  )
 IS
 BEGIN
  
   log_message( i_message  => LTRIM(i_message ||' '||SQLERRM
                                          ||chr(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE --show the original error line number
                                   )
-              ,i_warning   => i_warning
-			  ,i_oracle => i_oracle
-              ,i_raise_app_error => i_raise_app_error
+              ,i_warning  => i_warning
+			  ,i_oracle   => i_oracle
 			  ,i_node     => i_node );
   
   warn_user_source_error_lines(i_prev_lines => 5
@@ -1208,36 +1206,32 @@ BEGIN
 							  ,i_node     => i_node);
 
 
+END debug_error;
+
+
+PROCEDURE oracle_error( i_node            IN ms_logger.node_typ 
+                       ,i_message         IN     VARCHAR2 DEFAULT NULL  )
+IS
+BEGIN
+
+  debug_error( i_node             => i_node  
+               ,i_oracle           => TRUE      
+               ,i_message          => i_message );
+ 
 END oracle_error;
 
-
-PROCEDURE trap_error( i_node            IN ms_logger.node_typ 
-                     ,i_message         IN     VARCHAR2 DEFAULT NULL
-                     ,i_raise_app_error IN     BOOLEAN  DEFAULT FALSE )
-IS
-BEGIN
-
-  oracle_error( i_node             => i_node  
-               ,i_oracle           => TRUE      
-               ,i_message          => i_message
-               ,i_raise_app_error   => i_raise_app_error);
- 
-END trap_error;
-
 --cannot actually raise the error. will need to have a raise in the exception block.
-PROCEDURE raise_error( i_node            IN ms_logger.node_typ 
-                      ,i_message         IN     VARCHAR2 DEFAULT NULL
-                      ,i_raise_app_error IN     BOOLEAN  DEFAULT FALSE )
+PROCEDURE warn_error( i_node            IN ms_logger.node_typ 
+                     ,i_message         IN     VARCHAR2 DEFAULT NULL  )
 IS
 BEGIN
  
-  oracle_error( i_node             => i_node  
+  debug_error( i_node             => i_node  
                ,i_warning          => TRUE      
-               ,i_message          => i_message
-               ,i_raise_app_error  => i_raise_app_error);
+               ,i_message          => i_message );
 
 
-END raise_error;
+END warn_error;
 
 
  

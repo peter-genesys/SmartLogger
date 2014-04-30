@@ -138,16 +138,12 @@ PROCEDURE note_length( i_node   IN ms_logger.node_typ
 -- EXCEPTION HANDLERS  (PUBLIC)
 ------------------------------------------------------------------------
  
-PROCEDURE trap_error( i_node            IN     ms_logger.node_typ 
-                     ,i_message         IN     VARCHAR2 DEFAULT NULL
-                     ,i_raise_app_error IN     BOOLEAN  DEFAULT FALSE );
+PROCEDURE oracle_error( i_node            IN ms_logger.node_typ 
+                       ,i_message         IN VARCHAR2 DEFAULT NULL  );
  
-PROCEDURE raise_error( i_node            IN     ms_logger.node_typ 
-                      ,i_message         IN     VARCHAR2 DEFAULT NULL
-                      ,i_raise_app_error IN     BOOLEAN  DEFAULT FALSE );
-					   
-					   
-					   
+PROCEDURE warn_error( i_node            IN ms_logger.node_typ 
+                     ,i_message         IN VARCHAR2 DEFAULT NULL  );
+ 				   
 ------------------------------------------------------------------------
 -- Log Register operations (PUBLIC) Overloaded on private routine register_module
 -- 
