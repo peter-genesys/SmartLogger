@@ -14,6 +14,7 @@ create or replace package body aop_test is
         ms_feedback.comment('anon block1');
     end anon1;	
 	
+	<<anon2>>
     declare
 	    l_temp varchar2(1);
 		
@@ -21,7 +22,7 @@ create or replace package body aop_test is
       begin
  
         null;
-		ms_feedback.comment('testz is nested in anon block');
+		ms_feedback.comment('testz is nested in anon block2');
       end testz;
 		
 	begin

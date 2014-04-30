@@ -9,7 +9,7 @@ declare
 begin
 c1:=c1||'DECLARE'||unistr('\000a')||
 'CURSOR cu_source IS'||unistr('\000a')||
-'select Concat(Concat(''<PRE>'',aop_text),''</PRE>'') '||unistr('\000a')||
+'select Concat(Concat(''<PRE>'',REPLACE(REPLACE(aop_text,''<<'',''&lt;&lt;''),''>>'',''&gt;&gt;'')),''</PRE>'') '||unistr('\000a')||
 'from aop_source_v'||unistr('\000a')||
 'where name = :P4_name and type = :P4_type;'||unistr('\000a')||
 'l_text CLOB;'||unistr('\000a')||

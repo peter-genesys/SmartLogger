@@ -417,7 +417,9 @@ create or replace package body aop_processor is
 	
 	l_so_far  CLOB;
 	
+	l_name_pos     INTEGER;
 	l_anon_block_name  VARCHAR2(200);
+	l_declare          VARCHAR2(200);
 	
   BEGIN
  
@@ -435,21 +437,31 @@ create or replace package body aop_processor is
 	  ms_logger.info(l_node, 'No Anon Block Found');
 	  return false;  --Reached END of calling prog unit.
 	elsif l_next_declare = l_next then
-	  --l_keyword_offset := LENGTH('DECLARE');
+	
 	  --Search for a label if present.  (will be immediately preceding) 
 	  --Eg 
 	  --<<LABEL>>
 	  --DECLARE
-      --l_so_far := dbms_lob.substr(io_code,l_next_declare,1);
-	  --l_anon_block_name := REGEXP_INSTR(l_so_far,'<<(.+)>>')
-	  --
-	  --To be doubly sure we'll need to check the next word is at l_next
+      l_so_far := dbms_lob.substr(io_code,l_next_declare,1);
+	  ms_logger.note(l_node, 'l_so_far',l_so_far);
+
+	  l_name_pos        :=  REGEXP_INSTR(l_so_far,'<<(.+)>>',1,REGEXP_COUNT(l_so_far,'<<(.+)>>'),0 );
+	  ms_logger.note(l_node, 'l_name_pos',l_name_pos);
 	  
-	  l_anon_block_name := 'dummy_block_name_declare';
+	  l_anon_block_name :=  REGEXP_SUBSTR(io_code,'<<(.+)>>',l_name_pos,1,null,1);
+	  ms_logger.note(l_node, 'l_anon_block_name',l_anon_block_name);
+
+	  --To be doubly sure we'll need to check the next word is at l_next
+	  l_declare := REGEXP_SUBSTR(io_code,'(.+)',l_name_pos+length(l_anon_block_name)+4,1);
+	  ms_logger.note(l_node, 'l_declare',l_declare);
+	  if TRIM(UPPER(l_declare)) <> 'DECLARE' THEN
+	    ms_logger.fatal(l_node,'Anon block name mis-read');
+	  END IF;
+ 
 
 	elsif l_next_begin = l_next then
 	
-	  l_anon_block_name := 'dummy_block_name_begin';
+	  l_anon_block_name := NULL;
 
 	end if;
  
