@@ -5,6 +5,42 @@ create or replace package body aop_test is
   begin
     null;
 	ms_feedback.comment('Eg of debugging message added by a developer');
+	
+	<<anon1>>
+    declare
+	    l_temp varchar2(1);
+	begin
+        null;
+        ms_feedback.comment('anon block1');
+    end anon1;	
+	
+    declare
+	    l_temp varchar2(1);
+		
+      procedure testz(i_paramz in varchar2 ) is
+      begin
+ 
+        null;
+		ms_feedback.comment('testz is nested in anon block');
+      end testz;
+		
+	begin
+        null;
+        ms_feedback.comment('anon block2');
+		
+		testz(i_paramz => 'Z');
+		
+        declare
+	        l_temp varchar2(1);
+	    begin
+            null;
+            ms_feedback.comment('nested anon block3');
+        end;
+		
+    end;
+	
+	
+	
 	return i_param31;
   end test3;
  

@@ -7,7 +7,7 @@ set pages 1000;
 
 spool F:\SmartLogger\database\LOGGER\UnitTest\ms_test.log
 
-prompt register this script  and the test package
+prompt register this script  and the test package (may not need to reg package)
 execute ms_logger.register_sql_script('ms_test.sql','10.0');  
 execute ms_logger.register_package('ms_test','10.0');
  

@@ -802,6 +802,9 @@ END;
 	p_code := REGEXP_REPLACE(p_code,'(ms_feedback)(\.)(.+)(\()','ms_logger.\3(l_node,');
 
 	--Replace routines with no params 
+	--EG ms_feedback.oracle_error -> ms_logger.oracle_error(l_node)
+	p_code := REGEXP_REPLACE(p_code,'(ms_feedback)(\.)(.+)(;)','ms_logger.\3(l_node);');
+
  
     return l_advised;
 	
