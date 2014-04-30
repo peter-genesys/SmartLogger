@@ -124,11 +124,12 @@ is
   
   END;
  
-    procedure inject( p_code     in out clob
+ 
+    procedure splice( p_code     in out clob
                      ,p_new_code in varchar2
                      ,p_pos      in out number ) IS
                      
-      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'inject');  
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'splice');  
     BEGIN
   
       ms_logger.param(l_node, 'p_code'          ,p_code );
@@ -137,13 +138,26 @@ is
       ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
       
       p_code:=     substr(p_code, 1, p_pos)
-	    ||chr(10)||p_new_code
-        ||chr(10)||substr(p_code, p_pos+1);
+                 ||p_new_code
+                 ||substr(p_code, p_pos+1);
   
 	  p_pos := p_pos + length(p_new_code);	
 	  
 	  ms_logger.note(l_node, 'p_code     '     ,p_code     );
 	  ms_logger.note(l_node, 'p_pos     '      ,p_pos     );
+ 
+    END;
+ 
+ 
+    procedure inject( p_code     in out clob
+                     ,p_new_code in varchar2
+                     ,p_pos      in out number ) IS
+      --Calls splice with p_new_code wrapped in CR
+    BEGIN
+	
+	  splice( p_code     =>  p_code
+	         ,p_new_code => chr(10)||p_new_code||chr(10)
+	         ,p_pos      =>  p_pos);   
  
     END;
 	
@@ -477,7 +491,7 @@ is
 	    l_result := 1000000;
 	  end if;
 	else   
-	  l_result := l_string_pos + length (l_search);
+	  l_result := l_string_pos + length (l_search);  
 	end if;
 	
 	ms_logger.param(l_node, 'l_result',l_result);
@@ -658,15 +672,28 @@ is
 
 	ms_logger.comment(l_node, 'Now find the begin so we can inject the params');
 	--Now find the begin so we can inject the params
-	io_current_pos := get_pos_end(io_code,io_current_pos,'BEGIN',false);
+	io_current_pos := get_pos_end(io_code,io_current_pos,'BEGIN',false,false)-1;
+	
+	--Mark the BEGIN of the program unit.
+    splice( p_code      => io_code  
+           ,p_new_code  => '--'||l_prog_unit_name||' AOP'
+           ,p_pos       => io_current_pos);
  
     inject( p_code      => io_code  
-           ,p_new_code  => '  begin' --extra begin so we can have a surrounding block for the AOP exception when others 
+           ,p_new_code  => '  begin --'||l_prog_unit_name||' ORIG' --extra begin so we can have a surrounding block for the AOP exception when others 
 		           ||chr(10)||l_param_injection
            ,p_pos       => io_current_pos);
 		   
 
-	l_end_of_unit := get_pos_end(io_code,io_current_pos,' END;',false);
+    --I DONT THINK THIS NEXT BIT WILL WORK WITH EMBEDED BLOCKS.		
+    --NEED TO REINSTATE search_anon_block and perhaps change END TAGGING
+	--Eg progUnit ORIG or prog_unit AOP
+
+
+
+	
+		   
+	l_end_of_unit := get_pos_end(io_code,io_current_pos,' END;',false, false)-1;
 	/* NOT NEEDED
 	--Now go looking for instances of ms_feedback to convert to ms_logger call
     --Actual REPLACE will happen later.		
@@ -706,7 +733,12 @@ is
 	*/
     ms_logger.comment(l_node, 'move pointer to the end of this program unit');
     --move pointer to the end of this program unit (which will cause this loop to exit)
-	io_current_pos := l_end_of_unit;	
+	io_current_pos := l_end_of_unit;
+
+	--Mark end of original program unit code.
+    splice( p_code      => io_code  
+           ,p_new_code  => '--'||l_prog_unit_name||' ORIG'
+           ,p_pos       => io_current_pos);	
 	
 	--add the terminating exception handler of the new surrounding block
     inject( p_code      => io_code  
@@ -714,7 +746,7 @@ is
 		         ||chr(10)||'  when others then'
 				 ||chr(10)||'    ms_logger.warn_error(l_node);'
 				 ||chr(10)||'    raise;'
-				 ||chr(10)||'end '||l_prog_unit_name||';'
+				 ||chr(10)||'end; --'||l_prog_unit_name||' AOP'
            ,p_pos       => io_current_pos);
 	--NB THIS WILL NOT WORK IF THE ORIGINAL end; is of the form end prog_unit_name;
 	--WILL NEED TO DETECT THAT OCCURANCE and TRANSLATE TO END; OR PUT THIS EXCEPTION BEFORE THAT END.
