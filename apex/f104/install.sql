@@ -10,10 +10,13 @@
 @application/shared_components/navigation/tabs/standard/t_registry.sql
 @application/shared_components/navigation/tabs/standard/t_processes.sql
 @application/shared_components/navigation/tabs/standard/source.sql
+@application/shared_components/navigation/tabs/standard/adhoc_aop.sql
 @application/pages/page_groups.sql
 @application/pages/page_00001.sql
 @application/pages/page_00002.sql
 @application/pages/page_00004.sql
+@application/pages/page_00006.sql
+@application/pages/page_00007.sql
 @application/pages/page_00008.sql
 @application/pages/page_00009.sql
 @application/pages/page_00010.sql

@@ -11,21 +11,3 @@ wwv_flow_api.create_tab (
   p_tab_parent_tabset=>'',
   p_tab_comment  => '');
  
- 
-end;
-/
-
-prompt  ...Application Parent Tabs
---
- 
-begin
- 
-null;
- 
-end;
-/
-
-prompt  ...Shared Lists of values
---
-prompt  ...Application Trees
---

@@ -4,6 +4,12 @@ create or replace package aop_processor
 is
   function during_advise return boolean;
  
+  function weave
+  ( p_code in out clob
+  , p_package_name in varchar2
+  ) return boolean;
+ 
+ 
   procedure advise_package
   ( p_object_name   in varchar2
   , p_object_type   in varchar2

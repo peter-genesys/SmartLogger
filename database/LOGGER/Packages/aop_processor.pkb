@@ -758,7 +758,8 @@ END;
 	--First task will be to remove all comments or 
 	--somehow identify and remember all sections that can be ignored because they are comments
  
-   
+    p_code := REPLACE(p_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
+ 
     --LATER WHEN WE WANT TO SUPPORT THE BEGIN SECTION OF A PACKAGE
 	--WE WOULD REPLACE parse_prog_unit below with parse_anon_block
  
@@ -806,9 +807,7 @@ END;
     END LOOP;
  
     l_advised:= true;
- 
-    p_code := REPLACE(p_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
-    
+
 	--Translate SIMPLE ms_feedback syntax to MORE COMPLEX ms_logger syntax
 	--EG ms_feedback.x(           ->  ms_logger.x(l_node,
 	p_code := REGEXP_REPLACE(p_code,'(ms_feedback)(\.)(.+)(\()','ms_logger.\3(l_node,');

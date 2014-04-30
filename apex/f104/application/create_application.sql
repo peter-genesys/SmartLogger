@@ -10,7 +10,7 @@ wwv_flow_api.create_flow(
   p_alias => nvl(wwv_flow_application_install.get_application_alias,'F102103'),
   p_page_view_logging => 'YES',
   p_page_protection_enabled_y_n=> 'Y',
-  p_checksum_salt_last_reset => '20140430233446',
+  p_checksum_salt_last_reset => '20140501000520',
   p_max_session_length_sec=> 28800,
   p_compatibility_mode=> '4.0',
   p_html_escaping_mode=> 'E',
@@ -45,7 +45,7 @@ wwv_flow_api.create_flow(
   p_include_legacy_javascript=> 'Y',
   p_default_error_display_loc=> 'INLINE_WITH_FIELD_AND_NOTIFICATION',
   p_last_updated_by => 'PBURGESS',
-  p_last_upd_yyyymmddhh24miss=> '20140430233446',
+  p_last_upd_yyyymmddhh24miss=> '20140501000520',
   p_ui_type_name => null,
   p_required_roles=> wwv_flow_utilities.string_to_table2(''));
  
