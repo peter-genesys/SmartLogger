@@ -13,6 +13,7 @@ c1:=c1||'declare'||unistr('\000a')||
 'begin'||unistr('\000a')||
 '  l_woven := aop_processor.weave(l_body, ''Adhoc'', true);'||unistr('\000a')||
 ''||unistr('\000a')||
+'  l_body := REPLACE(REPLACE(l_body,''<<'',''&lt;&lt;''),''>>'',''&gt;&gt;'');'||unistr('\000a')||
 '  l_body := REGEXP_REPLACE(l_body,''(ms_logger)(.+)(;)'',''<B>\1\2\3</B>'');'||unistr('\000a')||
 ''||unistr('\000a')||
 '  return ''<PRE>''||l_body||''</PRE>'';'||unistr('\000a')||

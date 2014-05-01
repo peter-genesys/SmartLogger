@@ -5,6 +5,13 @@ create or replace package body aop_processor is
   
 --This package is not yet aware of commented code.
 --IE it will perform incorrectly on code that has been commented out.
+
+--TODO: Create a safety measure for commented code.
+--Remove all comments -> AOP
+--AOP -> Remove all comments
+--Compare the results and alert the developer to any discrepancies.
+--Aim to leave a AOP version of the code with original comments.
+--(Any comments created by AOP will have to be retained.)
    
 
   g_package_name        CONSTANT VARCHAR2(30) := 'aop_processor'; 
@@ -140,6 +147,33 @@ create or replace package body aop_processor is
 	 return l_clean;
   
   END;
+  
+  
+  
+  --------------------------------------------------------------------
+  -- remove_comments
+  -- www.orafaq.com/forum/t/99722/2/ discussion of alternative methods.
+  --------------------------------------------------------------------
+  
+    procedure remove_comments( i_code     in out clob ) IS
+                     
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'remove_comments');  
+	  l_new_code varchar2(32000);
+	  
+	  --NB This will not work if comment -- /* */ markers are embedded within quotes.
+	  
+    BEGIN
+	
+	  --REMOVE SINGLE LINE COMMENTS 
+	  --Find "--" and remove chars upto EOL or "*/"
+	  
+	  --REMOVE MULTI-LINE COMMENTS 
+	  --Find "/*" and remove upto "*/" 
+      null;
+     
+    END remove_comments;
+  
+  
  
   --------------------------------------------------------------------
   -- splice
@@ -159,7 +193,8 @@ create or replace package body aop_processor is
       ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
 	  
 	  if g_for_html then
-	    l_new_code := '<B>'||p_new_code||'</B>';
+	    --l_new_code := '<B>'||p_new_code||'</B>';
+		l_new_code := '<p style="background-color:#9cfffe;">'||p_new_code||'</p>';
 	  else
 	    l_new_code := p_new_code;
       end if;
@@ -180,13 +215,15 @@ create or replace package body aop_processor is
   --------------------------------------------------------------------
     procedure inject( p_code     in out clob
                      ,p_new_code in varchar2
-                     ,p_pos      in out number ) IS
+                     ,p_pos      in out number
+					 ,p_level    in number) IS
       --Calls splice with p_new_code wrapped in CR
     BEGIN
-	
+ 
+      --indent every line using level
 	  splice( p_code     =>  p_code
-	         ,p_new_code => chr(10)||p_new_code||chr(10)
-	         ,p_pos      =>  p_pos);   
+	         ,p_new_code => replace(chr(10)||p_new_code,chr(10),chr(10)||rpad(' ',(p_level-1)*2+2,' '))||chr(10)
+	         ,p_pos      =>  p_pos); 
  
     END;
 	
@@ -221,9 +258,9 @@ create or replace package body aop_processor is
     l_code:= dbms_metadata.get_ddl('PACKAGE', p_object_name, p_object_owner);
     return l_code;
   end get_body;
-
+ 
   --------------------------------------------------------------------
-  -- find_first_string_after
+  -- find_first_string_after (UNUSED)
   --------------------------------------------------------------------
   -- finds a string that starts after p_find, ends before the first occurrence of p_end and has all p_to_trim characters removed
   -- for example: @AOP( advice =LOG); p_find = @AOP
@@ -328,46 +365,98 @@ create or replace package body aop_processor is
   end;
   
   --------------------------------------------------------------------
-  -- get_pos_end - refactor with REGEXP_INSTR return_option gives you first char or char pos after.
+  -- search_substring 
   --------------------------------------------------------------------
-  function get_pos_end(i_code        in CLOB
-                      ,i_current_pos IN INTEGER
-				      ,i_search      IN VARCHAR2
-					  ,i_raise_error IN boolean default false
-					  ,i_use_spaces  IN boolean default true) return integer is
-				  
-	l_no_line_endings  CLOB := replace(replace(i_code,chr(10),' '),chr(13),' ');	
+  function search_substring(i_code        in CLOB
+                           ,i_current_pos IN INTEGER
+				           ,i_search      IN VARCHAR2
+					       ,i_whitespace  IN boolean default true
+					       ,i_raise_error IN boolean default false
+						   ,i_beginning   IN boolean default true
+						   ) return integer is
+					  
+	l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'search_substring');					  
+ 	
     l_string_pos      INTEGER;	
 	l_search          varchar2(2000);
-	l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_pos_end');	
-	l_result number;
+	l_mode            INTEGER;
+ 
   begin
     ms_logger.param(l_node, 'i_current_pos',i_current_pos);
-	ms_logger.param(l_node, 'i_search',i_search);
+	ms_logger.param(l_node, 'i_search'     ,i_search);
+	ms_logger.param(l_node, 'i_whitespace' ,i_whitespace);
 	ms_logger.param(l_node, 'i_raise_error',i_raise_error);
-    
-	if i_use_spaces THEN
-      l_search  := ' '||i_search||' ';
+	ms_logger.param(l_node, 'i_beginning'  ,i_beginning);
+	
+	if i_beginning then
+	  l_mode := 0;
+	else
+	  l_mode := 1;
+	end if;
+ 
+	if i_whitespace THEN
+	  --include whitespace or html chars
+      l_search  := '(\s|\<|\>)'||i_search||'(\s|\<|\>)'; 
     else
 	  l_search  := i_search;
 	end if;
-    l_string_pos := INSTR(UPPER(l_no_line_endings),UPPER(l_search),i_current_pos);
+	
+	l_string_pos := REGEXP_INSTR(i_code,l_search,i_current_pos,1,l_mode,'i');
+ 
 	if l_string_pos = 0 then
 	  IF i_raise_error THEN
 	    raise x_string_not_found;
       ELSE
-	    l_result := 1000000;
+	    l_string_pos := 1000000;
 	  end if;
-	else   
-	  l_result := l_string_pos + length (l_search);  
 	end if;
 	
-	ms_logger.param(l_node, 'l_result',l_result);
+	ms_logger.param(l_node, 'l_string_pos',l_string_pos);
  
-	return l_result;
+	return l_string_pos;
 	
+  end search_substring;
+  
+  --------------------------------------------------------------------
+  -- get_pos_start  
+  --------------------------------------------------------------------
+  function get_pos_start(i_code        in CLOB
+                        ,i_current_pos IN INTEGER
+				        ,i_search      IN VARCHAR2
+					    ,i_whitespace  IN boolean default true
+					    ,i_raise_error IN boolean default false ) return integer is
+ 
+  begin
+  
+    return search_substring(i_code         => i_code       
+                           ,i_current_pos  => i_current_pos
+                           ,i_search       => i_search     
+                           ,i_whitespace   => i_whitespace 
+						   ,i_raise_error  => i_raise_error
+                           ,i_beginning    => true);  
+   
   end;
   
+  --------------------------------------------------------------------
+  -- get_pos_end  
+  --------------------------------------------------------------------
+  function get_pos_end(i_code        in CLOB
+                      ,i_current_pos IN INTEGER
+				      ,i_search      IN VARCHAR2
+					  ,i_whitespace  IN boolean default true
+					  ,i_raise_error IN boolean default false ) return integer is
+ 
+  begin
+  
+    return search_substring(i_code         => i_code       
+                           ,i_current_pos  => i_current_pos
+                           ,i_search       => i_search     
+                           ,i_whitespace   => i_whitespace 
+						   ,i_raise_error  => i_raise_error
+                           ,i_beginning    => false);  
+   
+  end;
+ 
 
   --------------------------------------------------------------------
   -- parse_block - forward declaration (used recursively)
@@ -379,6 +468,49 @@ create or replace package body aop_processor is
                        ,io_current_pos IN OUT INTEGER
 					   ,i_level        in integer); 
   
+  --------------------------------------------------------------------
+  -- prev_word_start
+  --------------------------------------------------------------------
+   function prev_word_start(i_code        in clob
+                           ,i_current_pos IN INTEGER
+						   ,i_search      in varchar2 default '\w')
+   return integer is
+     l_so_far   clob;
+	 l_prev_pos integer;
+   begin
+     l_so_far := dbms_lob.substr(i_code,i_current_pos,1);
+
+	 l_prev_pos :=  REGEXP_INSTR(l_so_far,i_search,1,REGEXP_COUNT(l_so_far,i_search),0 );
+     return l_prev_pos;
+   end;
+ 
+  --------------------------------------------------------------------
+  -- prev_word_end
+  --------------------------------------------------------------------
+   function prev_word_end(i_code        in clob
+                         ,i_current_pos IN INTEGER )
+   return integer is
+   
+   	l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'prev_word_end');
+	
+     l_so_far   clob;
+	 l_prev_pos integer;
+   begin
+     l_so_far := dbms_lob.substr(i_code,i_current_pos,1);
+	 --ms_logger.note(l_node, 'l_so_far'  ,l_so_far);
+	 --ms_logger.note_length(l_node, l_so_far);
+     --
+	 --l_prev_pos :=  REGEXP_INSTR(l_so_far,i_search,1,REGEXP_COUNT(l_so_far,i_search),1 );
+     --ms_logger.note(l_node, 'l_prev_pos'  ,l_prev_pos);
+     --
+	 --return l_prev_pos;
+	 
+	 return length(Rtrim(l_so_far));
+	 
+   end;
+   
+ 
+ 
  
   
   --------------------------------------------------------------------
@@ -412,8 +544,7 @@ create or replace package body aop_processor is
 	l_feedback    INTEGER := NULL;
 	l_open_bracket INTEGER := NULL;
 	l_semi_colon   INTEGER := NULL;
-	
-	--l_keyword_offset INTEGER := NULL;
+ 
 	l_end_prog_unit_name INTEGER := NULL;
 	l_inject_node VARCHAR2(200);
 	l_prog_unit_name VARCHAR2(200);
@@ -436,13 +567,13 @@ create or replace package body aop_processor is
 	
   BEGIN
  
-	l_next_declare := get_pos_end(io_code,io_current_pos,'DECLARE',false, false);
+	l_next_declare := get_pos_end(io_code,io_current_pos,'DECLARE');
 	ms_logger.note(l_node, 'l_next_declare',l_next_declare);
 	
-	l_next_begin := get_pos_end(io_code,io_current_pos,'BEGIN',false, false);
+	l_next_begin := get_pos_end(io_code,io_current_pos,'BEGIN');
 	ms_logger.note(l_node, 'l_next_begin',l_next_begin);
 	
-	l_next_end := get_pos_end(io_code,io_current_pos,'END;',false, false);
+	l_next_end := get_pos_end(io_code,io_current_pos,'END;');
 	ms_logger.note(l_node, 'l_next_end',l_next_end);
 	l_next := least(l_next_declare,l_next_begin,l_next_end);
  
@@ -455,12 +586,16 @@ create or replace package body aop_processor is
 	  --Eg 
 	  --<<LABEL>>
 	  --DECLARE
-      l_so_far := dbms_lob.substr(io_code,l_next_declare,1);
-	  ms_logger.note(l_node, 'l_so_far',l_so_far);
-
-	  l_name_pos        :=  REGEXP_INSTR(l_so_far,'<<(.+)>>',1,REGEXP_COUNT(l_so_far,'<<(.+)>>'),0 );
-	  ms_logger.note(l_node, 'l_name_pos',l_name_pos);
+     --l_so_far := dbms_lob.substr(io_code,l_next_declare,1);
+	 --ms_logger.note(l_node, 'l_so_far',l_so_far);
+     --
+	 --l_name_pos        :=  REGEXP_INSTR(l_so_far,'<<(.+)>>',1,REGEXP_COUNT(l_so_far,'<<(.+)>>'),0 );
+	 --ms_logger.note(l_node, 'l_name_pos',l_name_pos);
 	  
+	  l_name_pos :=prev_word_start(i_code        => io_code 
+	                              ,i_current_pos => l_next_declare
+	  			                  ,i_search      => '<<(.+)>>');
+	 
 	  l_anon_block_name :=  REGEXP_SUBSTR(io_code,'<<(.+)>>',l_name_pos,1,null,1);
 	  ms_logger.note(l_node, 'l_anon_block_name',l_anon_block_name);
 
@@ -531,6 +666,7 @@ create or replace package body aop_processor is
 	
 	l_param_line      VARCHAR2(2000);
 	l_param_injection VARCHAR2(2000) := NULL;
+	l_params_length   INTEGER := 1;
 	
   BEGIN
  
@@ -573,9 +709,7 @@ create or replace package body aop_processor is
 	--
 	
     is_pos := get_pos_end(io_code,io_current_pos,'IS');
-    --bracket_pos := get_pos_end(io_code,io_current_pos,'(',false);   
 	bracket_pos := INSTR(io_code,'(',io_current_pos);
-	--endbracket_pos := get_pos_end(io_code,io_current_pos,')',false);
 	ms_logger.note(l_node, 'is_pos',is_pos);
 	ms_logger.note(l_node, 'bracket_pos',bracket_pos);
 	
@@ -615,7 +749,13 @@ create or replace package body aop_processor is
 			 ms_logger.note(l_node, 'l_param_type',l_param_type);
 		     IF  l_param_type IN ('NUMBER','DATE','VARCHAR2') then
 			   ms_logger.comment(l_node, 'valid l_param_type');
-		       l_param_injection := l_param_injection||chr(10)||rpad(' ',i_level*2+2,' ')||'ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');';
+			   
+			--inject( p_code      => l_param_injection  
+            --       ,p_new_code  => 'ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');'
+            --       ,p_pos       => l_params_length
+			--	  ,p_level     => i_level );
+					  
+			    l_param_injection := l_param_injection||chr(10)||'  ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');';
 			    ms_logger.note(l_node, 'l_param_injection',l_param_injection);
 		     else
                ms_logger.comment(l_node, 'INVALID l_param_type');			 
@@ -636,9 +776,9 @@ create or replace package body aop_processor is
 	
 	ms_logger.comment(l_node, 'Injecting new node');	
     inject( p_code      => io_code  
-           ,p_new_code  => rpad(' ',i_level*2+2,' ')
-           ||'l_node ms_logger.node_typ := ms_logger.'||l_inject_node||'('''||i_package_name||''','''||l_prog_unit_name||''');'
-           ,p_pos      => io_current_pos);
+           ,p_new_code  => '  l_node ms_logger.node_typ := ms_logger.'||l_inject_node||'('''||i_package_name||''','''||l_prog_unit_name||''');'
+           ,p_pos      => io_current_pos
+		   ,p_level    => i_level);
  
     ms_logger.comment(l_node, 'Injected new node');
 	
@@ -689,17 +829,43 @@ create or replace package body aop_processor is
     WHILE parse_prog_unit(io_code         => io_code
 	                     ,i_package_name  => i_package_name 
                          ,io_current_pos  => io_current_pos
-						 ,i_level         => i_level + 1) and l_count < 50 LOOP
-	  ms_logger.note(l_node, 'Program Units found in header',l_count);					 
+						 ,i_level         => i_level + 1) and l_count < 50 LOOP 
 	  l_count := l_count+ 1;					 
     END LOOP;
+	ms_logger.note(l_node, 'Program Units found in header',l_count);	
   
     ms_logger.comment(l_node, 'Finished looking for Program Units in header');
-
+ 
+	--find the next begin to inject infront of it.
+	io_current_pos := get_pos_start(io_code,io_current_pos,'BEGIN',true,true);
+	--io_current_pos := REGEXP_INSTR(io_code,'\sBEGIN\s',io_current_pos,1,0,'i');
+	
+	--now go back to previous CR too.
+	io_current_pos := prev_word_end(i_code        => io_code
+	                               ,i_current_pos => io_current_pos );
+	
+    inject( p_code      => io_code  
+           ,p_new_code  => 'begin --'||i_block_name
+           ,p_pos       => io_current_pos
+		   ,p_level     => i_level);
+		   
+	--find the begin again and to inject after it.
+	io_current_pos := get_pos_end(io_code,io_current_pos,'BEGIN',true,true);
+	
+	--io_current_pos := REGEXP_INSTR(io_code,'\sBEGIN\s',io_current_pos,1,1,'i');
+	
+    if i_param_injection is not null then
+      inject( p_code      => io_code  
+             ,p_new_code  => i_param_injection
+             ,p_pos       => io_current_pos
+	  	     ,p_level     => i_level);  
+    end if;
+	 
+	/*
 	ms_logger.comment(l_node, 'Now find the begin so we can inject the params');
 	--Now find the begin so we can inject the params
-	io_current_pos := get_pos_end(io_code,io_current_pos,'BEGIN',false,false)-1;
-	
+	io_current_pos := get_pos_end(io_code,io_current_pos,'BEGIN')-1;
+ 
 	--Mark the BEGIN of the program unit.
     splice( p_code      => io_code  
            ,p_new_code  => '--'||i_block_name||' AOP'
@@ -708,8 +874,9 @@ create or replace package body aop_processor is
     inject( p_code      => io_code  
            ,p_new_code  => '  begin --'||i_block_name||' ORIG' --extra begin so we can have a surrounding block for the AOP exception when others 
 		           ||chr(10)||i_param_injection
-           ,p_pos       => io_current_pos);
-		   
+           ,p_pos       => io_current_pos
+		   ,p_level     => i_level);
+	*/	   
 		   
     l_count := 0;
     WHILE parse_anon_block(io_code         => io_code
@@ -717,30 +884,34 @@ create or replace package body aop_processor is
                           ,io_current_pos  => io_current_pos
 						  ,i_level         => i_level + 1) and l_count < 50 LOOP
 	  l_count := l_count+ 1;
-	  ms_logger.note(l_node, 'Anonymous Blocks found in body',l_count);	
-    END LOOP;  
+    END LOOP; 
+	
+    ms_logger.note(l_node, 'Anonymous Blocks found in body',l_count);		
   
-	l_end_of_unit := get_pos_end(io_code,io_current_pos,' END;',false, false)-1;
+	l_end_of_unit := get_pos_end(io_code,io_current_pos,'END;',true, true)-1;
 	 
     ms_logger.comment(l_node, 'move pointer to the end of this program unit');
     --move pointer to the end of this program unit (which will cause this loop to exit)
 	io_current_pos := l_end_of_unit;
 
-	--Mark end of original program unit code.
-    splice( p_code      => io_code  
-           ,p_new_code  => '--'||i_block_name||' ORIG'
-           ,p_pos       => io_current_pos);	
+	----Mark end of original program unit code.
+    --splice( p_code      => io_code  
+    --       ,p_new_code  => '--'||i_block_name||' ORIG'
+    --       ,p_pos       => io_current_pos);	
 	
 	--add the terminating exception handler of the new surrounding block
     inject( p_code      => io_code  
-           ,p_new_code  => 'exception'
-		         ||chr(10)||'  when others then'
-				 ||chr(10)||'    ms_logger.warn_error(l_node);'
-				 ||chr(10)||'    raise;'
-				 ||chr(10)||'end; --'||i_block_name||' AOP'
-           ,p_pos       => io_current_pos);
+           ,p_new_code  =>          'exception'
+		                 ||chr(10)||'  when others then'
+				         ||chr(10)||'    ms_logger.warn_error(l_node);'
+				         ||chr(10)||'    raise;'
+				         ||chr(10)||'end; --'||i_block_name
+           ,p_pos       => io_current_pos
+		   ,p_level     => i_level);
 	
   EXCEPTION
+    when x_string_not_found then
+	  ms_logger.fatal(l_node,'Keyword missing');
 	when others then
 	   ms_logger.oracle_error(l_node); 
 	   RAISE;
@@ -911,7 +1082,7 @@ END;
         l_advised := weave( p_code         => l_html_body
                           , p_package_name => lower(p_object_name)
                           , p_for_html     => true );
-		
+		--l_html_body := l_woven_body;
 		IF NOT validate_source(i_name  => p_object_name
 	                         , i_type  => p_object_type
 	                         , i_text  => l_html_body

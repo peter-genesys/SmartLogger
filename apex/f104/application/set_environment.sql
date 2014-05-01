@@ -17,7 +17,7 @@ prompt  APPLICATION 104 - Logger
  
 -- Application Statistics:
 --   Pages:                     10
---     Items:                   19
+--     Items:                   20
 --     Validations:              2
 --     Processes:               14
 --     Regions:                 23

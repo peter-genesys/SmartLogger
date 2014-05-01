@@ -44,7 +44,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140426193943'
+ ,p_last_upd_yyyymmddhh24miss => '20140501125612'
   );
 null;
  
@@ -610,8 +610,8 @@ wwv_flow_api.create_worksheet_column(
   p_db_column_name         =>'TIME_NOW',
   p_display_order          =>12,
   p_column_identifier      =>'L',
-  p_column_label           =>'Time Now',
-  p_report_label           =>'Time Now',
+  p_column_label           =>'Time',
+  p_report_label           =>'Time',
   p_sync_form_label        =>'Y',
   p_display_in_default_rpt =>'Y',
   p_is_sortable            =>'Y',
