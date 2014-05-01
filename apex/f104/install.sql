@@ -20,6 +20,7 @@
 @application/pages/page_00008.sql
 @application/pages/page_00009.sql
 @application/pages/page_00010.sql
+@application/pages/page_00011.sql
 @application/pages/page_00101.sql
 @application/shared_components/navigation/breadcrumbs.sql
 @application/shared_components/user_interface/templates/page/login.sql
@@ -104,7 +105,12 @@
 @application/shared_components/globalization/dyntranslations.sql
 @application/shared_components/user_interface/shortcuts/orig_text.sql
 @application/shared_components/user_interface/shortcuts/aop_text.sql
+@application/shared_components/user_interface/shortcuts/aop_adhoc_html.sql
 @application/shared_components/security/authentication/application_express.sql
 @application/shared_components/security/authentication/database.sql
 @application/shared_components/security/authentication/database_account.sql
+@application/deployment/definition.sql
+@application/deployment/install.sql
+@application/deployment/checks.sql
+@application/deployment/buildoptions.sql
 @application/end_environment.sql

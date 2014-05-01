@@ -20,7 +20,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140501000328'
+ ,p_last_upd_yyyymmddhh24miss => '20140501121521'
   );
 null;
  
@@ -144,7 +144,7 @@ wwv_flow_api.create_page_branch(
   p_flow_id=> wwv_flow.g_flow_id,
   p_flow_step_id=> 6,
   p_branch_name=> '',
-  p_branch_action=> 'f?p=&APP_ID.:7:&SESSION.&success_msg=#SUCCESS_MSG#',
+  p_branch_action=> 'f?p=&APP_ID.:7:&SESSION.::&DEBUG.:::&success_msg=#SUCCESS_MSG#',
   p_branch_point=> 'AFTER_PROCESSING',
   p_branch_type=> 'REDIRECT_URL',
   p_branch_when_button_id=>2750320616618843+ wwv_flow_api.g_id_offset,
@@ -165,7 +165,7 @@ wwv_flow_api.create_page_item(
   p_flow_step_id=> 6,
   p_name=>'P6_ORIG_TEXT',
   p_data_type=> '',
-  p_is_required=> false,
+  p_is_required=> true,
   p_accept_processing=> 'REPLACE_EXISTING',
   p_item_sequence=> 10,
   p_item_plug_id => 2749417042618839+wwv_flow_api.g_id_offset,
@@ -187,7 +187,7 @@ wwv_flow_api.create_page_item(
   p_grid_column=> null,
   p_label_alignment=> 'RIGHT',
   p_field_alignment=> 'LEFT',
-  p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
+  p_field_template=> 17759837603931450+wwv_flow_api.g_id_offset,
   p_is_persistent=> 'Y',
   p_lov_display_extra=>'YES',
   p_protection_level => 'N',

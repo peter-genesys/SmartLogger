@@ -14,6 +14,8 @@ create or replace package body aop_processor is
   g_aop_directive CONSTANT VARCHAR2(30) := '@AOP_LOG'; 
   
   x_string_not_found EXCEPTION;
+  
+  g_for_html      boolean := false;
 
   --------------------------------------------------------------------
   -- during_advise
@@ -32,7 +34,7 @@ create or replace package body aop_processor is
   function validate_source(i_name        IN VARCHAR2
                          , i_type        IN VARCHAR2
                          , i_text        IN CLOB
-                         , i_aop_yn      IN VARCHAR2
+                         , i_aop_ver     IN VARCHAR2
 					  ) RETURN boolean IS
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'validate_source');              
                       
@@ -44,27 +46,30 @@ create or replace package body aop_processor is
     ms_logger.param(l_node, 'i_name'             ,i_name   );
     ms_logger.param(l_node, 'i_type   '          ,i_type      );
     --ms_logger.param(l_node, 'i_text       '          ,i_text          ); --too big.
-	ms_logger.param(l_node, 'i_aop_yn   '            ,i_aop_yn      );
+	ms_logger.param(l_node, 'i_aop_ver   '            ,i_aop_ver      );
 
 	--Prepare record.
     l_aop_source.name          := i_name;
 	l_aop_source.type          := i_type;
-    l_aop_source.aop_yn        := i_aop_yn;
+    l_aop_source.aop_ver       := i_aop_ver;
     l_aop_source.text          := i_text;
     l_aop_source.load_datetime := sysdate;
     l_aop_source.valid_yn      := 'Y';
     l_aop_source.result        := 'Success.';
 	
+	if i_aop_ver like '%HTML' then
+	  l_aop_source.valid_yn := NULL;
+	else
 	
-    begin
-      execute immediate cast(i_text as varchar2);
-	exception
-      when others then
-	    l_aop_source.result   := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
-		l_aop_source.valid_yn := 'N';
-        ms_logger.warn_error(l_node);   
-	end;
- 
+      begin
+        execute immediate cast(i_text as varchar2);
+	  exception
+        when others then
+	      l_aop_source.result   := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+	  	l_aop_source.valid_yn := 'N';
+          ms_logger.warn_error(l_node);   
+	  end;
+	end if;
  
     --update original source
     UPDATE aop_source
@@ -72,9 +77,9 @@ create or replace package body aop_processor is
          ,load_datetime = sysdate
 		 ,valid_yn      = l_aop_source.valid_yn    
          ,result        = l_aop_source.result
-    WHERE name   = l_aop_source.name
-	AND   type   = l_aop_source.type
-    AND   aop_yn = l_aop_source.aop_yn;
+    WHERE name    = l_aop_source.name
+	AND   type    = l_aop_source.type
+    AND   aop_ver = l_aop_source.aop_ver;
     
     IF SQL%ROWCOUNT = 0 THEN
     
@@ -144,18 +149,26 @@ create or replace package body aop_processor is
                      ,p_pos      in out number ) IS
                      
       l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'splice');  
+	  l_new_code varchar2(32000);
+	  
     BEGIN
   
       ms_logger.param(l_node, 'p_code'          ,p_code );
       ms_logger.param(l_node, 'LENGTH(p_code)'  ,LENGTH(p_code)  );
       ms_logger.param(l_node, 'p_new_code'      ,p_new_code);
       ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
-      
+	  
+	  if g_for_html then
+	    l_new_code := '<B>'||p_new_code||'</B>';
+	  else
+	    l_new_code := p_new_code;
+      end if;
+ 
       p_code:=     substr(p_code, 1, p_pos)
-                 ||p_new_code
+                 ||l_new_code
                  ||substr(p_code, p_pos+1);
   
-	  p_pos := p_pos + length(p_new_code);	
+	  p_pos := p_pos + length(l_new_code);	
 	  
 	  ms_logger.note(l_node, 'p_code     '     ,p_code     );
 	  ms_logger.note(l_node, 'p_pos     '      ,p_pos     );
@@ -738,6 +751,7 @@ END;
   function weave
   ( p_code in out clob
   , p_package_name in varchar2
+  , p_for_html in boolean default false
   ) return boolean
   is
 
@@ -754,6 +768,9 @@ END;
   begin
  
     ms_logger.param(l_node, 'p_package_name'      ,p_package_name);
+	ms_logger.param(l_node, 'p_for_html'          ,p_for_html);
+	
+	g_for_html := p_for_html;
 	
 	--First task will be to remove all comments or 
 	--somehow identify and remember all sections that can be ignored because they are comments
@@ -835,6 +852,7 @@ END;
   
 	l_orig_body clob;
 	l_woven_body clob;
+	l_html_body clob;
     l_advised boolean := false;
   begin
     ms_logger.param(l_node, 'p_object_name'  ,p_object_name  );
@@ -859,7 +877,7 @@ END;
 	IF NOT  validate_source(i_name  => p_object_name
 	                      , i_type  => p_object_type
 	                      , i_text  => l_orig_body
-	                      , i_aop_yn => 'N') THEN
+	                      , i_aop_ver => 'ORIG') THEN
 	  g_during_advise:= false; 
 	  return; -- Don't bother with AOP since the original source is invalid anyway.			
 	end if;		  
@@ -875,17 +893,32 @@ END;
 	  IF NOT validate_source(i_name  => p_object_name
 	                       , i_type  => p_object_type
 	                       , i_text  => l_woven_body
-	                       , i_aop_yn => 'Y') THEN
+	                       , i_aop_ver => 'AOP') THEN
  
 	    --reexecute the original so that we at least end up with a valid package.
 	    IF NOT  validate_source(i_name  => p_object_name
 	                          , i_type  => p_object_type
 	                          , i_text  => l_orig_body
-	                          , i_aop_yn => 'N') THEN
+	                          , i_aop_ver => 'ORIG') THEN
 		  --unlikely that we'd get an error in the original if it worked last time
 		  --but trap it incase we do	
           ms_logger.fatal(l_node,'Original Source is invalid on second try.');		  
 		end if;
+		
+	  else	
+	    --Reweave with html
+	    l_html_body := l_orig_body;
+        l_advised := weave( p_code         => l_html_body
+                          , p_package_name => lower(p_object_name)
+                          , p_for_html     => true );
+		
+		IF NOT validate_source(i_name  => p_object_name
+	                         , i_type  => p_object_type
+	                         , i_text  => l_html_body
+	                         , i_aop_ver => 'AOP_HTML') THEN
+		  ms_logger.fatal(l_node,'Oops problem with AOP_HTML on second try.');						 
+		
+		END IF;
  
 	  end if;	
  
