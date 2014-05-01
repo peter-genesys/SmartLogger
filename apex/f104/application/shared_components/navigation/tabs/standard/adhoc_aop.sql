@@ -7,7 +7,7 @@ wwv_flow_api.create_tab (
   p_tab_name=> 'Adhoc AOP',
   p_tab_text => 'Adhoc AOP',
   p_tab_step => 6,
-  p_tab_also_current_for_pages => '7,11',
+  p_tab_also_current_for_pages => '7,11,3,5',
   p_tab_parent_tabset=>'',
   p_tab_comment  => '');
  

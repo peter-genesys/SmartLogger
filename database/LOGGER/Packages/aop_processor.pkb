@@ -945,6 +945,8 @@ END;
 	
 	--First task will be to remove all comments or 
 	--somehow identify and remember all sections that can be ignored because they are comments
+	
+	p_code := p_code||chr(10); --add a trailing CR to help with searching
  
     p_code := REPLACE(p_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
  
