@@ -76,7 +76,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.trap_error(l_node); RAISE;
+      ms_logger.warn_error(l_node); RAISE;
 
   END error_node;
 
@@ -124,7 +124,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.trap_error(l_node); --DO NOT RAISE;
+      ms_logger.oracle_error(l_node);
 
   END test_exception_propagation;
 
@@ -153,7 +153,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.trap_error(l_node); RAISE;
+      ms_logger.warn_error(l_node); RAISE;
 
   END test_node;
 
@@ -203,7 +203,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.trap_error(l_node); --DO NOT RAISE;
+      ms_logger.oracle_error(l_node);
 
   END test_message_tree;
   
@@ -312,7 +312,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.trap_error(l_node); --DO NOT RAISE;
+      ms_logger.oracle_error(l_node);
 
   END test_internal_error;
 
@@ -337,7 +337,7 @@ END f_elapsed_time;
  
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.trap_error(l_node); RAISE;
+      ms_logger.warn_error(l_node); RAISE;
 
   END msg_mode_node;
   
@@ -365,7 +365,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.trap_error(l_node); RAISE;
+      ms_logger.warn_error(l_node); RAISE;
 
   END max_nest_test;  
 
@@ -394,7 +394,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.trap_error(l_node); --DO NOT RAISE;
+      ms_logger.oracle_error(l_node);
 
   END test_unit_msg_mode;
   
@@ -429,14 +429,14 @@ END f_elapsed_time;
       
     EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.trap_error(l_node); RAISE;
+       ms_logger.warn_error(l_node); RAISE;
     END;
  
      
  
    EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.trap_error(l_node); --DO NOT RAISE;
+       ms_logger.oracle_error(l_node);
   END;
   
   --------------------------------------------------------------------
@@ -469,14 +469,14 @@ END f_elapsed_time;
       
     EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.trap_error(l_node); RAISE;
+       ms_logger.warn_error(l_node); RAISE;
     END;
  
      
  
    EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.trap_error(l_node); --DO NOT RAISE;
+       ms_logger.oracle_error(l_node);
   END;
   
   --------------------------------------------------------------------
@@ -506,21 +506,21 @@ END f_elapsed_time;
           END IF;
         EXCEPTION
          WHEN OTHERS THEN
-           ms_logger.trap_error(l_node); --DO NOT RAISE;
+           ms_logger.oracle_error(l_node);
            
         END;
       END LOOP;
       
    EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.trap_error(l_node); RAISE;
+       ms_logger.warn_error(l_node); RAISE;
     END;
  
      
  
    EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.trap_error(l_node); --DO NOT RAISE;
+       ms_logger.oracle_error(l_node);
   END;
   
   
@@ -551,18 +551,18 @@ END f_elapsed_time;
           END IF;
         EXCEPTION
          WHEN OTHERS THEN
-           ms_logger.trap_error(l_node); RAISE;
+           ms_logger.warn_error(l_node); RAISE;
       END;
       END LOOP;
       
     EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.trap_error(l_node); RAISE;
+       ms_logger.warn_error(l_node); RAISE;
     END;
  
    EXCEPTION
      WHEN OTHERS THEN
-       ms_logger.trap_error(l_node); --DO NOT RAISE;
+       ms_logger.oracle_error(l_node);
   END;
  
   */
@@ -583,7 +583,7 @@ END f_elapsed_time;
  
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.trap_error(l_node); RAISE;
+        ms_logger.warn_error(l_node); RAISE;
   END raise_an_oracle_error;
  
    --------------------------------------------------------------------
@@ -602,7 +602,7 @@ END f_elapsed_time;
  
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.trap_error(l_node); --DO NOT RAISE;
+        ms_logger.oracle_error(l_node);
   END trap_an_oracle_error;
  
    --------------------------------------------------------------------
@@ -625,7 +625,7 @@ END f_elapsed_time;
   
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.trap_error(l_node); --DO NOT RAISE;
+        ms_logger.oracle_error(l_node);
   END raise_then_trap_oracle_error;
  
  
@@ -661,7 +661,7 @@ END f_elapsed_time;
  
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.trap_error(l_node); --DO NOT RAISE;
+        ms_logger.oracle_error(l_node);
     
     END; --trap_unhandled_error
 	
@@ -677,7 +677,7 @@ END f_elapsed_time;
  
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.raise_error(l_node); RAISE;
+        ms_logger.warn_error(l_node); RAISE;
     
     END; --raise_unhandled_error
 	
@@ -698,7 +698,7 @@ END f_elapsed_time;
       
       EXCEPTION
         WHEN OTHERS THEN
-          ms_logger.trap_error(l_node); --DO NOT RAISE;
+          ms_logger.oracle_error(l_node);
       
       END;  
 	  
@@ -708,7 +708,7 @@ END f_elapsed_time;
  
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.trap_error(l_node); --DO NOT RAISE;
+        ms_logger.oracle_error(l_node);
     
     END;  
 	
@@ -741,7 +741,7 @@ END f_elapsed_time;
     
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.trap_error(l_node); --DO NOT RAISE;
+        ms_logger.oracle_error(l_node);
 
     END; --block_error_detection
     */
@@ -759,7 +759,7 @@ END f_elapsed_time;
     
     EXCEPTION
       WHEN OTHERS THEN
-        ms_logger.trap_error(l_node); --DO NOT RAISE;
+        ms_logger.oracle_error(l_node);
 
     END; --unit_type_detection
 	*/
@@ -785,7 +785,7 @@ END f_elapsed_time;
 
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.trap_error(l_node); --DO NOT RAISE;
+      ms_logger.oracle_error(l_node);
   
   END test_unit_types;
   
