@@ -87,13 +87,16 @@ Show error;
 
 PROMPT MISCELLANEOUS
 
-PROMPT aop_test.sql 
-@feature\logger\LOG-01\LOG-01_02A_02B_LOGGER\aop_test.sql;
+PROMPT ms_flush.sql 
+@feature\logger\LOG-01\LOG-01_02A_02B_LOGGER\ms_flush.sql;
 
 PROMPT ms_test.sql 
 @feature\logger\LOG-01\LOG-01_02A_02B_LOGGER\ms_test.sql;
 
-COMMIT;
+PROMPT aop_test.sql 
+@feature\logger\LOG-01\LOG-01_02A_02B_LOGGER\aop_test.sql;
+ 
+ 
 COMMIT;
 PROMPT 
 PROMPT install.sql - COMPLETED.

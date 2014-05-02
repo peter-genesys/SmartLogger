@@ -274,11 +274,11 @@ BEGIN
 END; 
 
  
-PROCEDURE err_trap_oracle_error(i_message IN VARCHAR2 ) IS
+PROCEDURE err_warn_oracle_error(i_message IN VARCHAR2 ) IS
 BEGIN 
   $if $$intlog $then intlog_putline(i_message||':');     $end
   err_create_internal_error(SQLERRM);
-  $if $$intlog $then intlog_end(i_message => i_message); $end
+  $if $$intlog $then intlog_end(i_message => i_messagntlog_end(i_message => i_message); $end --extra call to intlog_end closes the program unit.
 
 END;
 
@@ -392,7 +392,8 @@ EXCEPTION
 
   WHEN OTHERS THEN
     ROLLBACK;
-    err_trap_oracle_error('find_module');
+    err_warn_oracle_error('find_module');
+	raise;
   
 
 END find_module;
@@ -465,7 +466,8 @@ BEGIN
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_trap_oracle_error('find_unit');
+    err_warn_oracle_error('find_unit');
+	raise;
 
 END find_unit;
 
@@ -700,7 +702,7 @@ BEGIN
 EXCEPTION
 
   WHEN OTHERS THEN
-    err_trap_oracle_error('pop_to_parent_node');
+    err_warn_oracle_error('pop_to_parent_node');
 END; 
 
 
@@ -724,7 +726,7 @@ BEGIN
 EXCEPTION
 
   WHEN OTHERS THEN
-    err_trap_oracle_error('pop_descendent_nodes');
+    err_warn_oracle_error('pop_descendent_nodes');
 END; 
 
  
@@ -756,7 +758,7 @@ EXCEPTION
     err_create_internal_error('push_node: exceeded ' ||g_max_nested_units||' nested procs.');
     $if $$intlog $then intlog_end('push_node'); $end
   WHEN OTHERS THEN
-    err_trap_oracle_error('push_node');
+    err_warn_oracle_error('push_node');
 END;
 
  
@@ -820,7 +822,7 @@ BEGIN
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_trap_oracle_error('log_process');
+    err_warn_oracle_error('log_process');
     
 END log_process;
 
@@ -848,7 +850,7 @@ BEGIN
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_trap_oracle_error('log_ref');
+    err_warn_oracle_error('log_ref');
 END;
 
 ------------------------------------------------------------------------
@@ -920,7 +922,7 @@ EXCEPTION
 	$if $$intlog $then intlog_end('log_node');  $end                   
   WHEN OTHERS THEN
     ROLLBACK;
-    err_trap_oracle_error('log_node');
+    err_warn_oracle_error('log_node');
  
  
 END; 
@@ -948,7 +950,7 @@ BEGIN
  
 EXCEPTION
   WHEN OTHERS THEN
-    err_trap_oracle_error('dump_nodes');
+    err_warn_oracle_error('dump_nodes');
 END;
 
 PROCEDURE synch_node_stack( i_node IN ms_logger.node_typ) IS
@@ -1070,7 +1072,7 @@ BEGIN
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_trap_oracle_error('log_message');
+    err_warn_oracle_error('log_message');
  
 
 END log_message;
@@ -1319,7 +1321,7 @@ BEGIN
   $if $$intlog $then intlog_end('create_ref'); $end
 EXCEPTION
   WHEN OTHERS THEN
-    err_trap_oracle_error('create_ref');
+    err_warn_oracle_error('create_ref');
 
 END create_ref;
 
@@ -1596,7 +1598,7 @@ BEGIN
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_trap_oracle_error('register_module');
+    err_warn_oracle_error('register_module');
   
 END;  
 
@@ -1685,7 +1687,7 @@ BEGIN
   EXCEPTION
     WHEN OTHERS THEN
       ROLLBACK;
-      err_trap_oracle_error('set_unit_msg_mode');
+      err_warn_oracle_error('set_unit_msg_mode');
 END;
  
 
@@ -1792,7 +1794,7 @@ BEGIN
   
 EXCEPTION
   WHEN OTHERS THEN
-    err_trap_oracle_error('create_traversal');
+    err_warn_oracle_error('create_traversal');
  
 END create_traversal;
 

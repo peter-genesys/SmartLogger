@@ -646,7 +646,7 @@ END f_elapsed_time;
  
       ms_logger.comment(l_node,'Test that popping the proc works');
  
-    END;  
+    END exit_a_proc;  
 	
 	
 	
@@ -663,7 +663,7 @@ END f_elapsed_time;
       WHEN OTHERS THEN
         ms_logger.oracle_error(l_node);
     
-    END; --trap_unhandled_error
+    END trap_unhandled_error; 
 	
 	
     PROCEDURE raise_unhandled_error IS
@@ -679,12 +679,8 @@ END f_elapsed_time;
       WHEN OTHERS THEN
         ms_logger.warn_error(l_node); RAISE;
     
-    END; --raise_unhandled_error
-	
-	
-	
-	
-
+    END raise_unhandled_error;
+ 
 	
     PROCEDURE double_exit_recovery1 IS
       l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'double_exit_recovery1');
@@ -700,7 +696,7 @@ END f_elapsed_time;
         WHEN OTHERS THEN
           ms_logger.oracle_error(l_node);
       
-      END;  
+      END double_exit_recovery2;  
 	  
     BEGIN
  
@@ -710,7 +706,7 @@ END f_elapsed_time;
       WHEN OTHERS THEN
         ms_logger.oracle_error(l_node);
     
-    END;  
+    END double_exit_recovery1;  
 	
  
   BEGIN
