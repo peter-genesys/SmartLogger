@@ -1,4 +1,5 @@
-prompt $Id: ms_test.pkb 758 2008-04-29 04:37:49Z Peter $
+--Ensure no inlining so ms_logger can be used
+alter session set plsql_optimize_level = 1;
 
 CREATE OR REPLACE PACKAGE BODY ms_test AS
 -- $Id: ms_test.pkb 758 2008-04-29 04:37:49Z Peter $

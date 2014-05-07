@@ -1,4 +1,5 @@
-prompt $Id: ms_test.pkb 758 2008-04-29 04:37:49Z Peter $
+--Ensure no inlining so ms_logger can be used
+alter session set plsql_optimize_level = 1;
 
 CREATE OR REPLACE PACKAGE BODY ms_test AS
 -- $Id: ms_test.pkb 758 2008-04-29 04:37:49Z Peter $
@@ -852,12 +853,7 @@ END f_elapsed_time;
 	x := dbms_utility.format_call_stack;
 	--x := replace(x, chr(10), ' ');
     dbms_output.put_line(x);  
-	dbms_output.put_line(stk.whoami);
-	dbms_output.put_line(stk.caller);
-	dbms_output.put_line(stk.parse(1));
-	dbms_output.put_line(stk.parse(2));
-	dbms_output.put_line(stk.parse(3));
-	
+ 
   end;
   
   PROCEDURE test_call_stack2 is
