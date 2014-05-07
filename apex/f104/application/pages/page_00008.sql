@@ -44,7 +44,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140501125612'
+ ,p_last_upd_yyyymmddhh24miss => '20140506134020'
   );
 null;
  
@@ -58,7 +58,7 @@ declare
 begin
 s:=s||'select a.* '||unistr('\000a')||
 '      ,m.MESSAGE_ID'||unistr('\000a')||
-'      ,m.MESSAGE'||unistr('\000a')||
+'      ,decode(instr(m.MESSAGE,chr(10)),0,m.MESSAGE,''<PRE>''||m.MESSAGE||''</PRE>'')     MESSAGE'||unistr('\000a')||
 '      ,m.MSG_LEVEL'||unistr('\000a')||
 '      ,m.MSG_TYPE'||unistr('\000a')||
 '      ,m.TIME_NOW'||unistr('\000a')||
@@ -70,11 +70,11 @@ s:=s||'select a.* '||unistr('\000a')||
 'select level'||unistr('\000a')||
 '        ,ut.*'||unistr('\000a')||
 '      ,''<span style="padding-left:''||LEVEL*10||''px;">''||ut.unit_name||''</span>'' level_unit_name'||unistr('\000a')||
-'  from ms_unit_traversal_vw ut'||unistr('\000a')||
-'  start with ut.traversal_id = :P8_TRAVERSAL_ID'||unistr('\000a')||
-'  connect by prior ';
+'  from ms_unit_travers';
 
-s:=s||'ut.TRAVERSAL_ID = ut.PARENT_TRAVERSAL_ID'||unistr('\000a')||
+s:=s||'al_vw ut'||unistr('\000a')||
+'  start with ut.traversal_id = :P8_TRAVERSAL_ID'||unistr('\000a')||
+'  connect by prior ut.TRAVERSAL_ID = ut.PARENT_TRAVERSAL_ID'||unistr('\000a')||
 '  order siblings by ut.TRAVERSAL_ID) a'||unistr('\000a')||
 '  ,ms_message_vw m'||unistr('\000a')||
 'where m.traversal_id = a.traversal_id';
@@ -111,7 +111,7 @@ declare
 begin
 a1:=a1||'select a.* '||unistr('\000a')||
 '      ,m.MESSAGE_ID'||unistr('\000a')||
-'      ,m.MESSAGE'||unistr('\000a')||
+'      ,decode(instr(m.MESSAGE,chr(10)),0,m.MESSAGE,''<PRE>''||m.MESSAGE||''</PRE>'')     MESSAGE'||unistr('\000a')||
 '      ,m.MSG_LEVEL'||unistr('\000a')||
 '      ,m.MSG_TYPE'||unistr('\000a')||
 '      ,m.TIME_NOW'||unistr('\000a')||
@@ -123,11 +123,11 @@ a1:=a1||'select a.* '||unistr('\000a')||
 'select level'||unistr('\000a')||
 '        ,ut.*'||unistr('\000a')||
 '      ,''<span style="padding-left:''||LEVEL*10||''px;">''||ut.unit_name||''</span>'' level_unit_name'||unistr('\000a')||
-'  from ms_unit_traversal_vw ut'||unistr('\000a')||
-'  start with ut.traversal_id = :P8_TRAVERSAL_ID'||unistr('\000a')||
-'  connect by prior ';
+'  from ms_unit_travers';
 
-a1:=a1||'ut.TRAVERSAL_ID = ut.PARENT_TRAVERSAL_ID'||unistr('\000a')||
+a1:=a1||'al_vw ut'||unistr('\000a')||
+'  start with ut.traversal_id = :P8_TRAVERSAL_ID'||unistr('\000a')||
+'  connect by prior ut.TRAVERSAL_ID = ut.PARENT_TRAVERSAL_ID'||unistr('\000a')||
 '  order siblings by ut.TRAVERSAL_ID) a'||unistr('\000a')||
 '  ,ms_message_vw m'||unistr('\000a')||
 'where m.traversal_id = a.traversal_id';
@@ -556,7 +556,6 @@ wwv_flow_api.create_worksheet_column(
   p_display_text_as        =>'WITHOUT_MODIFICATION',
   p_heading_alignment      =>'CENTER',
   p_column_alignment       =>'LEFT',
-  p_format_mask            =>'<span style="padding-left:#LEVEL*10#px;">#MESSAGE#</span>',
   p_tz_dependent           =>'N',
   p_rpt_distinct_lov       =>'Y',
   p_rpt_show_filter_lov    =>'D',

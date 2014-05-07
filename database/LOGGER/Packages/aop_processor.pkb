@@ -1,6 +1,10 @@
 alter trigger aop_processor_trg disable;
 
+--Ensure no inlining so ms_logger can be used
+alter session set plsql_optimize_level = 1;
+
 create or replace package body aop_processor is
+  -- AUTHID CURRENT_USER
   -- @AOP_NEVER
   
 --This package is not yet aware of commented code.
@@ -22,7 +26,8 @@ create or replace package body aop_processor is
   
   x_string_not_found EXCEPTION;
   
-  g_for_html      boolean := false;
+  g_for_aop_html      boolean := false;
+  g_for_comment_htm   boolean := false;
 
   --------------------------------------------------------------------
   -- during_advise
@@ -35,6 +40,7 @@ create or replace package body aop_processor is
     return g_during_advise;
   end during_advise;
 
+ 
   --------------------------------------------------------------------
   -- validate_source
   --------------------------------------------------------------------
@@ -50,10 +56,10 @@ create or replace package body aop_processor is
  
   BEGIN     
  
-    ms_logger.param(l_node, 'i_name'             ,i_name   );
-    ms_logger.param(l_node, 'i_type   '          ,i_type      );
-    --ms_logger.param(l_node, 'i_text       '          ,i_text          ); --too big.
-	ms_logger.param(l_node, 'i_aop_ver   '            ,i_aop_ver      );
+    ms_logger.param(l_node, 'i_name      '          ,i_name   );
+    ms_logger.param(l_node, 'i_type      '          ,i_type      );
+    --ms_logger.param(l_node, 'i_text    '          ,i_text          ); --too big.
+	ms_logger.param(l_node, 'i_aop_ver   '           ,i_aop_ver      );
 
 	--Prepare record.
     l_aop_source.name          := i_name;
@@ -69,7 +75,9 @@ create or replace package body aop_processor is
 	else
 	
       begin
-        execute immediate cast(i_text as varchar2);
+	    execute immediate 'alter session set plsql_optimize_level = 1';
+	  
+        execute immediate i_text;  --11G CLOB OK
 	  exception
         when others then
 	      l_aop_source.result   := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
@@ -78,6 +86,7 @@ create or replace package body aop_processor is
 	  end;
 	end if;
  
+ /*
     --update original source
     UPDATE aop_source
     SET   text          = l_aop_source.text  
@@ -95,6 +104,8 @@ create or replace package body aop_processor is
       INSERT INTO aop_source VALUES l_aop_source;
     
     END IF;
+*/	
+	logger.ins_upd_aop_source(i_aop_source => l_aop_source);
      
     COMMIT;
 	
@@ -102,6 +113,8 @@ create or replace package body aop_processor is
    
       
   END;
+ 
+
   
   function flatten(i_clob IN CLOB) return CLOB is
   begin
@@ -150,28 +163,7 @@ create or replace package body aop_processor is
   
   
   
-  --------------------------------------------------------------------
-  -- remove_comments
-  -- www.orafaq.com/forum/t/99722/2/ discussion of alternative methods.
-  --------------------------------------------------------------------
-  
-    procedure remove_comments( i_code     in out clob ) IS
-                     
-      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'remove_comments');  
-	  l_new_code varchar2(32000);
-	  
-	  --NB This will not work if comment -- /* */ markers are embedded within quotes.
-	  
-    BEGIN
-	
-	  --REMOVE SINGLE LINE COMMENTS 
-	  --Find "--" and remove chars upto EOL or "*/"
-	  
-	  --REMOVE MULTI-LINE COMMENTS 
-	  --Find "/*" and remove upto "*/" 
-      null;
-     
-    END remove_comments;
+
   
   
  
@@ -187,14 +179,16 @@ create or replace package body aop_processor is
 	  
     BEGIN
   
-      ms_logger.param(l_node, 'p_code'          ,p_code );
+      --ms_logger.param(l_node, 'p_code'          ,p_code );
       ms_logger.param(l_node, 'LENGTH(p_code)'  ,LENGTH(p_code)  );
       ms_logger.param(l_node, 'p_new_code'      ,p_new_code);
       ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
 	  
-	  if g_for_html then
+	  if g_for_aop_html then
 	    --l_new_code := '<B>'||p_new_code||'</B>';
-		l_new_code := '<p style="background-color:#9cfffe;">'||p_new_code||'</p>';
+		l_new_code := '<p style="background-color:#9CFFFE;">'||p_new_code||'</p>';
+	  elsif g_for_comment_htm then
+		l_new_code := '<p style="background-color:#FFFF99;">'||p_new_code||'</p>';
 	  else
 	    l_new_code := p_new_code;
       end if;
@@ -205,7 +199,7 @@ create or replace package body aop_processor is
   
 	  p_pos := p_pos + length(l_new_code);	
 	  
-	  ms_logger.note(l_node, 'p_code     '     ,p_code     );
+	  --ms_logger.note(l_node, 'p_code     '     ,p_code     );
 	  ms_logger.note(l_node, 'p_pos     '      ,p_pos     );
  
     END;
@@ -409,6 +403,12 @@ create or replace package body aop_processor is
       ELSE
 	    l_string_pos := 1000000;
 	  end if;
+	end if;
+	
+	if i_beginning then
+	  l_string_pos := l_string_pos - 1;
+	else
+	  l_string_pos := l_string_pos - 1;
 	end if;
 	
 	ms_logger.param(l_node, 'l_string_pos',l_string_pos);
@@ -935,13 +935,14 @@ END;
 	
 	l_end_value          varchar2(50);
 	l_mystery_word       varchar2(50);
+	L_END_MASK           CONSTANT varchar2(50) := '\sEND\s(.*);';
  
   begin
  
     ms_logger.param(l_node, 'p_package_name'      ,p_package_name);
 	ms_logger.param(l_node, 'p_for_html'          ,p_for_html);
 	
-	g_for_html := p_for_html;
+	g_for_aop_html := p_for_html;
 	
 	--First task will be to remove all comments or 
 	--somehow identify and remember all sections that can be ignored because they are comments
@@ -961,20 +962,21 @@ END;
     l_current_pos := 1;
 	l_end_pos     := 1;
 	LOOP
-	  l_end_pos := REGEXP_INSTR(p_code,'end (.*);',l_current_pos,1,0,'i');
+	  l_end_pos := REGEXP_INSTR(p_code,L_END_MASK,l_current_pos,1,0,'i');
 	  EXIT WHEN l_end_pos = 0; 
 	 
-	  l_end_value := SUBSTR(REGEXP_SUBSTR(p_code,'end (.*);',l_current_pos,1,'i'),1,50);
+	  l_end_value := SUBSTR(REGEXP_SUBSTR(p_code,L_END_MASK,l_current_pos,1,'i'),1,50);
 	  ms_logger.note(l_node, 'l_end_value'      ,l_end_value);
 	  --check that the end value was all from 1 line.
 	  if l_end_value like '%;' then
-	    l_mystery_word := trim(rtrim(substr(l_end_value,4),';'));
+	    --Get that part of the word after \sEND\s
+	    l_mystery_word := upper(trim(rtrim(substr(l_end_value,6),';')));
 	    ms_logger.note(l_node, 'l_mystery_word'      ,l_mystery_word);
 	    if l_mystery_word not in ('IF'
 	                             ,'LOOP'
 	    						   ,'CASE') then
 	      ms_logger.info(l_node, 'Replacing '||l_end_value);
-	      p_code := REGEXP_REPLACE(p_code,'end (.*);','end;',l_current_pos,1,'i');
+	      p_code := REGEXP_REPLACE(p_code,L_END_MASK,'END;',l_current_pos,1,'i');
 	    
 	    end if;
 	  end if;
@@ -1027,6 +1029,7 @@ END;
 	l_woven_body clob;
 	l_html_body clob;
     l_advised boolean := false;
+  begin	
   begin
     ms_logger.param(l_node, 'p_object_name'  ,p_object_name  );
     ms_logger.param(l_node, 'p_object_type'  ,p_object_type  );
@@ -1077,9 +1080,10 @@ END;
 		  --but trap it incase we do	
           ms_logger.fatal(l_node,'Original Source is invalid on second try.');		  
 		end if;
-		
-	  else	
+	  end if;
+	  --else	
 	    --Reweave with html
+		ms_logger.comment(l_node,'Reweave with html');	
 	    l_html_body := l_orig_body;
         l_advised := weave( p_code         => l_html_body
                           , p_package_name => lower(p_object_name)
@@ -1093,7 +1097,7 @@ END;
 		
 		END IF;
  
-	  end if;	
+	  --end if;	
  
     end if;
     g_during_advise:= false; 
@@ -1102,7 +1106,11 @@ END;
     when others then
       ms_logger.oracle_error(l_node);	
 	  g_during_advise:= false; 
-   
+  end;	  
+  exception 
+    when others then
+	  --I think we need to ensure the routine does not fail, or it will re-submit job.
+      g_during_advise:= false; 
   end advise_package;
   
   procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL) is
@@ -1119,6 +1127,167 @@ END;
 
     end loop;
   end reapply_aspect;
+  
+  
+  
+  --------------------------------------------------------------------
+  -- remove_comments
+  -- www.orafaq.com/forum/t/99722/2/ discussion of alternative methods.
+  --------------------------------------------------------------------
+  
+    procedure remove_comments( io_code     in out clob ) IS
+     --function remove_comments( i_code in clob ) return clob is                
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'remove_comments');  
+	  l_new_code varchar2(32000);
+	  
+	  --NB This will not work if comment -- /* */ markers are embedded within quotes.
+	  
+	  
+    l_old_clob clob;
+    l_line varchar2(4000);
+    l_line_count number;
+    v_from number;
+    l_eol number;
+	l_count number;
+	l_new_clob clob;
+	
+	l_comment_block boolean := false;
+	l_quoted_text   boolean := false;
+	
+	x_string_not_found exception;
+	
+	
+	l_single_comment_pos      number;
+ 		    
+	l_block_comment_open_pos  number;
+	
+	l_block_comment_close_pos number;
+ 				
+	l_quote_pos               number;
+	l_next                    number;
+ 
+	  
+    BEGIN
+ 
+    --  return i_code;
+    
+	  --REMOVE SINGLE LINE COMMENTS 
+	  --Find "--" and remove chars upto EOL or "* /"
+	  
+	  --REMOVE MULTI-LINE COMMENTS 
+	  --Find "/*" and remove upto "* /" 
+      null;
+	  
+	  
+	l_old_clob := io_code||chr(10);
+	
+    --l_line_count := length(l_old_clob) - nvl(length(replace(l_old_clob,chr(10))),0) + 1;
+    --v_from := 1;
+    --l_eol := instr(l_old_clob || chr(10),chr(10),v_from,1) - v_from;
+	
+	l_count := 0;
+	loop
+	  l_eol := instr(l_old_clob,chr(10),1);
+	  exit when l_eol = 0 or l_count = 100;
+	  l_count := l_count + 1;
+	  l_line := substr(l_old_clob,1,l_eol-1);
+	  ms_logger.note(l_node,'l_line',l_line);
+	   
+	  if l_comment_block then
+	  
+	    l_block_comment_close_pos :=   get_pos_end(i_code        => l_line   
+		                                          ,i_current_pos => 1
+		    	                                  ,i_search      => '\*'||'\/'
+		    		                              ,i_whitespace  => false
+	        		                              ,i_raise_error => false);
+	 									  
+	    l_next := l_block_comment_close_pos;
+	    
+		if l_next < 1000000 then
+		
+		  if l_next = l_block_comment_close_pos  then
+		    splice( p_code     => l_line
+		           ,p_new_code => '</p>'
+		           ,p_pos      => l_next);
+ 
+            --l_line := substr(l_line,l_next);
+			l_comment_block := false;
+		  
+		  end if;
+		  
+		else
+		  NULL;
+          --l_line := NULL;		
+ 						  
+	    end if;
+ 
+	  
+	  else --NOT l_comment_block
+	    l_single_comment_pos      :=   get_pos_start(i_code        => l_line   
+		                                          ,i_current_pos => 1
+		    	                                  ,i_search      => '--'
+		    		                              ,i_whitespace  => false
+	        		                              ,i_raise_error => false);
+							      		  
+	    l_block_comment_open_pos  :=   get_pos_start(i_code        => l_line   
+		                                            ,i_current_pos => 1
+		    	                                    ,i_search      => '\/\*'
+		    		                                ,i_whitespace  => false
+	        		                                ,i_raise_error => false);
+								  	  
+		l_quote_pos               := 	get_pos_start(i_code        => l_line 						  
+					              	           ,i_current_pos => 1			  
+					              	           ,i_search      => ''''			  
+					              	           ,i_whitespace  => false			  
+					              	           ,i_raise_error => false);
+        l_next := least(l_single_comment_pos,l_block_comment_open_pos,l_quote_pos);
+		if l_next < 1000000 then
+		
+		  if l_next = l_single_comment_pos then
+		    --l_line := substr(l_line,1,l_next);
+			--l_next := l_single_comment_pos - 1;
+		    splice( p_code     => l_line
+		           ,p_new_code => '<p style="background-color:#FFFF99;">'
+		           ,p_pos      => l_next);
+			l_line := l_line || '</p>';
+			
+			
+		  elsif l_next = l_block_comment_open_pos then
+		    splice( p_code     => l_line
+		           ,p_new_code => '<p style="background-color:#FFFF99;">'
+		           ,p_pos      => l_next);
+ 
+            --l_line := substr(l_line,1,l_next);
+			l_comment_block := true;
+		  
+		  end if;
+							
+	    end if;
+		
+	  end if;
+	  
+	   
+ 
+	  --dbms_output.put_line('line '||lpad(l_count,4)||l_line);
+	  
+	  l_new_clob := l_new_clob ||l_line||chr(10);
+	  
+	  l_old_clob := substr(l_old_clob,l_eol+1,LENGTH(l_old_clob));
+	  
+	  
+	end loop;  
+	
+	io_code := l_new_clob;
+ 
+	
+    exception
+      when others then
+        ms_logger.warn_error(l_node);
+        raise;
+     
+    END remove_comments;
+  
+  
  
 end aop_processor;
 /

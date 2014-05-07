@@ -7,8 +7,8 @@ prompt  APPLICATION 104 - Logger
 --   Exported By:     LOGGER
 --   Flashback:       0
 --   Export Type:     Application Export
---   Version:         4.2.4.00.08
---   Instance ID:     61919165587485
+--   Version:         4.2.5.00.08
+--   Instance ID:     69419748294856
 --
 -- Import:
 --   Using Application Builder
@@ -16,12 +16,12 @@ prompt  APPLICATION 104 - Logger
 --   Using SQL*Plus as the Oracle user APEX_040200 or as the owner (parsing schema) of the application
  
 -- Application Statistics:
---   Pages:                     12
---     Items:                   22
+--   Pages:                     13
+--     Items:                   24
 --     Validations:              2
 --     Processes:               14
---     Regions:                 31
---     Buttons:                 26
+--     Regions:                 35
+--     Buttons:                 29
 --   Shared Components:
 --     Logic:
 --       Items:                  1
@@ -45,7 +45,7 @@ prompt  APPLICATION 104 - Logger
 --         Breadcrumb:           2
 --         Button:               4
 --         Report:               9
---       Shortcuts:              3
+--       Shortcuts:              4
 --     Globalization:
 --     Reports:
  
@@ -62,7 +62,7 @@ prompt  Set Credentials...
 begin
  
   -- Assumes you are running the script connected to SQL*Plus as the Oracle user APEX_040200 or as the owner (parsing schema) of the application.
-  wwv_flow_api.set_security_group_id(p_security_group_id=>nvl(wwv_flow_application_install.get_workspace_id,2396213077575736));
+  wwv_flow_api.set_security_group_id(p_security_group_id=>nvl(wwv_flow_application_install.get_workspace_id,2336619886530720));
  
 end;
 /

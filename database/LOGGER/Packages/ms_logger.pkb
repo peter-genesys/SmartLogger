@@ -1190,9 +1190,9 @@ END;
 ------------------------------------------------------------------------
 
 PROCEDURE debug_error( i_node            IN ms_logger.node_typ 
-                       ,i_warning         IN BOOLEAN  DEFAULT FALSE
-                       ,i_oracle          IN BOOLEAN  DEFAULT FALSE
-                       ,i_message         IN VARCHAR2 DEFAULT NULL  )
+                      ,i_warning         IN BOOLEAN  DEFAULT FALSE
+                      ,i_oracle          IN BOOLEAN  DEFAULT FALSE
+                      ,i_message         IN VARCHAR2 DEFAULT NULL  )
 IS
 BEGIN
  
@@ -1821,11 +1821,11 @@ FUNCTION new_node(i_module_name IN VARCHAR2
     l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
   BEGIN
     --Indicative only. Absolute value doesn't matter so much, used for comparison only.
-    --first 4 lines are not real levels so subtract 4.
+    --first 4 lines are not real levels and Some level represent the logger package. so subtract 7
   
     l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
    
-    return l_lines.count -4;
+    return l_lines.count -7;
      
   END;	 
  
@@ -1897,6 +1897,18 @@ BEGIN
 							 ,i_unit_type   => G_UNIT_TYPE_FUNCTION );
  
   END;
+  
+  FUNCTION new_trig(i_module_name IN VARCHAR2
+                   ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
+ 
+  BEGIN
+    
+	RETURN ms_logger.new_node(i_module_name => i_module_name
+                             ,i_unit_name   => i_unit_name
+							 ,i_unit_type   => G_UNIT_TYPE_TRIGGER );
+ 
+  END;
+  
   
  -- FUNCTION new_block(i_module_name IN VARCHAR2
  --                  ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS

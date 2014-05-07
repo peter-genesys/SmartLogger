@@ -27,6 +27,9 @@ FUNCTION new_proc(i_module_name IN VARCHAR2
 
 FUNCTION new_func(i_module_name IN VARCHAR2
                  ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;
+				 
+  FUNCTION new_trig(i_module_name IN VARCHAR2
+                   ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;		 
 
 --No longer support block mode				 
 --  FUNCTION new_block(i_module_name IN VARCHAR2

@@ -327,6 +327,9 @@ END f_elapsed_time;
 
   BEGIN
 
+    ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+    ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
     
     ms_logger.param(l_node,'i_node_count',i_node_count );
 
@@ -351,6 +354,10 @@ END f_elapsed_time;
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'max_nest_test');
 
   BEGIN
+  
+    ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+    ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
 
     
     ms_logger.param(l_node,'i_node_count',i_node_count );
@@ -384,6 +391,10 @@ END f_elapsed_time;
 
 
   BEGIN
+  
+    ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+    ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
 
 
     msg_mode_node(i_node_count => 5);
@@ -628,7 +639,16 @@ END f_elapsed_time;
         ms_logger.oracle_error(l_node);
   END raise_then_trap_oracle_error;
  
- 
+  PROCEDURE exit_a_proc(x in number) IS
+    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'exit_a_proc');
+  
+  BEGIN
+    ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+    ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
+    ms_logger.comment(l_node,'Test that popping the proc works');
+  
+  END exit_a_proc;  
   
   --------------------------------------------------------------------
   --test_unit_types
@@ -639,14 +659,7 @@ END f_elapsed_time;
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'test_unit_types');
     x_user_def EXCEPTION;
    
-    PROCEDURE exit_a_proc IS
-      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'exit_a_proc');
- 
-    BEGIN
- 
-      ms_logger.comment(l_node,'Test that popping the proc works');
- 
-    END exit_a_proc;  
+
 	
 	
 	
@@ -655,7 +668,10 @@ END f_elapsed_time;
 
 
     BEGIN
- 
+      ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+      ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	  ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
+	  
       ms_logger.comment(l_node,'Test an unhandled user defined error');
       RAISE x_user_def;
  
@@ -671,7 +687,10 @@ END f_elapsed_time;
 
 
     BEGIN
- 
+      ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+      ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	  ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
+	  
       ms_logger.comment(l_node,'Test an unhandled user defined error');
       RAISE x_user_def;
  
@@ -711,7 +730,9 @@ END f_elapsed_time;
  
   BEGIN
 
-
+    ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+    ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
     
     /*
     std_single_loop_proc;
@@ -719,7 +740,9 @@ END f_elapsed_time;
     special_loop_trap;
     special_loop_raise;
     */
-    exit_a_proc;
+	begin
+      exit_a_proc(1);
+	end;
 	ms_logger.comment(l_node,'Did it work?');
     
 
@@ -784,6 +807,77 @@ END f_elapsed_time;
       ms_logger.oracle_error(l_node);
   
   END test_unit_types;
+  
+  
+  
+  
+  
+  --------------------------------------------------------------------
+  --test_traversal_tree
+  --------------------------------------------------------------------
+
+  PROCEDURE test_traversal_tree(i_node_count IN  NUMBER) IS
+
+    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'test_traversal_tree');
+ 
+  BEGIN
+  
+    ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+    ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
+ 
+  
+    if l_node.node_level < 10 and i_node_count > 0 then
+	  test_traversal_tree(i_node_count => i_node_count - 1);
+    end if;
+    ms_logger.comment(l_node,'dropping out');
+
+  END test_traversal_tree; 
+  
+  --------------------------------------------------------------------
+  --test_tree
+  --------------------------------------------------------------------
+
+  PROCEDURE test_tree is
+    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'test_tree');
+ 
+  BEGIN
+    test_traversal_tree(i_node_count => 20);
+  END test_tree; 
+  
+  PROCEDURE test_call_stack3 is
+	x   VARCHAR2(4000);
+  begin
+    dbms_output.put_line('test_call_stack3');
+	x := dbms_utility.format_call_stack;
+	--x := replace(x, chr(10), ' ');
+    dbms_output.put_line(x);  
+	dbms_output.put_line(stk.whoami);
+	dbms_output.put_line(stk.caller);
+	dbms_output.put_line(stk.parse(1));
+	dbms_output.put_line(stk.parse(2));
+	dbms_output.put_line(stk.parse(3));
+	
+  end;
+  
+  PROCEDURE test_call_stack2 is
+  begin
+    dbms_output.put_line('test_call_stack2');
+    dbms_output.put_line(dbms_utility.format_call_stack);  
+	test_call_stack3;
+	dbms_output.put_line('test_call_stack2');
+	dbms_output.put_line(dbms_utility.format_call_stack); 
+
+  end;
+  
+  PROCEDURE test_call_stack is
+  begin
+    dbms_output.put_line('test_call_stack');
+    dbms_output.put_line(dbms_utility.format_call_stack);  
+	test_call_stack2;
+	dbms_output.put_line('test_call_stack');
+	dbms_output.put_line(dbms_utility.format_call_stack); 
+  end;
   
  
  

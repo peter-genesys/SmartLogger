@@ -1,0 +1,3 @@
+create synonym ms_feedback for logger.ms_feedback;
+create synonym ms_logger for logger.ms_logger;
+create synonym aop_processor for logger.aop_processor;

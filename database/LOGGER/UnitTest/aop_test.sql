@@ -1,6 +1,6 @@
 prompt aop_test.sql
 
-spool F:\SmartLogger\database\LOGGER\UnitTest\aop_test.log
+spool aop_test.log
 
 prompt register this script  and the test package (may not need to reg package)
 execute ms_logger.register_sql_script('aop_test.sql','10.0');  

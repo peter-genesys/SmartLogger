@@ -1,16 +1,17 @@
---application/pages/page_00007
-prompt  ...PAGE 7: Step 2
+--application/pages/page_00012
+prompt  ...PAGE 12: Step 2.5 Comments
 --
  
 begin
  
 wwv_flow_api.create_page (
   p_flow_id => wwv_flow.g_flow_id
- ,p_id => 7
+ ,p_id => 12
  ,p_user_interface_id => 2512031460610037 + wwv_flow_api.g_id_offset
  ,p_tab_set => 'TS1'
- ,p_name => 'Step 2'
- ,p_step_title => 'Step 2'
+ ,p_name => 'Step 2.5 Comments'
+ ,p_step_title => 'Step 2.5 Comments'
+ ,p_step_sub_title => 'Step 2.5 Comments'
  ,p_step_sub_title_type => 'TEXT_WITH_SUBSTITUTIONS'
  ,p_first_item => 'NO_FIRST_ITEM'
  ,p_include_apex_css_js_yn => 'Y'
@@ -20,7 +21,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140504120445'
+ ,p_last_upd_yyyymmddhh24miss => '20140504120404'
   );
 null;
  
@@ -34,9 +35,9 @@ declare
 begin
 s := null;
 wwv_flow_api.create_page_plug (
-  p_id=> 2726931101087388 + wwv_flow_api.g_id_offset,
+  p_id=> 2537323338416999 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 7,
+  p_page_id=> 12,
   p_plug_name=> 'Breadcrumb',
   p_region_name=>'',
   p_escape_on_http_output=>'N',
@@ -66,10 +67,10 @@ declare
 begin
 s := null;
 wwv_flow_api.create_page_plug (
-  p_id=> 2751413984618846 + wwv_flow_api.g_id_offset,
+  p_id=> 2537509370417004 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 7,
-  p_plug_name=> 'Step 2',
+  p_page_id=> 12,
+  p_plug_name=> 'Step 2.5',
   p_region_name=>'',
   p_escape_on_http_output=>'N',
   p_plug_template=> 17756839023931435+ wwv_flow_api.g_id_offset,
@@ -95,15 +96,15 @@ declare
   l_clob clob;
   l_length number := 1;
 begin
-s:=s||'"AOP_ADHOC_HTML"';
+s:=s||'"COMMENT_HTML"';
 
 wwv_flow_api.create_page_plug (
-  p_id=> 2762323681965797 + wwv_flow_api.g_id_offset,
+  p_id=> 2538704776417008 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 7,
-  p_plug_name=> 'AOP Text',
+  p_page_id=> 12,
+  p_plug_name=> 'Comment Text',
   p_region_name=>'',
-  p_parent_plug_id=>2751413984618846 + wwv_flow_api.g_id_offset,
+  p_parent_plug_id=>2537509370417004 + wwv_flow_api.g_id_offset,
   p_escape_on_http_output=>'Y',
   p_plug_template=> 17756239625931434+ wwv_flow_api.g_id_offset,
   p_plug_display_sequence=> 20,
@@ -141,9 +142,9 @@ s:=s||'The code should now be woven with ms_logger calls and exception blocks.'|
 '<BR>See Step 4, in this case, for the most accurate AOP.';
 
 wwv_flow_api.create_page_plug (
-  p_id=> 2751720060618846 + wwv_flow_api.g_id_offset,
+  p_id=> 2538925063417009 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 7,
+  p_page_id=> 12,
   p_plug_name=> 'Information',
   p_region_name=>'',
   p_escape_on_http_output=>'N',
@@ -171,11 +172,11 @@ end;
 begin
  
 wwv_flow_api.create_page_button(
-  p_id             => 2752022055618847 + wwv_flow_api.g_id_offset,
+  p_id             => 2537717776417004 + wwv_flow_api.g_id_offset,
   p_flow_id        => wwv_flow.g_flow_id,
-  p_flow_step_id   => 7,
+  p_flow_step_id   => 12,
   p_button_sequence=> 10,
-  p_button_plug_id => 2751413984618846+wwv_flow_api.g_id_offset,
+  p_button_plug_id => 2537509370417004+wwv_flow_api.g_id_offset,
   p_button_name    => 'CANCEL',
   p_button_action  => 'REDIRECT_PAGE',
   p_button_image   => 'template:'||to_char(17754457373931432+wwv_flow_api.g_id_offset),
@@ -187,11 +188,11 @@ wwv_flow_api.create_page_button(
   p_required_patch => null + wwv_flow_api.g_id_offset);
  
 wwv_flow_api.create_page_button(
-  p_id             => 2731528680103226 + wwv_flow_api.g_id_offset,
+  p_id             => 2537929017417005 + wwv_flow_api.g_id_offset,
   p_flow_id        => wwv_flow.g_flow_id,
-  p_flow_step_id   => 7,
+  p_flow_step_id   => 12,
   p_button_sequence=> 50,
-  p_button_plug_id => 2751413984618846+wwv_flow_api.g_id_offset,
+  p_button_plug_id => 2537509370417004+wwv_flow_api.g_id_offset,
   p_button_name    => 'NEXT',
   p_button_action  => 'SUBMIT',
   p_button_image   => 'template:'||to_char(17754457373931432+wwv_flow_api.g_id_offset),
@@ -204,11 +205,11 @@ wwv_flow_api.create_page_button(
   p_required_patch => null + wwv_flow_api.g_id_offset);
  
 wwv_flow_api.create_page_button(
-  p_id             => 2752206495618847 + wwv_flow_api.g_id_offset,
+  p_id             => 2538127029417005 + wwv_flow_api.g_id_offset,
   p_flow_id        => wwv_flow.g_flow_id,
-  p_flow_step_id   => 7,
+  p_flow_step_id   => 12,
   p_button_sequence=> 20,
-  p_button_plug_id => 2751413984618846+wwv_flow_api.g_id_offset,
+  p_button_plug_id => 2537509370417004+wwv_flow_api.g_id_offset,
   p_button_name    => 'PREVIOUS',
   p_button_action  => 'SUBMIT',
   p_button_image   => 'template:'||to_char(17754457373931432+wwv_flow_api.g_id_offset),
@@ -228,27 +229,27 @@ end;
 begin
  
 wwv_flow_api.create_page_branch(
-  p_id=>2731807599108924 + wwv_flow_api.g_id_offset,
+  p_id=>2539226614417012 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
-  p_flow_step_id=> 7,
+  p_flow_step_id=> 12,
   p_branch_name=> '',
-  p_branch_action=> 'f?p=&APP_ID.:12:&SESSION.::&DEBUG.:::&success_msg=#SUCCESS_MSG#',
+  p_branch_action=> 'f?p=&APP_ID.:3:&SESSION.::&DEBUG.:::&success_msg=#SUCCESS_MSG#',
   p_branch_point=> 'AFTER_PROCESSING',
   p_branch_type=> 'REDIRECT_URL',
-  p_branch_when_button_id=>2731528680103226+ wwv_flow_api.g_id_offset,
+  p_branch_when_button_id=>2537929017417005+ wwv_flow_api.g_id_offset,
   p_branch_sequence=> 30,
   p_save_state_before_branch_yn=>'N',
   p_branch_comment=> '');
  
 wwv_flow_api.create_page_branch(
-  p_id=>2752700755618848 + wwv_flow_api.g_id_offset,
+  p_id=>2539411752417012 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
-  p_flow_step_id=> 7,
+  p_flow_step_id=> 12,
   p_branch_name=> '',
   p_branch_action=> 'f?p=&APP_ID.:6:&SESSION.&success_msg=#SUCCESS_MSG#',
   p_branch_point=> 'BEFORE_VALIDATION',
   p_branch_type=> 'REDIRECT_URL',
-  p_branch_when_button_id=>2752206495618847+ wwv_flow_api.g_id_offset,
+  p_branch_when_button_id=>2538127029417005+ wwv_flow_api.g_id_offset,
   p_branch_sequence=> 10,
   p_save_state_before_branch_yn=>'N',
   p_branch_comment=> '');
@@ -261,15 +262,15 @@ declare
     h varchar2(32767) := null;
 begin
 wwv_flow_api.create_page_item(
-  p_id=>2712524846253923 + wwv_flow_api.g_id_offset,
+  p_id=>2538306241417006 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
-  p_flow_step_id=> 7,
-  p_name=>'P7_AOP_HTML',
+  p_flow_step_id=> 12,
+  p_name=>'P12_AOP_HTML',
   p_data_type=> '',
   p_is_required=> false,
   p_accept_processing=> 'REPLACE_EXISTING',
   p_item_sequence=> 20,
-  p_item_plug_id => 2751413984618846+wwv_flow_api.g_id_offset,
+  p_item_plug_id => 2537509370417004+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'NO',
   p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
   p_prompt=>'HTML Text',
@@ -315,15 +316,15 @@ declare
     h varchar2(32767) := null;
 begin
 wwv_flow_api.create_page_item(
-  p_id=>2753428604641247 + wwv_flow_api.g_id_offset,
+  p_id=>2538505218417008 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
-  p_flow_step_id=> 7,
-  p_name=>'P7_AOP_TEXT',
+  p_flow_step_id=> 12,
+  p_name=>'P12_AOP_TEXT',
   p_data_type=> '',
   p_is_required=> false,
   p_accept_processing=> 'REPLACE_EXISTING',
   p_item_sequence=> 10,
-  p_item_plug_id => 2751413984618846+wwv_flow_api.g_id_offset,
+  p_item_plug_id => 2537509370417004+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'NO',
   p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
   p_prompt=>'AOP Text',
@@ -369,7 +370,7 @@ end;
 begin
  
 ---------------------------------------
--- ...updatable report columns for page 7
+-- ...updatable report columns for page 12
 --
  
 begin

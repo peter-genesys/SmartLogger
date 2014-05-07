@@ -4,8 +4,10 @@ prompt ms_test
 set timing on
  
 set pages 1000;
+ 
+spool c:\ms_test.log
 
-spool F:\SmartLogger\database\LOGGER\UnitTest\ms_test.log
+alter package ms_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings 
 
 prompt register this script  and the test package (may not need to reg package)
 execute ms_logger.register_sql_script('ms_test.sql','10.0');  
@@ -16,6 +18,7 @@ set serveroutput on;
 execute dbms_output.enable(null);
 
 execute ms_logger.set_internal_debug;
+ 
 execute ms_test.test_unit_types;
 execute ms_logger.reset_internal_debug;
 /*
@@ -77,6 +80,10 @@ execute ms_logger.new_process(i_module_name => 'ms_test.sql'  -
  
  
 BEGIN
+
+  ms_test.test_traversal_tree(i_node_count => 20);
+  
+  ms_test.test_tree;
  
   ms_logger.set_unit_debug(i_module_name => 'ms_test'                
                             ,i_unit_name   => 'error_node');
@@ -104,9 +111,9 @@ BEGIN
   ms_test.test_unit_msg_mode;
  
 
-  --ms_logger.set_internal_debug;
+  ms_logger.set_internal_debug;
   ms_test.test_unit_types;
-  --ms_logger.reset_internal_debug;
+  ms_logger.reset_internal_debug;
   
 
   ms_test.test_internal_error;
@@ -139,5 +146,7 @@ FROM ms_unit_traversal_vw t
 START WITH parent_traversal_id IS NULL
 CONNECT BY PRIOR traversal_id = parent_traversal_id
 ORDER SIBLINGS BY traversal_id; 
+ 
+alter package ms_logger compile PLSQL_CCFlags = 'intlog:false' reuse settings  
  
 spool off;

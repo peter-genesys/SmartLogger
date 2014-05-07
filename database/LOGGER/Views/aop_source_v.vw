@@ -14,9 +14,9 @@ from aop_source orig
     ,aop_source aop
 	,aop_source aop_html
 where orig.aop_ver = 'ORIG'
-and   orig.name = aop.name (+)
-and   orig.type = aop.type (+)
+and   orig.name = aop.name  
+and   orig.type = aop.type  
 and   NVL(aop.aop_ver,'AOP') = 'AOP'
-and   orig.name = aop_html.name (+)
-and   orig.type = aop_html.type (+)
+and   orig.name = aop_html.name  
+and   orig.type = aop_html.type  
 and   NVL(aop_html.aop_ver,'AOP_HTML') = 'AOP_HTML';

@@ -42,6 +42,8 @@ CREATE OR REPLACE PACKAGE  ms_test AS
   --------------------------------------------------------------------
 
   PROCEDURE test_unit_msg_mode;
+  
+  --PROCEDURE exit_a_proc(x in number);   
     
    --------------------------------------------------------------------
    --trap_an_oracle_error
@@ -68,7 +70,21 @@ CREATE OR REPLACE PACKAGE  ms_test AS
   --------------------------------------------------------------------
 
   PROCEDURE test_unit_types;
+  
+  
+  
+  --------------------------------------------------------------------
+  --test_traversal_tree
+  --------------------------------------------------------------------
 
+  PROCEDURE test_traversal_tree(i_node_count IN  NUMBER);
+  --------------------------------------------------------------------
+  --test_tree
+  --------------------------------------------------------------------
+
+  PROCEDURE test_tree;
+  
+  PROCEDURE test_call_stack;
 
 END ms_test;
 /
