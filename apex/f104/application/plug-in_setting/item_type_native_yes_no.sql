@@ -7,18 +7,3 @@ wwv_flow_api.create_plugin_setting (
  ,p_attribute_01 => 'Y'
  ,p_attribute_03 => 'N'
   );
-null;
- 
-end;
-/
-
-prompt  ...authorization schemes
---
- 
-begin
- 
-null;
- 
-end;
-/
-

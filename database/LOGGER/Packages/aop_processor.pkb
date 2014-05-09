@@ -28,6 +28,22 @@ create or replace package body aop_processor is
   
   g_for_aop_html      boolean := false;
   g_for_comment_htm   boolean := false;
+  
+  g_weave_start_time  date;
+  
+  g_weave_timeout_secs NUMBER := 60;   
+
+  x_weave_timeout EXCEPTION; 
+  
+  procedure check_timeout is
+  begin
+    if (sysdate - g_weave_start_time) * 24 * 60 * 60 >  x_weave_timeout_secs then
+	  raise x_weave_timeout;
+	end if;
+  
+  end;
+  
+  
 
   --------------------------------------------------------------------
   -- during_advise
@@ -184,9 +200,12 @@ create or replace package body aop_processor is
       ms_logger.param(l_node, 'p_new_code'      ,p_new_code);
       ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
 	  
+	  check_timeout;
+	  
 	  if g_for_aop_html then
 	    --l_new_code := '<B>'||p_new_code||'</B>';
-		l_new_code := '<p style="background-color:#9CFFFE;">'||p_new_code||'</p>';
+		--l_new_code := '<p style="background-color:#9CFFFE;">'||p_new_code||'</p>';
+		l_new_code := '<span style="background-color:#9CFFFE;">'||p_new_code||'</span>';
 	  elsif g_for_comment_htm then
 		l_new_code := '<p style="background-color:#FFFF99;">'||p_new_code||'</p>';
 	  else
@@ -381,6 +400,8 @@ create or replace package body aop_processor is
 	ms_logger.param(l_node, 'i_whitespace' ,i_whitespace);
 	ms_logger.param(l_node, 'i_raise_error',i_raise_error);
 	ms_logger.param(l_node, 'i_beginning'  ,i_beginning);
+	
+	check_timeout;
 	
 	if i_beginning then
 	  l_mode := 0;
@@ -944,6 +965,8 @@ END;
 	
 	g_for_aop_html := p_for_html;
 	
+	g_weave_start_time := SYSDATE;
+	
 	--First task will be to remove all comments or 
 	--somehow identify and remember all sections that can be ignored because they are comments
 	
@@ -1012,6 +1035,10 @@ END;
     return l_advised;
 	
   exception 
+    when x_weave_timeout then
+	  p_code := p_code || chr(10)||chr(10)||'WEAVE TIMED OUT';
+      return false;
+  
     when others then
       ms_logger.oracle_error(l_node);	
 	  raise;

@@ -19,7 +19,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140428233909'
+ ,p_last_upd_yyyymmddhh24miss => '20140509091739'
   );
 null;
  
@@ -124,7 +124,7 @@ wwv_flow_api.create_page_plug (
   p_plug_query_num_rows_type => 'NEXT_PREVIOUS_LINKS',
   p_plug_query_row_count_max => 500,
   p_plug_query_show_nulls_as => ' - ',
-  p_plug_display_condition_type => '',
+  p_plug_display_condition_type => 'NEVER',
   p_pagination_display_position=>'BOTTOM_RIGHT',
   p_plug_customized=>'0',
   p_plug_caching=> 'NOT_CACHED',
@@ -159,6 +159,102 @@ wwv_flow_api.create_page_plug (
   p_plug_query_headings_type=> 'COLON_DELMITED_LIST',
   p_plug_query_row_count_max => 500,
   p_plug_display_condition_type => '',
+  p_plug_caching=> 'NOT_CACHED',
+  p_plug_comment=> '');
+end;
+/
+declare
+  s varchar2(32767) := null;
+  l_clob clob;
+  l_length number := 1;
+begin
+s:=s||'DECLARE'||unistr('\000a')||
+'  CURSOR cu_source IS'||unistr('\000a')||
+'  select aop_text'||unistr('\000a')||
+'  from aop_source_v'||unistr('\000a')||
+'  where name = :P4_name and type = :P4_type;'||unistr('\000a')||
+' '||unistr('\000a')||
+'  l_body CLOB;'||unistr('\000a')||
+' '||unistr('\000a')||
+'  procedure print_clob(i_clob IN CLOB) IS'||unistr('\000a')||
+'   '||unistr('\000a')||
+'    v_clob        clob;'||unistr('\000a')||
+'    v_buffer      varchar2(32767);'||unistr('\000a')||
+'    v_length      number;'||unistr('\000a')||
+'    v_amount      number := 32767;'||unistr('\000a')||
+'    v_offset      number := 1;'||unistr('\000a')||
+'  '||unistr('\000a')||
+'  begin'||unistr('\000a')||
+'  '||unistr('\000a')||
+'    --sys.htp.init;'||unistr('\000a')||
+'    --wwv_flow.g_page_text_generated ';
+
+s:=s||':= true;'||unistr('\000a')||
+'    --wwv_flow.g_unrecoverable_error := true;'||unistr('\000a')||
+'  '||unistr('\000a')||
+'    --dbms_lob.createtemporary(lob_loc => v_clob, cache => false, dur => dbms_lob.session);'||unistr('\000a')||
+'    v_clob   := i_clob;'||unistr('\000a')||
+'    v_length := dbms_lob.getlength(v_clob);'||unistr('\000a')||
+'  '||unistr('\000a')||
+'    --sys.owa_util.mime_header(''text/xml'', false);'||unistr('\000a')||
+'    --sys.htp.p(''Content-Length: '' || v_length);'||unistr('\000a')||
+'    --sys.owa_util.http_header_close;'||unistr('\000a')||
+'  '||unistr('\000a')||
+'    -- read and write in chunk of 32k'||unistr('\000a')||
+'';
+
+s:=s||'    while v_offset <= v_length loop          '||unistr('\000a')||
+'      dbms_lob.read(v_clob, v_amount, v_offset, v_buffer);'||unistr('\000a')||
+'      htp.prn(v_buffer);'||unistr('\000a')||
+'      v_offset := v_offset + v_amount;'||unistr('\000a')||
+'    end loop;'||unistr('\000a')||
+'  '||unistr('\000a')||
+'    dbms_lob.freetemporary(lob_loc => v_clob);'||unistr('\000a')||
+'    '||unistr('\000a')||
+'  end;'||unistr('\000a')||
+'  '||unistr('\000a')||
+''||unistr('\000a')||
+'BEGIN'||unistr('\000a')||
+'  OPEN cu_source;'||unistr('\000a')||
+'  FETCH cu_source INTO l_body;'||unistr('\000a')||
+'  CLOSE cu_source;'||unistr('\000a')||
+''||unistr('\000a')||
+'  l_body := REPLACE(REPLACE(l_body,''<<'',''&lt;&lt;''),''>>'',''&gt;&gt;'');'||unistr('\000a')||
+'  l_bo';
+
+s:=s||'dy := REGEXP_REPLACE(l_body,''(ms_logger)(.+)(;)'',''<B>\1\2\3</B>'');'||unistr('\000a')||
+'  l_body := ''<PRE>''||l_body||''</PRE>'';'||unistr('\000a')||
+''||unistr('\000a')||
+'  print_clob(i_clob => l_body);'||unistr('\000a')||
+' '||unistr('\000a')||
+'end;';
+
+wwv_flow_api.create_page_plug (
+  p_id=> 2762120658975924 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 4,
+  p_plug_name=> 'AOP Text 2',
+  p_region_name=>'',
+  p_escape_on_http_output=>'Y',
+  p_plug_template=> 17756239625931434+ wwv_flow_api.g_id_offset,
+  p_plug_display_sequence=> 40,
+  p_plug_new_grid         => false,
+  p_plug_new_grid_row     => false,
+  p_plug_new_grid_column  => true,
+  p_plug_display_column=> 2,
+  p_plug_display_point=> 'BODY_3',
+  p_plug_item_display_point=> 'ABOVE',
+  p_plug_source=> s,
+  p_plug_source_type=> 'PLSQL_PROCEDURE',
+  p_translate_title=> 'Y',
+  p_plug_query_row_template=> 1,
+  p_plug_query_headings_type=> 'QUERY_COLUMNS',
+  p_plug_query_num_rows_type => 'NEXT_PREVIOUS_LINKS',
+  p_plug_query_row_count_max => 500,
+  p_plug_query_show_nulls_as => ' - ',
+  p_plug_display_condition_type => '',
+  p_pagination_display_position=>'BOTTOM_RIGHT',
+  p_plug_customized=>'0',
   p_plug_caching=> 'NOT_CACHED',
   p_plug_comment=> '');
 end;

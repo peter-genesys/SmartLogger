@@ -28,6 +28,15 @@ is
     procedure remove_comments( io_code     in out clob );
 	--function remove_comments( i_code in clob ) return clob;
 
+	
+	--testing only
+  --------------------------------------------------------------------
+  -- get_body
+  --------------------------------------------------------------------
+  function get_body
+  ( p_object_name   in varchar2
+  , p_object_owner  in varchar2
+  ) return clob;
 
 end aop_processor;
 /

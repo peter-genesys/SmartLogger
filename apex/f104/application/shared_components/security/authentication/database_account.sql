@@ -31,5 +31,3 @@ end;
 
 prompt  ...plugins
 --
-prompt  ...data loading
---
