@@ -25,7 +25,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140509144845'
+ ,p_last_upd_yyyymmddhh24miss => '20140510172900'
   );
 null;
  
@@ -42,7 +42,7 @@ wwv_flow_api.create_page_plug (
   p_id=> 2773731843441189 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 21,
-  p_plug_name=> 'Plugin Step 1',
+  p_plug_name=> 'Step 1',
   p_region_name=>'',
   p_escape_on_http_output=>'N',
   p_plug_template=> 17756839023931435+ wwv_flow_api.g_id_offset,
@@ -55,10 +55,12 @@ wwv_flow_api.create_page_plug (
   p_plug_item_display_point=> 'ABOVE',
   p_plug_source=> s,
   p_plug_source_type=> 'STATIC_TEXT',
+  p_translate_title=> 'Y',
   p_plug_query_row_template=> 1,
   p_plug_query_headings_type=> 'COLON_DELMITED_LIST',
   p_plug_query_row_count_max => 500,
   p_plug_display_condition_type => '',
+  p_plug_customized=>'0',
   p_plug_caching=> 'NOT_CACHED',
   p_plug_comment=> '');
 end;
@@ -192,15 +194,15 @@ wwv_flow_api.create_page_item(
   p_id=>2776217111452841 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_flow_step_id=> 21,
-  p_name=>'P21_RICH_TEXT_INPUT',
+  p_name=>'P21_RAW_INPUT',
   p_data_type=> 'VARCHAR',
   p_is_required=> false,
   p_accept_processing=> 'REPLACE_EXISTING',
   p_item_sequence=> 30,
   p_item_plug_id => 2773731843441189+wwv_flow_api.g_id_offset,
-  p_use_cache_before_default=> 'NO',
+  p_use_cache_before_default=> 'YES',
   p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
-  p_prompt=>'Rich Text Input',
+  p_prompt=>'Raw Input',
   p_source_type=> 'STATIC',
   p_display_as=> 'NATIVE_TEXTAREA',
   p_lov_display_null=> 'NO',
@@ -214,7 +216,7 @@ wwv_flow_api.create_page_item(
   p_colspan=> null,
   p_rowspan=> null,
   p_grid_column=> null,
-  p_label_alignment=> 'RIGHT',
+  p_label_alignment=> 'ABOVE',
   p_field_alignment=> 'LEFT-CENTER',
   p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
   p_is_persistent=> 'Y',
@@ -238,7 +240,7 @@ wwv_flow_api.create_page_da_event (
   p_id => 2776505008491799 + wwv_flow_api.g_id_offset
  ,p_flow_id => wwv_flow.g_flow_id
  ,p_page_id => 21
- ,p_name => 'SubmitForAOP'
+ ,p_name => 'beforeSubmitUploadRawInput'
  ,p_event_sequence => 20
  ,p_bind_type => 'bind'
  ,p_bind_event_type => 'apexbeforepagesubmit'
@@ -253,11 +255,44 @@ wwv_flow_api.create_page_da_action (
  ,p_execute_on_page_init => 'N'
  ,p_action => 'PLUGIN_COM_ENKITEC_CLOB_LOAD'
  ,p_affected_elements_type => 'ITEM'
- ,p_affected_elements => 'P21_RICH_TEXT_INPUT'
+ ,p_affected_elements => 'P21_RAW_INPUT'
  ,p_attribute_01 => 'SUBMIT'
  ,p_attribute_05 => 'RAW_INPUT'
  ,p_attribute_06 => 'Y'
  ,p_attribute_07 => 'Y'
+ ,p_stop_execution_on_error => 'Y'
+ );
+null;
+ 
+end;
+/
+
+ 
+begin
+ 
+wwv_flow_api.create_page_da_event (
+  p_id => 3157112989856141 + wwv_flow_api.g_id_offset
+ ,p_flow_id => wwv_flow.g_flow_id
+ ,p_page_id => 21
+ ,p_name => 'onLoadPopRawInput'
+ ,p_event_sequence => 30
+ ,p_bind_type => 'bind'
+ ,p_bind_event_type => 'ready'
+  );
+wwv_flow_api.create_page_da_action (
+  p_id => 3157431627856143 + wwv_flow_api.g_id_offset
+ ,p_flow_id => wwv_flow.g_flow_id
+ ,p_page_id => 21
+ ,p_event_id => 3157112989856141 + wwv_flow_api.g_id_offset
+ ,p_event_result => 'TRUE'
+ ,p_action_sequence => 10
+ ,p_execute_on_page_init => 'N'
+ ,p_action => 'PLUGIN_COM_ENKITEC_CLOB_LOAD'
+ ,p_affected_elements_type => 'ITEM'
+ ,p_affected_elements => 'P21_RAW_INPUT'
+ ,p_attribute_01 => 'RENDER'
+ ,p_attribute_02 => 'COLLECTION'
+ ,p_attribute_03 => 'RAW_INPUT'
  ,p_stop_execution_on_error => 'Y'
  );
 null;
@@ -292,17 +327,16 @@ p:=p||'declare'||unistr('\000a')||
 p:=p||'reate_or_truncate_collection(p_collection_name=>''AOP_OUTPUT'');'||unistr('\000a')||
 ' '||unistr('\000a')||
 '  l_woven := aop_processor.weave(l_clob, ''Adhoc'',TRUE);'||unistr('\000a')||
-'  if l_woven then'||unistr('\000a')||
-'    apex_application.g_print_success_message := ''AOP Successful.'';'||unistr('\000a')||
 ''||unistr('\000a')||
 '    l_clob := REPLACE(REPLACE(l_clob,''<<'',''&lt;&lt;''),''>>'',''&gt;&gt;'');'||unistr('\000a')||
 '    l_clob := REGEXP_REPLACE(l_clob,''(ms_logger)(.+)(;)'',''<B>\1\2\3</B>'');'||unistr('\000a')||
 '    l_clob := ''<PRE>''||l_clob||''</PRE>'';'||unistr('\000a')||
 ' '||unistr('\000a')||
-'   ';
+'    apex_collection.add_member(p_collection_name => ''AOP_OUTPUT'',p_clob001 => l_clob);'||unistr('\000a')||
+' ';
 
-p:=p||' apex_collection.add_member(p_collection_name => ''AOP_OUTPUT'',p_clob001 => l_clob);'||unistr('\000a')||
-''||unistr('\000a')||
+p:=p||' if l_woven then'||unistr('\000a')||
+'    apex_application.g_print_success_message := ''AOP Successful.'';'||unistr('\000a')||
 '  else'||unistr('\000a')||
 '    apex_application.g_print_success_message := ''AOP Failed.'';'||unistr('\000a')||
 '  end if;'||unistr('\000a')||

@@ -1,5 +1,5 @@
 --application/pages/page_00022
-prompt  ...PAGE 22: Plugin Step 2
+prompt  ...PAGE 22: Step 2
 --
  
 begin
@@ -9,8 +9,8 @@ wwv_flow_api.create_page (
  ,p_id => 22
  ,p_user_interface_id => 2512031460610037 + wwv_flow_api.g_id_offset
  ,p_tab_set => 'TS1'
- ,p_name => 'Plugin Step 2'
- ,p_step_title => 'Plugin Step 2'
+ ,p_name => 'Step 2'
+ ,p_step_title => 'Step 2'
  ,p_allow_duplicate_submissions => 'Y'
  ,p_step_sub_title => 'Plugin Step 2'
  ,p_step_sub_title_type => 'TEXT_WITH_SUBSTITUTIONS'
@@ -45,7 +45,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140509143636'
+ ,p_last_upd_yyyymmddhh24miss => '20140509155917'
   );
 null;
  
@@ -224,7 +224,7 @@ wwv_flow_api.create_page_branch(
   p_flow_id=> wwv_flow.g_flow_id,
   p_flow_step_id=> 22,
   p_branch_name=> '',
-  p_branch_action=> 'f?p=&APP_ID.:21:&SESSION.::&DEBUG.:21::&success_msg=#SUCCESS_MSG#',
+  p_branch_action=> 'f?p=&APP_ID.:21:&SESSION.::&DEBUG.:::&success_msg=#SUCCESS_MSG#',
   p_branch_point=> 'BEFORE_VALIDATION',
   p_branch_type=> 'REDIRECT_URL',
   p_branch_when_button_id=>2786427987796002+ wwv_flow_api.g_id_offset,
@@ -240,18 +240,19 @@ declare
     h varchar2(32767) := null;
 begin
 wwv_flow_api.create_page_item(
-  p_id=>2786800723796003 + wwv_flow_api.g_id_offset,
+  p_id=>2788122696802396 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_flow_step_id=> 22,
-  p_name=>'P22_AOP_HTML_TEXT',
+  p_name=>'P22_AOP_OUTPUT',
   p_data_type=> 'VARCHAR',
   p_is_required=> false,
   p_accept_processing=> 'REPLACE_EXISTING',
-  p_item_sequence=> 10,
+  p_item_sequence=> 20,
   p_item_plug_id => 2786027061795999+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'YES',
+  p_item_default=> 'Not yet populated.',
   p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
-  p_prompt=>'AOP HTML Text',
+  p_prompt=>'AOP Output',
   p_source_type=> 'STATIC',
   p_display_as=> 'NATIVE_RICH_TEXT_EDITOR',
   p_lov_display_null=> 'NO',
@@ -266,53 +267,6 @@ wwv_flow_api.create_page_item(
   p_rowspan=> null,
   p_grid_column=> null,
   p_label_alignment=> 'ABOVE',
-  p_field_alignment=> 'LEFT-CENTER',
-  p_display_when_type=>'NEVER',
-  p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
-  p_is_persistent=> 'Y',
-  p_lov_display_extra=>'YES',
-  p_protection_level => 'N',
-  p_escape_on_http_output => 'Y',
-  p_attribute_01 => 'CKEDITOR3',
-  p_attribute_03 => 'N',
-  p_show_quick_picks=>'N',
-  p_item_comment => '');
- 
- 
-end;
-/
-
-declare
-    h varchar2(32767) := null;
-begin
-wwv_flow_api.create_page_item(
-  p_id=>2788122696802396 + wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_flow_step_id=> 22,
-  p_name=>'P22_RICH_TEXT',
-  p_data_type=> 'VARCHAR',
-  p_is_required=> false,
-  p_accept_processing=> 'REPLACE_EXISTING',
-  p_item_sequence=> 20,
-  p_item_plug_id => 2786027061795999+wwv_flow_api.g_id_offset,
-  p_use_cache_before_default=> 'YES',
-  p_item_default=> 'Not yet populated.',
-  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
-  p_prompt=>'Rich Text',
-  p_source_type=> 'STATIC',
-  p_display_as=> 'NATIVE_RICH_TEXT_EDITOR',
-  p_lov_display_null=> 'NO',
-  p_lov_translated=> 'N',
-  p_cSize=> 120,
-  p_cMaxlength=> 128000,
-  p_cHeight=> 30,
-  p_new_grid=> false,
-  p_begin_on_new_line=> 'YES',
-  p_begin_on_new_field=> 'YES',
-  p_colspan=> null,
-  p_rowspan=> null,
-  p_grid_column=> null,
-  p_label_alignment=> 'RIGHT',
   p_field_alignment=> 'LEFT-CENTER',
   p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
   p_is_persistent=> 'Y',
@@ -335,7 +289,7 @@ wwv_flow_api.create_page_da_event (
   p_id => 2788226552803528 + wwv_flow_api.g_id_offset
  ,p_flow_id => wwv_flow.g_flow_id
  ,p_page_id => 22
- ,p_name => 'GetClob'
+ ,p_name => 'onLoadPopAopOutput'
  ,p_event_sequence => 10
  ,p_bind_type => 'bind'
  ,p_bind_event_type => 'ready'
@@ -350,7 +304,7 @@ wwv_flow_api.create_page_da_action (
  ,p_execute_on_page_init => 'N'
  ,p_action => 'PLUGIN_COM_ENKITEC_CLOB_LOAD'
  ,p_affected_elements_type => 'ITEM'
- ,p_affected_elements => 'P22_RICH_TEXT'
+ ,p_affected_elements => 'P22_AOP_OUTPUT'
  ,p_attribute_01 => 'RENDER'
  ,p_attribute_02 => 'COLLECTION'
  ,p_attribute_03 => 'AOP_OUTPUT'
@@ -368,10 +322,11 @@ wwv_flow_api.create_page_da_event (
   p_id => 2790205867854317 + wwv_flow_api.g_id_offset
  ,p_flow_id => wwv_flow.g_flow_id
  ,p_page_id => 22
- ,p_name => 'StopErrors'
+ ,p_name => 'beforeSubmitUploadToNowhere'
  ,p_event_sequence => 20
  ,p_bind_type => 'bind'
  ,p_bind_event_type => 'apexbeforepagesubmit'
+ ,p_da_event_comment => 'This extra upload is here to stop a server error that occurs when the page implicitly submits and the value is otherwise too big.'
   );
 wwv_flow_api.create_page_da_action (
   p_id => 2790509920854317 + wwv_flow_api.g_id_offset
@@ -383,12 +338,13 @@ wwv_flow_api.create_page_da_action (
  ,p_execute_on_page_init => 'N'
  ,p_action => 'PLUGIN_COM_ENKITEC_CLOB_LOAD'
  ,p_affected_elements_type => 'ITEM'
- ,p_affected_elements => 'P22_RICH_TEXT'
+ ,p_affected_elements => 'P22_AOP_OUTPUT'
  ,p_attribute_01 => 'SUBMIT'
- ,p_attribute_05 => 'RUBBISH'
+ ,p_attribute_05 => 'NOWHERE'
  ,p_attribute_06 => 'Y'
  ,p_attribute_07 => 'Y'
  ,p_stop_execution_on_error => 'Y'
+ ,p_da_action_comment => 'NOWHERE is just a random collection name'
  );
 null;
  

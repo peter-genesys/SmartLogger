@@ -31,13 +31,13 @@ create or replace package body aop_processor is
   
   g_weave_start_time  date;
   
-  g_weave_timeout_secs NUMBER := 60;   
+  g_weave_timeout_secs NUMBER := 5;   
 
   x_weave_timeout EXCEPTION; 
   
   procedure check_timeout is
   begin
-    if (sysdate - g_weave_start_time) * 24 * 60 * 60 >  x_weave_timeout_secs then
+    if (sysdate - g_weave_start_time) * 24 * 60 * 60 >  g_weave_timeout_secs then
 	  raise x_weave_timeout;
 	end if;
   
@@ -102,25 +102,6 @@ create or replace package body aop_processor is
 	  end;
 	end if;
  
- /*
-    --update original source
-    UPDATE aop_source
-    SET   text          = l_aop_source.text  
-         ,load_datetime = sysdate
-		 ,valid_yn      = l_aop_source.valid_yn    
-         ,result        = l_aop_source.result
-    WHERE name    = l_aop_source.name
-	AND   type    = l_aop_source.type
-    AND   aop_ver = l_aop_source.aop_ver;
-    
-    IF SQL%ROWCOUNT = 0 THEN
-    
-      --insert original source
- 
-      INSERT INTO aop_source VALUES l_aop_source;
-    
-    END IF;
-*/	
 	logger.ins_upd_aop_source(i_aop_source => l_aop_source);
      
     COMMIT;
@@ -426,11 +407,13 @@ create or replace package body aop_processor is
 	  end if;
 	end if;
 	
+	/*
 	if i_beginning then
 	  l_string_pos := l_string_pos - 1;
 	else
 	  l_string_pos := l_string_pos - 1;
 	end if;
+	*/
 	
 	ms_logger.param(l_node, 'l_string_pos',l_string_pos);
  
@@ -496,12 +479,19 @@ create or replace package body aop_processor is
                            ,i_current_pos IN INTEGER
 						   ,i_search      in varchar2 default '\w')
    return integer is
+   	l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'prev_word_start');
      l_so_far   clob;
 	 l_prev_pos integer;
+	 l_search_count integer;
    begin
+     ms_logger.param(l_node,'i_search',i_search);
      l_so_far := dbms_lob.substr(i_code,i_current_pos,1);
-
-	 l_prev_pos :=  REGEXP_INSTR(l_so_far,i_search,1,REGEXP_COUNT(l_so_far,i_search),0 );
+     l_search_count := REGEXP_COUNT(l_so_far,i_search);
+	 if l_search_count = 0 then
+	   raise x_string_not_found;
+	 end if;
+	 ms_logger.note(l_node,'l_search_count',l_search_count);
+	 l_prev_pos :=  REGEXP_INSTR(l_so_far,i_search,1,l_search_count,0 );
      return l_prev_pos;
    end;
  
@@ -612,7 +602,7 @@ create or replace package body aop_processor is
      --
 	 --l_name_pos        :=  REGEXP_INSTR(l_so_far,'<<(.+)>>',1,REGEXP_COUNT(l_so_far,'<<(.+)>>'),0 );
 	 --ms_logger.note(l_node, 'l_name_pos',l_name_pos);
-	  
+	  begin 
 	  l_name_pos :=prev_word_start(i_code        => io_code 
 	                              ,i_current_pos => l_next_declare
 	  			                  ,i_search      => '<<(.+)>>');
@@ -626,6 +616,12 @@ create or replace package body aop_processor is
 	  if TRIM(UPPER(l_declare)) <> 'DECLARE' THEN
 	    ms_logger.fatal(l_node,'Anon block name mis-read');
 	  END IF;
+	  exception
+	    when x_string_not_found then
+		  --No block label, so we'll use no name
+	      l_anon_block_name := NULL;
+	  end;
+	  
  
 
 	elsif l_next_begin = l_next then
@@ -768,7 +764,13 @@ create or replace package body aop_processor is
 		     l_param_type := l_tokens(2);
 			 ms_logger.note(l_node, 'l_param_name',l_param_name);
 			 ms_logger.note(l_node, 'l_param_type',l_param_type);
-		     IF  l_param_type IN ('NUMBER','DATE','VARCHAR2') then
+		     IF  l_param_type IN ('NUMBER'
+			                     ,'INTEGER'
+								 ,'BINARY_INTEGER'
+								 ,'PLS_INTEGER'
+								 ,'DATE'
+								 ,'VARCHAR2'
+								 ,'BOOLEAN') then
 			   ms_logger.comment(l_node, 'valid l_param_type');
 			   
 			--inject( p_code      => l_param_injection  
@@ -1036,7 +1038,7 @@ END;
 	
   exception 
     when x_weave_timeout then
-	  p_code := p_code || chr(10)||chr(10)||'WEAVE TIMED OUT';
+	  p_code := '<span style="background-color:#FF6600;">WEAVE TIMED OUT</span>' || chr(10)||chr(10)|| p_code ;
       return false;
   
     when others then
