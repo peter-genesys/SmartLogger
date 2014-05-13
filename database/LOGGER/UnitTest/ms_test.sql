@@ -80,9 +80,12 @@ set serveroutput on;
  
  
 BEGIN
+  ms_test.test_unit_types;
 
   ms_test.test_call_stack;
-
+  
+ 
+ 
   ms_test.test_traversal_tree(i_node_count => 20);
   
   ms_test.test_tree;

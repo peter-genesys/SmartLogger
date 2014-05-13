@@ -683,8 +683,6 @@ BEGIN
   RETURN f_index = 0;
 END;
 
-
-
  
 ------------------------------------------------------------------------
 PROCEDURE pop_to_parent_node(i_node IN node_typ) IS
@@ -693,9 +691,13 @@ BEGIN
   $if $$intlog $then intlog_start('pop_to_parent_node');                                $end
   $if $$intlog $then intlog_note('current call_stack_level',i_node.call_stack_level );  $end
   --remove from the stack any node with a call_stack_level equal to or greater than the new node.
+  --also remove any node that does not have common grandparent
   while f_index > 0 and
-        g_nodes(f_index).call_stack_level >= i_node.call_stack_level  loop
+        (i_node.call_stack_level <=           g_nodes(f_index).call_stack_level OR  
+		 i_node.call_stack_hist NOT LIKE '%'||g_nodes(f_index).call_stack_hist )
+  loop
 	   $if $$intlog $then intlog_note('last call_stack_level',g_nodes(f_index).call_stack_level ); $end
+	   $if $$intlog $then intlog_note('last call_stack_hist' ,g_nodes(f_index).call_stack_hist ); $end
 	   $if $$intlog $then intlog_debug('pop_to_parent_node: removing top node '||f_index );        $end
        g_nodes.DELETE( f_index );
 
@@ -711,7 +713,7 @@ END;
 
 ------------------------------------------------------------------------
 PROCEDURE pop_descendent_nodes(i_node IN node_typ) IS
---Pop any node that is not a descendent of this node.
+--Pop any node that is not a ancestor of this node.
 BEGIN
   $if $$intlog $then intlog_start('pop_descendent_nodes');                              $end         
   $if $$intlog $then intlog_note('current call_stack_level',i_node.call_stack_level );  $end
@@ -723,8 +725,6 @@ BEGIN
        g_nodes.DELETE( f_index );
   end loop;
   $if $$intlog $then intlog_end('pop_descendent_nodes'); $end
-  
-  --SHOULD WE PUT INTERNAL DEBUGGING HERE TO CHECK WE HAVE THE RIGHT NODE.
  
 EXCEPTION
 
@@ -1820,18 +1820,45 @@ FUNCTION new_node(i_module_name IN VARCHAR2
   
   l_module_name ms_module.module_name%TYPE := LTRIM(RTRIM(SUBSTR(i_module_name,1,G_MODULE_NAME_WIDTH)));
   l_unit_name   ms_unit.unit_name%TYPE     := LTRIM(RTRIM(SUBSTR(i_unit_name  ,1,G_UNIT_NAME_WIDTH)));  
-				 
+ 	
   FUNCTION f_call_stack_level RETURN NUMBER IS
     l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
   BEGIN
     --Indicative only. Absolute value doesn't matter so much, used for comparison only.
-    --first 4 lines are not real levels and Some level represent the logger package. so subtract 7
-  
     l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
    
-    return l_lines.count -7;
+    return l_lines.count;
      
   END;	 
+  
+  FUNCTION f_call_stack_hist RETURN CLOB IS
+    l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
+	l_call_stack_hist CLOB;
+  BEGIN
+    --Indicative only. Absolute value doesn't matter so much, used for comparison only.
+    l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
+	
+    --Of these lines ignore the first 4 which are just headings, and
+    --the next 2 which are the logger itself.
+	--the next line is also not useful as it represents the line number in the current node
+	--and unfortunately the next is not so useful either since it is the calling line number from the parent prog_unit, 
+	--will differ in other calls from the same prog_unit
+    --But whatever is left may be useful...  
+	--Next line is the calling line number from the grand-parent prog_unit which is somewhat useful in determining parentage.
+	
+	FOR l_index IN 9..l_lines.count LOOP 
+	  --UNFORMATTED
+	  --l_call_stack_hist := ltrim(l_call_stack_hist || chr(10) || l_lines(l_index), chr(10));
+	  
+	  --FORMATTED
+	  --Remove description and format unit id and line number for the history.
+	  l_call_stack_hist := ltrim(l_call_stack_hist || chr(10) || REGEXP_REPLACE(SUBSTR(l_lines(l_index),1,20),'(\w+)\s+?(\w+)','\1:\2'), chr(10));
+    END LOOP;
+   
+    return l_call_stack_hist;
+     
+  END;	
+ 
  
 BEGIN
   
@@ -1844,6 +1871,7 @@ BEGIN
                           ,i_unit_type   => i_unit_type);
  
   l_node.call_stack_level := f_call_stack_level; --simplify after 12C with additional functions
+  l_node.call_stack_hist  := f_call_stack_hist;
  
   create_traversal(io_node => l_node);
  

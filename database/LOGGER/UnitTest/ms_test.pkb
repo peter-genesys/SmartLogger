@@ -330,6 +330,7 @@ END f_elapsed_time;
 
     ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
     ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	ms_logger.note(l_node,'l_node.call_stack_hist',l_node.call_stack_hist );
 	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
     
     ms_logger.param(l_node,'i_node_count',i_node_count );
@@ -358,6 +359,7 @@ END f_elapsed_time;
   
     ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
     ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	ms_logger.note(l_node,'l_node.call_stack_hist',l_node.call_stack_hist );
 	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
 
     
@@ -395,14 +397,15 @@ END f_elapsed_time;
   
     ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
     ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	ms_logger.note(l_node,'l_node.call_stack_hist',l_node.call_stack_hist );
 	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
 
-
-    msg_mode_node(i_node_count => 5);
-
+ 
     max_nest_test(i_node_count => 5);
 
     max_nest_test(i_node_count => 25);
+	
+    msg_mode_node(i_node_count => 5);
 
   EXCEPTION
     WHEN OTHERS THEN
@@ -701,6 +704,49 @@ END f_elapsed_time;
     
     END raise_unhandled_error;
  
+ 
+       PROCEDURE double_exit_recovery4 IS
+        l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'double_exit_recovery4');
+      
+      BEGIN
+      ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+      ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	  ms_logger.note(l_node,'l_node.call_stack_hist',l_node.call_stack_hist );
+	  ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
+        ms_logger.comment(l_node,'Level 4.');
+		
+      EXCEPTION
+        WHEN OTHERS THEN
+          ms_logger.oracle_error(l_node);
+      
+      END double_exit_recovery4; 
+      PROCEDURE double_exit_recovery3A IS
+        --l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'double_exit_recovery3');
+      
+      BEGIN
+      
+        double_exit_recovery4;
+		
+      --EXCEPTION
+      -- WHEN OTHERS THEN
+      --    ms_logger.oracle_error(l_node);
+      
+      END double_exit_recovery3A; 
+ 
+      PROCEDURE double_exit_recovery3 IS
+        l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'double_exit_recovery3');
+      
+      BEGIN
+      
+        double_exit_recovery3A;
+		
+      EXCEPTION
+       WHEN OTHERS THEN
+          ms_logger.oracle_error(l_node);
+      
+      END double_exit_recovery3; 
+ 
+ 
 	
     PROCEDURE double_exit_recovery1 IS
       l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'double_exit_recovery1');
@@ -708,9 +754,29 @@ END f_elapsed_time;
       PROCEDURE double_exit_recovery2 IS
         l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'double_exit_recovery2');
       
-      BEGIN
+      PROCEDURE double_exit_recovery2A IS
+        l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'double_exit_recovery2A');
       
+      BEGIN
+      ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+      ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	  ms_logger.note(l_node,'l_node.call_stack_hist',l_node.call_stack_hist );
+	  ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
         ms_logger.comment(l_node,'Test Logger tracks node, next comment...');
+      
+      EXCEPTION
+        WHEN OTHERS THEN
+          ms_logger.oracle_error(l_node);
+      
+      END double_exit_recovery2A; 
+	  
+      BEGIN
+      ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+      ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	  ms_logger.note(l_node,'l_node.call_stack_hist',l_node.call_stack_hist );
+	  ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
+        ms_logger.comment(l_node,'Test Logger tracks node, next comment...');
+		double_exit_recovery2A;
       
       EXCEPTION
         WHEN OTHERS THEN
@@ -719,8 +785,13 @@ END f_elapsed_time;
       END double_exit_recovery2;  
 	  
     BEGIN
- 
+      ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+      ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+	  ms_logger.note(l_node,'l_node.call_stack_hist',l_node.call_stack_hist );
+	  ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
       double_exit_recovery2;
+	  
+	  double_exit_recovery3;
  
     EXCEPTION
       WHEN OTHERS THEN
@@ -735,6 +806,9 @@ END f_elapsed_time;
     ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
 	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
     
+   double_exit_recovery1;
+	
+	
     /*
     std_single_loop_proc;
     std_loop_fatal;
@@ -797,9 +871,6 @@ END f_elapsed_time;
       when x_user_def then	
 	    ms_logger.comment(l_node,'Explicitly handled');
     END;
-	  
-    
-    double_exit_recovery1;
  
     ms_logger.comment(l_node,'..this comment to test_unit_types');
 

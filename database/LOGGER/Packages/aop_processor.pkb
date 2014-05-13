@@ -254,12 +254,24 @@ create or replace package body aop_processor is
 FUNCTION get_next(i_search   IN VARCHAR2
                  ,i_modifier IN VARCHAR2 DEFAULT 'i' ) return VARCHAR2 IS
   --l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next');	
- 
+  --l_result varchar2(32000);
 BEGIN
   check_timeout;
   --ms_logger.param(l_node, 'i_search',i_search);
- 
-  RETURN REGEXP_REPLACE(TRIM(REGEXP_SUBSTR(g_code,i_search,g_current_pos,1,i_modifier)),'^\s|$\s','');
+  
+  --l_result := REGEXP_SUBSTR(g_code,i_search,g_current_pos,1,i_modifier);
+  ----l_result := REGEXP_REPLACE(l_result,'^\s?(.*)$\s?','\1',1,1,'in');
+  --
+  --ms_logger.note(l_node, 'l_result',REGEXP_REPLACE(l_result,'\s','#'));
+  --l_result := REGEXP_REPLACE(l_result,'^\s+','');
+  ----l_result := REGEXP_REPLACE(l_result,'^[ \t]','');
+  --ms_logger.note(l_node, 'l_result',REGEXP_REPLACE(l_result,'\s','#'));
+  --l_result := REGEXP_REPLACE(l_result,'\s+$','');
+  --ms_logger.note(l_node, 'l_result',REGEXP_REPLACE(l_result,'\s','#'));
+  --
+  --RETURN l_result;
+  
+  RETURN TRIM(REGEXP_REPLACE(REGEXP_SUBSTR(g_code,i_search,g_current_pos,1,i_modifier),'^\s|\s$',''));
 END;
 
 FUNCTION get_next_lower(i_search IN VARCHAR2
@@ -358,6 +370,7 @@ BEGIN
       WHEN l_keyword = 'BEGIN' THEN
         AOP_block_body(i_level => i_level + 1);
       ELSE
+	    ms_logger.fatal(l_node, 'Expected "DECLARE", "BEGIN", "END;"');
         RAISE x_invalid_keyword;
     END CASE;
  
@@ -468,6 +481,7 @@ BEGIN
 	  	l_param_injection := LTRIM(l_param_injection||chr(10)||'  ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');',chr(10));
  
         ELSE
+		  ms_logger.fatal(l_node, 'Expected "(" "," "AS" OR "IS"');
           RAISE x_invalid_keyword;
       END CASE;
     EXCEPTION
@@ -513,6 +527,7 @@ BEGIN
     WHEN l_keyword = 'FUNCTION' THEN
       l_node_type := 'new_func';
     ELSE
+	  ms_logger.fatal(l_node, 'Expected "PROCEDURE" or "FUNCTION"');
       RAISE x_invalid_keyword;
   END CASE;	 
   ms_logger.note(l_node, 'l_node_type' ,l_node_type);  
@@ -718,9 +733,11 @@ END;
 		                       ,i_params         => NULL   
 		                       ,i_level          => g_initial_level);
 		  ELSIF l_keyword IS NULL THEN
+		    ms_logger.fatal(l_node, 'Expected "BEGIN" or "END;"');
 		    RAISE x_invalid_keyword;
 		  END IF;
 		ELSE
+		  ms_logger.fatal(l_node, 'Expected "DECLARE", "BEGIN", "PROCEDURE", "FUNCTION" or "PACKAGE BODY"');
 		  RAISE x_invalid_keyword;
 	  end case;	  
 	end;
