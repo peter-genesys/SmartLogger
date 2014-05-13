@@ -19,16 +19,7 @@ is
   
   procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL);
   
-  
-  --------------------------------------------------------------------
-  -- remove_comments
-  -- www.orafaq.com/forum/t/99722/2/ discussion of alternative methods.
-  --------------------------------------------------------------------
-  
-    procedure remove_comments( io_code     in out clob );
-	--function remove_comments( i_code in clob ) return clob;
-
-	
+ 
 	--testing only
   --------------------------------------------------------------------
   -- get_body

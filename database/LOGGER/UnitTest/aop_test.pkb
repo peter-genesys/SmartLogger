@@ -19,7 +19,60 @@ create or replace package body aop_test is
       l_temp varchar2(1);
         
       procedure testz(i_paramz in varchar2 ) is
+        l_var varchar2(32000);
       begin
+
+        l_var := q'[  
+with event_details as (
+select q.* 
+      ,decode(:i_dataset_grp,NULL,'Dataset '||to_char(dataset_grp),'Assigned Group '||assigned_grp) context
+from (       
+     select v.* 
+           ,max(event_date) over (partition by new_linkage_key ) max_event_date
+     from  ppms_event_v v   
+     where dataset_grp = NVL(:i_dataset_grp,dataset_grp)
+     and   publish_type in ('GRY','STR')
+     ) q
+where max_event_date >= :i_min_qa_date
+)
+, personal_details_filter as (
+    select    new_linkage_key
+    from      event_details e 
+    group by new_linkage_key 
+    having count(distinct trim_first_given) > 1
+    and    count(distinct trim_first_given) = count(distinct trim_surname)
+    and    count(distinct trim_first_given) = count(distinct trim_first_given||trim_surname)
+    union all
+    select    new_linkage_key
+    from      event_details e 
+    group by new_linkage_key 
+    having count(distinct trim_first_given) > 1
+    and    count(distinct trim_first_given) = count(distinct birth_date_char) 
+    and    count(distinct trim_first_given) = count(distinct trim_first_given||birth_date_char)
+    union all
+    select    new_linkage_key
+    from      event_details e 
+    group by new_linkage_key 
+    having count(distinct trim_surname) > 1
+    and    count(distinct trim_surname) = count(distinct birth_date_char) 
+    and    count(distinct trim_surname) = count(distinct trim_surname||birth_date_char)
+    union all
+    select    new_linkage_key
+    from      event_details e 
+    group by new_linkage_key 
+    having count(distinct trim_postcode) > 1
+    and    count(distinct trim_postcode) = count(distinct birth_date_char) 
+    and    count(distinct trim_postcode) = count(distinct trim_postcode||birth_date_char)
+    union all
+    select    new_linkage_key
+    from      event_details e 
+    group by new_linkage_key 
+    having count(distinct trim_surname) > 1
+    and    count(distinct trim_surname) = count(distinct trim_postcode)
+    and    count(distinct trim_surname) = count(distinct trim_surname||trim_postcode)
+)
+]'; 
+
         null;
         ms_feedback.comment('testz is nested in anon block2');
       end testz;

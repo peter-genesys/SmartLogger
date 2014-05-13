@@ -31,13 +31,20 @@ create or replace package body aop_processor is
   
   g_weave_start_time  date;
   
-  g_weave_timeout_secs NUMBER := 5;   
+  g_weave_timeout_secs NUMBER := 15;   
   
   g_initial_level     constant integer := 0;
   
+  TYPE clob_stack_typ IS
+  TABLE OF CLOB
+  INDEX BY BINARY_INTEGER;
+ 
+  g_comment_stack clob_stack_typ;
+  g_quote_stack   clob_stack_typ;
+  
+ 
   g_code              CLOB;
   g_current_pos       INTEGER;
-
   x_weave_timeout      EXCEPTION; 
   x_invalid_keyword    EXCEPTION;
   x_string_not_found   EXCEPTION;
@@ -251,43 +258,66 @@ create or replace package body aop_processor is
 --------------------------------------------------------------------------------- 
 -- get_next - return first matching string, stripped of upto 1 leading and trailing whitespace
 --------------------------------------------------------------------------------- 
-FUNCTION get_next(i_search   IN VARCHAR2
-                 ,i_modifier IN VARCHAR2 DEFAULT 'i' ) return VARCHAR2 IS
-  --l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next');	
-  --l_result varchar2(32000);
+FUNCTION get_next(i_search      IN VARCHAR2
+                 ,i_modifier    IN VARCHAR2 DEFAULT 'i'
+                 ,i_raise_error IN BOOLEAN  DEFAULT FALSE ) return VARCHAR2 IS
+  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next');	
+  l_result varchar2(32000);
 BEGIN
   check_timeout;
-  --ms_logger.param(l_node, 'i_search',i_search);
+  ms_logger.param(l_node, 'i_search',i_search);
   
-  --l_result := REGEXP_SUBSTR(g_code,i_search,g_current_pos,1,i_modifier);
-  ----l_result := REGEXP_REPLACE(l_result,'^\s?(.*)$\s?','\1',1,1,'in');
-  --
-  --ms_logger.note(l_node, 'l_result',REGEXP_REPLACE(l_result,'\s','#'));
-  --l_result := REGEXP_REPLACE(l_result,'^\s+','');
-  ----l_result := REGEXP_REPLACE(l_result,'^[ \t]','');
-  --ms_logger.note(l_node, 'l_result',REGEXP_REPLACE(l_result,'\s','#'));
-  --l_result := REGEXP_REPLACE(l_result,'\s+$','');
-  --ms_logger.note(l_node, 'l_result',REGEXP_REPLACE(l_result,'\s','#'));
-  --
-  --RETURN l_result;
+  l_result := TRIM(REGEXP_REPLACE(REGEXP_SUBSTR(g_code,i_search,g_current_pos,1,i_modifier),'^\s|\s$',''));
   
-  RETURN TRIM(REGEXP_REPLACE(REGEXP_SUBSTR(g_code,i_search,g_current_pos,1,i_modifier),'^\s|\s$',''));
+  IF l_result IS NULL AND i_raise_error THEN
+	ms_logger.fatal(l_node, 'String missing '||i_search);
+	splice_here( i_new_code => '<span style="background-color:#FF6600;">STRING NOT FOUND '||i_search||'</span>');
+    RAISE x_string_not_found;
+  END IF;
+  
+  RETURN l_result;
 END;
 
 FUNCTION get_next_lower(i_search IN VARCHAR2
-                       ,i_modifier IN VARCHAR2 DEFAULT 'i') return VARCHAR2 IS
+                       ,i_modifier IN VARCHAR2 DEFAULT 'i'
+                       ,i_raise_error IN BOOLEAN  DEFAULT FALSE) return VARCHAR2 IS
 BEGIN
   RETURN LOWER(get_next(i_search   => i_search
-                       ,i_modifier => i_modifier));
+                       ,i_modifier => i_modifier
+					   ,i_raise_error => i_raise_error));
 END;
 
 FUNCTION get_next_upper(i_search IN VARCHAR2
-                       ,i_modifier IN VARCHAR2 DEFAULT 'i') return VARCHAR2 IS
+                       ,i_modifier IN VARCHAR2 DEFAULT 'i'
+                       ,i_raise_error IN BOOLEAN  DEFAULT FALSE) return VARCHAR2 IS
 BEGIN
   RETURN UPPER(get_next(i_search   => i_search
-                       ,i_modifier => i_modifier));
+                       ,i_modifier => i_modifier
+					   ,i_raise_error => i_raise_error));
 END;
 
+
+--------------------------------------------------------------------------------- 
+-- go
+---------------------------------------------------------------------------------
+PROCEDURE go(i_search     IN VARCHAR2
+            ,i_modifier   IN VARCHAR2 
+			,i_past_prior IN INTEGER) IS
+  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'go');
+  l_new_pos INTEGER;
+BEGIN
+  check_timeout;
+  ms_logger.param(l_node, 'i_search'    ,i_search);
+  ms_logger.param(l_node, 'i_modifier'  ,i_modifier);
+  ms_logger.param(l_node, 'i_past_prior',i_past_prior);
+  l_new_pos := REGEXP_INSTR(g_code,i_search,g_current_pos,1,i_past_prior,i_modifier);
+  IF l_new_pos = 0 then
+    ms_logger.fatal(l_node, 'String missing '||i_search);
+	splice_here( i_new_code => '<span style="background-color:#FF6600;">STRING NOT FOUND '||i_search||'</span>');
+    raise x_string_not_found;
+  end if;
+  g_current_pos := l_new_pos;
+END;
 
 
 --------------------------------------------------------------------------------- 
@@ -295,16 +325,13 @@ END;
 ---------------------------------------------------------------------------------
 PROCEDURE go_past(i_search IN VARCHAR2
                  ,i_modifier IN VARCHAR2 DEFAULT 'i') IS
-  --l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'go_past');
-  l_new_pos INTEGER;
+ 
 BEGIN
-  check_timeout;
-  --ms_logger.param(l_node, 'i_search',i_search);
-  l_new_pos := REGEXP_INSTR(g_code,i_search,g_current_pos,1,1,i_modifier);
-  IF l_new_pos = 0 then
-    raise x_string_not_found;
-  end if;
-  g_current_pos := l_new_pos;
+  go(i_search     => i_search    
+    ,i_modifier   => i_modifier  
+    ,i_past_prior => 1);
+
+ 
 END;
 
 --------------------------------------------------------------------------------- 
@@ -312,16 +339,13 @@ END;
 ---------------------------------------------------------------------------------
 PROCEDURE go_prior(i_search IN VARCHAR2
                   ,i_modifier IN VARCHAR2 DEFAULT 'i') IS
-  --l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'go_prior');
-  l_new_pos INTEGER;
+ 
 BEGIN
-  check_timeout;
-  --ms_logger.param(l_node, 'i_search',i_search);
-  l_new_pos := REGEXP_INSTR(g_code,i_search,g_current_pos,1,0,i_modifier);
-  IF l_new_pos = 0 then
-    raise x_string_not_found;
-  end if;
-  g_current_pos := l_new_pos - 1;
+  go(i_search     => i_search    
+    ,i_modifier   => i_modifier  
+    ,i_past_prior => 0);
+  g_current_pos := g_current_pos - 1;
+ 
 END;
 
 --------------------------------------------------------------------------------- 
@@ -336,7 +360,17 @@ PROCEDURE AOP_declare(i_level       IN INTEGER );
 -- AOP_is_as - Forward Declaration
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_is_as(i_level       IN INTEGER
-                ,i_inject_node IN VARCHAR2 DEFAULT NULL);
+                   ,i_inject_node IN VARCHAR2 DEFAULT NULL);
+				
+--------------------------------------------------------------------------------- 
+-- stash_comments_and_quotes - Forward Declaration
+---------------------------------------------------------------------------------
+procedure stash_comments_and_quotes;
+
+--------------------------------------------------------------------------------- 
+-- restore_comments_and_quotes - Forward Declaration
+---------------------------------------------------------------------------------
+procedure restore_comments_and_quotes;
 
 --------------------------------------------------------------------------------- 
 -- END FORWARD DECLARATIONS
@@ -359,7 +393,7 @@ BEGIN
               ,i_level     => i_level);
  
   loop
-    l_keyword := get_next_upper('\sDECLARE\s|\sBEGIN\s|\sEND;\s');
+    l_keyword := get_next_upper('\sDECLARE\s|\sBEGIN\s|\sEND;\s','i',TRUE);
 	ms_logger.note(l_node, 'l_keyword',l_keyword);
  
     CASE 
@@ -439,7 +473,7 @@ BEGIN
   loop
     BEGIN
       --Find first: "(" "," "AS" "IS"
-      l_keyword := get_next_upper('\(|,|IS\s|AS\s');   
+      l_keyword := get_next_upper('\(|,|IS\s|AS\s','i',TRUE);   
       ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
 	  
       CASE 
@@ -519,7 +553,7 @@ PROCEDURE AOP_prog_unit(i_level IN INTEGER) IS
 BEGIN
 
   --Find node type
-  l_keyword := get_next_upper('\sPROCEDURE\s|\sFUNCTION\s'); 
+  l_keyword := get_next_upper('\sPROCEDURE\s|\sFUNCTION\s','i',TRUE);
   ms_logger.note(l_node, 'l_keyword' ,l_keyword);   
   CASE 
     WHEN l_keyword = 'PROCEDURE' THEN
@@ -649,8 +683,8 @@ END;
 	--somehow identify and remember all sections that can be ignored because they are comments
 	
 	g_code := chr(10)||p_code||chr(10); --add a trailing CR to help with searching
- 
-    g_code := REPLACE(g_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
+
+	stash_comments_and_quotes;
  
     --LATER WHEN WE WANT TO SUPPORT THE BEGIN SECTION OF A PACKAGE
 	--WE WOULD REPLACE parse_prog_unit below with parse_anon_block
@@ -703,7 +737,7 @@ END;
 	
 	begin
 	  g_current_pos := 1;
-	  l_keyword := get_next_upper('\sDECLARE\s|\sBEGIN\s|\sPROCEDURE\s|\sFUNCTION\s|\sPACKAGE BODY\s');
+	  l_keyword := get_next_upper('\sDECLARE\s|\sBEGIN\s|\sPROCEDURE\s|\sFUNCTION\s|\sPACKAGE BODY\s','i',TRUE);
 	  ms_logger.note(l_node, 'l_keyword' ,l_keyword);
 
 	  CASE 
@@ -727,7 +761,7 @@ END;
           --declaration of package body
           AOP_is_as(i_level => g_initial_level);	
 		  --initialisation of package body (optional)
-          l_keyword := get_next_upper('\sBEGIN\s|\sEND;\s');
+          l_keyword := get_next_upper('\sBEGIN\s|\sEND;\s','i',TRUE);
 		  IF l_keyword = 'BEGIN' THEN
 		     AOP_prog_unit_body(i_prog_unit_name => l_package_name
 		                       ,i_params         => NULL   
@@ -751,7 +785,12 @@ END;
 	--Replace routines with no params 
 	--EG ms_feedback.oracle_error -> ms_logger.oracle_error(l_node)
 	g_code := REGEXP_REPLACE(g_code,'(ms_feedback)(\.)(.+)(;)','ms_logger.\3(l_node);');
-
+	
+ 
+	restore_comments_and_quotes;
+ 
+    g_code := REPLACE(g_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
+ 
     p_code := g_code;
 	
     return l_advised;
@@ -766,7 +805,6 @@ END;
 	  p_code := g_code;
       return false;
     when x_string_not_found then
-	  splice_here( i_new_code => '<span style="background-color:#FF6600;">STRING NOT FOUND</span>');
 	  p_code := g_code;
       return false;
     when others then
@@ -885,165 +923,116 @@ END;
     end loop;
   end reapply_aspect;
   
+
+
+  --------------------------------------------------------------------
+  -- restore_comments_and_quotes
+  --------------------------------------------------------------------  
+  procedure restore_comments_and_quotes IS
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'restore_comments_and_quotes');  
+  BEGIN
+    FOR l_index in 1..g_comment_stack.count loop
+	  g_code := REPLACE(g_code,'##comment'||l_index||'##','<span style="background-color:#FFFF99;">'||g_comment_stack(l_index)||'</span>');
+	END LOOP;
   
+    FOR l_index in 1..g_quote_stack.count loop
+	  g_code := REPLACE(g_code,'##quote'||l_index||'##','<span style="background-color:#FFCC99;">'||g_quote_stack(l_index)||'</span>');
+	END LOOP;
+  END;
   
   --------------------------------------------------------------------
-  -- remove_comments
+  -- stash_comments_and_quotes
   -- www.orafaq.com/forum/t/99722/2/ discussion of alternative methods.
   --------------------------------------------------------------------
   
-    procedure remove_comments( io_code     in out clob ) IS
-     --function remove_comments( i_code in clob ) return clob is                
-      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'remove_comments');  
-	  l_new_code varchar2(32000);
-	  
-	  --NB This will not work if comment -- /* */ markers are embedded within quotes.
-	  
-	  
-    l_old_clob clob;
-    l_line varchar2(4000);
-    l_line_count number;
-    v_from number;
-    l_eol number;
-	l_count number;
-	l_new_clob clob;
+    procedure stash_comments_and_quotes  IS
+       
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'stash_comments_and_quotes');  
+  
+      l_keyword              VARCHAR2(50);	
+  
+	procedure extract_comment(i_mask     IN VARCHAR2
+	                         ,i_modifier IN VARCHAR2 DEFAULT 'in') IS
+	  l_comment              CLOB;
+	BEGIN
+	  l_comment := get_next(i_mask,i_modifier); --multi-line, lazy
+	  ms_logger.note(l_node, 'l_comment', l_comment);
+	  g_comment_stack(g_comment_stack.count+1) := l_comment; --Put another comment on the stack
+	  ms_logger.note(l_node, 'g_comment_stack.count', g_comment_stack.count);
+	  g_code := REGEXP_REPLACE(g_code, i_mask, '##comment'||g_comment_stack.count||'##',g_current_pos, 1, i_modifier);
+	  go_past('##comment'||g_comment_stack.count||'##');
+	END;
 	
-	l_comment_block boolean := false;
-	l_quoted_text   boolean := false;
-	
+	procedure extract_quote(i_mask     IN VARCHAR2
+	                       ,i_modifier IN VARCHAR2 DEFAULT 'in') IS
+	  l_quote              CLOB;
+	BEGIN
+	  l_quote := get_next(i_mask,i_modifier); --multi-line, lazy
+	  ms_logger.note(l_node, 'l_quote', l_quote);
+	  g_quote_stack(g_quote_stack.count+1) := l_quote; --Put another quote on the stack
+	  ms_logger.note(l_node, 'g_quote_stack.count', g_quote_stack.count);
+	  g_code := REGEXP_REPLACE(g_code, i_mask, '##quote'||g_quote_stack.count||'##',g_current_pos, 1, i_modifier);
+	  go_past('##quote'||g_quote_stack.count||'##');
+	END;
  
-	
-	l_single_comment_pos      number;
- 		    
-	l_block_comment_open_pos  number;
-	
-	l_block_comment_close_pos number;
- 				
-	l_quote_pos               number;
-	l_next                    number;
+BEGIN  
  
-	  
+   g_current_pos   := 1;
+ 
+   --initialise comments and quotes
+   g_comment_stack.DELETE;  
+   g_quote_stack.DELETE;
+ 
+ 
+  loop
     BEGIN
+	  check_timeout;
+      --Searching for the start of a comment or quote
+      l_keyword := get_next_lower('--|/\*|\''|q\''\S');	  
+      ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
+	  
+      CASE 
+	    WHEN l_keyword = '--' THEN  
+	      --REMOVE SINGLE LINE COMMENTS 
+	      --Find "--" and remove chars upto EOL 		
+		  extract_comment(i_mask     => '--.*'
+		                 ,i_modifier => 'i');
  
-    --  return i_code;
-    
-	  --REMOVE SINGLE LINE COMMENTS 
-	  --Find "--" and remove chars upto EOL or "* /"
-	  
-	  --REMOVE MULTI-LINE COMMENTS 
-	  --Find "/*" and remove upto "* /" 
-      null;
-	  
-	/*  
-	l_old_clob := io_code||chr(10);
-	
-    --l_line_count := length(l_old_clob) - nvl(length(replace(l_old_clob,chr(10))),0) + 1;
-    --v_from := 1;
-    --l_eol := instr(l_old_clob || chr(10),chr(10),v_from,1) - v_from;
-	
-	l_count := 0;
-	loop
-	  l_eol := instr(l_old_clob,chr(10),1);
-	  exit when l_eol = 0 or l_count = 100;
-	  l_count := l_count + 1;
-	  l_line := substr(l_old_clob,1,l_eol-1);
-	  ms_logger.note(l_node,'l_line',l_line);
-	   
-	  if l_comment_block then
-	  
-	    l_block_comment_close_pos :=   get_pos_end(i_code        => l_line   
-		                                          ,i_current_pos => 1
-		    	                                  ,i_search      => '\*'||'\/'
-		    		                              ,i_whitespace  => false
-	        		                              ,i_raise_error => false);
-	 									  
-	    l_next := l_block_comment_close_pos;
-	    
-		if l_next < 1000000 then
+        WHEN l_keyword = '/*' THEN
+	      --REMOVE MULTI-LINE COMMENTS 
+	      --Find "/*" and remove upto "*/" 
+		  extract_comment(i_mask => '/\*.*?\*/');
+ 
+        WHEN l_keyword = '''' THEN
+		  --REMOVE SIMPLE QUOTES - MULTI_LINE
+          --Find "'" and remove to next "'" 		
+		  extract_quote(i_mask => '\''.*?\''');
+ 
+        WHEN l_keyword LIKE 'q''%' THEN
+		  --REMOVE ADVANCED QUOTES - MULTI_LINE
+		  --Find "q'[" and remove to next "]'", variations in clude [] {} <> () and any single printable char.
+		  extract_quote(i_mask => 'q\''\[.*?\]\''|q\''\{.*?\}\''|q\''\(.*?\)\''|q\''\<.*?\>\''|q\''(\S).*?\1\''');
+ 
+		ELSE 
+		  EXIT;
 		
-		  if l_next = l_block_comment_close_pos  then
-		    splice( p_code     => l_line
-		           ,p_new_code => '</p>'
-		           ,p_pos      => l_next);
- 
-            --l_line := substr(l_line,l_next);
-			l_comment_block := false;
-		  
-		  end if;
-		  
-		else
-		  NULL;
-          --l_line := NULL;		
- 						  
-	    end if;
- 
-	  
-	  else --NOT l_comment_block
-	    l_single_comment_pos      :=   get_pos_start(i_code        => l_line   
-		                                          ,i_current_pos => 1
-		    	                                  ,i_search      => '--'
-		    		                              ,i_whitespace  => false
-	        		                              ,i_raise_error => false);
-							      		  
-	    l_block_comment_open_pos  :=   get_pos_start(i_code        => l_line   
-		                                            ,i_current_pos => 1
-		    	                                    ,i_search      => '\/\*'
-		    		                                ,i_whitespace  => false
-	        		                                ,i_raise_error => false);
-								  	  
-		l_quote_pos               := 	get_pos_start(i_code        => l_line 						  
-					              	           ,i_current_pos => 1			  
-					              	           ,i_search      => ''''			  
-					              	           ,i_whitespace  => false			  
-					              	           ,i_raise_error => false);
-        l_next := least(l_single_comment_pos,l_block_comment_open_pos,l_quote_pos);
-		if l_next < 1000000 then
-		
-		  if l_next = l_single_comment_pos then
-		    --l_line := substr(l_line,1,l_next);
-			--l_next := l_single_comment_pos - 1;
-		    splice( p_code     => l_line
-		           ,p_new_code => '<p style="background-color:#FFFF99;">'
-		           ,p_pos      => l_next);
-			l_line := l_line || '</p>';
-			
-			
-		  elsif l_next = l_block_comment_open_pos then
-		    splice( p_code     => l_line
-		           ,p_new_code => '<p style="background-color:#FFFF99;">'
-		           ,p_pos      => l_next);
- 
-            --l_line := substr(l_line,1,l_next);
-			l_comment_block := true;
-		  
-		  end if;
-							
-	    end if;
-		
-	  end if;
-	  
-	   
- 
-	  --dbms_output.put_line('line '||lpad(l_count,4)||l_line);
-	  
-	  l_new_clob := l_new_clob ||l_line||chr(10);
-	  
-	  l_old_clob := substr(l_old_clob,l_eol+1,LENGTH(l_old_clob));
-	  
-	  
-	end loop;  
+	  END CASE;	
 	
-	io_code := l_new_clob;
+	END;
  
-*/	
+	
+  END LOOP; 
+  
+ 	ms_logger.comment(l_node, 'No more comments or quotes.'); 
+	
     exception
       when others then
         ms_logger.warn_error(l_node);
         raise;
      
-    END remove_comments;
-  
-  
+    END stash_comments_and_quotes;
+	
+ 
  
 end aop_processor;
 /
