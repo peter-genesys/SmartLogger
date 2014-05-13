@@ -260,9 +260,9 @@ create or replace package body aop_processor is
 --------------------------------------------------------------------------------- 
 FUNCTION get_next(i_search      IN VARCHAR2
                  ,i_modifier    IN VARCHAR2 DEFAULT 'i'
-                 ,i_raise_error IN BOOLEAN  DEFAULT FALSE ) return VARCHAR2 IS
+                 ,i_raise_error IN BOOLEAN  DEFAULT FALSE ) return CLOB IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next');	
-  l_result varchar2(32000);
+  l_result CLOB;
 BEGIN
   check_timeout;
   ms_logger.param(l_node, 'i_search',i_search);
@@ -280,7 +280,7 @@ END;
 
 FUNCTION get_next_lower(i_search IN VARCHAR2
                        ,i_modifier IN VARCHAR2 DEFAULT 'i'
-                       ,i_raise_error IN BOOLEAN  DEFAULT FALSE) return VARCHAR2 IS
+                       ,i_raise_error IN BOOLEAN  DEFAULT FALSE) return CLOB IS
 BEGIN
   RETURN LOWER(get_next(i_search   => i_search
                        ,i_modifier => i_modifier
@@ -289,7 +289,7 @@ END;
 
 FUNCTION get_next_upper(i_search IN VARCHAR2
                        ,i_modifier IN VARCHAR2 DEFAULT 'i'
-                       ,i_raise_error IN BOOLEAN  DEFAULT FALSE) return VARCHAR2 IS
+                       ,i_raise_error IN BOOLEAN  DEFAULT FALSE) return CLOB IS
 BEGIN
   RETURN UPPER(get_next(i_search   => i_search
                        ,i_modifier => i_modifier
@@ -383,7 +383,7 @@ procedure restore_comments_and_quotes;
 PROCEDURE AOP_block_body(i_level          IN INTEGER
                         ,i_params         IN CLOB    DEFAULT NULL)  IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_block_body');
-  l_keyword VARCHAR2(50);
+  l_keyword CLOB;
 BEGIN
  
   go_past('\sBEGIN\s');
@@ -393,7 +393,8 @@ BEGIN
               ,i_level     => i_level);
  
   loop
-    l_keyword := get_next_upper('\sDECLARE\s|\sBEGIN\s|\sEND;\s','i',TRUE);
+
+	l_keyword := get_next_upper('\sDECLARE\s|\sBEGIN\s|\sEND;\s|\sCASE\s.*?\sEND CASE;|\sCASE\s.*?\sEND;\s','in',TRUE); 
 	ms_logger.note(l_node, 'l_keyword',l_keyword);
  
     CASE 
@@ -403,8 +404,14 @@ BEGIN
         AOP_block_body(i_level => i_level + 1);
       WHEN l_keyword = 'BEGIN' THEN
         AOP_block_body(i_level => i_level + 1);
+	  WHEN l_keyword LIKE 'CASE%END CASE;' THEN
+	    ms_logger.comment(l_node, 'Found CASE-END-CASE;');
+		go_past('\sCASE\s');  
+	  WHEN l_keyword LIKE 'CASE%END;' THEN
+	    ms_logger.comment(l_node, 'Found CASE-END;');
+		go_past('\sEND;\s'); 
       ELSE
-	    ms_logger.fatal(l_node, 'Expected "DECLARE", "BEGIN", "END;"');
+	    ms_logger.fatal(l_node, 'Expected "DECLARE" "BEGIN" "END;" "CASE%END CASE;" or "CASE%END;"');
         RAISE x_invalid_keyword;
     END CASE;
  
@@ -696,8 +703,11 @@ END;
 	  --Reset the processing pointer.
       g_current_pos := 1;
  
+    declare
+	  l_mask VARCHAR2(50) := '(\sEND)\s+?(\w+)\s*?;';
+    begin
       loop
-	    l_end_value := get_next_upper( '\sEND\s+\w+\s*;');   
+	    l_end_value := get_next_upper(l_mask);   
 		EXIT WHEN l_end_value IS NULL;
 	    ms_logger.note(l_node, 'l_end_value'      ,l_end_value);
  
@@ -705,14 +715,16 @@ END;
 	    if l_mystery_word in ('IF'
 	                         ,'LOOP'
 	    					 ,'CASE') then
-		  go_past(l_end_value);						 
+		  g_code := REGEXP_REPLACE(g_code,l_mask,'\1 \2;',g_current_pos,1,'i');					 	 
+		  go_past('END (\w+);');						 
 		ELSE						 
 	      ms_logger.info(l_node, 'Replacing '||l_end_value);
-	      g_code := REGEXP_REPLACE(g_code,'(\s)END\s+\w+\s*;','\1END;',g_current_pos,1,'i');
+	      g_code := REGEXP_REPLACE(g_code,l_mask,'\1;',g_current_pos,1,'i');
 		  go_past('END;');
 	    end if;
  
 	  END LOOP;
+	end;  
    
   ms_logger.comment(l_node, 'Finised cleaning ENDs');
 
