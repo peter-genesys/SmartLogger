@@ -868,6 +868,7 @@ END f_elapsed_time;
   
   PROCEDURE test_call_stack is
   begin
+    dbms_output.enable(10000000);
     dbms_output.put_line('test_call_stack');
     dbms_output.put_line(dbms_utility.format_call_stack);  
 	test_call_stack2;

@@ -93,7 +93,10 @@ create or replace package body aop_test is
   
   
   procedure test2(i_param21 in varchar2
-                 ,i_param22 in varchar2) is
+                 ,i_param22 in varchar2
+				 ,i_param23 out varchar2
+				 ,i_param24 in out varchar2
+				 ,i_param25 varchar2) is
   begin
     null;
     ms_feedback.comment('About to raise an error');

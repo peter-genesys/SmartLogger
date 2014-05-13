@@ -132,8 +132,9 @@ FUNCTION f_note_rowcount( i_node      IN ms_logger.node_typ
 PROCEDURE note_error(i_node      IN ms_logger.node_typ );
 
 ------------------------------------------------------------------------
-PROCEDURE note_length( i_node   IN ms_logger.node_typ 
-                      ,i_name   IN VARCHAR2 );
+PROCEDURE note_length( i_node  IN ms_logger.node_typ 
+                      ,i_name  IN VARCHAR2 
+                      ,i_value IN VARCHAR2 			  );
  
  
  

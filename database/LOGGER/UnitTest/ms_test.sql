@@ -16,12 +16,12 @@ execute ms_logger.register_package('ms_test','10.0');
 prompt start test of internal debugging
 set serveroutput on;
 execute dbms_output.enable(null);
-
+/*
 execute ms_logger.set_internal_debug;
  
 execute ms_test.test_unit_types;
 execute ms_logger.reset_internal_debug;
-/*
+
  
 execute ms_test.trap_an_oracle_error;
 
@@ -76,10 +76,12 @@ execute ms_logger.new_process(i_module_name => 'ms_test.sql'  -
                                ,i_ext_ref     => '&&my_unique_id' -
                                ,i_comments    => 'Testing the ms_logger package');
 
---set serveroutput on;
+set serveroutput on;
  
  
 BEGIN
+
+  ms_test.test_call_stack;
 
   ms_test.test_traversal_tree(i_node_count => 20);
   

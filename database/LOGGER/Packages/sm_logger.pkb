@@ -1,13 +1,6 @@
-alter session set plsql_ccflags = 'intlog:false';
---alter package ms_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings 
---alter package ms_logger compile PLSQL_CCFlags = 'intlog:false' reuse settings 
-
---Ensure no inlining so ms_logger can be used
-alter session set plsql_optimize_level = 1;
-
-create or replace package body ms_logger is
+create or replace package body sm_logger is
 ------------------------------------------------------------------
--- Program  : ms_logger  
+-- Program  : sm_logger  
 -- Name     : Smart logger for PL/SQL
 -- Author   : P.Burgess
 -- Originally developed as MS_METACODE Date : 23/10/2006
@@ -42,7 +35,6 @@ create or replace package body ms_logger is
  
  
   g_debug_mode         BOOLEAN := FALSE;
-  g_debug_indent       INTEGER;
  
   G_MODULE_NAME_WIDTH     CONSTANT NUMBER := 50;
   G_UNIT_NAME_WIDTH       CONSTANT NUMBER := 50;
@@ -53,12 +45,28 @@ create or replace package body ms_logger is
   G_LARGE_MESSAGE_WIDTH   CONSTANT NUMBER := 4000;
   G_CALL_STACK_WIDTH      CONSTANT NUMBER := 2000;
   
+  
+TYPE ref_list IS TABLE OF ms_reference%ROWTYPE INDEX BY BINARY_INTEGER;  
+  
+TYPE node_typ IS RECORD
+  (traversal        ms_traversal%ROWTYPE
+  ,module           ms_module%ROWTYPE
+  ,unit             ms_unit%ROWTYPE
+  ,msg_mode         number
+  ,open_process     ms_unit.open_process%TYPE
+  ,node_level       BINARY_INTEGER
+  ,logged           BOOLEAN
+  ,unlogged_refs    ref_list
+  ,internal_error   BOOLEAN DEFAULT NULL --start undefined, set to false by an ENTER routine.
+  ,pass_count       NUMBER  DEFAULT 0    --initialised at 0 
+  ,call_stack_level BINARY_INTEGER);  
+
  
 TYPE node_stack_typ IS
   TABLE OF node_typ
   INDEX BY BINARY_INTEGER;
  
-  l_current_node  ms_logger.node_typ; 	
+  l_current_node  sm_logger.node_typ; 	
   
  
 
@@ -149,6 +157,109 @@ G_MODULE_TYPE_SQL         CONSTANT ms_module.module_type%TYPE := 'SQL_SCRIPT';
 G_MODULE_TYPE_DBTRIGGER   CONSTANT ms_module.module_type%TYPE := 'DB_TRIG';
   
   
+------------------------------------------------------------------------
+-- Forward Declarations (Private)
+------------------------------------------------------------------------
+FUNCTION get_module(i_module_name  IN VARCHAR2
+                   ,i_module_type  IN VARCHAR2 DEFAULT 'UNKNOWN'
+                   ,i_revision     IN VARCHAR2 DEFAULT 'UNKNOWN')
+RETURN ms_module%ROWTYPE;
+
+ 
+
+------------------------------------------------------------------------
+-- Node Typ API functions (Public)
+------------------------------------------------------------------------
+
+FUNCTION new_node(i_module_name IN VARCHAR2
+                 ,i_unit_name   IN VARCHAR2
+				 ,i_unit_type   IN VARCHAR2 ) RETURN sm_logger.node_typ IS
+				 
+  --When upgraded to 12C may not need to pass any params				 
+				 
+				 
+  FUNCTION f_call_stack_level RETURN NUMBER IS
+    l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
+  BEGIN
+    --Indicative only. Absolute value doesn't matter so much, used for comparison only.
+    --first 4 lines are not real levels so subtract 4.
+  
+    l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
+   
+    return l_lines.count -4;
+     
+  END;	 
+ 		 
+  --must work in SILENT MODE, incase somebody write logic on the app side that depends
+  --on l_node                
+  l_node sm_logger.node_typ;  
+  
+  l_module_name ms_module.module_name%TYPE := LTRIM(RTRIM(SUBSTR(i_module_name,1,G_MODULE_NAME_WIDTH)));
+  l_unit_name   ms_unit.unit_name%TYPE     := LTRIM(RTRIM(SUBSTR(i_unit_name  ,1,G_UNIT_NAME_WIDTH)));
+ 
+BEGIN
+  
+  --get a registered module or register this one
+  l_node.module := find_module(i_module_name => io_node.module_name); 
+
+  --get a registered unit or register this one
+  l_node.unit := find_unit(i_module_id   => l_module.module_id
+                          ,i_unit_name   => io_node.unit_name  
+                          ,i_unit_type   => io_node.unit_type);
+ 
+  l_node.call_stack_level := f_call_stack_level; --simplify after 12C with additional functions
+ 
+  create_traversal(io_node => l_node);
+ 
+  RETURN l_node;
+  
+END;
+
+/*
+
+--BLOCK TRIGGER NODE
+FUNCTION block_trigger_node(i_module_name IN VARCHAR2
+                          ,i_unit_name   IN VARCHAR2
+						  ,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN sm_logger.node_typ IS
+  l_call_stack  VARCHAR2(2000) := NVL(i_call_stack, dbms_utility.format_call_stack);
+  l_node sm_logger.node_typ := sm_logger.new_node(i_module_name,i_unit_name,l_call_stack);
+BEGIN
+  l_node.unit_type := G_UNIT_TYPE_BLOCK_TRIGGER;
+ 
+  RETURN l_node;
+                           
+END; 
+
+--RECORD TRIGGER NODE
+FUNCTION record_trigger_node(i_module_name IN VARCHAR2
+                            ,i_unit_name   IN VARCHAR2
+							,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN sm_logger.node_typ IS
+  l_call_stack  VARCHAR2(2000) := NVL(i_call_stack, dbms_utility.format_call_stack);
+  l_node sm_logger.node_typ := sm_logger.new_node(i_module_name,i_unit_name,l_call_stack);
+BEGIN
+ 
+  l_node.unit_type := G_UNIT_TYPE_RECORD_TRIGGER;
+ 
+  RETURN l_node;
+                           
+END; 
+ 
+--ITEM TRIGGER NODE
+FUNCTION item_trigger_node(i_module_name IN VARCHAR2
+                          ,i_unit_name   IN VARCHAR2
+						  ,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN sm_logger.node_typ IS
+  l_call_stack  VARCHAR2(2000) := NVL(i_call_stack, dbms_utility.format_call_stack);
+  l_node sm_logger.node_typ := sm_logger.new_node(i_module_name,i_unit_name,l_call_stack);
+BEGIN
+ 
+  l_node.unit_type := G_UNIT_TYPE_ITEM_TRIGGER;
+ 
+  RETURN l_node;
+                           
+END; 
+
+*/
+
 ----------------------------------------------------------------------
 -- NEW ID's   
 -- Get an ID from a sequence (private)
@@ -197,36 +308,21 @@ END new_message_id;
 FUNCTION f_current_traversal_id RETURN NUMBER;  -- FORWARD DECLARATION
 ------------------------------------------------------------------------
 
-  
 ------------------------------------------------------------------------
--- Internal logging routines (private)
--- ms_logger cannot be used to log itself, so an alternative internal syntax exists
+-- Internal debugging routines (private)
+-- MS_METACODE cannot reliably log itself. 
 -- Output is designed for the unit test "ms_test.sql".
 ------------------------------------------------------------------------
  
-PROCEDURE intlog_putline(i_line IN VARCHAR2 ) IS
+PROCEDURE metacode_putline(i_line IN VARCHAR2 ) IS
 --Don't call this directly.
 BEGIN 
   IF g_debug_mode THEN
-    dbms_output.put_line(LPAD('+ ',g_debug_indent*2,'+ ')||i_line);
+    dbms_output.put_line(i_line);
   END IF;
 END; 
 
- 
-PROCEDURE intlog_start(i_message IN VARCHAR2 ) IS
-BEGIN 
-  intlog_putline('BEGAN: '||i_message);
-  g_debug_indent := g_debug_indent + 1;
-END;
-
-PROCEDURE intlog_end(i_message IN VARCHAR2 ) IS
-BEGIN
-  g_debug_indent := g_debug_indent - 1; 
-  intlog_putline('ENDED: '||i_message);
-  
-END; 
-
-PROCEDURE err_set_process_internal_error IS
+PROCEDURE set_internal_error IS
   --set internal error
   --create_ref, create_traversal, log_message will not start 
   --while this flag is set.  
@@ -237,7 +333,7 @@ PROCEDURE err_set_process_internal_error IS
 BEGIN 
  
   g_internal_error := TRUE; 
-  $if $$intlog $then intlog_putline('INTERNAL ERROR'); $end
+  metacode_putline('INTERNAL ERROR');
  
   UPDATE ms_process 
   SET internal_error = 'Y'
@@ -248,10 +344,7 @@ BEGIN
 
 END; 
  
-
-
-
-PROCEDURE err_create_internal_error(i_message IN VARCHAR2 ) IS
+PROCEDURE metacode_error(i_message IN VARCHAR2 ) IS
    
    PRAGMA AUTONOMOUS_TRANSACTION;
 
@@ -259,9 +352,9 @@ PROCEDURE err_create_internal_error(i_message IN VARCHAR2 ) IS
 
 BEGIN 
 
-  err_set_process_internal_error;
+  set_internal_error;
 
-  $if $$intlog $then intlog_putline('* '||i_message);  $end
+  metacode_putline('* '||i_message);
  
   l_internal_error.message      := SUBSTR(i_message,1,G_INTERNAL_ERROR_WIDTH);
   l_internal_error.msg_level    := G_MSG_LEVEL_INTERNAL;
@@ -275,28 +368,30 @@ BEGIN
   COMMIT;
 
 END; 
-
  
-PROCEDURE err_warn_oracle_error(i_message IN VARCHAR2 ) IS
+ 
+PROCEDURE metacode_ora_error(i_message IN VARCHAR2 ) IS
 BEGIN 
-  $if $$intlog $then intlog_putline(i_message||':');     $end
-  err_create_internal_error(SQLERRM);
-  $if $$intlog $then intlog_end(i_message => i_messagntlog_end(i_message => i_message); $end --extra call to intlog_end closes the program unit.
+  metacode_putline(i_message||':');
+  metacode_error(SQLERRM);
 
 END;
 
 
-
-
-PROCEDURE intlog_debug(i_message IN VARCHAR2 ) IS
+PROCEDURE metacode_start(i_message IN VARCHAR2 ) IS
 BEGIN 
-  intlog_putline('!'||i_message);
+  metacode_putline('START: '||i_message);
 END;
 
-PROCEDURE intlog_note(i_name  IN VARCHAR2
+PROCEDURE metacode_debug(i_message IN VARCHAR2 ) IS
+BEGIN 
+  metacode_putline('!'||i_message);
+END;
+
+PROCEDURE metacode_note(i_name  IN VARCHAR2
                        ,i_value IN VARCHAR2) IS
 BEGIN 
-  intlog_putline('.'||i_name||':'||i_value);
+  metacode_putline('.'||i_name||':'||i_value);
 END;
 
 ------------------------------------------------------------------------
@@ -308,7 +403,6 @@ BEGIN
   
   DBMS_OUTPUT.ENABLE(null);
   g_debug_mode := TRUE;
-  g_debug_indent := 0;
   
 END;  
 
@@ -317,231 +411,6 @@ BEGIN
   g_debug_mode := FALSE;
   DBMS_OUTPUT.DISABLE;
 END;
-
-  
-------------------------------------------------------------------------
--- Get Enitity operations (private)
-------------------------------------------------------------------------
-
-
-FUNCTION get_module(i_module_name  IN VARCHAR2) RETURN ms_module%ROWTYPE RESULT_CACHE RELIES_ON (ms_module)
-IS
-
-  CURSOR cu_module(c_module_name  VARCHAR2)
-  IS
-  SELECT *
-  FROM   ms_module
-  WHERE  module_name = c_module_name;
- 
-  l_module ms_module%ROWTYPE;
- 
-BEGIN
- 
-  OPEN cu_module(c_module_name  => i_module_name  );
-  FETCH cu_module INTO l_module;
-  CLOSE cu_module;
- 
-  RETURN l_module;
- 
-END get_module;
-
-
-
- 
-FUNCTION find_module(i_module_name  IN VARCHAR2
-                    ,i_module_type  IN VARCHAR2 DEFAULT 'UNKNOWN'
-                    ,i_revision     IN VARCHAR2 DEFAULT 'UNKNOWN')
-RETURN ms_module%ROWTYPE
-IS
- 
-  l_module ms_module%ROWTYPE;
- 
-  l_module_exists BOOLEAN;
-  
-  PRAGMA AUTONOMOUS_TRANSACTION;
-
-BEGIN 
-  $if $$intlog $then intlog_start('find_module');                 $end
-  $if $$intlog $then intlog_note('i_module_name',i_module_name);  $end
-  $if $$intlog $then intlog_note('i_module_type',i_module_type);  $end
-  $if $$intlog $then intlog_note('i_revision   ',i_revision   );  $end
-  
-  l_module := get_module(i_module_name => i_module_name  );
-  l_module_exists := l_module.module_id IS NOT NULL;
-
-  IF NOT l_module_exists THEN
-
-    --create the new module record
-    l_module.module_id       := new_module_id;
-    l_module.module_name     := i_module_name;
-    l_module.revision        := i_revision;
-    l_module.module_type     := i_module_type;
-    --l_module.msg_mode        := G_MSG_MODE_DEBUG; 
-    --l_module.open_process    := G_OPEN_PROCESS_IF_CLOSED;  
-    l_module.msg_mode        := G_MSG_MODE_QUIET; 
-    l_module.open_process    := G_OPEN_PROCESS_NEVER;     
- 
-    --insert a new module instance
-    INSERT INTO ms_module VALUES l_module; 
- 
-  END IF;
-  COMMIT;
-  
-  $if $$intlog $then intlog_end('find_module'); $end
-
-  RETURN l_module;
-  
-EXCEPTION
-
-  WHEN OTHERS THEN
-    ROLLBACK;
-    err_warn_oracle_error('find_module');
-	raise;
-  
-
-END find_module;
-
-------------------------------------------------------------------------
-FUNCTION get_unit(i_module_id    IN NUMBER
-                 ,i_unit_name    IN VARCHAR2) RETURN ms_unit%ROWTYPE RESULT_CACHE RELIES_ON (ms_unit)
-IS
- 
-  CURSOR cu_unit(c_module_id    NUMBER
-                ,c_unit_name    VARCHAR2)
-  IS
-  SELECT *
-  FROM   ms_unit
-  WHERE  module_id   = c_module_id
-  AND    unit_name   = c_unit_name;
-
-  l_unit ms_unit%ROWTYPE;
- 
-BEGIN
-  OPEN cu_unit(c_module_id  => i_module_id
-              ,c_unit_name  => i_unit_name  );
-  FETCH cu_unit INTO l_unit;
-  CLOSE cu_unit;
- 
-  RETURN l_unit;
- 
-END get_unit;
-
-
-FUNCTION find_unit(i_module_id    IN NUMBER
-                 ,i_unit_name    IN VARCHAR2
-                 ,i_unit_type    IN VARCHAR2 DEFAULT NULL
-                 ,i_create       IN BOOLEAN  DEFAULT TRUE)
-RETURN ms_unit%ROWTYPE
-IS
- 
-  l_unit ms_unit%ROWTYPE;
-  l_unit_exists BOOLEAN;
-  
-  PRAGMA AUTONOMOUS_TRANSACTION;
- 
-BEGIN
-  $if $$intlog $then intlog_start('find_unit'); $end
-  
-  l_unit := get_unit(i_module_id => i_module_id
-                    ,i_unit_name => i_unit_name);
-  l_unit_exists := l_unit.unit_id IS NOT NULL;
- 
-  IF NOT l_unit_exists AND i_create THEN
-
-    --create the new procedure record
-    l_unit.unit_id         := new_unit_id;
-    l_unit.module_id       := i_module_id;
-    l_unit.unit_name       := i_unit_name;
-    l_unit.unit_type       := i_unit_type;
-    l_unit.msg_mode        := G_MSG_MODE_DEFAULT;     --unit is overridden by module when set to DEFAULT 
-    l_unit.open_process    := G_OPEN_PROCESS_DEFAULT; --unit is overridden by module when set to DEFAULT   
-
-    --insert a new procedure instance
-    INSERT INTO ms_unit VALUES l_unit;  
-
-  END IF;
-
-  COMMIT;
-
-  $if $$intlog $then intlog_end('find_unit'); $end
-  RETURN l_unit;
-  
-EXCEPTION
-  WHEN OTHERS THEN
-    ROLLBACK;
-    err_warn_oracle_error('find_unit');
-	raise;
-
-END find_unit;
-
-------------------------------------------------------------------------
-
-FUNCTION find_unit(i_module_name  IN VARCHAR2
-                  ,i_unit_name    IN VARCHAR2
-                  ,i_unit_type    IN VARCHAR2 DEFAULT NULL
-                  ,i_create       IN BOOLEAN  DEFAULT TRUE)
-RETURN ms_unit%ROWTYPE
-IS
-BEGIN
-  RETURN find_unit(i_module_id  => find_module(i_module_name => i_module_name).module_id
-                  ,i_unit_name  => i_unit_name  
-                  ,i_unit_type  => i_unit_type
-                  ,i_create     => i_create); 
-
-END;
-
- 
-
- 
-
-
-/*
-
---BLOCK TRIGGER NODE
-FUNCTION block_trigger_node(i_module_name IN VARCHAR2
-                          ,i_unit_name   IN VARCHAR2
-						  ,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN ms_logger.node_typ IS
-  l_call_stack  VARCHAR2(2000) := NVL(i_call_stack, dbms_utility.format_call_stack);
-  l_node ms_logger.node_typ := ms_logger.new_node(i_module_name,i_unit_name,l_call_stack);
-BEGIN
-  l_node.unit_type := G_UNIT_TYPE_BLOCK_TRIGGER;
- 
-  RETURN l_node;
-                           
-END; 
-
---RECORD TRIGGER NODE
-FUNCTION record_trigger_node(i_module_name IN VARCHAR2
-                            ,i_unit_name   IN VARCHAR2
-							,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN ms_logger.node_typ IS
-  l_call_stack  VARCHAR2(2000) := NVL(i_call_stack, dbms_utility.format_call_stack);
-  l_node ms_logger.node_typ := ms_logger.new_node(i_module_name,i_unit_name,l_call_stack);
-BEGIN
- 
-  l_node.unit_type := G_UNIT_TYPE_RECORD_TRIGGER;
- 
-  RETURN l_node;
-                           
-END; 
- 
---ITEM TRIGGER NODE
-FUNCTION item_trigger_node(i_module_name IN VARCHAR2
-                          ,i_unit_name   IN VARCHAR2
-						  ,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN ms_logger.node_typ IS
-  l_call_stack  VARCHAR2(2000) := NVL(i_call_stack, dbms_utility.format_call_stack);
-  l_node ms_logger.node_typ := ms_logger.new_node(i_module_name,i_unit_name,l_call_stack);
-BEGIN
- 
-  l_node.unit_type := G_UNIT_TYPE_ITEM_TRIGGER;
- 
-  RETURN l_node;
-                           
-END; 
-
-*/
-
-
-
 
 --PUBLIC MODE PROCEDURES
  
@@ -690,22 +559,21 @@ END;
 PROCEDURE pop_to_parent_node(i_node IN node_typ) IS
 --Pop any node that is not an ancestor of this node.
 BEGIN
-  $if $$intlog $then intlog_start('pop_to_parent_node');                                $end
-  $if $$intlog $then intlog_note('current call_stack_level',i_node.call_stack_level );  $end
+  metacode_start('pop_to_parent_node');
+  metacode_note('current call_stack_level',i_node.call_stack_level );
   --remove from the stack any node with a call_stack_level equal to or greater than the new node.
   while f_index > 0 and
         g_nodes(f_index).call_stack_level >= i_node.call_stack_level  loop
-	   $if $$intlog $then intlog_note('last call_stack_level',g_nodes(f_index).call_stack_level ); $end
-	   $if $$intlog $then intlog_debug('pop_to_parent_node: removing top node '||f_index );        $end
+	   metacode_note('last call_stack_level',g_nodes(f_index).call_stack_level );
+	   metacode_debug('pop_to_parent_node: removing top node '||f_index ); 
        g_nodes.DELETE( f_index );
-
+    end if;	
   end loop;
-  $if $$intlog $then intlog_end('pop_to_parent_node'); $end
  
 EXCEPTION
 
   WHEN OTHERS THEN
-    err_warn_oracle_error('pop_to_parent_node');
+    metacode_ora_error('pop_to_parent_node');
 END; 
 
 
@@ -713,23 +581,23 @@ END;
 PROCEDURE pop_descendent_nodes(i_node IN node_typ) IS
 --Pop any node that is not a descendent of this node.
 BEGIN
-  $if $$intlog $then intlog_start('pop_descendent_nodes');                              $end         
-  $if $$intlog $then intlog_note('current call_stack_level',i_node.call_stack_level );  $end
+  metacode_start('pop_descendent_nodes');
+  metacode_note('current call_stack_level',i_node.call_stack_level );
   --remove from the stack any node with a call_stack_level equal to or greater than the new node.
   while f_index > 0 and
         g_nodes(f_index).call_stack_level > i_node.call_stack_level  loop
-	   $if $$intlog $then intlog_note('last call_stack_level',g_nodes(f_index).call_stack_level ); $end
-	   $if $$intlog $then intlog_debug('pop_descendent_nodes: removing top node '||f_index );      $end
+	   metacode_note('last call_stack_level',g_nodes(f_index).call_stack_level );
+	   metacode_debug('pop_descendent_nodes: removing top node '||f_index ); 
        g_nodes.DELETE( f_index );
+    end if;	
   end loop;
-  $if $$intlog $then intlog_end('pop_descendent_nodes'); $end
   
   --SHOULD WE PUT INTERNAL DEBUGGING HERE TO CHECK WE HAVE THE RIGHT NODE.
  
 EXCEPTION
 
   WHEN OTHERS THEN
-    err_warn_oracle_error('pop_descendent_nodes');
+    metacode_ora_error('pop_descendent_nodes');
 END; 
 
  
@@ -742,29 +610,134 @@ PROCEDURE push_node(io_node  IN OUT node_typ) IS
   x_too_deeply_nested   EXCEPTION;
  
 BEGIN
-  $if $$intlog $then intlog_start('push_node'); $end
+  metacode_start('push_node');
  
   --Next index is last index + 1
   l_next_index := NVL(f_index,0) + 1;
-  $if $$intlog $then intlog_note('l_next_index',l_next_index ); $end
+  metacode_note('l_next_index',l_next_index );
   IF l_next_index > g_max_nested_units THEN
     RAISE x_too_deeply_nested;
   END IF;
   --add to the top of the stack             
   g_nodes(l_next_index ) := io_node;
-  $if $$intlog $then intlog_end('push_node'); $end
 
 EXCEPTION
   WHEN x_too_deeply_nested THEN
-    warning(g_nodes(f_index),'ms_logger Internal Error');
-    warning(g_nodes(f_index),'push_node: exceeded ' ||g_max_nested_units||' nested procs.');
-    err_create_internal_error('push_node: exceeded ' ||g_max_nested_units||' nested procs.');
-    $if $$intlog $then intlog_end('push_node'); $end
+    warning('ms_metacode Internal Error');
+    warning('push_node: exceeded ' ||g_max_nested_units||' nested procs.');
+    metacode_error('push_node: exceeded ' ||g_max_nested_units||' nested procs.');
   WHEN OTHERS THEN
-    err_warn_oracle_error('push_node');
+    metacode_ora_error('push_node');
 END;
 
+/*
+------------------------------------------------------------------------
+PROCEDURE pop_to_traversal(i_node IN sm_logger.node_typ) IS
  
+  x_empty_traversal_stack        EXCEPTION;
+  --x_item_missing                 EXCEPTION;
+  x_node_already_popped          EXCEPTION;
+ 
+  
+BEGIN
+  metacode_start('pop_to_traversal');
+  metacode_note('i_node.node_level',i_node.node_level );
+  
+  --pre loop error checks
+  IF i_node.node_level IS NULL THEN
+    RAISE x_node_already_popped;
+  ELSIF f_is_stack_empty THEN
+    RAISE x_empty_traversal_stack;
+  END IF;  
+ 
+  --loop thru any missed exits
+  WHILE f_index > i_node.node_level LOOP     
+  metacode_note('f_index',f_index);
+    metacode_debug('Simulating exit_'||LOWER(g_nodes(f_index).unit_type)||' for '
+       ||g_nodes(f_index).module_name||'.'||g_nodes(f_index).unit_name);
+    g_nodes.DELETE( f_index );
+  END LOOP;    
+  
+  ----post loop error checks
+  --IF f_index < io_node.node_level THEN
+  --  RAISE x_item_missing;
+  --END IF;
+  --
+  ----f_index equals io_node.node_level
+  --g_nodes.DELETE( f_index );
+  ----set the node level to NULL so it can't be popped again thru poor app coding
+  --io_node.node_level := NULL;
+  --
+  ----post pop stack check
+  --IF f_is_stack_empty THEN
+  --  metacode_debug('All traversals popped');
+  --  close_process;
+  --END IF;
+
+EXCEPTION
+  WHEN x_node_already_popped THEN
+    --node_level was set to NULL when the node was popped.
+    --cannot be popped again
+    metacode_debug('pop_to_traversal: Node already popped.' );  
+  --WHEN x_item_missing THEN
+  --  metacode_debug('pop_traversal: Traversal not found on stack.' );  
+  WHEN x_empty_traversal_stack THEN
+    metacode_debug('pop_to_traversal: Traversal not found, stack is empty.' );
+  WHEN OTHERS THEN
+    metacode_ora_error('pop_to_traversal');
+END;
+
+------------------------------------------------------------------------
+PROCEDURE pop_traversal(io_node IN OUT sm_logger.node_typ) IS
+ 
+  --x_empty_traversal_stack        EXCEPTION;
+  x_item_missing                 EXCEPTION;
+  --x_node_already_popped          EXCEPTION;
+ 
+  
+BEGIN
+  metacode_start('pop_traversal');
+  metacode_note('io_node.node_level',io_node.node_level );
+  
+  pop_to_traversal(i_node => io_node);
+ 
+  --post loop error checks
+  IF f_index < io_node.node_level THEN
+    RAISE x_item_missing;
+  END IF;
+  
+  --f_index equals io_node.node_level
+  g_nodes.DELETE( f_index );
+  --set the node level to NULL so it can't be popped again thru poor app coding
+  io_node.node_level := NULL;
+ 
+  --post pop stack check
+  IF f_is_stack_empty THEN
+    metacode_debug('All traversals popped');
+    close_process;
+  END IF;
+
+EXCEPTION
+  --WHEN x_node_already_popped THEN
+  --  --node_level was set to NULL when the node was popped.
+  --  --cannot be popped again
+  --  metacode_debug('pop_traversal: Node already popped.' );  
+  WHEN x_item_missing THEN
+    metacode_debug('pop_traversal: Traversal not found on stack.' );  
+  --WHEN x_empty_traversal_stack THEN
+  --  metacode_debug('pop_traversal: Traversal not found, stack is empty.' );
+  WHEN OTHERS THEN
+    metacode_ora_error('pop_traversal');
+END;
+ 
+------------------------------------------------------------------------
+--FUNCTION f_unlogged_traversals_exist RETURN BOOLEAN IS
+--BEGIN
+--  RETURN f_index( io_traversal_stack => g_unlogged_traversals ) > 0;
+--END;
+
+
+*/
 
 ------------------------------------------------------------------------
 -- Independent error handler (private)
@@ -797,7 +770,7 @@ IS
   l_process ms_process%ROWTYPE;
 
 BEGIN
-    $if $$intlog $then intlog_start('log_process'); $end
+    metacode_start('log_process');
     --reset internal error for the new process
     g_internal_error := FALSE;
  
@@ -819,13 +792,11 @@ BEGIN
     COMMIT;
     
     init_node_stack;
-	
-	$if $$intlog $then intlog_end('log_process'); $end
 
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_warn_oracle_error('log_process');
+    metacode_ora_error('log_process');
     
 END log_process;
 
@@ -835,25 +806,24 @@ PROCEDURE log_ref(i_reference  IN ms_reference%ROWTYPE) IS
     PRAGMA AUTONOMOUS_TRANSACTION;
 	l_ref ms_reference%ROWTYPE := i_reference;
 BEGIN
-  $if $$intlog $then intlog_start('log_ref'); $end
+  metacode_start('log_ref');
   l_ref.message_id := new_message_id;
   
-  $if $$intlog $then intlog_note('message_id'  ,l_ref.message_id);   $end
-  $if $$intlog $then intlog_note('traversal_id',l_ref.traversal_id); $end
-  $if $$intlog $then intlog_note('name        ',l_ref.name        ); $end
-  $if $$intlog $then intlog_note('value       ',l_ref.value       ); $end
-  $if $$intlog $then intlog_note('descr       ',l_ref.descr       ); $end
-  $if $$intlog $then intlog_note('param_ind   ',l_ref.param_ind   ); $end
+  metacode_note('message_id'  ,l_ref.message_id);
+  metacode_note('traversal_id',l_ref.traversal_id);
+  metacode_note('name        ',l_ref.name        );
+  metacode_note('value       ',l_ref.value       );
+  metacode_note('descr       ',l_ref.descr       );
+  metacode_note('param_ind   ',l_ref.param_ind   );
  
   INSERT INTO ms_reference VALUES l_ref;
  
   COMMIT;
-  $if $$intlog $then intlog_end('log_ref'); $end
  
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_warn_oracle_error('log_ref');
+    metacode_ora_error('log_ref');
 END;
 
 ------------------------------------------------------------------------
@@ -865,7 +835,7 @@ PROCEDURE log_node(io_node  IN OUT node_typ ) IS
   PRAGMA AUTONOMOUS_TRANSACTION;
  
 BEGIN
-  $if $$intlog $then intlog_start('log_node'); $end
+  metacode_start('log_node');
   IF f_index = g_max_nested_units THEN
     RAISE x_too_deeply_nested;
   END IF;
@@ -886,13 +856,13 @@ BEGIN
   io_node.traversal.parent_traversal_id := f_current_traversal_id;
   io_node.traversal.process_id          := g_process_id;
   
-  $if $$intlog $then intlog_note('module_name        ',io_node.module.module_name );           $end
-  $if $$intlog $then intlog_note('unit_name          ',io_node.unit.unit_name  );              $end
-  $if $$intlog $then intlog_note('traversal_id       ',io_node.traversal.traversal_id       ); $end
-  $if $$intlog $then intlog_note('unit_id            ',io_node.traversal.unit_id);             $end
-  $if $$intlog $then intlog_note('parent_traversal_id',io_node.traversal.parent_traversal_id); $end
-  $if $$intlog $then intlog_note('process_id         ',io_node.traversal.process_id         ); $end
-  $if $$intlog $then intlog_note('msg_mode           ',io_node.traversal.msg_mode);            $end
+  metacode_note('module_name        ',io_node.module.module_name );
+  metacode_note('unit_name          ',io_node.unit.unit_name  );
+  metacode_note('traversal_id       ',io_node.traversal.traversal_id       );
+  metacode_note('unit_id            ',io_node.traversal.unit_id);
+  metacode_note('parent_traversal_id',io_node.traversal.parent_traversal_id);
+  metacode_note('process_id         ',io_node.traversal.process_id         );
+  metacode_note('msg_mode           ',io_node.traversal.msg_mode);
 
   INSERT INTO ms_traversal VALUES io_node.traversal; 
   COMMIT;  --commit prior to logging refs
@@ -914,18 +884,16 @@ BEGIN
   END IF;
   
   io_node.logged := TRUE;
-  $if $$intlog $then intlog_end('log_node'); $end
   
 EXCEPTION
   WHEN x_too_deeply_nested THEN
     ROLLBACK;
-    warning(g_nodes(f_index),'ms_logger Internal Error');
-    warning(g_nodes(f_index),'log_node: exceeded ' ||g_max_nested_units||' nested procs.');
-    err_create_internal_error('log_node: exceeded ' ||g_max_nested_units||' nested procs.');
-	$if $$intlog $then intlog_end('log_node');  $end                   
+    warning('ms_metacode Internal Error');
+    warning('log_node: exceeded ' ||g_max_nested_units||' nested procs.');
+    metacode_error('log_node: exceeded ' ||g_max_nested_units||' nested procs.');
   WHEN OTHERS THEN
     ROLLBACK;
-    err_warn_oracle_error('log_node');
+    metacode_ora_error('log_node');
  
  
 END; 
@@ -940,7 +908,7 @@ PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
   --log traversals and change msg_mode while dropping out.
   l_traversal_index BINARY_INTEGER;
 BEGIN
-  $if $$intlog $then intlog_start('dump_nodes'); $end
+  metacode_start('dump_nodes');
   IF i_index > 0 AND NOT g_nodes(i_index).logged THEN
     --dump any previous traversals too
     dump_nodes(i_index    => g_nodes.PRIOR(i_index)
@@ -949,14 +917,13 @@ BEGIN
     g_nodes(i_index).traversal.msg_mode := i_msg_mode;
     log_node(io_node   => g_nodes(i_index));
   END IF;
-  $if $$intlog $then intlog_end('dump_nodes'); $end
  
 EXCEPTION
   WHEN OTHERS THEN
-    err_warn_oracle_error('dump_nodes');
+    metacode_ora_error('dump_nodes');
 END;
 
-PROCEDURE synch_node_stack( i_node IN ms_logger.node_typ) IS
+PROCEDURE synch_node_stack( i_node IN sm_logger.node_typ) IS
 BEGIN
 	--Is the node on the stack??
 	IF i_node.node_level is not null then
@@ -977,7 +944,7 @@ PROCEDURE  log_message(
            ,i_fatal           IN BOOLEAN  DEFAULT FALSE
            ,i_oracle          IN BOOLEAN  DEFAULT FALSE   -- find oracle error message and code
            ,i_raise_app_error IN BOOLEAN  DEFAULT FALSE   -- raise an application error
-		   ,i_node            IN ms_logger.node_typ     -- if an initialised node is passed then check its current
+		   ,i_node            IN sm_logger.node_typ     -- if an initialised node is passed then check its current
            )
 
 
@@ -991,10 +958,9 @@ IS
    PRAGMA AUTONOMOUS_TRANSACTION;
 
 BEGIN
-  $if $$intlog $then intlog_start('log_message'); $end
   IF NOT g_internal_error THEN
-
-    --intlog_note('i_message        ',i_message        );
+    metacode_start('log_message');
+    --metacode_note('i_message        ',i_message        );
 	
 	--ms_logger passes node as origin of message  
 	synch_node_stack( i_node => i_node);
@@ -1023,23 +989,22 @@ BEGIN
     IF g_nodes(f_index).logged AND --NOT f_unlogged_traversals_exist     AND
         --f_current_traversal_id IS NOT NULL AND
         l_message.msg_level >= f_current_traversal_msg_mode THEN
-        $if $$intlog $then intlog_note('l_message.msg_level',l_message.msg_level);                   $end
-        $if $$intlog $then intlog_note('f_current_traversal_msg_mode',f_current_traversal_msg_mode); $end
+        metacode_note('l_message.msg_level',l_message.msg_level);
+        metacode_note('f_current_traversal_msg_mode',f_current_traversal_msg_mode);
 
         l_message.message_id   := new_message_id;
         l_message.traversal_id := f_current_traversal_id;
         l_message.time_now     := SYSDATE;
 
         IF l_message.message IS NULL THEN
-          $if $$intlog $then intlog_debug('Empty Message'); $end
-		  NULL;
+          metacode_debug('Empty Message');
           
         ELSIF LENGTH(l_message.message) <= G_MESSAGE_WIDTH THEN
-          $if $$intlog $then intlog_note('l_message.message',l_message.message); $end
+          metacode_note('l_message.message',l_message.message);
           INSERT INTO ms_message VALUES l_message;
           
         ELSE
-          $if $$intlog $then intlog_debug('This is a LARGE message'); $end 
+          metacode_debug('This is a LARGE message');   
           l_large_message  := SUBSTR(i_message,1,32000);
           l_message_parts  := CEIL(LENGTH(l_large_message)/4000);
           
@@ -1047,7 +1012,7 @@ BEGIN
             l_message_split := l_message_split + 1;
             
             INSERT INTO ms_large_message VALUES l_message;
-            $if $$intlog $then intlog_debug('Large message inserted'); $end
+            metacode_debug('Large message inserted');
             --warning('Message '||l_message_split||'/'||l_message_parts||' Id:'||l_message.message_id);
             --note('large message_id',l_message.message_id);
           
@@ -1069,13 +1034,12 @@ BEGIN
     IF i_raise_app_error THEN
       app_error(i_message => l_message.message);
     END IF;
-
   END IF;
-  $if $$intlog $then intlog_end('log_message'); $end
+  
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_warn_oracle_error('log_message');
+    metacode_ora_error('log_message');
  
 
 END log_message;
@@ -1119,9 +1083,8 @@ END f_user_source;
 --------------------------------------------------------------------
  
 
-PROCEDURE warn_user_source_error_lines( i_node       IN ms_logger.node_typ
-                                       ,i_prev_lines IN NUMBER
-                                       ,i_post_lines IN NUMBER) IS
+PROCEDURE warn_user_source_error_lines(i_prev_lines IN NUMBER
+                                      ,i_post_lines IN NUMBER) IS
                                   
   l_backtrace VARCHAR2(32000) := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;  
   
@@ -1133,7 +1096,9 @@ PROCEDURE warn_user_source_error_lines( i_node       IN ms_logger.node_typ
   l_result       VARCHAR2(4000);
   l_user_source  user_source%ROWTYPE;
   l_line_numbersYN VARCHAR2(1) := 'Y';
-   
+  
+  l_warn     BOOLEAN;
+  l_fatal    BOOLEAN;
   l_message  VARCHAR2(2000);
   l_line_no  VARCHAR2(100);
  
@@ -1162,6 +1127,10 @@ BEGIN
                                    ,i_type => 'PACKAGE BODY'
                                    ,i_line => l_line);
  
+		  
+ 
+    l_fatal := l_line = l_error_line;
+    l_warn  := NOT l_fatal;
  
     IF l_line_numbersYN = 'Y' THEN
 	l_line_no := l_line||' ';
@@ -1172,9 +1141,9 @@ BEGIN
 	l_message := l_line_no||' '||RTRIM(l_user_source.text,chr(10));
 	
 	if l_line = l_error_line then
-	  warning(i_node,l_message);
+	  warning(l_message);
 	else
-	  comment(i_node,l_message);
+	  comment(l_message);
 	end if;
 	
  
@@ -1192,55 +1161,195 @@ END;
 
 ------------------------------------------------------------------------
 
-PROCEDURE debug_error( i_node            IN ms_logger.node_typ 
-                      ,i_warning         IN BOOLEAN  DEFAULT FALSE
-                      ,i_oracle          IN BOOLEAN  DEFAULT FALSE
-                      ,i_message         IN VARCHAR2 DEFAULT NULL  )
+PROCEDURE oracle_error( i_message         IN     VARCHAR2 DEFAULT NULL
+                       ,i_raise_app_error IN     BOOLEAN  DEFAULT FALSE
+					   ,i_node            IN sm_logger.node_typ DEFAULT NULL)
 IS
 BEGIN
  
   log_message( i_message  => LTRIM(i_message ||' '||SQLERRM
                                          ||chr(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE --show the original error line number
                                   )
-              ,i_warning  => i_warning
-			  ,i_oracle   => i_oracle
+              ,i_oracle   => TRUE
+              ,i_raise_app_error => i_raise_app_error
 			  ,i_node     => i_node );
   
   warn_user_source_error_lines(i_prev_lines => 5
-                              ,i_post_lines => 5
-							  ,i_node     => i_node);
+                              ,i_post_lines => 5);
 
 
-END debug_error;
-
-
-PROCEDURE oracle_error( i_node            IN ms_logger.node_typ 
-                       ,i_message         IN     VARCHAR2 DEFAULT NULL  )
-IS
-BEGIN
-
-  debug_error( i_node             => i_node  
-               ,i_oracle           => TRUE      
-               ,i_message          => i_message );
- 
 END oracle_error;
 
---cannot actually raise the error. will need to have a raise in the exception block.
-PROCEDURE warn_error( i_node            IN ms_logger.node_typ 
-                     ,i_message         IN     VARCHAR2 DEFAULT NULL  )
+ 
+------------------------------------------------------------------------
+-- Get Enitity operations (private)
+------------------------------------------------------------------------
+
+
+FUNCTION get_module(i_module_name  IN VARCHAR2) RETURN ms_module%ROWTYPE RESULT_CACHE RELIES ON ms_module
 IS
+
+  CURSOR cu_module(c_module_name  VARCHAR2)
+  IS
+  SELECT *
+  FROM   ms_module
+  WHERE  module_name = c_module_name;
+ 
+  l_module ms_module%ROWTYPE;
+ 
 BEGIN
  
-  debug_error( i_node             => i_node  
-               ,i_warning          => TRUE      
-               ,i_message          => i_message );
+  OPEN cu_module(c_module_name  => i_module_name  );
+  FETCH cu_module INTO l_module;
+  CLOSE cu_module;
+ 
+  RETURN l_module;
+ 
+END get_module;
 
-
-END warn_error;
 
 
  
+FUNCTION find_module(i_module_name  IN VARCHAR2
+                    ,i_module_type  IN VARCHAR2 DEFAULT 'UNKNOWN'
+                    ,i_revision     IN VARCHAR2 DEFAULT 'UNKNOWN')
+RETURN ms_module%ROWTYPE
+IS
+ 
+  l_module ms_module%ROWTYPE;
+ 
+  l_module_exists BOOLEAN;
+  
+  PRAGMA AUTONOMOUS_TRANSACTION;
 
+BEGIN
+  metacode_start('get_module');
+  --metacode_note('i_module_name',i_module_name);
+  --metacode_note('i_module_type',i_module_type);
+  --metacode_note('i_revision   ',i_revision   );
+  
+  l_module := get_module(i_module_name => i_module_name  );
+  l_module_exists := l_module.module_id IS NOT NULL;
+
+  IF NOT l_module_exists THEN
+
+    --create the new module record
+    l_module.module_id       := new_module_id;
+    l_module.module_name     := i_module_name;
+    l_module.revision        := i_revision;
+    l_module.module_type     := i_module_type;
+    --l_module.msg_mode        := G_MSG_MODE_DEBUG; 
+    --l_module.open_process    := G_OPEN_PROCESS_IF_CLOSED;  
+    l_module.msg_mode        := G_MSG_MODE_QUIET; 
+    l_module.open_process    := G_OPEN_PROCESS_NEVER;     
+ 
+    --insert a new module instance
+    INSERT INTO ms_module VALUES l_module; 
+    
+
+  END IF;
+  COMMIT;
+
+  RETURN l_module;
+  
+EXCEPTION
+
+  WHEN OTHERS THEN
+    ROLLBACK;
+    metacode_ora_error('find_module');
+  
+
+END find_module;
+
+------------------------------------------------------------------------
+FUNCTION get_unit(i_module_id    IN NUMBER
+                 ,i_unit_name    IN VARCHAR2)  RESULT_CACHE RELIES ON ms_unit
+RETURN ms_unit%ROWTYPE
+IS
+ 
+  CURSOR cu_unit(c_module_id    NUMBER
+                ,c_unit_name    VARCHAR2)
+  IS
+  SELECT *
+  FROM   ms_unit
+  WHERE  module_id   = c_module_id
+  AND    unit_name   = c_unit_name;
+
+  l_unit ms_unit%ROWTYPE;
+ 
+BEGIN
+  OPEN cu_unit(c_module_id  => i_module_id
+              ,c_unit_name  => i_unit_name  );
+  FETCH cu_unit INTO l_unit;
+  CLOSE cu_unit;
+ 
+  RETURN l_unit;
+ 
+END get_unit;
+
+
+FUNCTION find_unit(i_module_id    IN NUMBER
+                 ,i_unit_name    IN VARCHAR2
+                 ,i_unit_type    IN VARCHAR2 DEFAULT NULL
+                 ,i_create       IN BOOLEAN  DEFAULT TRUE)
+RETURN ms_unit%ROWTYPE
+IS
+ 
+  l_unit ms_unit%ROWTYPE;
+  l_unit_exists BOOLEAN;
+  
+  PRAGMA AUTONOMOUS_TRANSACTION;
+ 
+BEGIN
+  metacode_start('find_unit');
+  
+  l_unit := get_unit(i_module_id => i_module_id
+                    ,i_unit_name => i_unit_name);
+  l_unit_exists := l_unit.unit_id IS NOT NULL;
+ 
+  IF NOT l_unit_exists AND i_create THEN
+
+    --create the new procedure record
+    l_unit.unit_id         := new_unit_id;
+    l_unit.module_id       := i_module_id;
+    l_unit.unit_name       := i_unit_name;
+    l_unit.unit_type       := i_unit_type;
+    l_unit.msg_mode        := G_MSG_MODE_DEFAULT;     --unit is overridden by module when set to DEFAULT 
+    l_unit.open_process    := G_OPEN_PROCESS_DEFAULT; --unit is overridden by module when set to DEFAULT   
+
+    --insert a new procedure instance
+    INSERT INTO ms_unit VALUES l_unit;  
+
+  END IF;
+
+  COMMIT;
+
+  RETURN l_unit;
+  
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    metacode_ora_error('find_unit');
+
+END find_unit;
+
+------------------------------------------------------------------------
+
+FUNCTION find_unit(i_module_name  IN VARCHAR2
+                  ,i_unit_name    IN VARCHAR2
+                  ,i_unit_type    IN VARCHAR2 DEFAULT NULL
+                  ,i_create       IN BOOLEAN  DEFAULT TRUE)
+RETURN ms_unit%ROWTYPE
+IS
+BEGIN
+  RETURN find_unit(i_module_id  => find_module(i_module_name => i_module_name).module_id
+                  ,i_unit_name  => i_unit_name  
+                  ,i_unit_type  => i_unit_type
+                  ,i_create     => i_create); 
+
+END;
+
+ 
 ------------------------------------------------------------------------
 -- METACODE ROUTINES (Public)
 ------------------------------------------------------------------------
@@ -1255,7 +1364,71 @@ BEGIN
              ,i_ext_ref      => i_ext_ref    
              ,i_comments     => i_comments);   
 END;
+------------------------------------------------------------------------ 
+PROCEDURE comment( i_message         IN VARCHAR2 DEFAULT NULL
+                  ,i_raise_app_error IN BOOLEAN  DEFAULT FALSE
+				  ,i_node            IN sm_logger.node_typ DEFAULT NULL ) IS
+BEGIN
+    log_message(
+       i_message  => i_message
+      ,i_comment  => TRUE
+      ,i_raise_app_error => i_raise_app_error
+	  ,i_node     => i_node);
+END comment;
 
+------------------------------------------------------------------------
+PROCEDURE info( i_message         IN VARCHAR2 DEFAULT NULL
+			   ,i_node            IN sm_logger.node_typ DEFAULT NULL )
+IS
+BEGIN
+  log_message(
+    i_message  => i_message
+   ,i_info     => TRUE
+   ,i_node     => i_node);
+
+END info;
+
+------------------------------------------------------------------------
+
+PROCEDURE warning( i_message      IN     VARCHAR2 DEFAULT NULL
+                  ,i_node            IN sm_logger.node_typ DEFAULT NULL )
+IS
+BEGIN
+  log_message(
+    i_message  => i_message
+   ,i_warning  => TRUE
+   ,i_node     => i_node);
+END warning;
+
+------------------------------------------------------------------------
+PROCEDURE fatal( i_message         IN     VARCHAR2 DEFAULT NULL
+                ,i_raise_app_error IN     BOOLEAN  DEFAULT FALSE
+			    ,i_node            IN sm_logger.node_typ DEFAULT NULL)
+IS
+BEGIN
+ 
+  log_message(
+    i_message         => i_message
+   ,i_fatal           => TRUE
+   ,i_raise_app_error => i_raise_app_error
+   ,i_node     => i_node);
+ 
+END fatal;
+
+ 
+PROCEDURE raise_fatal( i_message         IN     VARCHAR2 DEFAULT NULL
+                      ,i_raise_app_error IN     BOOLEAN  DEFAULT FALSE
+				      ,i_node            IN sm_logger.node_typ DEFAULT NULL)
+IS
+BEGIN
+ 
+  fatal( i_message         => i_message         
+        ,i_raise_app_error => i_raise_app_error 
+        ,i_node            => i_node);      
+ 
+  RAISE x_error;
+
+END raise_fatal; 
  
 ------------------------------------------------------------------------
 -- Reference operations (private)
@@ -1280,16 +1453,14 @@ PROCEDURE create_ref ( i_name      IN VARCHAR2
                       ,i_value     IN VARCHAR2
                       ,i_descr     IN VARCHAR2 
                       ,i_is_param  IN BOOLEAN
-                      ,i_node      IN ms_logger.node_typ DEFAULT NULL					  )
+                      ,i_node      IN sm_logger.node_typ DEFAULT NULL					  )
 IS
 
   l_param_ind VARCHAR2(1) := f_yn(i_is_param); 
   l_reference MS_REFERENCE%ROWTYPE;
 
 BEGIN
-  $if $$intlog $then intlog_start('create_ref'); $end
   IF NOT g_internal_error THEN
-
     IF LENGTH(i_value) > G_REF_DATA_WIDTH THEN
       --create a comment instead
       comment(i_message => i_name||chr(10)||i_value       
@@ -1300,7 +1471,7 @@ BEGIN
 	  --ms_logger passes node as origin of message  
 	  synch_node_stack( i_node => i_node);
 
-      
+      metacode_start('create_ref');
       l_reference.traversal_id := NULL;         
       l_reference.name         := SUBSTR(i_name ,1,G_REF_NAME_WIDTH);
       l_reference.value        := SUBSTR(i_value,1,G_REF_DATA_WIDTH);
@@ -1318,13 +1489,11 @@ BEGIN
         l_reference.traversal_id := f_current_traversal_id;
         log_ref(i_reference => l_reference ); 
       END IF;   
-    END IF;  
-
+    END IF;   
   END IF;   
-  $if $$intlog $then intlog_end('create_ref'); $end
 EXCEPTION
   WHEN OTHERS THEN
-    err_warn_oracle_error('create_ref');
+    metacode_ora_error('create_ref');
 
 END create_ref;
 
@@ -1333,26 +1502,24 @@ END create_ref;
 ------------------------------------------------------------------------
 
 --overloaded name, value | [id, descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 	
-                   ,i_name      IN VARCHAR2
+PROCEDURE note    ( i_name      IN VARCHAR2
                    ,i_value     IN VARCHAR2
                    ,i_descr     IN VARCHAR2 DEFAULT NULL
-                   			   )
+                   ,i_node      IN sm_logger.node_typ DEFAULT NULL				   )
 IS
 
 BEGIN
 
   create_ref ( i_name       => i_name
-              ,i_value      => i_value
-              ,i_descr      => i_descr
-              ,i_is_param   => FALSE
-              ,i_node       => i_node);
+           ,i_value      => i_value
+           ,i_descr      => i_descr
+           ,i_is_param   => FALSE
+           ,i_node       => i_node);
 
 END note   ;
  
-/* 
 PROCEDURE invariant(i_value     IN VARCHAR2
-                   ,i_node      IN ms_logger.node_typ DEFAULT NULL)
+                   ,i_node      IN sm_logger.node_typ DEFAULT NULL)
 IS
 
 BEGIN
@@ -1362,30 +1529,30 @@ BEGIN
       ,i_node     => i_node );
 
 END invariant   ;
-*/
 
 ------------------------------------------------------------------------
 
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
-                 ,i_name      IN VARCHAR2
+PROCEDURE param ( i_name      IN VARCHAR2
                  ,i_value     IN VARCHAR2
-                 ,i_descr     IN VARCHAR2 DEFAULT NULL  )
+                 ,i_descr     IN VARCHAR2 DEFAULT NULL
+                 ,i_node      IN sm_logger.node_typ DEFAULT NULL )
 IS
+
 BEGIN
   create_ref ( i_name      => i_name
-              ,i_value     => i_value
-              ,i_descr     => i_descr
-              ,i_is_param  => TRUE
-              ,i_node      => i_node
-		      );
+           ,i_value     => i_value
+           ,i_descr     => i_descr
+           ,i_is_param  => TRUE
+           ,i_node     => i_node
+		   );
 
 END param;
 ------------------------------------------------------------------------
 --overloaded name, num_value | [id, descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 
-                   ,i_name      IN VARCHAR2
+PROCEDURE note    ( i_name      IN VARCHAR2
                    ,i_num_value IN NUMBER
-                   ,i_descr     IN VARCHAR2 DEFAULT NULL )
+                   ,i_descr     IN VARCHAR2 DEFAULT NULL 
+				   ,i_node      IN sm_logger.node_typ DEFAULT NULL)
 IS
 
 BEGIN
@@ -1399,10 +1566,10 @@ BEGIN
 END note   ;
 
 ------------------------------------------------------------------------ 
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
-                 ,i_name      IN VARCHAR2
+PROCEDURE param ( i_name      IN VARCHAR2
                  ,i_num_value IN NUMBER
-                 ,i_descr     IN VARCHAR2 DEFAULT NULL 				 )
+                 ,i_descr     IN VARCHAR2 DEFAULT NULL
+                 ,i_node      IN sm_logger.node_typ DEFAULT NULL				 )
 IS
 
 BEGIN
@@ -1415,35 +1582,35 @@ BEGIN
 END param;
 ------------------------------------------------------------------------
 --overloaded name, date_value , descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 
-                   ,i_name       IN VARCHAR2
+PROCEDURE note    ( i_name       IN VARCHAR2
                    ,i_date_value IN DATE
-                   ,i_descr      IN VARCHAR2 DEFAULT NULL )
+                   ,i_descr      IN VARCHAR2 DEFAULT NULL 
+				   ,i_node      IN sm_logger.node_typ DEFAULT NULL)
 IS
 
 BEGIN
   IF i_date_value = TRUNC(i_date_value) THEN
 
     create_ref ( i_name       => i_name
-                ,i_value      => TO_CHAR(i_date_value,'DD-MON-YYYY')
-                ,i_descr      => i_descr
-                ,i_is_param   => FALSE
-                ,i_node     => i_node);
+             ,i_value      => TO_CHAR(i_date_value,'DD-MON-YYYY')
+             ,i_descr      => i_descr
+             ,i_is_param   => FALSE
+             ,i_node     => i_node);
   ELSE
     create_ref ( i_name       => i_name
-                ,i_value      => TO_CHAR(i_date_value,'DD-MON-YYYY HH24MI')
-                ,i_descr      => i_descr
-                ,i_is_param   => FALSE
-                ,i_node     => i_node);
+             ,i_value      => TO_CHAR(i_date_value,'DD-MON-YYYY HH24MI')
+             ,i_descr      => i_descr
+             ,i_is_param   => FALSE
+             ,i_node     => i_node);
 
   END IF;
 
 END note   ;
 ------------------------------------------------------------------------
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
-                 ,i_name       IN VARCHAR2
+PROCEDURE param ( i_name       IN VARCHAR2
                  ,i_date_value IN DATE
-                 ,i_descr      IN VARCHAR2 DEFAULT NULL 			 )
+                 ,i_descr      IN VARCHAR2 DEFAULT NULL
+                 ,i_node      IN sm_logger.node_typ DEFAULT NULL				 )
 IS
 
 BEGIN
@@ -1467,9 +1634,9 @@ END param;
 
 ------------------------------------------------------------------------
 --overloaded name, bool_value 
-PROCEDURE note   (i_node      IN ms_logger.node_typ 
-                 ,i_name       IN VARCHAR2
-                 ,i_bool_value IN BOOLEAN  )
+PROCEDURE note   (i_name       IN VARCHAR2
+                 ,i_bool_value IN BOOLEAN 
+				 ,i_node      IN sm_logger.node_typ DEFAULT NULL)
 IS
 
 BEGIN
@@ -1482,9 +1649,9 @@ BEGIN
 
 END note   ;
 ------------------------------------------------------------------------
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
-                 ,i_name      IN VARCHAR2
-                 ,i_bool_value IN BOOLEAN )
+PROCEDURE param ( i_name      IN VARCHAR2
+                 ,i_bool_value IN BOOLEAN
+                 ,i_node      IN sm_logger.node_typ DEFAULT NULL				 )
 IS
 
 BEGIN
@@ -1497,8 +1664,8 @@ BEGIN
 END param;
 ------------------------------------------------------------------------
 --overloaded name
-PROCEDURE note   (i_node      IN ms_logger.node_typ 
-                 ,i_name      IN VARCHAR2 )
+PROCEDURE note   (i_name      IN VARCHAR2
+                 ,i_node      IN sm_logger.node_typ DEFAULT NULL)
 IS
 BEGIN
   create_ref(i_name       => i_name
@@ -1509,8 +1676,8 @@ BEGIN
 
 END note   ;
 ------------------------------------------------------------------------
-PROCEDURE note_rowcount( i_node      IN ms_logger.node_typ 
-                        ,i_name      IN VARCHAR2 ) IS
+PROCEDURE note_rowcount( i_name      IN VARCHAR2
+                        ,i_node      IN sm_logger.node_typ DEFAULT NULL ) IS
 BEGIN
 
   note ( i_name       => i_name
@@ -1519,8 +1686,8 @@ BEGIN
 
 END note_rowcount;
 ------------------------------------------------------------------------
-FUNCTION f_note_rowcount( i_node      IN ms_logger.node_typ 
-                         ,i_name      IN VARCHAR2  ) RETURN NUMBER IS
+FUNCTION f_note_rowcount( i_name      IN VARCHAR2 
+                         ,i_node      IN sm_logger.node_typ DEFAULT NULL) RETURN NUMBER IS
   l_rowcount NUMBER := SQL%ROWCOUNT;
 BEGIN
 
@@ -1533,7 +1700,7 @@ END f_note_rowcount;
 
 ------------------------------------------------------------------------
 
-PROCEDURE note_error(i_node      IN ms_logger.node_typ )
+PROCEDURE note_error(i_node      IN sm_logger.node_typ DEFAULT NULL)
 IS
 BEGIN
 
@@ -1544,13 +1711,12 @@ BEGIN
 END note_error;
 
 ------------------------------------------------------------------------
-PROCEDURE note_length( i_node  IN ms_logger.node_typ 
-                      ,i_name  IN VARCHAR2 
-                      ,i_value IN VARCHAR2 			  ) IS
+PROCEDURE note_length( i_name  IN VARCHAR2
+                      ,i_node      IN sm_logger.node_typ DEFAULT NULL ) IS
 BEGIN
 
   note ( i_name       => 'LENGTH('||i_name||')'
-        ,i_value      => LENGTH(i_value)
+        ,i_value      => LENGTH(i_name)
         ,i_node     => i_node);
 
 END note_length;
@@ -1573,10 +1739,10 @@ IS
   PRAGMA AUTONOMOUS_TRANSACTION;
 
 BEGIN
-  $if $$intlog $then intlog_start('register_module');            $end
-  $if $$intlog $then intlog_note('i_module_name',i_module_name); $end
-  $if $$intlog $then intlog_note('i_module_type',i_module_type); $end
-  $if $$intlog $then intlog_note('i_revision',i_revision);       $end
+  metacode_start('register_module');
+  --metacode_note('i_module_name',i_module_name);
+  --metacode_note('i_module_type',i_module_type);
+  --metacode_note('i_revision',i_revision);
 
   --get a registered module or register this one
   l_module := get_module(i_module_name => l_module_name); 
@@ -1597,12 +1763,11 @@ BEGIN
 
   
   COMMIT;
-  $if $$intlog $then intlog_end('register_module'); $end
 
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_warn_oracle_error('register_module');
+    metacode_ora_error('register_module');
   
 END;  
 
@@ -1678,20 +1843,20 @@ PROCEDURE  set_unit_msg_mode(i_unit_id   IN NUMBER
 IS
   pragma autonomous_transaction;
 BEGIN
-  $if $$intlog $then intlog_start('set_unit_msg_mode');    $end
-  $if $$intlog $then intlog_note('i_unit_id',i_unit_id);   $end
-  $if $$intlog $then intlog_note('i_msg_mode',i_msg_mode); $end
+
+  metacode_note('i_unit_id',i_unit_id);
+  metacode_note('i_msg_mode',i_msg_mode);
 
   UPDATE ms_unit
   SET    msg_mode  = i_msg_mode
   WHERE  unit_id   = i_unit_id;
 
   COMMIT;
-  $if $$intlog $then intlog_end('set_unit_msg_mode'); $end
+  
   EXCEPTION
     WHEN OTHERS THEN
       ROLLBACK;
-      err_warn_oracle_error('set_unit_msg_mode');
+      metacode_ora_error('set_unit_msg_mode');
 END;
  
 
@@ -1750,21 +1915,20 @@ END;
 -- Traversal operations (private)
 ------------------------------------------------------------------------
 
-PROCEDURE create_traversal(io_node     IN OUT ms_logger.node_typ )
+PROCEDURE create_traversal(io_node     IN OUT sm_logger.node_typ )
 IS
 
 BEGIN
-  $if $$intlog $then intlog_start('create_traversal'); $end
-  IF NOT g_internal_error THEN
  
+  IF NOT g_internal_error THEN
+    metacode_start('create_traversal');
+
     --Messages and references, in the SCOPE of this traversal, will be stored.
     io_node.traversal.traversal_id        := NULL;
     io_node.traversal.process_id          := NULL;
-    io_node.traversal.unit_id             := io_node.unit.unit_id;
     io_node.traversal.parent_traversal_id := NULL;
     io_node.traversal.msg_mode            := NVL(io_node.unit.msg_mode    ,io_node.module.msg_mode);      --unit override module, unless null
 
-	
     io_node.open_process                  := NVL(io_node.unit.open_process,io_node.module.open_process);  --unit override module, unless null
     io_node.logged                        := FALSE;
 
@@ -1782,75 +1946,22 @@ BEGIN
     END IF;
 	
 	--push the traversal onto the stack
-    push_node(io_node  => io_node);
+    push_node(io_node  => l_traversal_item);
     
 
     IF NOT g_internal_error THEN
       io_node.node_level := f_index; --meaningless if g_internal_error is TRUE
     END IF;
     
-	
   END IF;
   
   io_node.internal_error := g_internal_error;
-  
-  $if $$intlog $then intlog_end('create_traversal'); $end
-  
+ 
 EXCEPTION
   WHEN OTHERS THEN
-    err_warn_oracle_error('create_traversal');
+    metacode_ora_error('create_traversal');
  
 END create_traversal;
-
-
-
-------------------------------------------------------------------------
--- Node Typ API functions (Public)
-------------------------------------------------------------------------
-
-FUNCTION new_node(i_module_name IN VARCHAR2
-                 ,i_unit_name   IN VARCHAR2
-				 ,i_unit_type   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
-				 
-  --When upgraded to 12C may not need to pass any params				 
-
-  --must work in SILENT MODE, incase somebody write logic on the app side that depends
-  --on l_node                
-  l_node ms_logger.node_typ;  
-  
-  l_module_name ms_module.module_name%TYPE := LTRIM(RTRIM(SUBSTR(i_module_name,1,G_MODULE_NAME_WIDTH)));
-  l_unit_name   ms_unit.unit_name%TYPE     := LTRIM(RTRIM(SUBSTR(i_unit_name  ,1,G_UNIT_NAME_WIDTH)));  
-				 
-  FUNCTION f_call_stack_level RETURN NUMBER IS
-    l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
-  BEGIN
-    --Indicative only. Absolute value doesn't matter so much, used for comparison only.
-    --first 4 lines are not real levels and Some level represent the logger package. so subtract 7
-  
-    l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
-   
-    return l_lines.count -7;
-     
-  END;	 
- 
-BEGIN
-  
-  --get a registered module or register this one
-  l_node.module := find_module(i_module_name => i_module_name); 
-
-  --get a registered unit or register this one
-  l_node.unit := find_unit(i_module_id   => l_node.module.module_id
-                          ,i_unit_name   => i_unit_name  
-                          ,i_unit_type   => i_unit_type);
- 
-  l_node.call_stack_level := f_call_stack_level; --simplify after 12C with additional functions
- 
-  create_traversal(io_node => l_node);
- 
-  RETURN l_node;
-  
-END;
-
 
 ------------------------------------------------------------------------
  
@@ -1874,17 +1985,51 @@ BEGIN
  END;
  
   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
   ------------------------------------------------------------------------
   -- Node Typ API functions (Public)
   ------------------------------------------------------------------------
   
   FUNCTION new_proc(i_module_name IN VARCHAR2
-                   ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
+                   ,i_unit_name   IN VARCHAR2 ) RETURN sm_logger.node_typ IS
  
   BEGIN
     
-	RETURN ms_logger.new_node(i_module_name => i_module_name
+	RETURN sm_logger.new_node(i_module_name => i_module_name
                              ,i_unit_name   => i_unit_name
 							 ,i_unit_type   => G_UNIT_TYPE_PROCEDURE );
  
@@ -1892,38 +2037,26 @@ BEGIN
   
   
   FUNCTION new_func(i_module_name IN VARCHAR2
-                   ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
+                   ,i_unit_name   IN VARCHAR2 ) RETURN sm_logger.node_typ IS
  
   BEGIN
     
-	RETURN ms_logger.new_node(i_module_name => i_module_name
+	RETURN sm_logger.new_node(i_module_name => i_module_name
                              ,i_unit_name   => i_unit_name
 							 ,i_unit_type   => G_UNIT_TYPE_FUNCTION );
  
   END;
   
-  FUNCTION new_trig(i_module_name IN VARCHAR2
-                   ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
+  FUNCTION new_block(i_module_name IN VARCHAR2
+                   ,i_unit_name   IN VARCHAR2 ) RETURN sm_logger.node_typ IS
  
   BEGIN
     
-	RETURN ms_logger.new_node(i_module_name => i_module_name
+	RETURN sm_logger.new_node(i_module_name => i_module_name
                              ,i_unit_name   => i_unit_name
-							 ,i_unit_type   => G_UNIT_TYPE_TRIGGER );
+							 ,i_unit_type   => G_UNIT_TYPE_BLOCK );
  
   END;
-  
-  
- -- FUNCTION new_block(i_module_name IN VARCHAR2
- --                  ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
- --
- -- BEGIN
- --   
---	RETURN ms_logger.new_node(i_module_name => i_module_name
- --                            ,i_unit_name   => i_unit_name
---							 ,i_unit_type   => G_UNIT_TYPE_BLOCK );
- --
- -- END;
   
 /*  
 ------------------------------------------------------------------------
@@ -1931,7 +2064,7 @@ BEGIN
 -- Pass is a metacoding shortcut.  
 -- Creates and uses nodes that don't really exist, by adding 1 to the node_level
 ------------------------------------------------------------------------
-PROCEDURE do_pass(io_node     IN OUT  ms_logger.node_typ
+PROCEDURE do_pass(io_node     IN OUT  sm_logger.node_typ
                  ,i_pass_name IN VARCHAR2 DEFAULT NULL) IS
 BEGIN
   ms_metacode.do_pass(io_node     => io_node    
@@ -1946,80 +2079,318 @@ END;
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------ 
-PROCEDURE comment( i_node            IN ms_logger.node_typ 
+PROCEDURE comment( i_node            IN sm_logger.node_typ 
                   ,i_message         IN VARCHAR2 DEFAULT NULL
                   ,i_raise_app_error IN BOOLEAN  DEFAULT FALSE)
 IS
 BEGIN
- 
-    log_message(
-       i_message  => i_message
-      ,i_comment  => TRUE
-      ,i_raise_app_error => i_raise_app_error
-	  ,i_node     => i_node);
+
+  ms_metacode.comment( i_node            => i_node            
+                      ,i_message         => i_message        
+                      ,i_raise_app_error => i_raise_app_error);
  
 END comment;
 
 ------------------------------------------------------------------------
-PROCEDURE info( i_node            IN ms_logger.node_typ 
-               ,i_message         IN VARCHAR2 DEFAULT NULL )
+PROCEDURE info( i_node            IN sm_logger.node_typ 
+               ,i_message         IN     VARCHAR2 DEFAULT NULL )
 IS
 BEGIN
- 
-  log_message(
-    i_message  => i_message
-   ,i_info     => TRUE
-   ,i_node     => i_node);
- 
+  ms_metacode.info( i_node            => i_node            
+                   ,i_message         => i_message );
+
 END info;
 
 ------------------------------------------------------------------------
 
-PROCEDURE warning( i_node         IN ms_logger.node_typ 
-                  ,i_message      IN VARCHAR2 DEFAULT NULL )
+PROCEDURE warning( i_node            IN sm_logger.node_typ 
+                  ,i_message      IN     VARCHAR2 DEFAULT NULL )
 IS
 BEGIN
- 
-  log_message(
-    i_message  => i_message
-   ,i_warning  => TRUE
-   ,i_node     => i_node);
- 
+  ms_metacode.warning( i_node            => i_node            
+                   ,i_message         => i_message );
 END warning;
 
 ------------------------------------------------------------------------
 
-PROCEDURE fatal( i_node            IN     ms_logger.node_typ 
+PROCEDURE fatal( i_node            IN sm_logger.node_typ 
                 ,i_message         IN     VARCHAR2 DEFAULT NULL
                 ,i_raise_app_error IN     BOOLEAN  DEFAULT FALSE)
 IS
 BEGIN
  
-  log_message(
-    i_message         => i_message
-   ,i_fatal           => TRUE
-   ,i_raise_app_error => i_raise_app_error
-   ,i_node     => i_node);
- 
+  ms_metacode.fatal ( i_node            => i_node            
+                     ,i_message         => i_message        
+                     ,i_raise_app_error => i_raise_app_error);
+
 END fatal;  
+  
+------------------------------------------------------------------------
+-- Reference operations (PUBLIC)
+------------------------------------------------------------------------
+
+--overloaded name, value | [id, descr] 
+PROCEDURE note    ( i_node      IN sm_logger.node_typ 
+                   ,i_name      IN VARCHAR2
+                   ,i_value     IN VARCHAR2
+                   ,i_descr     IN VARCHAR2 DEFAULT NULL )
+IS
+
+BEGIN
+  
+  ms_metacode.note( i_node   => i_node  
+                   ,i_name   => i_name  
+                   ,i_value  => i_value 
+                   ,i_descr  => i_descr );
+ 
+END note   ;
+ 
+PROCEDURE invariant(i_node      IN sm_logger.node_typ 
+                   ,i_value     IN VARCHAR2)
+IS
+
+BEGIN
+
+  ms_metacode.invariant(i_node  => i_node 
+                       ,i_value => i_value );
+
+END invariant   ;
+
+------------------------------------------------------------------------
+
+PROCEDURE param ( i_node      IN sm_logger.node_typ 
+                 ,i_name      IN VARCHAR2
+                 ,i_value     IN VARCHAR2
+                 ,i_descr     IN VARCHAR2 DEFAULT NULL )
+IS
+
+BEGIN
+ 
+  ms_metacode.param( i_node   => i_node  
+                    ,i_name   => i_name  
+                    ,i_value  => i_value 
+                    ,i_descr  => i_descr );
+ 
+END param;
+------------------------------------------------------------------------
+--overloaded name, num_value | [id, descr] 
+PROCEDURE note    ( i_node      IN sm_logger.node_typ 
+                   ,i_name      IN VARCHAR2
+                   ,i_num_value IN NUMBER
+                   ,i_descr     IN VARCHAR2 DEFAULT NULL )
+IS
+
+BEGIN
+
+  ms_metacode.note( i_node       => i_node  
+                   ,i_name       => i_name  
+                   ,i_num_value  => i_num_value 
+                   ,i_descr      => i_descr );
+
+END note   ;
 
 ------------------------------------------------------------------------ 
-/* 
-PROCEDURE raise_fatal( i_node            IN     ms_logger.node_typ 
-                      ,i_message         IN     VARCHAR2 DEFAULT NULL
-                      ,i_raise_app_error IN     BOOLEAN  DEFAULT FALSE
-				      )
+PROCEDURE param ( i_node      IN sm_logger.node_typ 
+                 ,i_name      IN VARCHAR2
+                 ,i_num_value IN NUMBER
+                 ,i_descr     IN VARCHAR2 DEFAULT NULL )
+IS
+
+BEGIN
+  ms_metacode.param( i_node       => i_node  
+                    ,i_name       => i_name  
+                    ,i_num_value  => i_num_value 
+                    ,i_descr      => i_descr );
+
+END param;
+------------------------------------------------------------------------
+--overloaded name, date_value , descr] 
+PROCEDURE note    ( i_node      IN sm_logger.node_typ 
+                   ,i_name       IN VARCHAR2
+                   ,i_date_value IN DATE
+                   ,i_descr      IN VARCHAR2 DEFAULT NULL )
+IS
+
+BEGIN
+  ms_metacode.note( i_node       => i_node  
+                   ,i_name       => i_name  
+                   ,i_date_value => i_date_value 
+                   ,i_descr      => i_descr );
+
+END note   ;
+------------------------------------------------------------------------
+PROCEDURE param ( i_node      IN sm_logger.node_typ 
+                 ,i_name       IN VARCHAR2
+                 ,i_date_value IN DATE
+                 ,i_descr      IN VARCHAR2 DEFAULT NULL )
+IS
+
+BEGIN
+  ms_metacode.param( i_node       => i_node  
+                   ,i_name       => i_name  
+                   ,i_date_value => i_date_value 
+                   ,i_descr      => i_descr );
+
+END param;
+
+------------------------------------------------------------------------
+--overloaded name, bool_value 
+PROCEDURE note   (i_node      IN sm_logger.node_typ 
+                 ,i_name       IN VARCHAR2
+                 ,i_bool_value IN BOOLEAN )
+IS
+
+BEGIN
+
+  ms_metacode.note( i_node       => i_node  
+                   ,i_name       => i_name  
+                   ,i_bool_value => i_bool_value  );
+ 
+END note   ;
+------------------------------------------------------------------------
+PROCEDURE param ( i_node      IN sm_logger.node_typ 
+                 , i_name      IN VARCHAR2
+                 ,i_bool_value IN BOOLEAN  )
+IS
+
+BEGIN
+  ms_metacode.param( i_node       => i_node  
+                   ,i_name       => i_name  
+                   ,i_bool_value => i_bool_value  );
+
+END param;
+------------------------------------------------------------------------
+--overloaded name
+PROCEDURE note   (i_node      IN sm_logger.node_typ 
+                 ,i_name      IN VARCHAR2)
+IS
+BEGIN
+  ms_metacode.note( i_node       => i_node  
+                   ,i_name       => i_name  );
+
+END note   ;
+------------------------------------------------------------------------
+PROCEDURE note_rowcount( i_node      IN sm_logger.node_typ 
+                        ,i_name      IN VARCHAR2 ) IS
+BEGIN
+
+  ms_metacode.note_rowcount( i_node       => i_node  
+                            ,i_name       => i_name  );
+
+END note_rowcount;
+
+------------------------------------------------------------------------
+FUNCTION f_note_rowcount( i_node      IN sm_logger.node_typ 
+                         ,i_name      IN VARCHAR2 ) RETURN NUMBER IS
+ 
+BEGIN
+ 
+  RETURN ms_metacode.f_note_rowcount( i_node       => i_node  
+                                     ,i_name       => i_name  );
+ 
+END f_note_rowcount;
+
+------------------------------------------------------------------------
+
+PROCEDURE note_error(i_node      IN sm_logger.node_typ )
+IS
+BEGIN
+
+  ms_metacode.note_error( i_node       => i_node); 
+  
+END note_error;
+
+------------------------------------------------------------------------
+PROCEDURE note_length( i_node  IN sm_logger.node_typ 
+                      ,i_name  IN VARCHAR2 ) IS
+BEGIN
+
+  ms_metacode.note_length( i_node       => i_node  
+                            ,i_name       => i_name  );
+
+END note_length;
+
+ 
+------------------------------------------------------------------------
+-- EXCEPTION HANDLERS  (PUBLIC)
+------------------------------------------------------------------------
+ 
+--PROCEDURE ignore_error(io_node        IN OUT      sm_logger.node_typ
+--                      ,i_error_name   IN VARCHAR2 DEFAULT NULL
+--                      ,i_message      IN VARCHAR2 DEFAULT NULL) IS
+--  --ignore an expected named error - continue normal processing
+--  --error ignored regardless of error_code but x_error provokes a warning
+--BEGIN
+--
+--  ms_metacode.ignore_error(io_node      => io_node     
+--                          ,i_error_name => i_error_name
+--                          ,i_message    => i_message );  
+-- 
+--
+--END ignore_error;
+--
+--------------------------------------------------------------------------
+--
+--PROCEDURE handled_error(io_node        IN OUT      sm_logger.node_typ
+--                       ,i_error_name   IN VARCHAR2 DEFAULT NULL
+--                       ,i_message      IN VARCHAR2 DEFAULT NULL) IS
+--                       
+--BEGIN
+--
+--  ms_metacode.ignore_error(io_node      => io_node     
+--                          ,i_error_name => i_error_name
+--                          ,i_message    => i_message );  
+-- 
+--END handled_error;                   
+-- 
+--------------------------------------------------------------------------
+-- 
+--PROCEDURE trap_error(io_node    IN OUT sm_logger.node_typ
+--                    ,i_message  IN     VARCHAR2 DEFAULT NULL)
+----trap x_error or oracle error, and resume normal processing                    
+--IS
+--BEGIN
+--  ms_metacode.trap_error(io_node      => io_node     
+--                        ,i_message    => i_message );  
+--
+--
+--END trap_error;
+-- 
+--------------------------------------------------------------------------
+--
+--PROCEDURE raise_error(io_node    IN OUT sm_logger.node_typ
+--                     ,i_message  IN     VARCHAR2 DEFAULT NULL)
+----trap x_error or oracle error, and return re-raise x_error                
+--IS
+--BEGIN
+--  ms_metacode.raise_error(io_node      => io_node     
+--                        ,i_message    => i_message );  
+--
+--END raise_error;
+
+ 
+ 
+------------------------------------------------------------------------
+
+PROCEDURE oracle_error( i_node            IN sm_logger.node_typ
+                       ,i_message         IN VARCHAR2 DEFAULT NULL )
 IS
 BEGIN
  
-  fatal( i_message         => i_message         
-        ,i_raise_app_error => i_raise_app_error 
-        ,i_node            => i_node);      
- 
-  RAISE x_error;
+  ms_metacode. oracle_error( i_node     => i_node   
+              			    ,i_message  => i_message);
 
-END raise_fatal; 
-*/
+
+END oracle_error;
+ 
+ 
+PROCEDURE  register_package(i_name      IN VARCHAR2
+                           ,i_revision  IN VARCHAR2 DEFAULT NULL) IS
+BEGIN
+  ms_metacode.register_package(i_name     =>  i_name    
+                              ,i_revision =>  i_revision);
   
+END;
+ 
 end;
 /

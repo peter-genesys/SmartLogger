@@ -134,20 +134,21 @@ create or replace package body aop_processor is
                      ,p_new_code in varchar2
                      ,p_pos      in out number ) IS
                      
-      --l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'splice');  
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'splice');  
 	  l_new_code varchar2(32000);
 	  
     BEGIN
   
       --ms_logger.param(l_node, 'p_code'          ,p_code );
-      --ms_logger.param(l_node, 'LENGTH(p_code)'  ,LENGTH(p_code)  );
-      --ms_logger.param(l_node, 'p_new_code'      ,p_new_code);
-      --ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
+      ms_logger.param(l_node, 'LENGTH(p_code)'  ,LENGTH(p_code)  );
+      ms_logger.param(l_node, 'p_new_code'      ,p_new_code);
+      ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
 	  
 	  check_timeout;
 	  
 	  if g_for_aop_html then
 	    --l_new_code := '<B>'||p_new_code||'</B>';
+		--l_new_code := '<p style="background-color:#9CFFFE;">'||p_new_code||'</p>';
 		l_new_code := '<span style="background-color:#9CFFFE;">'||p_new_code||'</span>';
 	  elsif g_for_comment_htm then
 		l_new_code := '<p style="background-color:#FFFF99;">'||p_new_code||'</p>';
@@ -162,7 +163,7 @@ create or replace package body aop_processor is
 	  p_pos := p_pos + length(l_new_code);	
 	  
 	  --ms_logger.note(l_node, 'p_code     '     ,p_code     );
-	  --ms_logger.note(l_node, 'p_pos     '      ,p_pos     );
+	  ms_logger.note(l_node, 'p_pos     '      ,p_pos     );
  
     END;
  
@@ -240,6 +241,10 @@ create or replace package body aop_processor is
   end get_body;
  
  
+	  
+--      l_search  := '(\s|\<|\>)'||i_search||'(\s|\<|\>)'; 
+ 
+ 
 --------------------------------------------------------------------------------- 
 -- REFACTORED
 --------------------------------------------------------------------------------- 
@@ -253,11 +258,11 @@ create or replace package body aop_processor is
 --------------------------------------------------------------------------------- 
 FUNCTION get_next(i_search   IN VARCHAR2
                  ,i_modifier IN VARCHAR2 DEFAULT 'i' ) return VARCHAR2 IS
-  --l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next');	
+  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next');	
  
 BEGIN
   check_timeout;
-  --ms_logger.param(l_node, 'i_search',i_search);
+  ms_logger.param(l_node, 'i_search',i_search);
  
   RETURN REGEXP_REPLACE(TRIM(REGEXP_SUBSTR(g_code,i_search,g_current_pos,1,i_modifier)),'^\s|$\s','');
 END;
@@ -283,11 +288,11 @@ END;
 ---------------------------------------------------------------------------------
 PROCEDURE go_past(i_search IN VARCHAR2
                  ,i_modifier IN VARCHAR2 DEFAULT 'i') IS
-  --l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'go_past');
+  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'go_past');
   l_new_pos INTEGER;
 BEGIN
   check_timeout;
-  --ms_logger.param(l_node, 'i_search',i_search);
+  ms_logger.param(l_node, 'i_search',i_search);
   l_new_pos := REGEXP_INSTR(g_code,i_search,g_current_pos,1,1,i_modifier);
   IF l_new_pos = 0 then
     raise x_string_not_found;
@@ -300,11 +305,11 @@ END;
 ---------------------------------------------------------------------------------
 PROCEDURE go_prior(i_search IN VARCHAR2
                   ,i_modifier IN VARCHAR2 DEFAULT 'i') IS
-  --l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'go_prior');
+  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'go_prior');
   l_new_pos INTEGER;
 BEGIN
   check_timeout;
-  --ms_logger.param(l_node, 'i_search',i_search);
+  ms_logger.param(l_node, 'i_search',i_search);
   l_new_pos := REGEXP_INSTR(g_code,i_search,g_current_pos,1,0,i_modifier);
   IF l_new_pos = 0 then
     raise x_string_not_found;
@@ -327,11 +332,6 @@ PROCEDURE AOP_is_as(i_level       IN INTEGER
                 ,i_inject_node IN VARCHAR2 DEFAULT NULL);
 
 --------------------------------------------------------------------------------- 
--- END FORWARD DECLARATIONS
---------------------------------------------------------------------------------- 				
-				
-				
---------------------------------------------------------------------------------- 
 -- AOP_block_body
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_block_body(i_level          IN INTEGER
@@ -348,8 +348,9 @@ BEGIN
  
   loop
     l_keyword := get_next_upper('\sDECLARE\s|\sBEGIN\s|\sEND;\s');
+	            --UPPER(TRIM(REGEXP_SUBSTR(g_code,'\sDECLARE\s|\sBEGIN\s|\sEND;\s',g_current_pos,1,'i')));
 	ms_logger.note(l_node, 'l_keyword',l_keyword);
- 
+	ms_logger.note_length(l_node, 'l_keyword',l_keyword);
     CASE 
 	  WHEN l_keyword = 'END;'    THEN EXIT;
       WHEN l_keyword = 'DECLARE' THEN
@@ -379,12 +380,25 @@ PROCEDURE AOP_prog_unit_body(i_prog_unit_name IN VARCHAR2
                             ,i_params         IN CLOB
                             ,i_level          IN INTEGER ) IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_prog_unit_body');
-  
+  --l_keyword VARCHAR2(50);
 BEGIN
- 
+
+/*
+  l_keyword := get_next_upper('\sBEGIN\s|\sLANGUAGE\s.*?;');
+  ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
+  IF l_keyword <> 'BEGIN' THEN
+	ms_logger.comment(l_node, 'Found a LANGUAGE prog unit - skipping'); 
+    go_past('\sLANGUAGE\s.*?;');
+	RETURN;
+  END IF;
+*/
+
   --Add extra begin
   go_prior('\sBEGIN\s');
- 
+  
+  --go_prior('\n\s*BEGIN\s|\sBEGIN\s');
+  --g_current_pos := g_current_pos - 1; -- needed in order to match on next BEGIN		
+  
   inject_here( i_new_code  => 'begin --'||i_prog_unit_name
               ,i_level     => i_level);
  
@@ -405,6 +419,17 @@ exception
     raise; 
  
 END;
+
+--------------------------------------------------------------------------------- 
+-- AOP_pu_name
+---------------------------------------------------------------------------------
+--FUNCTION AOP_pu_name return varchar2 is
+--  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_name'); 
+--BEGIN  
+--  go_past('\sPROCEDURE\s|\sFUNCTION\s');
+--  RETURN UPPER(TRIM(REGEXP_SUBSTR(g_code,g_word_search,g_current_pos,1,'i')));
+--  
+--END;
 
  
 --------------------------------------------------------------------------------- 
@@ -432,8 +457,21 @@ BEGIN
       CASE 
 	    WHEN l_keyword IN ('IS','AS') THEN EXIT;
         WHEN l_keyword IN ('(',',') THEN 
-	    
-		--find the parameter - Search for Eg
+	    --find the parameter
+	  	
+		--MUCKING AROUND
+		--select REGEXP_SUBSTR(',l_var IN VARCHAR2,l_var IN VARCHAR2,','(\(|,).+(,|\))',1,1) from dual;
+		
+		--select REGEXP_SUBSTR(',l_var IN VARCHAR2,l_var IN VARCHAR2,','(\(|,).+(IN|IN\s+OUT|OUT)?.+(,|\))',1,1) from dual;
+		
+		--select REGEXP_SUBSTR(',l_var IN VARCHAR2,l_var IN VARCHAR2,','(\(|,)\s*\w+\s+(IN|IN\s+OUT|OUT)?.+(,|\))',1,1) from dual;
+		
+		--select REGEXP_SUBSTR(',l_var1 IN VARCHAR2,l_var2 IN VARCHAR2,','(\(|,)\s*\w+\s+(IN|IN\s+OUT|OUT)?\s+\w+\s*(,|\))',1,1) from dual;
+ 
+	  	--l_param_line := get_next('(\(|,)\s*\S+\s+(IN|IN\s+OUT|OUT)(,|\))','in');
+		
+		
+		--Search for Eg
 		--( varname IN OUT vartype ,
 		--, varname IN vartype)
 		--, varname vartype,
@@ -445,7 +483,9 @@ BEGIN
 		IF UPPER(REGEXP_SUBSTR(l_param_line,g_word_search,1,2,'i')) = 'OUT' THEN
 		  RAISE x_out_param;
 		END IF;
- 
+		
+		--l_param_line := REGEXP_REPLACE(l_param_line,'(\sIN\s|\sOUT\s)',' ',1,null,'i');
+      
 	    --Remove remaining IN and OUT
 	  	l_param_line := REGEXP_REPLACE(l_param_line,'(\sIN\s)',' ',1,1,'i');
 		l_param_line := REGEXP_REPLACE(l_param_line,'(\sOUT\s)',' ',1,1,'i');
@@ -465,7 +505,7 @@ BEGIN
 		  RAISE x_unhandled_param_type;
         END IF;		  
 							
-	  	l_param_injection := LTRIM(l_param_injection||chr(10)||'  ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');',chr(10));
+	  	l_param_injection := l_param_injection||chr(10)||'  ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');';
  
         ELSE
           RAISE x_invalid_keyword;
@@ -480,6 +520,7 @@ BEGIN
 	--Move onto next param
 	go_past('\(|,');
   END LOOP; 
+  
   
   --NB g_current_pos is still behind next keyword 'IS'
   return l_param_injection;
@@ -525,7 +566,6 @@ BEGIN
   ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
   IF l_keyword LIKE '%LANGUAGE%' THEN
 	ms_logger.comment(l_node, 'Found a LANGUAGE prog unit - skipping AOP_prog_unit'); 
-	--Move pointer to after this special program unit and we are done.
 	go_past('\sLANGUAGE\s.*?;','in');
 	RETURN;
   END IF;
@@ -558,11 +598,19 @@ END;
 PROCEDURE AOP_is_as(i_level       IN INTEGER
                 ,i_inject_node IN VARCHAR2 DEFAULT NULL) IS
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_is_as'); 
- 
+  --l_keyword              VARCHAR2(50);
 BEGIN
    
   go_past('\sIS\s|\sAS\s');
- 
+
+/*  
+  l_keyword := get_next_upper('\sBEGIN\s|\sPROCEDURE\s|\sFUNCTION\s|\sLANGUAGE\s.*?;');
+  ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
+  IF l_keyword LIKE '%LANGUAGE%' THEN
+	ms_logger.comment(l_node, 'Found a LANGUAGE prog unit - skipping AOP_is_as'); 
+	RETURN;
+  END IF;
+*/ 
  
   inject_here( i_new_code  => i_inject_node
               ,i_level     => i_level);
@@ -643,12 +691,16 @@ END;
 	--Change any program unit ending of form "end program_unit_name;" to just "end;" for simplicity
 	--Preprocess p_code cleaning up block end statements.
     --IE Translate "END prog_unit_name;" -> "END;"	
- 
+	declare
+	  l_keyword varchar2(50);
+	  L_END_MASK  varchar2(50) := '\sEND\s+\w+\s*;'; --'\sEND\s(.*);';
+	  
+	begin  
 	  --Reset the processing pointer.
       g_current_pos := 1;
  
       loop
-	    l_end_value := get_next_upper( '\sEND\s+\w+\s*;');   
+	    l_end_value := get_next_upper( L_END_MASK);  --IS NOT NULL LOOP
 		EXIT WHEN l_end_value IS NULL;
 	    ms_logger.note(l_node, 'l_end_value'      ,l_end_value);
  
@@ -664,7 +716,7 @@ END;
 	    end if;
  
 	  END LOOP;
-   
+    END;
   ms_logger.comment(l_node, 'Finised cleaning ENDs');
 
   --Replace all remaining occurances like "END ;" with "END;"
@@ -689,8 +741,10 @@ END;
 	begin
 	  g_current_pos := 1;
 	  l_keyword := get_next_upper('\sDECLARE\s|\sBEGIN\s|\sPROCEDURE\s|\sFUNCTION\s|\sPACKAGE BODY\s');
+	    --UPPER(TRIM(REGEXP_SUBSTR(g_code,'\sDECLARE\s|\sBEGIN\s|\sPROCEDURE\s|\sFUNCTION\s|\sPACKAGE BODY\s',g_current_pos,1,'i')));
 	  ms_logger.note(l_node, 'l_keyword' ,l_keyword);
-
+	  ms_logger.note_length(l_node, 'l_keyword' ,l_keyword);
+ 
 	  CASE 
 	    WHEN l_keyword = 'DECLARE' THEN
 		  AOP_declare(i_level => g_initial_level);
@@ -702,6 +756,8 @@ END;
 		WHEN l_keyword = 'PACKAGE BODY' THEN
 		  go_past('PACKAGE BODY');
  
+          --l_package_name :=  get_next_lower('\.{0,1}\"{0,1}\w+');
+		  --l_package_name :=  get_next_lower('[\.\"]{0,2}\w+');
  
 		  --Match on combinatsion like owner.package_name, "owner"."package_name",package_name,"package_name"
 		  --Remove "
@@ -716,7 +772,7 @@ END;
 		  IF l_keyword = 'BEGIN' THEN
 		     AOP_prog_unit_body(i_prog_unit_name => l_package_name
 		                       ,i_params         => NULL   
-		                       ,i_level          => g_initial_level);
+		                       ,i_level          => 1);
 		  ELSIF l_keyword IS NULL THEN
 		    RAISE x_invalid_keyword;
 		  END IF;

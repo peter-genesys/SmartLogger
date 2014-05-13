@@ -1,0 +1,56 @@
+Enter value for sys_password: oracle
+Connected.
+
+CONNECTION
+--------------------------------------------------------------------------------
+SYS@ORCL
+
+1 row selected.
+
+USERS
+logger.user
+Enter value for logger_password: logger
+CREATE USER logger identified by logger
+            *
+ERROR at line 1:
+ORA-01920: user name 'LOGGER' conflicts with another user or role name
+
+
+
+User altered.
+
+
+Grant succeeded.
+
+
+User altered.
+
+
+Grant succeeded.
+
+
+Grant succeeded.
+
+
+Grant succeeded.
+
+
+Grant succeeded.
+
+
+Grant succeeded.
+
+
+Grant succeeded.
+
+
+User altered.
+
+
+Commit complete.
+
+
+Commit complete.
+
+
+install.sql - COMPLETED.

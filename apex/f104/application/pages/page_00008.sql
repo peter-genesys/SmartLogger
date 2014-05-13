@@ -44,7 +44,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140506134020'
+ ,p_last_upd_yyyymmddhh24miss => '20140511120336'
   );
 null;
  
@@ -1745,7 +1745,7 @@ wwv_flow_api.create_page_plug (
   p_id=> 17790450819976198 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
-  p_plug_name=> 'Traversals',
+  p_plug_name=> 'Process &P8_PROCESS_ID. - Traversals',
   p_region_name=>'',
   p_escape_on_http_output=>'N',
   p_plug_template=> 17755453133931434+ wwv_flow_api.g_id_offset,
@@ -1846,7 +1846,7 @@ wwv_flow_api.create_report_region (
   p_ajax_enabled=> 'Y',
   p_query_row_template=> 17758952883931438+ wwv_flow_api.g_id_offset,
   p_query_headings_type=> 'COLON_DELMITED_LIST',
-  p_query_num_rows=> '15',
+  p_query_num_rows=> '5',
   p_query_options=> 'DERIVED_REPORT_COLUMNS',
   p_query_show_nulls_as=> ' - ',
   p_query_break_cols=> '0',
@@ -1854,6 +1854,7 @@ wwv_flow_api.create_report_region (
   p_query_num_rows_type=> 'NEXT_PREVIOUS_LINKS',
   p_query_row_count_max=> '500',
   p_pagination_display_position=> 'BOTTOM_RIGHT',
+  p_break_type_flag=> 'DEFAULT_BREAK_FORMATTING',
   p_csv_output=> 'N',
   p_query_asc_image=> 'apex/builder/dup.gif',
   p_query_asc_image_attr=> 'width="16" height="16" alt="" ',
@@ -1881,6 +1882,7 @@ wwv_flow_api.create_report_columns (
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'LEFT',
   p_default_sort_column_sequence=>1,
+  p_default_sort_dir=>'desc',
   p_disable_sort_column=>'N',
   p_sum_column=> 'N',
   p_hidden_column=> 'N',
@@ -2213,7 +2215,8 @@ wwv_flow_api.create_page_item(
   p_item_plug_id => 17790450819976198+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'YES',
   p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
-  p_source_type=> 'STATIC',
+  p_source=>'select max(process_id) from ms_process',
+  p_source_type=> 'QUERY',
   p_display_as=> 'NATIVE_HIDDEN',
   p_lov_display_null=> 'NO',
   p_lov_translated=> 'N',

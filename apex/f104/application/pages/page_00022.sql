@@ -45,7 +45,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140509155917'
+ ,p_last_upd_yyyymmddhh24miss => '20140510222538'
   );
 null;
  
@@ -250,7 +250,6 @@ wwv_flow_api.create_page_item(
   p_item_sequence=> 20,
   p_item_plug_id => 2786027061795999+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'YES',
-  p_item_default=> 'Not yet populated.',
   p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
   p_prompt=>'AOP Output',
   p_source_type=> 'STATIC',
