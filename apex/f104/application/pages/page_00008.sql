@@ -44,7 +44,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140511120336'
+ ,p_last_upd_yyyymmddhh24miss => '20140513141800'
   );
 null;
  
@@ -1822,7 +1822,9 @@ declare
   l_clob clob;
   l_length number := 1;
 begin
-s:=s||'select * from ms_process';
+s:=s||'select p.* '||unistr('\000a')||
+'      ,(select traversal_id from ms_traversal where parent_traversal_id is null and process_id = p.process_id) top_traversal_id'||unistr('\000a')||
+'from ms_process p';
 
 wwv_flow_api.create_report_region (
   p_id=> 17791439222976199 + wwv_flow_api.g_id_offset,
@@ -1877,7 +1879,8 @@ wwv_flow_api.create_report_columns (
   p_column_alias=> 'PROCESS_ID',
   p_column_display_sequence=> 1,
   p_column_heading=> 'PROCESS_ID',
-  p_column_link=>'f?p=&APP_ID.:8:&SESSION.::&DEBUG.:RIR,RP,8:P8_PROCESS_ID:#PROCESS_ID#',
+  p_use_as_row_header=> 'N',
+  p_column_link=>'f?p=&APP_ID.:8:&SESSION.::&DEBUG.:RIR,RP,8:P8_PROCESS_ID,P8_TRAVERSAL_ID:#PROCESS_ID#,#TOP_TRAVERSAL_ID#',
   p_column_linktext=>'#PROCESS_ID#',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'LEFT',
@@ -1933,7 +1936,8 @@ wwv_flow_api.create_report_columns (
   p_column_alias=> 'ORIGIN',
   p_column_display_sequence=> 3,
   p_column_heading=> 'Origin',
-  p_column_link=>'f?p=&APP_ID.:8:&SESSION.::&DEBUG.:RIR,RP,8:P8_PROCESS_ID:#PROCESS_ID#',
+  p_use_as_row_header=> 'N',
+  p_column_link=>'f?p=&APP_ID.:8:&SESSION.::&DEBUG.:RIR,RP,8:P8_PROCESS_ID,P8_TRAVERSAL_ID:#PROCESS_ID#,#TOP_TRAVERSAL_ID#',
   p_column_linktext=>'#ORIGIN#',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'LEFT',
@@ -2078,6 +2082,31 @@ wwv_flow_api.create_report_columns (
   p_column_comment=>'');
 end;
 /
+declare
+  s varchar2(32767) := null;
+begin
+s := null;
+wwv_flow_api.create_report_columns (
+  p_id=> 3416006315323711 + wwv_flow_api.g_id_offset,
+  p_region_id=> 17791439222976199 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_query_column_id=> 9,
+  p_form_element_id=> null,
+  p_column_alias=> 'TOP_TRAVERSAL_ID',
+  p_column_display_sequence=> 9,
+  p_column_heading=> 'Top Traversal Id',
+  p_column_alignment=>'LEFT',
+  p_heading_alignment=>'CENTER',
+  p_default_sort_column_sequence=>0,
+  p_disable_sort_column=>'Y',
+  p_sum_column=> 'N',
+  p_hidden_column=> 'N',
+  p_display_as=>'ESCAPE_SC',
+  p_is_required=> false,
+  p_pk_col_source=> s,
+  p_column_comment=>'');
+end;
+/
  
 begin
  
@@ -2180,9 +2209,9 @@ wwv_flow_api.create_page_item(
   p_display_as=> 'NATIVE_HIDDEN',
   p_lov_display_null=> 'NO',
   p_lov_translated=> 'N',
-  p_cSize=> null,
+  p_cSize=> 30,
   p_cMaxlength=> 4000,
-  p_cHeight=> null,
+  p_cHeight=> 1,
   p_cAttributes=> 'nowrap="nowrap"',
   p_new_grid=> false,
   p_begin_on_new_line=> 'NO',
@@ -2193,7 +2222,11 @@ wwv_flow_api.create_page_item(
   p_label_alignment=> 'LEFT',
   p_field_alignment=> 'LEFT',
   p_is_persistent=> 'Y',
+  p_lov_display_extra=>'YES',
+  p_protection_level => 'N',
+  p_escape_on_http_output => 'Y',
   p_attribute_01 => 'Y',
+  p_show_quick_picks=>'N',
   p_item_comment => '');
  
  

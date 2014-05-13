@@ -100,11 +100,11 @@ wwv_flow_api.create_menu_option (
 wwv_flow_api.create_menu_option (
   p_id=>2775004066441191 + wwv_flow_api.g_id_offset,
   p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
-  p_parent_id=>null,
+  p_parent_id=>0,
   p_option_sequence=>10,
-  p_short_name=>'Plugin Step 1',
+  p_short_name=>'Step 1',
   p_long_name=>'',
-  p_link=>'f?p=&APP_ID.:21:&SESSION.',
+  p_link=>'f?p=&APP_ID.:21:&SESSION.::&DEBUG.:::',
   p_page_id=>21,
   p_also_current_for_pages=> '');
  
@@ -113,9 +113,9 @@ wwv_flow_api.create_menu_option (
   p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
   p_parent_id=>2775004066441191 + wwv_flow_api.g_id_offset,
   p_option_sequence=>10,
-  p_short_name=>'Plugin Step 2',
+  p_short_name=>'Step 2',
   p_long_name=>'',
-  p_link=>'f?p=&APP_ID.:22:&SESSION.',
+  p_link=>'f?p=&APP_ID.:22:&SESSION.::&DEBUG.:::',
   p_page_id=>22,
   p_also_current_for_pages=> '');
  
