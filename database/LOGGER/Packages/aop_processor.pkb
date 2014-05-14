@@ -138,11 +138,14 @@ create or replace package body aop_processor is
   -- splice
   --------------------------------------------------------------------
     procedure splice( p_code     in out clob
-                     ,p_new_code in varchar2
-                     ,p_pos      in out number ) IS
+                     ,p_new_code in clob
+                     ,p_pos      in out number
+					 ,p_colour   in varchar2 default null ) IS
                      
       --l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'splice');  
-	  l_new_code varchar2(32000);
+	  l_new_code        CLOB;
+	  l_colour          VARCHAR2(10);
+	  L_NEW_CODE_COLOUR VARCHAR2(10) := '#9CFFFE';
 	  
     BEGIN
   
@@ -150,21 +153,30 @@ create or replace package body aop_processor is
       --ms_logger.param(l_node, 'LENGTH(p_code)'  ,LENGTH(p_code)  );
       --ms_logger.param(l_node, 'p_new_code'      ,p_new_code);
       --ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
+	  --ms_logger.param(l_node, 'p_colour  '      ,p_colour     );
 	  
 	  check_timeout;
 	  
-	  if g_for_aop_html then
-	    --l_new_code := '<B>'||p_new_code||'</B>';
-		l_new_code := '<span style="background-color:#9CFFFE;">'||p_new_code||'</span>';
-	  elsif g_for_comment_htm then
-		l_new_code := '<p style="background-color:#FFFF99;">'||p_new_code||'</p>';
-	  else
-	    l_new_code := p_new_code;
-      end if;
+	  IF g_for_aop_html THEN
+	    l_colour := NVL(p_colour, L_NEW_CODE_COLOUR);
+	  END IF;
+	  
+	  --l_colour := p_colour;
+      --IF l_colour IS NULL AND g_for_aop_html THEN
+	  --  l_colour := L_NEW_CODE_COLOUR;
+	  --END IF;
+	  
+	  l_new_code := CASE 
+			          WHEN l_colour IS NULL THEN 
+				          p_new_code
+			          ELSE 
+				          '<span style="background-color:#'||LTRIM(l_colour,'#')||';">'||p_new_code||'</span>'
+                    END;
+      --ms_logger.note(l_node, 'l_new_code     '     ,l_new_code     );
  
-      p_code:=     substr(p_code, 1, p_pos)
-                 ||l_new_code
-                 ||substr(p_code, p_pos+1);
+      p_code:= substr(p_code, 1, p_pos)
+	         ||l_new_code
+             ||substr(p_code, p_pos+1);
   
 	  p_pos := p_pos + length(l_new_code);	
 	  
@@ -179,35 +191,43 @@ create or replace package body aop_processor is
     procedure inject( p_code     in out clob
                      ,p_new_code in varchar2
                      ,p_pos      in out number
-					 ,p_level    in number) IS
+					 ,p_level    in number
+					 ,p_colour   in varchar2 default null) IS
       --Calls splice with p_new_code wrapped in CR
     BEGIN
  
       --indent every line using level
 	  splice( p_code     =>  p_code
-	         ,p_new_code => replace(chr(10)||p_new_code,chr(10),chr(10)||rpad(' ',(p_level-1)*2+2,' '))||chr(10)
-	         ,p_pos      =>  p_pos); 
+	         ,p_new_code =>  replace(chr(10)||p_new_code,chr(10),chr(10)||rpad(' ',(p_level-1)*2+2,' '))||chr(10)
+	         ,p_pos      =>  p_pos
+             ,p_colour   =>  p_colour);	  
  
     END;
 	
-    procedure splice_here( i_new_code in varchar2 ) IS
+    procedure splice_here( i_new_code in varchar2
+                          ,i_colour   in varchar2 default null) IS
 	
 	BEGIN
-	  splice( p_code      => g_code    
-	         ,p_new_code  => i_new_code
-	         ,p_pos       => g_current_pos );  
+	  IF i_new_code IS NOT NULL THEN
+	    splice( p_code      => g_code    
+	           ,p_new_code  => i_new_code
+	           ,p_pos       => g_current_pos
+               ,p_colour    => i_colour	 );
+	  END IF;		   
+ 	 
 	END;
  
 	
     procedure inject_here( i_new_code in varchar2
-					      ,i_level    in number) IS
-	
+					      ,i_level    in number
+						  ,i_colour   in varchar2 default null) IS
 	BEGIN
 	  IF i_new_code IS NOT NULL THEN
 	    inject( p_code      => g_code    
 	           ,p_new_code  => i_new_code
 	           ,p_pos       => g_current_pos     
-	        	 ,p_level     => i_level );  
+	           ,p_level     => i_level
+               ,p_colour    => i_colour	 );  
 	  END IF;			 
 	END;
 	
@@ -258,9 +278,11 @@ create or replace package body aop_processor is
 --------------------------------------------------------------------------------- 
 -- get_next - return first matching string, stripped of upto 1 leading and trailing whitespace
 --------------------------------------------------------------------------------- 
-FUNCTION get_next(i_search      IN VARCHAR2
-                 ,i_modifier    IN VARCHAR2 DEFAULT 'i'
-                 ,i_raise_error IN BOOLEAN  DEFAULT FALSE ) return CLOB IS
+FUNCTION get_next(i_search             IN VARCHAR2
+                 ,i_modifier           IN VARCHAR2 DEFAULT 'i'
+                 ,i_raise_error        IN BOOLEAN  DEFAULT FALSE
+                 --,i_shortest_alternate IN BOOLEAN  DEFAULT FALSE 
+				 ) return CLOB IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next');	
   l_result CLOB;
 BEGIN
@@ -271,15 +293,16 @@ BEGIN
   
   IF l_result IS NULL AND i_raise_error THEN
 	ms_logger.fatal(l_node, 'String missing '||i_search);
-	splice_here( i_new_code => '<span style="background-color:#FF6600;">STRING NOT FOUND '||i_search||'</span>');
+	splice_here( i_new_code => 'STRING NOT FOUND '||i_search
+	            ,i_colour   => '#FF6600');
     RAISE x_string_not_found;
   END IF;
   
   RETURN l_result;
 END;
 
-FUNCTION get_next_lower(i_search IN VARCHAR2
-                       ,i_modifier IN VARCHAR2 DEFAULT 'i'
+FUNCTION get_next_lower(i_search      IN VARCHAR2
+                       ,i_modifier    IN VARCHAR2 DEFAULT 'i'
                        ,i_raise_error IN BOOLEAN  DEFAULT FALSE) return CLOB IS
 BEGIN
   RETURN LOWER(get_next(i_search   => i_search
@@ -302,7 +325,8 @@ END;
 ---------------------------------------------------------------------------------
 PROCEDURE go(i_search     IN VARCHAR2
             ,i_modifier   IN VARCHAR2 
-			,i_past_prior IN INTEGER) IS
+			,i_past_prior IN INTEGER
+			,i_offset IN INTEGER DEFAULT 0) IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'go');
   l_new_pos INTEGER;
 BEGIN
@@ -310,13 +334,15 @@ BEGIN
   ms_logger.param(l_node, 'i_search'    ,i_search);
   ms_logger.param(l_node, 'i_modifier'  ,i_modifier);
   ms_logger.param(l_node, 'i_past_prior',i_past_prior);
+  ms_logger.param(l_node, 'i_offset'    ,i_offset);
   l_new_pos := REGEXP_INSTR(g_code,i_search,g_current_pos,1,i_past_prior,i_modifier);
   IF l_new_pos = 0 then
     ms_logger.fatal(l_node, 'String missing '||i_search);
-	splice_here( i_new_code => '<span style="background-color:#FF6600;">STRING NOT FOUND '||i_search||'</span>');
+	splice_here( i_new_code => 'STRING NOT FOUND '||i_search
+	            ,i_colour   => '#FF6600');
     raise x_string_not_found;
   end if;
-  g_current_pos := l_new_pos;
+  g_current_pos := l_new_pos + i_offset;
 END;
 
 
@@ -324,12 +350,14 @@ END;
 -- go_past
 ---------------------------------------------------------------------------------
 PROCEDURE go_past(i_search IN VARCHAR2
-                 ,i_modifier IN VARCHAR2 DEFAULT 'i') IS
+                 ,i_modifier IN VARCHAR2 DEFAULT 'i'
+				 ,i_offset IN INTEGER DEFAULT 0) IS
  
 BEGIN
   go(i_search     => i_search    
     ,i_modifier   => i_modifier  
-    ,i_past_prior => 1);
+    ,i_past_prior => 1
+	,i_offset     => i_offset);
 
  
 END;
@@ -338,13 +366,14 @@ END;
 -- go_prior
 ---------------------------------------------------------------------------------
 PROCEDURE go_prior(i_search IN VARCHAR2
-                  ,i_modifier IN VARCHAR2 DEFAULT 'i') IS
+                  ,i_modifier IN VARCHAR2 DEFAULT 'i'
+				  ,i_offset IN INTEGER DEFAULT -1) IS
  
 BEGIN
   go(i_search     => i_search    
     ,i_modifier   => i_modifier  
-    ,i_past_prior => 0);
-  g_current_pos := g_current_pos - 1;
+    ,i_past_prior => 0
+	,i_offset     => i_offset);
  
 END;
 
@@ -470,59 +499,114 @@ FUNCTION AOP_pu_params return CLOB is
   l_param_line           CLOB;
   l_param_name           VARCHAR2(30);
   l_param_type           VARCHAR2(50);
-  l_keyword              VARCHAR2(50);
+  l_keyword              CLOB;
+  l_bracket              VARCHAR2(50);
   x_out_param            EXCEPTION;
   x_unhandled_param_type EXCEPTION;
+  
+  l_param_line_mask       VARCHAR2(200) := '(\(|,)\s*\w+\s+(IN\s+OUT\s+|IN\s+|OUT\s+)?\w+';
+  l_is_as_mask            VARCHAR2(200) := '\sIS\s|\sAS\s';
+  l_open_close_comma_mask VARCHAR2(200) := '\(|\,|\)';
+  l_open_comma_mask       VARCHAR2(200) := '\(|\,'; 
+  l_default_mask          VARCHAR2(200) := '(DEFAULT|:=)';
 
+  l_bracket_count        INTEGER;
  
 BEGIN  
  
   loop
+    check_timeout;
     BEGIN
-      --Find first: "(" "," "AS" "IS"
-      l_keyword := get_next_upper('\(|,|IS\s|AS\s','i',TRUE);   
-      ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
+
+      --Find first: "(" "," "DEFAULT" ":=" "AS" "IS"
+ 
+      l_keyword := get_next_upper(l_open_comma_mask
+	                       ||'|'||l_is_as_mask
+	                       ||'|'||l_default_mask,'i',TRUE); 
+ 
+      ms_logger.note(l_node, 'l_keyword' ,REPLACE(l_keyword,chr(10),'#')); 
+	  ms_logger.note_length(l_node, 'l_keyword' ,l_keyword); 
 	  
       CASE 
-	    WHEN l_keyword IN ('IS','AS') THEN EXIT;
-        WHEN l_keyword IN ('(',',') THEN 
-	    
-		--find the parameter - Search for Eg
-		--( varname IN OUT vartype ,
-		--, varname IN vartype)
-		--, varname vartype,
-		--( varname OUT vartype)
-		l_param_line := get_next('(\(|,)\s*\w+\s+((IN|IN\s+OUT|OUT)\s+)?\w+\s*(,|\))');  
-	 
-	  	ms_logger.note(l_node, 'l_param_line',l_param_line);
  
-		IF UPPER(REGEXP_SUBSTR(l_param_line,g_word_search,1,2,'i')) = 'OUT' THEN
-		  RAISE x_out_param;
-		END IF;
+		--NEW PARAMETER LINE
+		WHEN REGEXP_LIKE(l_keyword, l_open_comma_mask,'i') THEN
+	      ms_logger.comment(l_node, 'Found new parameter');
+		  --find the parameter - Search for Eg
+		  --( varname IN OUT vartype ,
+		  --, varname IN vartype)
+		  --, varname vartype,
+		  --( varname OUT vartype)
+		  --l_param_line := get_next('(\(|,)\s*\w+\s+((IN|IN\s+OUT|OUT)\s+)?\w+\s*(,|\))'); 
+          l_param_line := get_next(l_param_line_mask);	 
+		  --Move onto next param
+	      go_past(l_param_line_mask);
+	      
+	  	  ms_logger.note(l_node, 'l_param_line',l_param_line);
+          
+		  IF UPPER(REGEXP_SUBSTR(l_param_line,g_word_search,1,2,'i')) = 'OUT' THEN
+		    RAISE x_out_param;
+		  END IF;
+          
+	      --Remove remaining IN and OUT
+	  	  l_param_line := REGEXP_REPLACE(l_param_line,'(\sIN\s)',' ',1,1,'i');
+		  l_param_line := REGEXP_REPLACE(l_param_line,'(\sOUT\s)',' ',1,1,'i');
+		  ms_logger.note(l_node, 'l_param_line',l_param_line);		
+		  
+	  	  l_param_name := LOWER(REGEXP_SUBSTR(l_param_line,g_word_search,1,1,'i')); 
+	  	  ms_logger.note(l_node, 'l_param_name',l_param_name);
+	  	  l_param_type := UPPER(REGEXP_SUBSTR(l_param_line,g_word_search,1,2,'i'));  
+	  	  ms_logger.note(l_node, 'l_param_type',l_param_type);
+	  	  IF  l_param_type NOT IN ('NUMBER'
+	  	                          ,'INTEGER'
+	  	  					      ,'BINARY_INTEGER'
+	  	  					      ,'PLS_INTEGER'
+	  	  					      ,'DATE'
+	  						      ,'VARCHAR2'
+	  						      ,'BOOLEAN') then
+		    RAISE x_unhandled_param_type;
+          END IF;		  
+		  					
+	  	  l_param_injection := LTRIM(l_param_injection||chr(10)||'  ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');',chr(10));
  
-	    --Remove remaining IN and OUT
-	  	l_param_line := REGEXP_REPLACE(l_param_line,'(\sIN\s)',' ',1,1,'i');
-		l_param_line := REGEXP_REPLACE(l_param_line,'(\sOUT\s)',' ',1,1,'i');
-		ms_logger.note(l_node, 'l_param_line',l_param_line);		
-		
-	  	l_param_name := LOWER(REGEXP_SUBSTR(l_param_line,g_word_search,1,1,'i')); 
-	  	ms_logger.note(l_node, 'l_param_name',l_param_name);
-	  	l_param_type := UPPER(REGEXP_SUBSTR(l_param_line,g_word_search,1,2,'i'));  
-	  	ms_logger.note(l_node, 'l_param_type',l_param_type);
-	  	IF  l_param_type NOT IN ('NUMBER'
-	  	                        ,'INTEGER'
-	  						    ,'BINARY_INTEGER'
-	  						    ,'PLS_INTEGER'
-	  						    ,'DATE'
-	  						    ,'VARCHAR2'
-	  						    ,'BOOLEAN') then
-		  RAISE x_unhandled_param_type;
-        END IF;		  
-							
-	  	l_param_injection := LTRIM(l_param_injection||chr(10)||'  ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');',chr(10));
  
+       --DEFAULT or :=
+		WHEN REGEXP_LIKE(l_keyword, l_default_mask,'i') THEN 
+		  ms_logger.comment(l_node, 'Found DEFAULT, searching for complex value');
+		  go_past(l_default_mask,'i');
+ 
+		  l_bracket_count := 0;
+		  loop
+		    check_timeout;
+		    l_bracket := get_next(l_open_close_comma_mask,'i',TRUE);
+            ms_logger.note(l_node, 'l_bracket' ,l_bracket); 
+            CASE 
+			  WHEN l_bracket = ',' THEN 
+			    EXIT WHEN l_bracket_count = 0;
+
+	          WHEN l_bracket = '(' THEN  
+			    l_bracket_count := l_bracket_count + 1;
+
+	          WHEN l_bracket = ')' THEN  
+                l_bracket_count := l_bracket_count - 1;
+				EXIT WHEN l_bracket_count = -1;
+
+              ELSE 
+			    ms_logger.fatal(l_node, 'Complex Default: Expected "(" " or ")"');
+				RAISE x_invalid_keyword;
+		    END CASE;	
+		    go_past(l_open_close_comma_mask,'i');
+			
+		  END LOOP;
+ 
+	    --NO MORE PARAMS
+		WHEN l_keyword IN ('AS','IS') THEN EXIT;
+          ms_logger.comment(l_node, 'No more parameters');
+		  
+		  
+        --OOPS
         ELSE
-		  ms_logger.fatal(l_node, 'Expected "(" "," "AS" OR "IS"');
+		  ms_logger.fatal(l_node, 'Expected "(" "," "DEFAULT" ":=" "AS" or "IS"');
           RAISE x_invalid_keyword;
       END CASE;
     EXCEPTION
@@ -531,9 +615,7 @@ BEGIN
 	  WHEN x_unhandled_param_type THEN
 	    ms_logger.comment(l_node, 'Unsupported param type');
 	END;
-	
-	--Move onto next param
-	go_past('\(|,');
+ 
   END LOOP; 
   
   --NB g_current_pos is still behind next keyword 'IS'
@@ -809,11 +891,13 @@ END;
 	
   exception 
     when x_invalid_keyword then
-	  splice_here( i_new_code => '<span style="background-color:#FF6600;">INVALID KEYWORD</span>');
+	  splice_here( i_new_code => 'INVALID KEYWORD'
+	              ,i_colour  => '#FF6600');
 	  p_code := g_code;
       return false;
     when x_weave_timeout then
-	  splice_here( i_new_code => '<span style="background-color:#FF6600;">WEAVE TIMED OUT</span>');
+	  splice_here( i_new_code => 'WEAVE TIMED OUT'
+	              ,i_colour  => '#FF6600');
 	  p_code := g_code;
       return false;
     when x_string_not_found then

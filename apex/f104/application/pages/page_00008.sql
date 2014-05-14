@@ -44,7 +44,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140513141800'
+ ,p_last_upd_yyyymmddhh24miss => '20140514115718'
   );
 null;
  
@@ -1370,7 +1370,7 @@ wwv_flow_api.create_worksheet_rpt(
   p_application_user => 'APXWS_ALTERNATIVE',
   p_name                    =>'Exceptions',
   p_report_seq              =>10,
-  p_report_alias            =>'76263',
+  p_report_alias            =>'EXCEPTIONS',
   p_status                  =>'PUBLIC',
   p_category_id             =>null+wwv_flow_api.g_id_offset,
   p_is_default              =>'Y',
@@ -1823,7 +1823,13 @@ declare
   l_length number := 1;
 begin
 s:=s||'select p.* '||unistr('\000a')||
-'      ,(select traversal_id from ms_traversal where parent_traversal_id is null and process_id = p.process_id) top_traversal_id'||unistr('\000a')||
+'      ,(select min(traversal_id) from ms_traversal where parent_traversal_id is null and process_id = p.process_id) top_traversal_id'||unistr('\000a')||
+',(select count(*)'||unistr('\000a')||
+'from ms_traversal t'||unistr('\000a')||
+'    ,ms_message m'||unistr('\000a')||
+'where t.process_id = p.process_id'||unistr('\000a')||
+'and m.traversal_id = t.traversal_id'||unistr('\000a')||
+'and m.msg_level > 2) exception_count'||unistr('\000a')||
 'from ms_process p';
 
 wwv_flow_api.create_report_region (
@@ -1911,6 +1917,7 @@ wwv_flow_api.create_report_columns (
   p_column_alias=> 'EXT_REF',
   p_column_display_sequence=> 2,
   p_column_heading=> 'EXT_REF',
+  p_use_as_row_header=> 'N',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
   p_default_sort_column_sequence=>0,
@@ -1918,8 +1925,11 @@ wwv_flow_api.create_report_columns (
   p_sum_column=> 'N',
   p_hidden_column=> 'Y',
   p_display_as=>'ESCAPE_SC',
+  p_lov_show_nulls=> 'NO',
   p_is_required=> false,
   p_pk_col_source=> s,
+  p_lov_display_extra=> 'YES',
+  p_include_in_export=> 'Y',
   p_column_comment=>'');
 end;
 /
@@ -2100,10 +2110,41 @@ wwv_flow_api.create_report_columns (
   p_default_sort_column_sequence=>0,
   p_disable_sort_column=>'Y',
   p_sum_column=> 'N',
-  p_hidden_column=> 'N',
+  p_hidden_column=> 'Y',
   p_display_as=>'ESCAPE_SC',
   p_is_required=> false,
   p_pk_col_source=> s,
+  p_column_comment=>'');
+end;
+/
+declare
+  s varchar2(32767) := null;
+begin
+s := null;
+wwv_flow_api.create_report_columns (
+  p_id=> 3656823687778930 + wwv_flow_api.g_id_offset,
+  p_region_id=> 17791439222976199 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_query_column_id=> 10,
+  p_form_element_id=> null,
+  p_column_alias=> 'EXCEPTION_COUNT',
+  p_column_display_sequence=> 10,
+  p_column_heading=> 'Exception Count',
+  p_use_as_row_header=> 'N',
+  p_column_link=>'f?p=&APP_ID.:8:&SESSION.:IR_REPORT_EXCEPTIONS:&DEBUG.:RIR,RP,8:P8_PROCESS_ID,P8_TRAVERSAL_ID:#PROCESS_ID#,#TOP_TRAVERSAL_ID#',
+  p_column_linktext=>'#EXCEPTION_COUNT#',
+  p_column_alignment=>'LEFT',
+  p_heading_alignment=>'CENTER',
+  p_default_sort_column_sequence=>0,
+  p_disable_sort_column=>'N',
+  p_sum_column=> 'N',
+  p_hidden_column=> 'N',
+  p_display_as=>'ESCAPE_SC',
+  p_lov_show_nulls=> 'NO',
+  p_is_required=> false,
+  p_pk_col_source=> s,
+  p_lov_display_extra=> 'YES',
+  p_include_in_export=> 'Y',
   p_column_comment=>'');
 end;
 /
