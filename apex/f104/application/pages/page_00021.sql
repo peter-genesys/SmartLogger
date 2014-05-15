@@ -25,7 +25,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140510172900'
+ ,p_last_upd_yyyymmddhh24miss => '20140515101037'
   );
 null;
  
@@ -218,7 +218,7 @@ wwv_flow_api.create_page_item(
   p_grid_column=> null,
   p_label_alignment=> 'ABOVE',
   p_field_alignment=> 'LEFT-CENTER',
-  p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
+  p_field_template=> 17759837603931450+wwv_flow_api.g_id_offset,
   p_is_persistent=> 'Y',
   p_lov_display_extra=>'YES',
   p_protection_level => 'N',
@@ -229,6 +229,32 @@ wwv_flow_api.create_page_item(
   p_show_quick_picks=>'N',
   p_item_comment => '');
  
+ 
+end;
+/
+
+ 
+begin
+ 
+wwv_flow_api.create_page_validation(
+  p_id => 3721701181652213 + wwv_flow_api.g_id_offset,
+  p_flow_id => wwv_flow.g_flow_id,
+  p_flow_step_id => 21,
+  p_tabular_form_region_id => null + wwv_flow_api.g_id_offset,
+  p_validation_name => 'P21_RAW_INPUT',
+  p_validation_sequence=> 10,
+  p_validation => 'P21_RAW_INPUT',
+  p_validation_type => 'ITEM_NOT_NULL',
+  p_error_message => '#LABEL# must be supplied for conversion.',
+  p_always_execute=>'N',
+  p_validation_condition_type=> 'NEVER',
+  p_when_button_pressed=> 2774118373441190 + wwv_flow_api.g_id_offset,
+  p_only_for_changed_rows=> 'Y',
+  p_associated_item=> 2776217111452841 + wwv_flow_api.g_id_offset,
+  p_error_display_location=>'INLINE_WITH_FIELD_AND_NOTIFICATION',
+  p_validation_comment=> '');
+ 
+null;
  
 end;
 /
@@ -328,14 +354,14 @@ p:=p||'reate_or_truncate_collection(p_collection_name=>''AOP_OUTPUT'');'||unistr
 ' '||unistr('\000a')||
 '  l_woven := aop_processor.weave(l_clob, ''Adhoc'',TRUE);'||unistr('\000a')||
 ''||unistr('\000a')||
-'    l_clob := REPLACE(REPLACE(l_clob,''<<'',''&lt;&lt;''),''>>'',''&gt;&gt;'');'||unistr('\000a')||
-'    l_clob := REGEXP_REPLACE(l_clob,''(ms_logger)(.+)(;)'',''<B>\1\2\3</B>'');'||unistr('\000a')||
-'    l_clob := ''<PRE>''||l_clob||''</PRE>'';'||unistr('\000a')||
+'    --l_clob := REPLACE(REPLACE(l_clob,''<<'',''&lt;&lt;''),''>>'',''&gt;&gt;'');'||unistr('\000a')||
+'    --l_clob := REGEXP_REPLACE(l_clob,''(ms_logger)(.+)(;)'',''<B>\1\2\3</B>'');'||unistr('\000a')||
+'    --l_clob := ''<PRE>''||l_clob||''</PRE>'';'||unistr('\000a')||
 ' '||unistr('\000a')||
-'    apex_collection.add_member(p_collection_name => ''AOP_OUTPUT'',p_clob001 => l_clob);'||unistr('\000a')||
-' ';
+'    apex_collection.add_member(p_collection_name => ''AOP_OUTPUT'',p_clob001 => l_cl';
 
-p:=p||' if l_woven then'||unistr('\000a')||
+p:=p||'ob);'||unistr('\000a')||
+'  if l_woven then'||unistr('\000a')||
 '    apex_application.g_print_success_message := ''AOP Successful.'';'||unistr('\000a')||
 '  else'||unistr('\000a')||
 '    apex_application.g_print_success_message := ''AOP Failed.'';'||unistr('\000a')||

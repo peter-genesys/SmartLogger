@@ -7,7 +7,7 @@ wwv_flow_api.create_tab (
   p_tab_name=> 'Source',
   p_tab_text => 'Source',
   p_tab_step => 2,
-  p_tab_also_current_for_pages => '4',
+  p_tab_also_current_for_pages => '4,23',
   p_tab_parent_tabset=>'',
   p_tab_comment  => '');
  

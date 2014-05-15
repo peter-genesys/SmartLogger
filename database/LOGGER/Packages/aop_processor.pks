@@ -20,14 +20,14 @@ is
   procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL);
   
  
-	--testing only
-  --------------------------------------------------------------------
-  -- get_body
-  --------------------------------------------------------------------
-  function get_body
-  ( p_object_name   in varchar2
-  , p_object_owner  in varchar2
-  ) return clob;
+--	--testing only
+--  --------------------------------------------------------------------
+--  -- get_body
+--  --------------------------------------------------------------------
+--  function get_body
+--  ( p_object_name   in varchar2
+--  , p_object_owner  in varchar2
+--  ) return clob;
 
 end aop_processor;
 /

@@ -7,9 +7,10 @@ select
 ,orig.result         orig_result   
 ,orig.load_datetime  orig_load_datetime
 ,aop.valid_yn        aop_valid_yn
-,aop_html.text       aop_text     
+,aop.text            aop_text     
 ,aop.result          aop_result   
 ,aop.load_datetime   aop_load_datetime
+,aop_html.text       html_text    
 from aop_source orig
     ,aop_source aop
 	,aop_source aop_html

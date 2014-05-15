@@ -3,6 +3,8 @@ alter trigger aop_processor_trg disable;
 --Ensure no inlining so ms_logger can be used
 alter session set plsql_optimize_level = 1;
 
+set define off;
+
 create or replace package body aop_processor is
   -- AUTHID CURRENT_USER
   -- @AOP_NEVER
@@ -27,8 +29,7 @@ create or replace package body aop_processor is
 
   
   g_for_aop_html      boolean := false;
-  g_for_comment_htm   boolean := false;
-  
+ 
   g_weave_start_time  date;
   
   g_weave_timeout_secs NUMBER := 15;   
@@ -118,8 +119,20 @@ create or replace package body aop_processor is
 	  exception
         when others then
 	      l_aop_source.result   := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
-	  	l_aop_source.valid_yn := 'N';
+	  	  l_aop_source.valid_yn := 'N';
           ms_logger.warn_error(l_node);   
+		  
+		  --Output Show Errors info
+          FOR l_error IN (select line||' '||text  error_line
+		                  from USER_ERRORS 
+		                  where NAME = i_name 
+		 		          AND   type = i_type)
+          LOOP
+            DBMS_OUTPUT.PUT_LINE(l_error.error_line);
+		    ms_logger.warning(l_node,l_error.error_line); 
+			l_aop_source.result := l_aop_source.result ||chr(10)||l_error.error_line;
+          END LOOP;
+  
 	  end;
 	end if;
  
@@ -140,9 +153,10 @@ create or replace package body aop_processor is
     procedure splice( p_code     in out clob
                      ,p_new_code in clob
                      ,p_pos      in out number
+					 ,p_level    in number   default null
 					 ,p_colour   in varchar2 default null ) IS
                      
-      --l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'splice');  
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'splice');  
 	  l_new_code        CLOB;
 	  l_colour          VARCHAR2(10);
 	  L_NEW_CODE_COLOUR VARCHAR2(10) := '#9CFFFE';
@@ -152,27 +166,29 @@ create or replace package body aop_processor is
       --ms_logger.param(l_node, 'p_code'          ,p_code );
       --ms_logger.param(l_node, 'LENGTH(p_code)'  ,LENGTH(p_code)  );
       --ms_logger.param(l_node, 'p_new_code'      ,p_new_code);
-      --ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
-	  --ms_logger.param(l_node, 'p_colour  '      ,p_colour     );
+      ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
+	  ms_logger.param(l_node, 'p_level     '    ,p_level     );
+	  ms_logger.param(l_node, 'p_colour  '      ,p_colour     );
 	  
 	  check_timeout;
 	  
+	  ms_logger.note(l_node, 'g_for_aop_html     '     ,g_for_aop_html     );
 	  IF g_for_aop_html THEN
 	    l_colour := NVL(p_colour, L_NEW_CODE_COLOUR);
+		ms_logger.note(l_node, 'l_colour     '     ,l_colour     );
 	  END IF;
-	  
-	  --l_colour := p_colour;
-      --IF l_colour IS NULL AND g_for_aop_html THEN
-	  --  l_colour := L_NEW_CODE_COLOUR;
-	  --END IF;
-	  
+ 
 	  l_new_code := CASE 
 			          WHEN l_colour IS NULL THEN 
 				          p_new_code
 			          ELSE 
 				          '<span style="background-color:#'||LTRIM(l_colour,'#')||';">'||p_new_code||'</span>'
                     END;
-      --ms_logger.note(l_node, 'l_new_code     '     ,l_new_code     );
+      ms_logger.note(l_node, 'l_new_code     '     ,l_new_code     );
+	  
+	  IF p_level is not null then
+	    l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',(p_level-1)*2+2,' '))||chr(10);
+	  END IF; 
  
       p_code:= substr(p_code, 1, p_pos)
 	         ||l_new_code
@@ -184,26 +200,10 @@ create or replace package body aop_processor is
 	  --ms_logger.note(l_node, 'p_pos     '      ,p_pos     );
  
     END;
- 
-  --------------------------------------------------------------------
-  -- inject
-  --------------------------------------------------------------------
-    procedure inject( p_code     in out clob
-                     ,p_new_code in varchar2
-                     ,p_pos      in out number
-					 ,p_level    in number
-					 ,p_colour   in varchar2 default null) IS
-      --Calls splice with p_new_code wrapped in CR
-    BEGIN
- 
-      --indent every line using level
-	  splice( p_code     =>  p_code
-	         ,p_new_code =>  replace(chr(10)||p_new_code,chr(10),chr(10)||rpad(' ',(p_level-1)*2+2,' '))||chr(10)
-	         ,p_pos      =>  p_pos
-             ,p_colour   =>  p_colour);	  
- 
-    END;
 	
+  --------------------------------------------------------------------
+  -- splice_here
+  --------------------------------------------------------------------
     procedure splice_here( i_new_code in varchar2
                           ,i_colour   in varchar2 default null) IS
 	
@@ -216,14 +216,17 @@ create or replace package body aop_processor is
 	  END IF;		   
  	 
 	END;
- 
+  
+  --------------------------------------------------------------------
+  -- inject_here
+  --------------------------------------------------------------------
 	
     procedure inject_here( i_new_code in varchar2
 					      ,i_level    in number
 						  ,i_colour   in varchar2 default null) IS
 	BEGIN
 	  IF i_new_code IS NOT NULL THEN
-	    inject( p_code      => g_code    
+	    splice( p_code      => g_code    
 	           ,p_new_code  => i_new_code
 	           ,p_pos       => g_current_pos     
 	           ,p_level     => i_level
@@ -419,7 +422,8 @@ BEGIN
   
   --Add the params (if any)
   inject_here( i_new_code  => i_params
-              ,i_level     => i_level);
+              ,i_level     => i_level
+			  ,i_colour    => '#FF99FF');
  
   loop
 
@@ -469,7 +473,8 @@ BEGIN
   go_prior('\sBEGIN\s');
  
   inject_here( i_new_code  => 'begin --'||i_prog_unit_name
-              ,i_level     => i_level);
+              ,i_level     => i_level
+			  ,i_colour    => '#FF9933');
  
   --Body 
   AOP_block_body(i_level  => i_level
@@ -481,7 +486,8 @@ BEGIN
   			       ||chr(10)||'    ms_logger.warn_error(l_node);'
   			       ||chr(10)||'    raise;'
   			       ||chr(10)||'end; --'||i_prog_unit_name
-              ,i_level     => i_level);
+              ,i_level     => i_level
+			  ,i_colour    => '#FF9933');
 exception
   when others then
     ms_logger.warn_error(l_node);
@@ -884,6 +890,12 @@ END;
 	restore_comments_and_quotes;
  
     g_code := REPLACE(g_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
+	
+	IF g_for_aop_html then
+	  g_code := REPLACE(REPLACE(g_code,'<<','&lt;&lt;'),'>>','&gt;&gt;');
+      g_code := REGEXP_REPLACE(g_code,'(ms_logger)(.+)(;)','<B>\1\2\3</B>');
+      g_code := '<PRE>'||g_code||'</PRE>';
+	END IF;
  
     p_code := g_code;
 	
@@ -917,7 +929,7 @@ END;
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'advise_package');
   
 	l_orig_body clob;
-	l_woven_body clob;
+	l_aop_body clob;
 	l_html_body clob;
     l_advised boolean := false;
   begin	
@@ -949,9 +961,9 @@ END;
 	  return; -- Don't bother with AOP since the original source is invalid anyway.			
 	end if;		  
  
-	l_woven_body := l_orig_body;
+	l_aop_body := l_orig_body;
     -- manipulate source by weaving in aspects as required; only weave if the key logging not yet applied.
-    l_advised := weave( p_code         => l_woven_body
+    l_advised := weave( p_code         => l_aop_body
                       , p_package_name => lower(p_object_name)  );
  
     -- (re)compile the source if any advises have been applied
@@ -959,7 +971,7 @@ END;
 	
 	  IF NOT validate_source(i_name  => p_object_name
 	                       , i_type  => p_object_type
-	                       , i_text  => l_woven_body
+	                       , i_text  => l_aop_body
 	                       , i_aop_ver => 'AOP') THEN
  
 	    --reexecute the original so that we at least end up with a valid package.
@@ -972,23 +984,21 @@ END;
           ms_logger.fatal(l_node,'Original Source is invalid on second try.');		  
 		end if;
 	  end if;
-	  --else	
-	    --Reweave with html
-		ms_logger.comment(l_node,'Reweave with html');	
-	    l_html_body := l_orig_body;
-        l_advised := weave( p_code         => l_html_body
-                          , p_package_name => lower(p_object_name)
-                          , p_for_html     => true );
-		--l_html_body := l_woven_body;
-		IF NOT validate_source(i_name  => p_object_name
-	                         , i_type  => p_object_type
-	                         , i_text  => l_html_body
-	                         , i_aop_ver => 'AOP_HTML') THEN
-		  ms_logger.fatal(l_node,'Oops problem with AOP_HTML on second try.');						 
-		
-		END IF;
  
-	  --end if;	
+	  --Reweave with html
+	  ms_logger.comment(l_node,'Reweave with html');	
+	  l_html_body := l_orig_body;
+      l_advised := weave( p_code         => l_html_body
+                        , p_package_name => lower(p_object_name)
+                        , p_for_html     => true );
+
+	  IF NOT validate_source(i_name  => p_object_name
+	                       , i_type  => p_object_type
+	                       , i_text  => l_html_body
+	                       , i_aop_ver => 'AOP_HTML') THEN
+	    ms_logger.fatal(l_node,'Oops problem with AOP_HTML on second try.');						 
+	 
+	  END IF;
  
     end if;
     g_during_advise:= false; 
@@ -1025,14 +1035,25 @@ END;
   -- restore_comments_and_quotes
   --------------------------------------------------------------------  
   procedure restore_comments_and_quotes IS
-      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'restore_comments_and_quotes');  
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'restore_comments_and_quotes'); 
+      l_text CLOB;	  
   BEGIN
     FOR l_index in 1..g_comment_stack.count loop
-	  g_code := REPLACE(g_code,'##comment'||l_index||'##','<span style="background-color:#FFFF99;">'||g_comment_stack(l_index)||'</span>');
+	  IF g_for_aop_html THEN
+	    l_text := '<span style="background-color:#99FF99;">'||g_comment_stack(l_index)||'</span>';
+	  ELSE
+	    l_text := g_comment_stack(l_index);
+      END IF;	  
+	  g_code := REPLACE(g_code,'##comment'||l_index||'##',l_text);
 	END LOOP;
   
     FOR l_index in 1..g_quote_stack.count loop
-	  g_code := REPLACE(g_code,'##quote'||l_index||'##','<span style="background-color:#FFCC99;">'||g_quote_stack(l_index)||'</span>');
+	  IF g_for_aop_html THEN
+	    l_text := '<span style="background-color:#99CCFF;">'||g_quote_stack(l_index)||'</span>';
+	  ELSE
+	    l_text := g_quote_stack(l_index);
+      END IF;	
+	  g_code := REPLACE(g_code,'##quote'||l_index||'##',l_text);
 	END LOOP;
   END;
   
@@ -1133,5 +1154,7 @@ BEGIN
 end aop_processor;
 /
 show error;
+
+set define on;
 
 alter trigger aop_processor_trg enable;

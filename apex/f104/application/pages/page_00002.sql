@@ -19,7 +19,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140428233845'
+ ,p_last_upd_yyyymmddhh24miss => '20140514162315'
   );
 null;
  
@@ -139,7 +139,7 @@ wwv_flow_api.create_worksheet(
   p_show_download=>'Y',
   p_show_help=>'Y',
   p_download_formats=>'CSV:HTML:EMAIL',
-  p_detail_link=>'f?p=&APP_ID.:4:&SESSION.::&DEBUG.::P4_NAME,P4_TYPE:#NAME#,#TYPE#',
+  p_detail_link=>'f?p=&APP_ID.:23:&SESSION.::&DEBUG.::P23_NAME,P23_TYPE:#NAME#,#TYPE#',
   p_detail_link_text=>'<img src="#IMAGE_PREFIX#ws/small_page.gif" alt="">',
   p_allow_exclude_null_values=>'N',
   p_allow_hide_extra_columns=>'N',
