@@ -21,6 +21,9 @@ TYPE node_typ IS RECORD
   ,call_stack_hist  CLOB);  
 
 --SUBTYPE node_typ IS ms_logger.node_typ;
+FUNCTION new_pkg(i_module_name IN VARCHAR2
+                ,i_unit_name   IN VARCHAR2 DEFAULT 'Initialisation' ) RETURN ms_logger.node_typ;
+ 
  
 FUNCTION new_proc(i_module_name IN VARCHAR2
                  ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;

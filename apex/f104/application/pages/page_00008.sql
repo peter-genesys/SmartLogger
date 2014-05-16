@@ -1396,111 +1396,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17788735403976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Unit Name',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'LEVEL_UNIT_NAME',
-  p_operator                =>'is not null',
-  p_condition_sql           =>' (case when ("LEVEL_UNIT_NAME" is not null) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME#',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_column_bg_color         =>'#99CCFF',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17788856901976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Comment',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_LEVEL_TEXT',
-  p_operator                =>'=',
-  p_expr                    =>'Comment',
-  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Comment''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#CCFFCC',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17788953826976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Warning',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_LEVEL_TEXT',
-  p_operator                =>'=',
-  p_expr                    =>'Warning !',
-  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Warning !''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FF9900',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17789032019976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Error',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_LEVEL_TEXT',
-  p_operator                =>'in',
-  p_expr                    =>'Oracle Error,Fatal !',
-  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" in (#APXWS_EXPR_VAL1#, #APXWS_EXPR_VAL2#)) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Oracle Error, Fatal !''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FF3333',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17789147120976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Note',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_TYPE',
-  p_operator                =>'=',
-  p_expr                    =>'Note',
-  p_condition_sql           =>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Note''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FFFF99',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17789248939976196+wwv_flow_api.g_id_offset,
+  p_id => 2829720787788995+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1521,7 +1417,111 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17788660617976196+wwv_flow_api.g_id_offset,
+  p_id => 2829810109788995+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
+  p_name                    =>'Unit Name',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'LEVEL_UNIT_NAME',
+  p_operator                =>'is not null',
+  p_condition_sql           =>' (case when ("LEVEL_UNIT_NAME" is not null) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME#',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_column_bg_color         =>'#99CCFF',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 2829902022788995+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
+  p_name                    =>'Comment',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_LEVEL_TEXT',
+  p_operator                =>'=',
+  p_expr                    =>'Comment',
+  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Comment''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#CCFFCC',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 2830013468788995+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
+  p_name                    =>'Warning',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_LEVEL_TEXT',
+  p_operator                =>'=',
+  p_expr                    =>'Warning !',
+  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Warning !''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#FF9900',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 2830124133788995+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
+  p_name                    =>'Error',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_LEVEL_TEXT',
+  p_operator                =>'in',
+  p_expr                    =>'Oracle Error,Fatal !',
+  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" in (#APXWS_EXPR_VAL1#, #APXWS_EXPR_VAL2#)) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Oracle Error, Fatal !''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#FF3333',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 2830212276788995+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
+  p_name                    =>'Note',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_TYPE',
+  p_operator                =>'=',
+  p_expr                    =>'Note',
+  p_condition_sql           =>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Note''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#FFFF99',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 2829629710788995+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1530,9 +1530,9 @@ wwv_flow_api.create_worksheet_condition(
   p_allow_delete            =>'Y',
   p_column_name             =>'MSG_LEVEL_TEXT',
   p_operator                =>'in',
-  p_expr                    =>'Internal Error,Warning !',
-  p_condition_sql           =>'"MSG_LEVEL_TEXT" in (#APXWS_EXPR_VAL1#, #APXWS_EXPR_VAL2#)',
-  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Internal Error, Warning !''  ',
+  p_expr                    =>'Internal Error,Warning !,Fatal !',
+  p_condition_sql           =>'"MSG_LEVEL_TEXT" in (#APXWS_EXPR_VAL1#, #APXWS_EXPR_VAL2#, #APXWS_EXPR_VAL3#)',
+  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Internal Error, Warning !, Fatal !''  ',
   p_enabled                 =>'Y',
   p_column_format           =>'');
 end;

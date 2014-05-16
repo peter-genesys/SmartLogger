@@ -121,6 +121,7 @@ G_OPEN_PROCESS_DEFAULT    CONSTANT ms_unit.open_process%TYPE := NULL;
 -- UNIT TYPES (Private)
 ------------------------------------------------------------------------
 --GENERAL UNIT TYPES 
+G_UNIT_TYPE_PACKAGE       CONSTANT ms_unit.unit_type%TYPE := 'PKG';
 G_UNIT_TYPE_PROCEDURE     CONSTANT ms_unit.unit_type%TYPE := 'PROC';
 G_UNIT_TYPE_FUNCTION      CONSTANT ms_unit.unit_type%TYPE := 'FUNC';
 G_UNIT_TYPE_LOOP          CONSTANT ms_unit.unit_type%TYPE := 'LOOP';
@@ -1906,6 +1907,17 @@ BEGIN
   ------------------------------------------------------------------------
   -- Node Typ API functions (Public)
   ------------------------------------------------------------------------
+  FUNCTION new_pkg(i_module_name IN VARCHAR2
+                  ,i_unit_name   IN VARCHAR2 DEFAULT 'Initialisation') RETURN ms_logger.node_typ IS
+ 
+  BEGIN
+    
+	RETURN ms_logger.new_node(i_module_name => i_module_name
+                             ,i_unit_name   => i_unit_name
+							 ,i_unit_type   => G_UNIT_TYPE_PACKAGE );
+ 
+  END;
+  
   
   FUNCTION new_proc(i_module_name IN VARCHAR2
                    ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
