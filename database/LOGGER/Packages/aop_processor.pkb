@@ -19,7 +19,7 @@ create or replace package body aop_processor is
  
   g_weave_start_time  date;
   
-  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 20; 
+  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 30; 
   g_weave_timeout_secs NUMBER;   
   
   g_initial_indent     constant integer := 0;
@@ -107,7 +107,7 @@ create or replace package body aop_processor is
   
   G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '\s*\w+\s+(IN\s+OUT\s+|IN\s+|OUT\s+)?\w+';
  
- 
+  G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
  
   ----------------------------------------------------------------------------
   -- COLOUR CODES
@@ -127,6 +127,7 @@ create or replace package body aop_processor is
   G_COLOUR_BRACKETS         CONSTANT VARCHAR2(10) := '#FF5050'; 
   G_COLOUR_EXCEPTION_BLOCK  CONSTANT VARCHAR2(10) := '#FF9933'; 
   G_COLOUR_JAVA             CONSTANT VARCHAR2(10) := '#33CCCC'; 
+  G_COLOUR_ANNOTATION       CONSTANT VARCHAR2(10) := '#FFCCFF'; 
   
  
   
@@ -781,18 +782,32 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_block');
   
   l_keyword               VARCHAR2(50);
+  l_stashed_comment       VARCHAR2(50);
+  l_function              VARCHAR2(30);
+  
+  G_REGEX_STASHED_COMMENT    VARCHAR2(50) := '##comment\d+##';
  
+  G_REGEX_COMMENT    VARCHAR2(50) := '--""';
+  G_REGEX_INFO       VARCHAR2(50) := '--\?\?';
+  G_REGEX_WARNING    VARCHAR2(50) := '--!!';
+  G_REGEX_FATAL      VARCHAR2(50) := '--##';  
+  
+  
 BEGIN
 
   ms_logger.note(l_node, 'i_indent    '     ,i_indent     );
   ms_logger.note(l_node, 'i_regex_end '     ,i_regex_end  );
-   
+  
+  
+ 
+
+ 
   loop
  
 	l_keyword := get_next_upper( i_search      => G_REGEX_OPEN
                                            ||'|'||G_REGEX_NEUTRAL
                                            ||'|'||G_REGEX_CLOSE
-                                           ||'|'||G_ANNOTATION
+                                ,i_stop        => G_REGEX_START_ANNOTATION --don't colour it
                                 ,i_colour      => G_COLOUR_BLOCK);
  
 	ms_logger.note(l_node, 'l_keyword',l_keyword);
@@ -844,9 +859,34 @@ BEGIN
 	    ms_logger.fatal(l_node, 'Mis-matched END Expecting :'||i_regex_end||' Got: '||l_keyword);
 		RAISE X_INVALID_KEYWORD;
         
-      WHEN matched_with(l_keyword ,G_ANNOTATION) THEN
-        NULL;
- 
+      WHEN matched_with(l_keyword ,G_REGEX_START_ANNOTATION) THEN
+        --What sort of annotation is it?
+         CASE 
+           WHEN matched_with(l_keyword ,G_REGEX_COMMENT) THEN l_function := 'comment';
+           WHEN matched_with(l_keyword ,G_REGEX_INFO   ) THEN l_function := 'info';
+           WHEN matched_with(l_keyword ,G_REGEX_WARNING) THEN l_function := 'warning';
+           WHEN matched_with(l_keyword ,G_REGEX_FATAL  ) THEN l_function := 'fatal';
+         END CASE;
+         
+         ms_logger.note(l_node, 'l_function',l_function);
+       
+         --Find the placeholder for the stashed comment.
+         go_past; --Now go past (just can't afford it to be coloured)
+         l_stashed_comment := get_next( i_stop        => G_REGEX_STASHED_COMMENT
+                                       ,i_raise_error => TRUE);
+         ms_logger.note(l_node, 'l_stashed_comment',l_stashed_comment);
+  
+         g_code := REPLACE(g_code
+                         , l_keyword||l_stashed_comment
+                         , CASE WHEN g_for_aop_html THEN
+                             '<span style="background-color:'||G_COLOUR_ANNOTATION||';">'
+                           END
+                          ||'ms_logger.'||l_function||'(l_node,'''
+                          ||CASE WHEN g_for_aop_html THEN
+                            '</span>'
+                            END
+                          ||l_stashed_comment||''');');
+  
       ELSE
 	    ms_logger.info(l_node,'No more blocks.');
 		EXIT;
@@ -1322,7 +1362,7 @@ END AOP_prog_units;
   -- stash_comments_and_quotes
   -- www.orafaq.com/forum/t/99722/2/ discussion of alternative methods.
   --------------------------------------------------------------------
-  
+
     procedure stash_comments_and_quotes  IS
        
       l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'stash_comments_and_quotes');  
@@ -1372,17 +1412,18 @@ BEGIN
    
    DECLARE
   
-   G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--'    ;
+   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
+   G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--..'    ;
    G_REGEX_START_MULTI_COMMENT   CONSTANT VARCHAR2(50) :=  '/\*'    ;
    G_REGEX_START_QUOTE      CONSTANT VARCHAR2(50) :=  '\'''    ;
    G_REGEX_START_ADV_QUOTE  CONSTANT VARCHAR2(50) :=  'q\''\S' ;
  
-   G_REGEX_START_COMMENT_OR_QUOTE CONSTANT VARCHAR2(100) := G_REGEX_START_SINGLE_COMMENT
+   G_REGEX_START_COMMENT_OR_QUOTE CONSTANT VARCHAR2(200) := G_REGEX_START_SINGLE_COMMENT  
                                                      ||'|'||G_REGEX_START_MULTI_COMMENT
                                                      ||'|'||G_REGEX_START_QUOTE
-                                                     ||'|'||G_REGEX_START_ADV_QUOTE; 
+                                                     ||'|'||G_REGEX_START_ADV_QUOTE;
  
-
+   G_REGEX_SINGLE_LINE_ANNOTATION   CONSTANT VARCHAR2(50)  :=    '.*';
    G_REGEX_SINGLE_LINE_COMMENT   CONSTANT VARCHAR2(50)  :=    '--.*';
    G_REGEX_MULTI_LINE_COMMENT    CONSTANT VARCHAR2(50)  :=    '/\*.*?\*/';
    G_REGEX_MULTI_LINE_QUOTE      CONSTANT VARCHAR2(50)  :=    '\''.*?\''';
@@ -1396,23 +1437,41 @@ BEGIN
       ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
 	  
       CASE 
-	    WHEN matched_with(l_keyword , G_REGEX_START_SINGLE_COMMENT)  THEN  
-	      --REMOVE SINGLE LINE COMMENTS 
-	      --Find "--" and remove chars upto EOL 		
-		  extract_comment(i_mask     => G_REGEX_SINGLE_LINE_COMMENT
-		                 ,i_modifier => 'i');
+
+	    WHEN matched_with(l_keyword , G_REGEX_START_SINGLE_COMMENT)  THEN 
+          --Check for an annotation                         
+          IF matched_with(l_keyword , G_REGEX_START_ANNOTATION) THEN                           
+            ms_logger.info(l_node, 'Annotation');         
+            --ANNOTATION          
+            go_past;          
+            extract_comment(i_mask     => G_REGEX_SINGLE_LINE_ANNOTATION          
+                           ,i_modifier => 'i');           
+          ELSE
+ 
+            --Just a comment
+            ms_logger.info(l_node, 'Single Line Comment');         
+	        --REMOVE SINGLE LINE COMMENTS 
+	        --Find "--" and remove chars upto EOL 		
+		    extract_comment(i_mask     => G_REGEX_SINGLE_LINE_COMMENT
+		                   ,i_modifier => 'i');
+    
+          END IF;
+  
  
 	    WHEN matched_with(l_keyword , G_REGEX_START_MULTI_COMMENT)  THEN  
+           ms_logger.info(l_node, 'Multi Line Comment');  
 	      --REMOVE MULTI-LINE COMMENTS 
 	      --Find "/*" and remove upto "*/" 
 		  extract_comment(i_mask => G_REGEX_MULTI_LINE_COMMENT);
  
 	    WHEN matched_with(l_keyword , G_REGEX_START_ADV_QUOTE)  THEN  
+           ms_logger.info(l_node, 'Multi Line Adv Quote');  
 		  --REMOVE ADVANCED QUOTES - MULTI_LINE
 		  --Find "q'[" and remove to next "]'", variations in clude [] {} <> () and any single printable char.
 		  extract_quote(i_mask => G_REGEX_MULTI_LINE_ADV_QUOTE);
           
 	    WHEN matched_with(l_keyword , G_REGEX_START_QUOTE)  THEN  
+           ms_logger.info(l_node, 'Multi Line Simple Quote');
 		  --REMOVE SIMPLE QUOTES - MULTI_LINE
           --Find "'" and remove to next "'" 		
 		  extract_quote(i_mask => G_REGEX_MULTI_LINE_QUOTE);

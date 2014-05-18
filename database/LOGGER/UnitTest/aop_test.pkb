@@ -155,6 +155,14 @@ where max_event_date >= :i_min_qa_date
     ms_feedback.comment('About to raise an error');
     raise no_data_found;
     ms_feedback.warning('Should not have reached here.');
+    
+ 
+  --""This is a special comment
+  --??This is a special info
+  --!!This is a special warning
+  --##This is a special fatal
+ 
+    
   exception
     when others then
       ms_feedback.oracle_error; 
