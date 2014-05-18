@@ -14,9 +14,7 @@ create or replace package body aop_processor is
   g_during_advise boolean:= false;
   
   g_aop_directive CONSTANT VARCHAR2(30) := '@AOP_LOG'; 
-  
-
-  
+ 
   g_for_aop_html      boolean := false;
  
   g_weave_start_time  date;
@@ -29,7 +27,7 @@ create or replace package body aop_processor is
   TYPE clob_stack_typ IS
   TABLE OF CLOB
   INDEX BY BINARY_INTEGER;
- 
+
   g_comment_stack clob_stack_typ;
   g_quote_stack   clob_stack_typ;
  
@@ -42,10 +40,12 @@ create or replace package body aop_processor is
   x_invalid_keyword    EXCEPTION;
   x_string_not_found   EXCEPTION;
   
+
+ 
   ----------------------------------------------------------------------------
   -- REGULAR EXPRESSIONS
   ----------------------------------------------------------------------------
-  G_WORD_SEARCH          VARCHAR2(10) := '\w+';  
+  G_REGEX_WORD          VARCHAR2(10) := '\w+';  
  
   G_REGEX_PKG_BODY       CONSTANT VARCHAR2(50) := '\sPACKAGE\s+?BODY\s';
   G_REGEX_PROCEDURE      CONSTANT VARCHAR2(50) := '\sPROCEDURE\s';
@@ -69,13 +69,13 @@ create or replace package body aop_processor is
   G_REGEX_THEN          CONSTANT VARCHAR2(50) := '\sTHEN\s';
   G_REGEX_EXCEPTION     CONSTANT VARCHAR2(50) := '\sEXCEPTION\s';
   --Closing Blocks
-  G_REGEX_END_BEGIN     CONSTANT VARCHAR2(50) := '\sEND\s*?\w*?\s*?;';    --END(any whitespace)(any wordschars)(any whitespace);
+  G_REGEX_END_BEGIN     CONSTANT VARCHAR2(50) := '\sEND\s*?\w*?\s*?;';    --END(any whitespace)(any wordschars)(any whitespace)SEMI-COLON
   G_REGEX_END_LOOP      CONSTANT VARCHAR2(50) := '\sEND\s+?LOOP\s*?;';
   G_REGEX_END_CASE      CONSTANT VARCHAR2(50) := '\sEND\s+?CASE\s*?;';
   G_REGEX_END_CASE_EXPR CONSTANT VARCHAR2(50) := '\sEND(\s+?|[[:punct:]]{1})';
   G_REGEX_END_IF        CONSTANT VARCHAR2(50) := '\sEND\s+?IF\s*?;';
    
- 
+  G_ANNOTATION          CONSTANT VARCHAR2(50) := '--';
  
   G_REGEX_OPEN         CONSTANT VARCHAR2(200) :=   G_REGEX_DECLARE      
                                             ||'|'||G_REGEX_BEGIN        
@@ -97,6 +97,18 @@ create or replace package body aop_processor is
                                            ||'|'||G_REGEX_END_IF;    
  
  
+  --Param searching
+  G_REGEX_OPEN_BRACKET    CONSTANT VARCHAR2(20) := '\('; 
+  G_REGEX_CLOSE_BRACKET   CONSTANT VARCHAR2(20) := '\('; 
+  G_REGEX_COMMA           CONSTANT VARCHAR2(20) := '\,'; 
+  
+  G_REGEX_IS_AS           CONSTANT VARCHAR2(20) := '\sIS\s|\sAS\s'; 
+  G_REGEX_DEFAULT         CONSTANT VARCHAR2(20) := '(DEFAULT|:=)';
+  
+  G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '\s*\w+\s+(IN\s+OUT\s+|IN\s+|OUT\s+)?\w+';
+ 
+ 
+ 
   ----------------------------------------------------------------------------
   -- COLOUR CODES
   ----------------------------------------------------------------------------
@@ -116,6 +128,13 @@ create or replace package body aop_processor is
   G_COLOUR_EXCEPTION_BLOCK  CONSTANT VARCHAR2(10) := '#FF9933'; 
   G_COLOUR_JAVA             CONSTANT VARCHAR2(10) := '#33CCCC'; 
   
+ 
+  
+  FUNCTION matched_with(i_match  IN CLOB
+                       ,i_search IN VARCHAR2) RETURN BOOLEAN IS
+  BEGIN
+    RETURN REGEXP_LIKE(' '||i_match||' ',i_search);
+  END;
  
   function elapsed_time_secs return integer is
   begin
@@ -252,11 +271,7 @@ create or replace package body aop_processor is
       ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
 	  ms_logger.param(l_node, 'p_indent     '    ,p_indent     );
 	  ms_logger.param(l_node, 'p_colour  '      ,p_colour     );
-	  
-	  --p_pos := p_pos -1;
-	  
-	  --check_timeout;
-	  
+ 
 	  ms_logger.note(l_node, 'g_for_aop_html     '     ,g_for_aop_html     );
 	  IF g_for_aop_html THEN
 	    l_colour := NVL(p_colour, G_COLOUR_SPLICE);
@@ -279,7 +294,7 @@ create or replace package body aop_processor is
 	         ||l_new_code
              ||substr(p_code, p_pos+1);
   
-	  p_pos := p_pos + length(l_new_code);	
+	  p_pos := p_pos + length(l_new_code) ;	
 	  
 	  --ms_logger.note(l_node, 'p_code     '     ,p_code     );
 	  --ms_logger.note(l_node, 'p_pos     '      ,p_pos     );
@@ -289,7 +304,7 @@ create or replace package body aop_processor is
   --------------------------------------------------------------------
   -- splice_here
   --------------------------------------------------------------------
-    procedure splice_here( i_new_code in varchar2
+    PROCEDURE splice_here( i_new_code in varchar2
                           ,i_colour   in varchar2 default null) IS
 	
 	BEGIN
@@ -306,7 +321,7 @@ create or replace package body aop_processor is
   -- inject
   --------------------------------------------------------------------
 	
-    procedure inject( i_new_code in varchar2
+    PROCEDURE inject( i_new_code in varchar2
 					 ,i_indent    in number
 					 ,i_colour   in varchar2 default null) IS
 	BEGIN
@@ -319,112 +334,70 @@ create or replace package body aop_processor is
 	  END IF;			 
 	END;
 	
-	
-	
- 
- 
+
 --------------------------------------------------------------------------------- 
 -- ATOMIC
 --------------------------------------------------------------------------------- 
+
 
 --------------------------------------------------------------------------------- 
 -- get_next - return first matching string, stripped of upto 1 leading and trailing whitespace
 -- if colour is not null and the result is not null then current position will advance
 ---------------------------------------------------------------------------------
-/* Refactor idea -
-   Instead of i_go_past USE i_search and i_consume --PARTIALLY DONE
-   Instead of i_search and i_consume USE i_primary, i_secondary
-   OVERLOAD Instead of returning the keyword, and performing complex matching again
-     USE a result code, that represents primary / secondary / no match
-   Instead of i_colour USE i_colour1, i_colour2
-*/
-FUNCTION get_next(i_search             IN VARCHAR2
+
+FUNCTION get_next(i_search             IN VARCHAR2 DEFAULT NULL
+                 ,i_stop               IN VARCHAR2 DEFAULT NULL
                  ,i_modifier           IN VARCHAR2 DEFAULT 'i'
-                 ,i_raise_error        IN BOOLEAN  DEFAULT FALSE
-				 ,i_go_past            IN BOOLEAN  DEFAULT TRUE
-				 ,i_colour             IN VARCHAR2 DEFAULT NULL
-                 ,i_consume            IN VARCHAR2 DEFAULT NULL  ) return CLOB IS
+				 ,i_colour             IN VARCHAR2 DEFAULT NULL 
+                 ,i_raise_error        IN BOOLEAN  DEFAULT FALSE ) return CLOB IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next');	
   
-  l_original_match VARCHAR2(32000);
-  l_consume_match  VARCHAR2(32000);
+  l_either_match   VARCHAR2(32000);
+  l_search_match   VARCHAR2(32000);
   l_result         VARCHAR2(32000);
-  
-  --l_colour          VARCHAR2(10);
- 
+  l_either         VARCHAR2(32000);
   
 BEGIN
   check_timeout; --GET_NEXT
   ms_logger.param(l_node, 'i_search',i_search);
- 
+  ms_logger.param(l_node, 'i_stop',i_stop);
   
-  --Keep the original match
-  l_original_match := REGEXP_SUBSTR(g_code,i_search,g_current_pos,1,i_modifier);
-  l_result := TRIM(REGEXP_REPLACE(l_original_match,'^\s|\s$',''));
+  l_either := TRIM('|' FROM i_search ||'|'||i_stop); 
+ 
+  --Keep the original "either" match
+  l_either_match := REGEXP_SUBSTR(g_code,l_either,g_current_pos,1,i_modifier);
+  l_result := TRIM(REGEXP_REPLACE(l_either_match,'^\s|\s$',''));
   --Check that the match is a consumable match, meaning we will advance the g_current_pos.
-  l_consume_match := REGEXP_SUBSTR(l_original_match,i_consume,1,1,i_modifier);
-  l_consume_match := TRIM(REGEXP_REPLACE(l_consume_match,'^\s|\s$',''));
-  ms_logger.note(l_node, 'l_consume_match',l_consume_match  );
-  ms_logger.note_length(l_node, 'l_consume_match',l_consume_match  );
+  l_search_match := REGEXP_SUBSTR(l_either_match,i_search,1,1,i_modifier);
+  l_search_match := TRIM(REGEXP_REPLACE(l_search_match,'^\s|\s$',''));
+  ms_logger.note(l_node, 'l_search_match',l_search_match  );
+  ms_logger.note_length(l_node, 'l_search_match',l_search_match  );
  
   IF l_result IS NULL AND i_raise_error THEN
-	ms_logger.fatal(l_node, 'String missing '||i_search);
-	splice_here( i_new_code => 'STRING NOT FOUND '||i_search
+	ms_logger.fatal(l_node, 'String missing '||l_either);
+	splice_here( i_new_code => 'STRING NOT FOUND '||l_either
 	            ,i_colour   => G_COLOUR_ERROR);
     RAISE x_string_not_found;
 	
   END IF;	
   
   --Calculate the new positions.  VERIFY THAT THIS SHOULD STILL BE GLOBAL!!  Eg how often do i use go_past;
-  g_upto_pos := REGEXP_INSTR(g_code,i_search,g_current_pos,1,0,i_modifier);
-  g_past_pos := REGEXP_INSTR(g_code,i_search,g_current_pos,1,1,i_modifier);   
-  
-  IF l_result IS NOT NULL and (i_go_past OR ( l_consume_match IS NOT NULL )) THEN
+  g_upto_pos := REGEXP_INSTR(g_code,l_either,g_current_pos,1,0,i_modifier);
+  g_past_pos := REGEXP_INSTR(g_code,l_either,g_current_pos,1,1,i_modifier);   
+
+  IF l_result IS NOT NULL and l_search_match IS NOT NULL THEN
     ms_logger.note(l_node, 'l_result IS NOT NULL',l_result IS NOT NULL);
-    ms_logger.note(l_node, 'i_go_past',i_go_past);
-    ms_logger.note(l_node, 'l_consume_match IS NOT NULL',l_consume_match IS NOT NULL);
+    ms_logger.note(l_node, 'l_search_match IS NOT NULL',l_search_match IS NOT NULL);
     ms_logger.comment(l_node, 'Consuming:' ||l_result);
-    
-    
-    
-   
-    -- if colour is not null and the result is not null then current position will advance
-	-- this is because the addition of the colour tags screws up future searches.
  
-   
-   --IF g_for_aop_html THEN
-   --  l_colour := NVL(i_colour, G_COLOUR_SPLICE);
-   --  --l_colour := i_colour; --NO DEFAULT - very important not to default a colour
-   --  --adding the colour means that current pos should be advanced. to g_past_pos
-   --  ms_logger.note(l_node, 'l_colour     '     ,l_colour     );
-   --END IF;
-   
    --Don't default a colour, that will stuff up the comment extraction routines.
-   
-    --if l_colour is not null then
+ 
 	IF g_for_aop_html and i_colour is not null THEN
-   
-        --g_code := REGEXP_REPLACE(g_code
-        --                        ,'('||i_search||')'
-        --                        ,'<span style="background-color:#'||LTRIM(l_colour,'#')||';">\1</span>'
-        --                        ,g_current_pos
-        --                        ,1
-        --                        ,i_modifier); 
-   	  
-      --ms_logger.note(l_node, 'g_code1  ',g_code  );
-      
+ 
    	  --USE THE SPLICE ROUTINE HERE..!!
    	  g_code := SUBSTR(g_code,1,g_upto_pos-1)
-               ||'<span style="background-color:#'||LTRIM(i_colour,'#')||';">'||l_original_match||'</span>'
+               ||'<span style="background-color:#'||LTRIM(i_colour,'#')||';">'||l_either_match||'</span>'
                ||SUBSTR(g_code,g_past_pos)  ;
-      
-      --ms_logger.note(l_node, 'g_code',g_code  );
-      
-               --REGEXP_REPLACE(g_code
-   	           --             , l_result
-   				--			 , '<span style="background-color:#'||LTRIM(i_colour,'#')||';">'||l_result||'</span>'
-   				--			 , g_upto_pos
-   				--			 ,1);
  
    	  g_past_pos := g_past_pos + LENGTH('<span style="background-color:#'||LTRIM(i_colour,'#')||';"></span>') - 1;
  
@@ -439,36 +412,32 @@ END get_next;
 --------------------------------------------------------------------------------- 
 -- get_next_lower
 --------------------------------------------------------------------------------- 
-FUNCTION get_next_lower(i_search      IN VARCHAR2
-                       ,i_modifier    IN VARCHAR2 DEFAULT 'i'
-                       ,i_raise_error IN BOOLEAN  DEFAULT FALSE
-				       ,i_go_past     IN BOOLEAN  DEFAULT TRUE
-					   ,i_colour      IN VARCHAR2 DEFAULT NULL 
-                       ,i_consume            IN VARCHAR2 DEFAULT NULL ) return CLOB IS
+FUNCTION get_next_lower(i_search             IN VARCHAR2 DEFAULT NULL
+                       ,i_stop               IN VARCHAR2 DEFAULT NULL
+                       ,i_modifier           IN VARCHAR2 DEFAULT 'i'
+				       ,i_colour             IN VARCHAR2 DEFAULT NULL 
+                       ,i_raise_error        IN BOOLEAN  DEFAULT FALSE ) return CLOB IS 
 BEGIN
-  RETURN LOWER(get_next(i_search   => i_search
-                       ,i_modifier => i_modifier
-					   ,i_raise_error => i_raise_error
-					   ,i_go_past     => i_go_past
-					   ,i_colour      => i_colour
-                       ,i_consume     => i_consume ));
+  RETURN LOWER(get_next(i_search      => i_search     
+                       ,i_stop        => i_stop       
+					   ,i_modifier    => i_modifier   
+					   ,i_colour      => i_colour     
+					   ,i_raise_error => i_raise_error ));
 END;
 --------------------------------------------------------------------------------- 
 -- get_next_upper
 --------------------------------------------------------------------------------- 
-FUNCTION get_next_upper(i_search      IN VARCHAR2
-                       ,i_modifier    IN VARCHAR2 DEFAULT 'i'
-                       ,i_raise_error IN BOOLEAN  DEFAULT FALSE
-				       ,i_go_past     IN BOOLEAN  DEFAULT TRUE
-					   ,i_colour      IN VARCHAR2 DEFAULT NULL 
-                       ,i_consume            IN VARCHAR2 DEFAULT NULL ) return CLOB IS
+FUNCTION get_next_upper(i_search             IN VARCHAR2 DEFAULT NULL
+                       ,i_stop               IN VARCHAR2 DEFAULT NULL
+                       ,i_modifier           IN VARCHAR2 DEFAULT 'i'
+				       ,i_colour             IN VARCHAR2 DEFAULT NULL 
+                       ,i_raise_error        IN BOOLEAN  DEFAULT FALSE ) return CLOB IS 
 BEGIN
-  RETURN UPPER(get_next(i_search   => i_search
-                       ,i_modifier => i_modifier
-					   ,i_raise_error => i_raise_error
-					   ,i_go_past     => i_go_past
-					   ,i_colour      => i_colour
-                       ,i_consume     => i_consume ));
+  RETURN UPPER(get_next(i_search      => i_search     
+                       ,i_stop        => i_stop       
+					   ,i_modifier    => i_modifier   
+					   ,i_colour      => i_colour     
+					   ,i_raise_error => i_raise_error ));
 END;
 
 --------------------------------------------------------------------------------- 
@@ -511,18 +480,12 @@ BEGIN
     --just goto the position found during last get_next
 	g_current_pos := g_past_pos;
   ELSE
-
-    --go(i_search     => i_search    
-    --  ,i_modifier   => i_modifier  
-    --  ,i_past_prior => 1
-    -- ,i_offset     => i_offset);
-     
-     
-     l_dummy := get_next(i_search       =>  i_search
-                        ,i_modifier     =>  i_modifier
-                        ,i_raise_error  =>  TRUE
-     		            ,i_go_past      =>  TRUE
-     		            ,i_colour       =>  i_colour);
+ 
+     l_dummy := get_next(i_search      => i_search     
+                        ,i_stop        => NULL       
+                        ,i_modifier    => i_modifier   
+                        ,i_colour      => i_colour     
+                        ,i_raise_error => TRUE );
  
   END IF;
  
@@ -605,27 +568,21 @@ FUNCTION AOP_pu_params return CLOB is
   x_out_param            EXCEPTION;
   x_unhandled_param_type EXCEPTION;
   
-  --l_param_line_mask       VARCHAR2(200) := '(\(|,)\s*\w+\s+(IN\s+OUT\s+|IN\s+|OUT\s+)?\w+';
-  l_param_line_mask       VARCHAR2(200) := '\s*\w+\s+(IN\s+OUT\s+|IN\s+|OUT\s+)?\w+';
-  l_is_as_mask            VARCHAR2(200) := '\sIS\s|\sAS\s';
-  l_open_close_comma_mask VARCHAR2(200) := '\(|\,|\)';
-  l_open_comma_mask       VARCHAR2(200) := '\(|\,'; 
-  l_default_mask          VARCHAR2(200) := '(DEFAULT|:=)';
-
+ 
   l_bracket_count        INTEGER;
  
 BEGIN  
  
   loop
-    --check_timeout;
     BEGIN
 
       --Find first: "(" "," "DEFAULT" ":=" "AS" "IS"
- 
-      l_keyword := get_next_upper( i_search       => l_open_comma_mask  ||'|'||l_is_as_mask  ||'|'||l_default_mask
-                                  ,i_raise_error  => TRUE
-                                  ,i_go_past      => TRUE
-                                  ,i_colour       => G_COLOUR_PROG_UNIT);
+      l_keyword := get_next_upper( i_search       => G_REGEX_OPEN_BRACKET
+                                              ||'|'||G_REGEX_COMMA
+                                              ||'|'||G_REGEX_IS_AS
+                                              ||'|'||G_REGEX_DEFAULT
+                                  ,i_colour       => G_COLOUR_PROG_UNIT
+                                  ,i_raise_error  => TRUE);
      
       ms_logger.note(l_node, 'l_keyword' ,REPLACE(l_keyword,chr(10),'#')); 
 	  --ms_logger.note_length(l_node, 'l_keyword' ,l_keyword); 
@@ -633,30 +590,22 @@ BEGIN
       CASE 
  
 		--NEW PARAMETER LINE
-		WHEN REGEXP_LIKE(l_keyword, l_open_comma_mask,'i') THEN
+		WHEN matched_with(l_keyword , G_REGEX_OPEN_BRACKET
+                               ||'|'||G_REGEX_COMMA)        THEN
 	      ms_logger.comment(l_node, 'Found new parameter');
 		  --find the parameter - Search for Eg
-		  --( varname IN OUT vartype ,
-		  --, varname IN vartype)
-		  --, varname vartype,
-		  --( varname OUT vartype)
-		  --l_param_line := get_next('(\(|,)\s*\w+\s+((IN|IN\s+OUT|OUT)\s+)?\w+\s*(,|\))'); 
-          
-          --hmm reviewing this. lets say we've consumed the ( already
-          --the look for 
-          -- varname IN OUT vartype ,
-          -- varname IN vartype)
+          --  varname IN OUT vartype ,
+          --  varname IN vartype)
   
-          l_param_line := get_next( i_search       => l_param_line_mask
-                                   ,i_raise_error  => TRUE
-                                   ,i_go_past      => TRUE
-                                   ,i_colour       => G_COLOUR_PARAM);	 
+          l_param_line := get_next( i_search       => G_REGEX_PARAM_LINE
+                                   ,i_colour       => G_COLOUR_PARAM
+                                   ,i_raise_error  => TRUE);	 
 		  --Move onto next param
 	      --go_past;--(l_param_line_mask);
 	      
 	  	  ms_logger.note(l_node, 'l_param_line',l_param_line);
           
-		  IF UPPER(REGEXP_SUBSTR(l_param_line,G_WORD_SEARCH,1,2,'i')) = 'OUT' THEN
+		  IF UPPER(REGEXP_SUBSTR(l_param_line,G_REGEX_WORD,1,2,'i')) = 'OUT' THEN
 		    RAISE x_out_param;
 		  END IF;
           
@@ -665,9 +614,9 @@ BEGIN
 		  l_param_line := REGEXP_REPLACE(l_param_line,'(\sOUT\s)',' ',1,1,'i');
 		  ms_logger.note(l_node, 'l_param_line',l_param_line);		
 		  
-	  	  l_param_name := LOWER(REGEXP_SUBSTR(l_param_line,G_WORD_SEARCH,1,1,'i')); 
+	  	  l_param_name := LOWER(REGEXP_SUBSTR(l_param_line,G_REGEX_WORD,1,1,'i')); 
 	  	  ms_logger.note(l_node, 'l_param_name',l_param_name);
-	  	  l_param_type := UPPER(REGEXP_SUBSTR(l_param_line,G_WORD_SEARCH,1,2,'i'));  
+	  	  l_param_type := UPPER(REGEXP_SUBSTR(l_param_line,G_REGEX_WORD,1,2,'i'));  
 	  	  ms_logger.note(l_node, 'l_param_type',l_param_type);
 	  	  IF  l_param_type NOT IN ('NUMBER'
 	  	                          ,'INTEGER'
@@ -683,46 +632,44 @@ BEGIN
  
  
        --DEFAULT or :=
-		WHEN REGEXP_LIKE(l_keyword, l_default_mask,'i') THEN 
+		WHEN matched_with(l_keyword , G_REGEX_DEFAULT) THEN 
 		  ms_logger.comment(l_node, 'Found DEFAULT, searching for complex value');
-		  --go_past;   --(l_default_mask,'i');
  
 		  l_bracket_count := 0;
 		  loop
-		    --check_timeout;
-		    l_bracket := get_next( i_search      => l_open_close_comma_mask
-                                  ,i_raise_error => TRUE
-                                  ,i_go_past     => FALSE
-                                  ,i_colour      => G_COLOUR_BRACKETS);
+		    l_bracket := get_next( i_stop       => G_REGEX_OPEN_BRACKET
+                                            ||'|'||G_REGEX_CLOSE_BRACKET
+                                            ||'|'||G_REGEX_COMMA
+                                  ,i_colour      => G_COLOUR_BRACKETS
+                                  ,i_raise_error => TRUE);
  
             ms_logger.note(l_node, 'l_bracket' ,l_bracket); 
             CASE 
-			  WHEN l_bracket = ',' THEN 
+			  WHEN matched_with(l_bracket , G_REGEX_COMMA) THEN
 			    EXIT WHEN l_bracket_count = 0;
 
-	          WHEN l_bracket = '(' THEN  
+	          WHEN matched_with(l_bracket , G_REGEX_OPEN_BRACKET) THEN
 			    l_bracket_count := l_bracket_count + 1;
 
-	          WHEN l_bracket = ')' THEN  
+	          WHEN matched_with(l_bracket , G_REGEX_CLOSE_BRACKET) THEN
                 l_bracket_count := l_bracket_count - 1;
 				EXIT WHEN l_bracket_count = -1;
 
               ELSE 
-			    ms_logger.fatal(l_node, 'Complex Default: Expected "(" " or ")"');
+			    ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
 				RAISE x_invalid_keyword;
 		    END CASE;	
-		    go_past;  --(l_open_close_comma_mask,'i');
+		    go_past;
 			
 		  END LOOP;
  
 	    --NO MORE PARAMS
-		WHEN l_keyword IN ('AS','IS') THEN EXIT;
+		WHEN matched_with(l_keyword , G_REGEX_IS_AS) THEN EXIT;
           ms_logger.comment(l_node, 'No more parameters');
-		  
-		  
+          
         --OOPS
         ELSE
-		  ms_logger.fatal(l_node, 'Expected "(" "," "DEFAULT" ":=" "AS" or "IS"');
+		  ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
           RAISE x_invalid_keyword;
       END CASE;
     EXCEPTION
@@ -804,21 +751,17 @@ BEGIN
   
   --If this is a package there may not be a BEGIN, just an END;
   
-  l_keyword := get_next_upper( i_search      => G_REGEX_BEGIN||'|'||G_REGEX_END_BEGIN
-                              ,i_raise_error => TRUE
-                              ,i_go_past     => FALSE
-                              ,i_colour      => G_COLOUR_PKG_BEGIN  );
+  l_keyword := get_next_upper( i_stop        => G_REGEX_BEGIN||'|'||G_REGEX_END_BEGIN
+                              ,i_colour      => G_COLOUR_PKG_BEGIN
+                              ,i_raise_error => TRUE                              );
  
-  IF l_keyword = 'BEGIN' OR i_node_type <> 'new_pkg' THEN --Packages don't need to have BEGIN.  
+  IF matched_with(l_keyword , G_REGEX_BEGIN) OR 
+     i_node_type <> 'new_pkg'                THEN --Packages don't need to have BEGIN.  
     
     AOP_pu_block(i_prog_unit_name  => i_prog_unit_name
                 ,i_params          => l_inject_params
                 ,i_indent          => i_indent);
   END IF;
- 
-  --WHILE get_next_upper('\sBEGIN\s|\sPROCEDURE\s|\sFUNCTION\s') IN ('PROCEDURE','FUNCTION') LOOP
-  --  AOP_prog_units(i_indent => i_indent + 1);
-  --END LOOP;
  
 exception
   when others then
@@ -838,17 +781,6 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_block');
   
   l_keyword               VARCHAR2(50);
-  --l_block_open_mask       VARCHAR2(200) := '\sDECLARE\s|\sBEGIN\s|\LOOP\s|\sCASE\s|\sIF\s|\sELSE\s|\sELSIF\s';
-  --
-  --l_block_close_mask       VARCHAR2(200) := '\sDECLARE\s|\sBEGIN\s|\LOOP\s|\sCASE\s|\sIF\s|\sELSE\s|\sELSIF\s';
-  
-  
-  
-  --l_regex_search       VARCHAR2(200) :=  G_REGEX_OPEN||'|'||G_REGEX_CLOSE;
-  
-  l_regex_search       VARCHAR2(200) :=  G_REGEX_OPEN
-                                  ||'|'||G_REGEX_NEUTRAL
-                                  ||'|'||G_REGEX_CLOSE;
  
 BEGIN
 
@@ -857,49 +789,66 @@ BEGIN
    
   loop
  
-	l_keyword := get_next_upper( i_search      => l_regex_search
+	l_keyword := get_next_upper( i_search      => G_REGEX_OPEN
+                                           ||'|'||G_REGEX_NEUTRAL
+                                           ||'|'||G_REGEX_CLOSE
+                                           ||'|'||G_ANNOTATION
                                 ,i_colour      => G_COLOUR_BLOCK);
  
 	ms_logger.note(l_node, 'l_keyword',l_keyword);
  
     CASE 
-	  WHEN l_keyword = 'DECLARE' THEN            
+	  WHEN matched_with(l_keyword , G_REGEX_DECLARE) THEN            
         AOP_declare(i_indent  => i_indent + 1);    
         
-      WHEN l_keyword = 'BEGIN' THEN                                                     
+      WHEN matched_with(l_keyword , G_REGEX_BEGIN) THEN                                                     
         AOP_block(i_indent     => i_indent + 1
                  ,i_nest       => i_nest + 1
 		         ,i_regex_end  => G_REGEX_END_BEGIN);     
                  
-      WHEN l_keyword = 'LOOP' THEN                                                          
+      WHEN matched_with(l_keyword , G_REGEX_LOOP) THEN                                                          
         AOP_block(i_indent     => i_indent + 1
                  ,i_nest       => i_nest + 1
 		         ,i_regex_end  => G_REGEX_END_LOOP );                                
              
-      WHEN l_keyword = 'CASE' THEN
+      WHEN matched_with(l_keyword , G_REGEX_CASE) THEN    
 		--inc level +2 due to implied WHEN or ELSE
-        AOP_block(i_indent     => i_indent + 1
+        AOP_block(i_indent     => i_indent + 2
                  ,i_nest       => i_nest + 1
 		         ,i_regex_end  => G_REGEX_END_CASE||'|'||G_REGEX_END_CASE_EXPR );      
 	 
-      WHEN l_keyword = 'IF' THEN
+      WHEN matched_with(l_keyword , G_REGEX_IF) THEN    
         AOP_block(i_indent     => i_indent + 1
                  ,i_nest       => i_nest + 1
 		         ,i_regex_end  => G_REGEX_END_IF );
 
-      WHEN REGEXP_LIKE(' '||l_keyword||' ',G_REGEX_NEUTRAL) THEN
+      WHEN matched_with(l_keyword , G_REGEX_NEUTRAL) THEN
         --Just let it keep going around the loop.
         NULL;
+        
+      --END_BEGIN will also match END_LOOP, END_CASE and END IF
+      --So we need to make sure it hasn't matched on them.      
+	  WHEN i_regex_end = G_REGEX_END_BEGIN              AND
+           matched_with(l_keyword , i_regex_end)        AND 
+           (  matched_with(l_keyword ,G_REGEX_END_LOOP) OR
+              matched_with(l_keyword ,G_REGEX_END_CASE) OR 
+              matched_with(l_keyword ,G_REGEX_END_IF)) THEN
+	    ms_logger.fatal(l_node, 'Mis-matched Expected END; Got '||l_keyword);
+		RAISE X_INVALID_KEYWORD;
  
-	  WHEN REGEXP_LIKE(' '||l_keyword||' ',i_regex_end) THEN
+	  WHEN matched_with(l_keyword ,i_regex_end) THEN
 	     ms_logger.info(l_node, 'Block End Found!');
 		EXIT;
         
-	  WHEN REGEXP_LIKE(' '||l_keyword||' ',G_REGEX_CLOSE) THEN
-	    ms_logger.fatal(l_node, 'Miss-matched Close Block.  Expecting :'||i_regex_end);
+	  WHEN matched_with(l_keyword ,G_REGEX_CLOSE) THEN
+	    ms_logger.fatal(l_node, 'Mis-matched END Expecting :'||i_regex_end||' Got: '||l_keyword);
 		RAISE X_INVALID_KEYWORD;
+        
+      WHEN matched_with(l_keyword ,G_ANNOTATION) THEN
+        NULL;
+ 
       ELSE
-	    ms_logger.info(l_node,'No more opens or closes.');
+	    ms_logger.info(l_node,'No more blocks.');
 		EXIT;
 
     END CASE;
@@ -979,11 +928,9 @@ BEGIN
     BEGIN
  
         --Find node type
-        l_keyword := get_next_upper( i_search      => G_REGEX_PROG_UNIT||'|'||G_REGEX_BEGIN
-                                    ,i_raise_error => FALSE
-                                    ,i_go_past     => FALSE
-                                    ,i_colour      => G_COLOUR_PROG_UNIT
-                                    ,i_consume     => G_REGEX_PROG_UNIT);
+        l_keyword := get_next_upper( i_search      => G_REGEX_PROG_UNIT
+                                    ,i_stop        => G_REGEX_BEGIN
+                                    ,i_colour      => G_COLOUR_PROG_UNIT );
      
       ms_logger.note(l_node, 'l_keyword' ,l_keyword);   
       CASE 
@@ -999,8 +946,8 @@ BEGIN
     	WHEN l_keyword = 'BEGIN' OR l_keyword IS NULL THEN
     	  EXIT;
         ELSE
-    	  ms_logger.fatal(l_node, 'Expected "PROCEDURE" or "FUNCTION" or "PACKAGE BODY" or "BEGIN" or NULL');
-          RAISE x_invalid_keyword;
+		  ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
+		  RAISE x_invalid_keyword;
       END CASE;	 
       ms_logger.note(l_node, 'l_node_type' ,l_node_type);  
      
@@ -1008,11 +955,10 @@ BEGIN
       --Check for LANGUAGE JAVA NAME
       --If this is a JAVA function then we don't want a node and don't need to bother reading spec or parsing body.
       --Will find a LANGUAGE keyword before next ";"
-      l_keyword := get_next_upper(i_search       => G_REGEX_JAVA||'|;'
-                                 ,i_raise_error  => TRUE
-    		                     ,i_go_past      => FALSE
+      l_keyword := get_next_upper(i_search       => G_REGEX_JAVA 
+                                 ,i_stop         => ';'
     		                     ,i_colour       => G_COLOUR_JAVA
-                                 ,i_consume      => G_REGEX_JAVA);
+                                 ,i_raise_error  => TRUE );
      
       ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
       IF l_keyword LIKE 'LANGUAGE%' THEN
@@ -1021,7 +967,7 @@ BEGIN
       
       --Get program unit name
       IF l_prog_unit_name IS NULL THEN
-        l_prog_unit_name := get_next_lower(i_search  => G_WORD_SEARCH     
+        l_prog_unit_name := get_next_lower(i_search  => G_REGEX_WORD     
                                           ,i_colour  => G_COLOUR_PU_NAME);
      
       END IF;
@@ -1117,26 +1063,31 @@ END AOP_prog_units;
 	
 	begin
 	  g_current_pos := 1;
-	  l_keyword := get_next_upper(i_search      => '\sDECLARE\s|\sBEGIN\s|\sPROCEDURE\s|\sFUNCTION\s|\sPACKAGE BODY\s' 
-                                 ,i_raise_error => TRUE
-      		                     ,i_go_past     => FALSE );
+	  l_keyword := get_next_upper(i_stop       => G_REGEX_DECLARE
+                                           ||'|'||G_REGEX_BEGIN  
+                                           ||'|'||G_REGEX_PROCEDURE
+                                           ||'|'||G_REGEX_FUNCTION 
+                                           ||'|'||G_REGEX_PKG_BODY 
+                                 ,i_raise_error => TRUE  );
  
 	  ms_logger.note(l_node, 'l_keyword' ,l_keyword);
 
 	  CASE 
-	    WHEN l_keyword = 'DECLARE' THEN --NEED TO REFACTOR THIS BIT TOO.
+        WHEN matched_with(l_keyword , G_REGEX_DECLARE) THEN
 		  AOP_declare(i_indent => g_initial_indent);
           
-		WHEN l_keyword = 'BEGIN' THEN  --NEED TO REFACTOR THIS BIT TOO.
-		  AOP_block(i_indent    => g_initial_indent
-                   ,i_nest      => 1
+        WHEN matched_with(l_keyword , G_REGEX_BEGIN) THEN
+		  AOP_block(i_indent     => g_initial_indent
+                   ,i_nest       => 1
 		           ,i_regex_end  => G_REGEX_END_IF);
 		
-		WHEN l_keyword IN ('PROCEDURE','FUNCTION','PACKAGE BODY') THEN
+        WHEN matched_with(l_keyword , G_REGEX_PROCEDURE
+                               ||'|'||G_REGEX_FUNCTION 
+                               ||'|'||G_REGEX_PKG_BODY) THEN
 		  AOP_prog_units(i_indent => g_initial_indent );
 
 		ELSE
-		  ms_logger.fatal(l_node, 'Expected "DECLARE", "BEGIN", "PROCEDURE", "FUNCTION" or "PACKAGE BODY"');
+		  ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
 		  RAISE x_invalid_keyword;
 	  end case;	  
 	end;
@@ -1377,14 +1328,13 @@ END AOP_prog_units;
       l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'stash_comments_and_quotes');  
   
       l_keyword              VARCHAR2(50);	
-  
+
 	procedure extract_comment(i_mask     IN VARCHAR2
 	                         ,i_modifier IN VARCHAR2 DEFAULT 'in') IS
 	  l_comment              CLOB;
 	BEGIN
-	  l_comment := get_next(i_search   => i_mask
-                           ,i_modifier => i_modifier
-                           ,i_go_past  => FALSE); --multi-line, lazy
+	  l_comment := get_next(i_stop     => i_mask
+                           ,i_modifier => i_modifier ); --multi-line, lazy
 	  ms_logger.note(l_node, 'l_comment', l_comment);
 	  g_comment_stack(g_comment_stack.count+1) := l_comment; --Put another comment on the stack
 	  ms_logger.note(l_node, 'g_comment_stack.count', g_comment_stack.count);
@@ -1398,9 +1348,8 @@ END AOP_prog_units;
 	                       ,i_modifier IN VARCHAR2 DEFAULT 'in') IS
 	  l_quote              CLOB;
 	BEGIN
-	  l_quote := get_next(i_search   => i_mask
-                         ,i_modifier => i_modifier
-                         ,i_go_past  => FALSE); --multi-line, lazy
+	  l_quote := get_next(i_stop     => i_mask
+                         ,i_modifier => i_modifier ); --multi-line, lazy
 	  ms_logger.note(l_node, 'l_quote', l_quote);
 	  g_quote_stack(g_quote_stack.count+1) := l_quote; --Put another quote on the stack
 	  ms_logger.note(l_node, 'g_quote_stack.count', g_quote_stack.count);
@@ -1418,36 +1367,56 @@ BEGIN
    g_comment_stack.DELETE;  
    g_quote_stack.DELETE;
  
+ 
   loop
+   
+   DECLARE
+  
+   G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--'    ;
+   G_REGEX_START_MULTI_COMMENT   CONSTANT VARCHAR2(50) :=  '/\*'    ;
+   G_REGEX_START_QUOTE      CONSTANT VARCHAR2(50) :=  '\'''    ;
+   G_REGEX_START_ADV_QUOTE  CONSTANT VARCHAR2(50) :=  'q\''\S' ;
+ 
+   G_REGEX_START_COMMENT_OR_QUOTE CONSTANT VARCHAR2(100) := G_REGEX_START_SINGLE_COMMENT
+                                                     ||'|'||G_REGEX_START_MULTI_COMMENT
+                                                     ||'|'||G_REGEX_START_QUOTE
+                                                     ||'|'||G_REGEX_START_ADV_QUOTE; 
+ 
+
+   G_REGEX_SINGLE_LINE_COMMENT   CONSTANT VARCHAR2(50)  :=    '--.*';
+   G_REGEX_MULTI_LINE_COMMENT    CONSTANT VARCHAR2(50)  :=    '/\*.*?\*/';
+   G_REGEX_MULTI_LINE_QUOTE      CONSTANT VARCHAR2(50)  :=    '\''.*?\''';
+   G_REGEX_MULTI_LINE_ADV_QUOTE  CONSTANT VARCHAR2(100) :=    'q\''\[.*?\]\''|q\''\{.*?\}\''|q\''\(.*?\)\''|q\''\<.*?\>\''|q\''(\S).*?\1\''';
+ 
     BEGIN
-	  --check_timeout;
+ 
       --Searching for the start of a comment or quote
-      l_keyword :=  get_next_lower(i_search       => '--|/\*|\''|q\''\S'  
-                                  ,i_go_past      => FALSE );
+      l_keyword :=  get_next_lower(i_stop       => G_REGEX_START_COMMENT_OR_QUOTE );
  
       ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
 	  
       CASE 
-	    WHEN l_keyword = '--' THEN  
+	    WHEN matched_with(l_keyword , G_REGEX_START_SINGLE_COMMENT)  THEN  
 	      --REMOVE SINGLE LINE COMMENTS 
 	      --Find "--" and remove chars upto EOL 		
-		  extract_comment(i_mask     => '--.*'
+		  extract_comment(i_mask     => G_REGEX_SINGLE_LINE_COMMENT
 		                 ,i_modifier => 'i');
  
-        WHEN l_keyword = '/*' THEN
+	    WHEN matched_with(l_keyword , G_REGEX_START_MULTI_COMMENT)  THEN  
 	      --REMOVE MULTI-LINE COMMENTS 
 	      --Find "/*" and remove upto "*/" 
-		  extract_comment(i_mask => '/\*.*?\*/');
+		  extract_comment(i_mask => G_REGEX_MULTI_LINE_COMMENT);
  
-        WHEN l_keyword = '''' THEN
-		  --REMOVE SIMPLE QUOTES - MULTI_LINE
-          --Find "'" and remove to next "'" 		
-		  extract_quote(i_mask => '\''.*?\''');
- 
-        WHEN l_keyword LIKE 'q''%' THEN
+	    WHEN matched_with(l_keyword , G_REGEX_START_ADV_QUOTE)  THEN  
 		  --REMOVE ADVANCED QUOTES - MULTI_LINE
 		  --Find "q'[" and remove to next "]'", variations in clude [] {} <> () and any single printable char.
-		  extract_quote(i_mask => 'q\''\[.*?\]\''|q\''\{.*?\}\''|q\''\(.*?\)\''|q\''\<.*?\>\''|q\''(\S).*?\1\''');
+		  extract_quote(i_mask => G_REGEX_MULTI_LINE_ADV_QUOTE);
+          
+	    WHEN matched_with(l_keyword , G_REGEX_START_QUOTE)  THEN  
+		  --REMOVE SIMPLE QUOTES - MULTI_LINE
+          --Find "'" and remove to next "'" 		
+		  extract_quote(i_mask => G_REGEX_MULTI_LINE_QUOTE);
+          
  
 		ELSE 
 		  EXIT;
