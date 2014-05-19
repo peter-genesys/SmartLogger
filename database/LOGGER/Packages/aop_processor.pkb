@@ -72,7 +72,7 @@ create or replace package body aop_processor is
   G_REGEX_END_BEGIN     CONSTANT VARCHAR2(50) := '\sEND\s*?\w*?\s*?;';    --END(any whitespace)(any wordschars)(any whitespace)SEMI-COLON
   G_REGEX_END_LOOP      CONSTANT VARCHAR2(50) := '\sEND\s+?LOOP\s*?;';
   G_REGEX_END_CASE      CONSTANT VARCHAR2(50) := '\sEND\s+?CASE\s*?;';
-  G_REGEX_END_CASE_EXPR CONSTANT VARCHAR2(50) := '\sEND(\s+?|[[:punct:]]{1})';
+  G_REGEX_END_CASE_EXPR CONSTANT VARCHAR2(50) := '\sEND\W'; 
   G_REGEX_END_IF        CONSTANT VARCHAR2(50) := '\sEND\s+?IF\s*?;';
    
   G_ANNOTATION          CONSTANT VARCHAR2(50) := '--';
@@ -99,7 +99,7 @@ create or replace package body aop_processor is
  
   --Param searching
   G_REGEX_OPEN_BRACKET    CONSTANT VARCHAR2(20) := '\('; 
-  G_REGEX_CLOSE_BRACKET   CONSTANT VARCHAR2(20) := '\('; 
+  G_REGEX_CLOSE_BRACKET   CONSTANT VARCHAR2(20) := '\)'; 
   G_REGEX_COMMA           CONSTANT VARCHAR2(20) := '\,'; 
   
   G_REGEX_IS_AS           CONSTANT VARCHAR2(20) := '\sIS\s|\sAS\s'; 
@@ -155,13 +155,11 @@ create or replace package body aop_processor is
   
   procedure set_weave_timeout is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'set_weave_timeout');  
-    l_lines  APEX_APPLICATION_GLOBAL.VC_ARR2;
     l_weave_line_count INTEGER;
  
   BEGIN
- 
-    l_lines := APEX_UTIL.STRING_TO_TABLE(g_code,chr(10));
-    l_weave_line_count := l_lines.count;
+    --Line Count derived from length of CLOB minus length of CLOB-without-CR
+	l_weave_line_count := LENGTH(g_code) - LENGTH(REPLACE(g_code,chr(10)));
     ms_logger.note(l_node, 'l_weave_line_count ',l_weave_line_count );
     g_weave_timeout_secs := ROUND(l_weave_line_count/1000*G_TIMEOUT_SECS_PER_1000_LINES);
     ms_logger.note(l_node, 'g_weave_timeout_secs ',g_weave_timeout_secs );
@@ -350,7 +348,8 @@ FUNCTION get_next(i_search             IN VARCHAR2 DEFAULT NULL
                  ,i_stop               IN VARCHAR2 DEFAULT NULL
                  ,i_modifier           IN VARCHAR2 DEFAULT 'i'
 				 ,i_colour             IN VARCHAR2 DEFAULT NULL 
-                 ,i_raise_error        IN BOOLEAN  DEFAULT FALSE ) return CLOB IS
+                 ,i_raise_error        IN BOOLEAN  DEFAULT FALSE
+                 ,i_trim  		       IN BOOLEAN  DEFAULT TRUE		 ) return CLOB IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next');	
   
   l_either_match   VARCHAR2(32000);
@@ -367,7 +366,11 @@ BEGIN
  
   --Keep the original "either" match
   l_either_match := REGEXP_SUBSTR(g_code,l_either,g_current_pos,1,i_modifier);
-  l_result := TRIM(REGEXP_REPLACE(l_either_match,'^\s|\s$',''));
+  IF i_trim THEN
+    l_result := TRIM(REGEXP_REPLACE(l_either_match,'^\s|\s$',''));
+  ELSE
+   l_result := l_either_match;
+  END IF; 
   --Check that the match is a consumable match, meaning we will advance the g_current_pos.
   l_search_match := REGEXP_SUBSTR(l_either_match,i_search,1,1,i_modifier);
   l_search_match := TRIM(REGEXP_REPLACE(l_search_match,'^\s|\s$',''));
@@ -417,13 +420,15 @@ FUNCTION get_next_lower(i_search             IN VARCHAR2 DEFAULT NULL
                        ,i_stop               IN VARCHAR2 DEFAULT NULL
                        ,i_modifier           IN VARCHAR2 DEFAULT 'i'
 				       ,i_colour             IN VARCHAR2 DEFAULT NULL 
-                       ,i_raise_error        IN BOOLEAN  DEFAULT FALSE ) return CLOB IS 
+                       ,i_raise_error        IN BOOLEAN  DEFAULT FALSE
+                       ,i_trim  		     IN BOOLEAN  DEFAULT TRUE	 ) return CLOB IS 
 BEGIN
   RETURN LOWER(get_next(i_search      => i_search     
                        ,i_stop        => i_stop       
 					   ,i_modifier    => i_modifier   
 					   ,i_colour      => i_colour     
-					   ,i_raise_error => i_raise_error ));
+					   ,i_raise_error => i_raise_error
+                       ,i_trim        => i_trim	 ));
 END;
 --------------------------------------------------------------------------------- 
 -- get_next_upper
@@ -432,13 +437,15 @@ FUNCTION get_next_upper(i_search             IN VARCHAR2 DEFAULT NULL
                        ,i_stop               IN VARCHAR2 DEFAULT NULL
                        ,i_modifier           IN VARCHAR2 DEFAULT 'i'
 				       ,i_colour             IN VARCHAR2 DEFAULT NULL 
-                       ,i_raise_error        IN BOOLEAN  DEFAULT FALSE ) return CLOB IS 
+                       ,i_raise_error        IN BOOLEAN  DEFAULT FALSE
+                       ,i_trim  		     IN BOOLEAN  DEFAULT TRUE	 ) return CLOB IS 
 BEGIN
   RETURN UPPER(get_next(i_search      => i_search     
                        ,i_stop        => i_stop       
 					   ,i_modifier    => i_modifier   
 					   ,i_colour      => i_colour     
-					   ,i_raise_error => i_raise_error ));
+					   ,i_raise_error => i_raise_error
+                       ,i_trim        => i_trim	 ));
 END;
 
 --------------------------------------------------------------------------------- 
@@ -641,7 +648,6 @@ BEGIN
 		    l_bracket := get_next( i_stop       => G_REGEX_OPEN_BRACKET
                                             ||'|'||G_REGEX_CLOSE_BRACKET
                                             ||'|'||G_REGEX_COMMA
-                                  ,i_colour      => G_COLOUR_BRACKETS
                                   ,i_raise_error => TRUE);
  
             ms_logger.note(l_node, 'l_bracket' ,l_bracket); 
@@ -660,7 +666,7 @@ BEGIN
 			    ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
 				RAISE x_invalid_keyword;
 		    END CASE;	
-		    go_past;
+		    go_past(i_colour => G_COLOUR_BRACKETS);
 			
 		  END LOOP;
  
@@ -1432,7 +1438,8 @@ BEGIN
     BEGIN
  
       --Searching for the start of a comment or quote
-      l_keyword :=  get_next_lower(i_stop       => G_REGEX_START_COMMENT_OR_QUOTE );
+      l_keyword :=  get_next_lower(i_stop       => G_REGEX_START_COMMENT_OR_QUOTE
+                                  ,i_trim       => FALSE	  );
  
       ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
 	  
