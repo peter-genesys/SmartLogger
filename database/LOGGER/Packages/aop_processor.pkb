@@ -40,7 +40,7 @@ create or replace package body aop_processor is
   x_invalid_keyword    EXCEPTION;
   x_string_not_found   EXCEPTION;
   
-
+  g_aop_module_name    VARCHAR2(30); 
  
   ----------------------------------------------------------------------------
   -- REGULAR EXPRESSIONS
@@ -1019,7 +1019,7 @@ BEGIN
       END IF;
       ms_logger.note(l_node, 'l_prog_unit_name' ,l_prog_unit_name);
       
-      l_inject_node    := '  l_node ms_logger.node_typ := ms_logger.'||l_node_type||'($$plsql_unit ,'''||l_prog_unit_name||''');';
+      l_inject_node    := '  l_node ms_logger.node_typ := ms_logger.'||l_node_type||'('||g_aop_module_name||' ,'''||l_prog_unit_name||''');';
      
       AOP_is_as(i_prog_unit_name => l_prog_unit_name
                ,i_indent         => i_indent
@@ -1069,6 +1069,12 @@ END AOP_prog_units;
  
     ms_logger.param(l_node, 'p_package_name'      ,p_package_name);
 	ms_logger.param(l_node, 'p_for_html'          ,p_for_html);
+	
+	IF p_package_name IS NULL THEN
+	  g_aop_module_name := '$$plsql_unit';
+    ELSE
+	  g_aop_module_name := ''''||p_package_name||'''';
+	END IF;
  
 	g_for_aop_html := p_for_html;
  
