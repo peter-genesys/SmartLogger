@@ -41,6 +41,8 @@ create or replace package body aop_processor is
   x_string_not_found   EXCEPTION;
   
   g_aop_module_name    VARCHAR2(30); 
+  
+  TYPE var_list_typ IS TABLE OF VARCHAR2(106) INDEX BY VARCHAR2(30);  
  
   ----------------------------------------------------------------------------
   -- REGULAR EXPRESSIONS
@@ -90,6 +92,7 @@ create or replace package body aop_processor is
                                             ||'|'||G_REGEX_EXCEPTION                                            
                                             ;      
   G_REGEX_WHEN_OTHERS_THEN          CONSTANT VARCHAR2(50) := '\sWHEN\s+?OTHERS\s+?THEN\s';
+  G_REGEX_WHEN_EXCEPT_THEN          CONSTANT VARCHAR2(50) := '\sWHEN\s+?\w+?\s+?THEN\s';
  
   G_REGEX_CLOSE        CONSTANT VARCHAR2(200) :=  G_REGEX_END_BEGIN    
                                            ||'|'||G_REGEX_END_LOOP     
@@ -137,6 +140,7 @@ create or replace package body aop_processor is
   G_COLOUR_JAVA             CONSTANT VARCHAR2(10) := '#33CCCC'; 
   G_COLOUR_ANNOTATION       CONSTANT VARCHAR2(10) := '#FFCCFF'; 
   G_COLOUR_BIND_VAR         CONSTANT VARCHAR2(10) := '#FFFF00';
+  G_COLOUR_VAR              CONSTANT VARCHAR2(10) := '#99FF66';
   G_COLOUR_NOTE             CONSTANT VARCHAR2(10) := '#00FF99';
  
   
@@ -566,7 +570,8 @@ procedure restore_comments_and_quotes;
 --------------------------------------------------------------------------------- 
 -- AOP_prog_units - Forward Declaration
 ---------------------------------------------------------------------------------
-PROCEDURE AOP_prog_units(i_indent IN INTEGER);
+PROCEDURE AOP_prog_units(i_indent   IN INTEGER
+                        ,i_var_list IN var_list_typ);
 
 
 --------------------------------------------------------------------------------- 
@@ -574,14 +579,16 @@ PROCEDURE AOP_prog_units(i_indent IN INTEGER);
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
                       ,i_params         IN CLOB
-                      ,i_indent          IN INTEGER );
+                      ,i_indent         IN INTEGER
+                      ,i_var_list       IN var_list_typ );
 
 --------------------------------------------------------------------------------- 
 -- AOP_block
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_block(i_indent         IN INTEGER
                    ,i_nest           IN INTEGER
-                   ,i_regex_end      IN VARCHAR2 );                      
+                   ,i_regex_end      IN VARCHAR2
+                   ,i_var_list       IN var_list_typ );                      
                       
 --------------------------------------------------------------------------------- 
 -- END FORWARD DECLARATIONS
@@ -592,7 +599,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 --------------------------------------------------------------------------------- 
 -- AOP_pu_params
 ---------------------------------------------------------------------------------
-FUNCTION AOP_pu_params return CLOB is
+FUNCTION AOP_pu_params(io_var_list IN OUT var_list_typ) return CLOB is
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_params'); 
   l_param_injection      CLOB;
   l_param_line           CLOB;
@@ -602,9 +609,11 @@ FUNCTION AOP_pu_params return CLOB is
   l_bracket              VARCHAR2(50);
   x_out_param            EXCEPTION;
   x_unhandled_param_type EXCEPTION;
-  
  
   l_bracket_count        INTEGER;
+  
+  l_in_var               BOOLEAN;
+  l_out_var              BOOLEAN;
  
 BEGIN  
  
@@ -640,9 +649,14 @@ BEGIN
 	      
 	  	  ms_logger.note(l_node, 'l_param_line',l_param_line);
           
-		  IF UPPER(REGEXP_SUBSTR(l_param_line,G_REGEX_WORD,1,2,'i')) = 'OUT' THEN
-		    RAISE x_out_param;
-		  END IF;
+          l_in_var  := REGEXP_LIKE(l_param_line,'\sIN\s','i');
+          l_out_var := REGEXP_LIKE(l_param_line,'\sOUT\s','i');
+          ms_logger.note(l_node, 'l_in_var',l_in_var);
+          ms_logger.note(l_node, 'l_out_var',l_out_var);
+      
+		  --IF UPPER(REGEXP_SUBSTR(l_param_line,G_REGEX_WORD,1,2,'i')) = 'OUT' THEN
+		  --  RAISE x_out_param;
+		  --END IF;
           
 	      --Remove remaining IN and OUT
 	  	  l_param_line := REGEXP_REPLACE(l_param_line,'(\sIN\s)',' ',1,1,'i');
@@ -662,6 +676,19 @@ BEGIN
 	  						      ,'BOOLEAN') then
 		    RAISE x_unhandled_param_type;
           END IF;		  
+          
+          IF l_out_var THEN
+            --Save IN OUT and OUT params in the variable list.        
+            io_var_list(l_param_name) := l_param_type;  
+            ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);
+          END IF;
+          
+          
+		  IF NOT l_in_var THEN
+            --Out only params with not need to be included in the param input section.
+		    RAISE x_out_param;
+		  END IF;
+ 
 		  					
 	  	  l_param_injection := LTRIM(l_param_injection||chr(10)||'  ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');',chr(10));
  
@@ -751,22 +778,88 @@ END AOP_exceptions;
 
 
 
+
+
+
+--------------------------------------------------------------------------------- 
+-- AOP_var_def - Harvests any vars and appends them to the var list.     
+---------------------------------------------------------------------------------
+FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
+  l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'AOP_var_defs'); 
+  
+  l_var_list              var_list_typ := i_var_list;
+  l_var_def               CLOB;
+  G_REGEX_VAR_DEF_LINE    CONSTANT VARCHAR2(200) := 
+    '\s\w+?\s+?(NUMBER|INTEGER|BINARY_INTEGER|PLS_INTEGER|DATE|VARCHAR2|BOOLEAN)';
+  G_REGEX_VAR_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+?)\s+?(\w+?)';
+  G_COLOUR_VAR_LINE       CONSTANT VARCHAR2(10) := '#00CCFF';
+  
+  l_param_name  VARCHAR2(30);
+  l_param_type  VARCHAR2(106);
+ 
+BEGIN
+  --Search for var_name var_type pairs.
+ 
+  loop
+ 
+	l_var_def := get_next_upper( i_search      => G_REGEX_VAR_DEF_LINE    
+                                ,i_stop        => G_REGEX_BEGIN  
+                                           ||'|'||G_REGEX_PROG_UNIT
+                                ,i_colour      => G_COLOUR_VAR_LINE);
+ 
+	ms_logger.note(l_node, 'l_var_def',l_var_def);
+ 
+    CASE 
+	  WHEN matched_with(l_var_def , G_REGEX_VAR_DEF_LINE) THEN 
+        l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',1));
+        l_param_type  := REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',2);
+        ms_logger.note(l_node, 'l_param_name',l_param_name); 
+        ms_logger.note(l_node, 'l_param_type',l_param_type); 
+      
+        l_var_list(l_param_name) := l_param_type;  
+        ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);        
+  
+      ELSE
+	    ms_logger.info(l_node,'No more variables.');
+		EXIT;
+
+    END CASE;
+  
+  END LOOP;
+
+  RETURN l_var_list;
+ 
+exception
+  when others then
+    ms_logger.warn_error(l_node);
+    raise; 
+ 
+END AOP_var_defs;
+
 		
 --------------------------------------------------------------------------------- 
 -- AOP_declare
 ---------------------------------------------------------------------------------
-PROCEDURE AOP_declare(i_indent       IN INTEGER) IS
+PROCEDURE AOP_declare(i_indent   IN INTEGER
+                     ,i_var_list IN var_list_typ) IS
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_declare'); 
+  
+  l_var_list              var_list_typ := i_var_list;
+  
 BEGIN
  
   --Search for nested PROCEDURE and FUNCTION within the declaration section of the block.
   --Drop out when a BEGIN is reached.
  
-  AOP_prog_units(i_indent => i_indent + 1);
+  l_var_list := AOP_var_defs( i_var_list => l_var_list);    
+ 
+  AOP_prog_units(i_indent   => i_indent + 1
+                ,i_var_list => l_var_list);
   
   AOP_block(i_indent    => i_indent + 1
            ,i_nest      => 1
-           ,i_regex_end => G_REGEX_END_BEGIN);
+           ,i_regex_end => G_REGEX_END_BEGIN
+           ,i_var_list  => l_var_list);
  
 exception
   when others then
@@ -780,33 +873,32 @@ END AOP_declare;
 -- AOP_is_as
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
-                   ,i_indent          IN INTEGER
+                   ,i_indent         IN INTEGER
                    ,i_inject_node    IN VARCHAR2 DEFAULT NULL
-				   ,i_node_type      IN VARCHAR2) IS
+				   ,i_node_type      IN VARCHAR2
+                   ,i_var_list       IN var_list_typ) IS
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_is_as'); 
   l_inject_params   CLOB;
   
   l_keyword               VARCHAR2(50);
 
+  l_var_list              var_list_typ := i_var_list;
   
 BEGIN
 
-  l_inject_params := AOP_pu_params;
-   
-  --go_past('\sIS\s|\sAS\s');
+  l_inject_params := AOP_pu_params(io_var_list => l_var_list);
  
- --LATER WANT TO REFACTOR THIS MY ONLY INJECTING A PACKAGE NODE IF THERE IS AN INITIALISATION BLOCK.
   inject( i_new_code  => i_inject_node
          ,i_indent     => i_indent
          ,i_colour     => G_COLOUR_NODE);   
+         
+  l_var_list := AOP_var_defs( i_var_list => l_var_list);    
  
-  --Rest of IS_AS is a simple declaration.
-  --AOP_declare(i_indent => i_indent);
-  AOP_prog_units(i_indent => i_indent + 1);
+  AOP_prog_units(i_indent => i_indent + 1
+                ,i_var_list  => l_var_list);
   
   
   --If this is a package there may not be a BEGIN, just an END;
-  
   l_keyword := get_next_upper( i_stop        => G_REGEX_BEGIN||'|'||G_REGEX_END_BEGIN
                               ,i_colour      => G_COLOUR_PKG_BEGIN
                               ,i_raise_error => TRUE                              );
@@ -821,7 +913,8 @@ BEGIN
     
     AOP_pu_block(i_prog_unit_name  => i_prog_unit_name
                 ,i_params          => l_inject_params
-                ,i_indent          => i_indent);
+                ,i_indent          => i_indent
+                ,i_var_list        => l_var_list);
  		
   END IF;
  
@@ -839,24 +932,33 @@ END AOP_is_as;
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_block(i_indent         IN INTEGER
                    ,i_nest           IN INTEGER
-                   ,i_regex_end      IN VARCHAR2 )  IS
+                   ,i_regex_end      IN VARCHAR2
+                   ,i_var_list       IN var_list_typ  )  IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_block');
   
   l_keyword               CLOB;
   l_stashed_comment       VARCHAR2(50);
   l_function              VARCHAR2(30);
   l_bind_var              VARCHAR2(30);
+  l_var                   VARCHAR2(30);
+
+  l_var_list              var_list_typ := i_var_list;
+  
+  G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  '\W\w+?\s*?:='; --matches on both G_REGEX_ASSIGN_TO_VAR and G_REGEX_ASSIGN_TO_BIND_VAR 
+  G_REGEX_ASSIGN_TO_VAR       CONSTANT VARCHAR2(50) :=  '\s\w+?\s*?:=';
+  G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) :=  ':\w+?\s*?:=';
+  G_REGEX_VAR                 CONSTANT VARCHAR2(50) := G_REGEX_WORD;
+
+  G_REGEX_BIND_VAR            CONSTANT VARCHAR2(50) := ':'||G_REGEX_WORD;
+  G_REGEX_SHOW_ME_LINE        CONSTANT VARCHAR2(50) :=  '.+--(\@\@)';
+  
 
   
-  
-  G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) := ':\w+?\W+?:=';
-  G_REGEX_BIND_VAR            CONSTANT VARCHAR2(50) := ':\w+?\W';
-  G_REGEX_SHOW_ME_LINE        CONSTANT VARCHAR2(50) :=  '.+--(\@\@)';
   
 BEGIN
 
-  ms_logger.note(l_node, 'i_indent    '     ,i_indent     );
-  ms_logger.note(l_node, 'i_regex_end '     ,i_regex_end  );
+  ms_logger.param(l_node, 'i_indent    '     ,i_indent     );
+  ms_logger.param(l_node, 'i_regex_end '     ,i_regex_end  );
  
  
   loop
@@ -864,38 +966,44 @@ BEGIN
 	l_keyword := get_next_upper( i_search      => G_REGEX_OPEN
                                            ||'|'||G_REGEX_NEUTRAL
                                            ||'|'||G_REGEX_CLOSE
+                                           ||'|'||G_REGEX_WHEN_EXCEPT_THEN
                                            ||'|'||G_REGEX_WHEN_OTHERS_THEN
                                            ||'|'||G_REGEX_SHOW_ME_LINE    
                                 ,i_stop        => G_REGEX_START_ANNOTATION --don't colour it
-                                           ||'|'||G_REGEX_ASSIGN_TO_BIND_VAR
+                                           ||'|'||G_REGEX_ASSIGN_TO_VARS
                                 ,i_colour      => G_COLOUR_BLOCK);
  
 	ms_logger.note(l_node, 'l_keyword',l_keyword);
  
     CASE 
 	  WHEN matched_with(l_keyword , G_REGEX_DECLARE) THEN            
-        AOP_declare(i_indent  => i_indent + 1);    
+        AOP_declare(i_indent    => i_indent + 1
+                   ,i_var_list  => l_var_list);    
         
       WHEN matched_with(l_keyword , G_REGEX_BEGIN) THEN                                                     
         AOP_block(i_indent     => i_indent + 1
                  ,i_nest       => i_nest + 1
-		         ,i_regex_end  => G_REGEX_END_BEGIN);     
+		         ,i_regex_end  => G_REGEX_END_BEGIN
+                 ,i_var_list   => l_var_list);     
                  
       WHEN matched_with(l_keyword , G_REGEX_LOOP) THEN                                                          
         AOP_block(i_indent     => i_indent + 1
                  ,i_nest       => i_nest + 1
-		         ,i_regex_end  => G_REGEX_END_LOOP );                                
+		         ,i_regex_end  => G_REGEX_END_LOOP
+                ,i_var_list    => l_var_list );                                
              
       WHEN matched_with(l_keyword , G_REGEX_CASE) THEN    
 		--inc level +2 due to implied WHEN or ELSE
         AOP_block(i_indent     => i_indent + 2
                  ,i_nest       => i_nest + 1
-		         ,i_regex_end  => G_REGEX_END_CASE||'|'||G_REGEX_END_CASE_EXPR );      
+		         ,i_regex_end  => G_REGEX_END_CASE||'|'||G_REGEX_END_CASE_EXPR
+                 ,i_var_list   => l_var_list );      
 	 
       WHEN matched_with(l_keyword , G_REGEX_IF) THEN    
         AOP_block(i_indent     => i_indent + 1
                  ,i_nest       => i_nest + 1
-		         ,i_regex_end  => G_REGEX_END_IF );
+		         ,i_regex_end  => G_REGEX_END_IF
+                 ,i_var_list   => l_var_list );
 
       WHEN matched_with(l_keyword , G_REGEX_NEUTRAL) THEN
         --Just let it keep going around the loop.
@@ -956,17 +1064,42 @@ BEGIN
 	    l_bind_var := get_next ( i_search      => G_REGEX_BIND_VAR
 		                        ,i_lower       => TRUE
                                 ,i_colour      => G_COLOUR_BIND_VAR);
-		l_bind_var := RTRIM(l_bind_var,':'); 						
+	    --l_bind_var := RTRIM(l_bind_var,':'); 						
 		go_past(';');	
         inject( i_new_code => 'ms_logger.note(l_node,'''||l_bind_var||''','||l_bind_var||');'
         	   ,i_indent   => i_indent
         	   ,i_colour   => G_COLOUR_NOTE);
-			   
+               
+               
+      WHEN matched_with(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN	 
+        -- find assignment of bind variable and inject a note
+        go_upto;	  
+	    l_var := get_next ( i_search      => G_REGEX_VAR
+		                   ,i_lower       => TRUE
+                           ,i_colour      => G_COLOUR_VAR);
+        ms_logger.note(l_node, 'l_var '     ,l_var  );                       
+		--l_var := RTRIM(l_var,':'); 	
+        IF l_var_list.EXISTS(l_var) THEN
+          --This variable exists in the list of scoped variables with compatible types
+          --So we can write a note for it.
+		  go_past(';');	
+          inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
+          	   ,i_indent   => i_indent
+          	   ,i_colour   => G_COLOUR_NOTE);         
+        END IF;
+               
+    
       WHEN matched_with(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN	 	   
 	    --warn of error after WHEN OTHERS THEN	
         inject( i_new_code => 'ms_logger.warn_error(l_node);'
         	   ,i_indent   => i_indent
         	   ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
+               
+      WHEN matched_with(l_keyword ,G_REGEX_WHEN_EXCEPT_THEN) THEN	 	   
+	    --comment the exception after WHEN exception THEN	
+        inject( i_new_code => 'ms_logger.comment(l_node,'''||l_keyword||''');'
+        	   ,i_indent   => i_indent
+        	   ,i_colour   => G_COLOUR_COMMENT);         
  
       ELSE
 	    ms_logger.info(l_node,'No more blocks.');
@@ -991,8 +1124,11 @@ END AOP_block;
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
                       ,i_params         IN CLOB
-                      ,i_indent          IN INTEGER ) IS
+                      ,i_indent         IN INTEGER
+                      ,i_var_list       IN var_list_typ ) IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_block');
+  
+  l_var_list              var_list_typ := i_var_list;
   
 BEGIN
  
@@ -1022,9 +1158,10 @@ inject( i_new_code  => 	'ms_logger.note(l_node,''dbms_utility.format_call_stack'
  end if; 
 */ 
   --First Block is BEGIN 
-  AOP_block(i_indent    => i_indent + 1
-           ,i_nest      => 1
-           ,i_regex_end  => G_REGEX_END_BEGIN  );
+  AOP_block(i_indent     => i_indent + 1
+           ,i_nest       => 1
+           ,i_regex_end  => G_REGEX_END_BEGIN
+           ,i_var_list   => l_var_list  );
   
   --Add extra exception handler
   --add the terminating exception handler of the new surrounding block
@@ -1047,13 +1184,16 @@ END AOP_pu_block;
 --------------------------------------------------------------------------------- 
 -- AOP_prog_units
 ---------------------------------------------------------------------------------
-PROCEDURE AOP_prog_units(i_indent IN INTEGER ) IS
+PROCEDURE AOP_prog_units(i_indent   IN INTEGER
+                        ,i_var_list IN var_list_typ  ) IS
   l_node    ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_prog_units'); 
 
   l_keyword         VARCHAR2(50);
   l_node_type       VARCHAR2(50);
   l_inject_node     VARCHAR2(200);
   l_prog_unit_name  VARCHAR2(30);
+  
+  l_var_list        var_list_typ := i_var_list;
   
   x_language_java_name EXCEPTION;
  
@@ -1113,7 +1253,8 @@ BEGIN
       AOP_is_as(i_prog_unit_name => l_prog_unit_name
                ,i_indent         => i_indent
                ,i_inject_node    => l_inject_node
-    		   ,i_node_type      => l_node_type);
+    		   ,i_node_type      => l_node_type
+               ,i_var_list       => l_var_list);
     	
     EXCEPTION 
       WHEN x_language_java_name THEN
@@ -1200,7 +1341,8 @@ END AOP_prog_units;
     --  A package body which would be similar to procedure or function but with no parameters.
 
 	declare
-	  l_keyword varchar2(50);
+	  l_keyword    varchar2(50);
+      l_var_list   var_list_typ;
 	
 	begin
 	  g_current_pos := 1;
@@ -1215,17 +1357,20 @@ END AOP_prog_units;
 
 	  CASE 
         WHEN matched_with(l_keyword , G_REGEX_DECLARE) THEN
-		  AOP_declare(i_indent => g_initial_indent);
+		  AOP_declare(i_indent   => g_initial_indent
+                     ,i_var_list => l_var_list);
           
         WHEN matched_with(l_keyword , G_REGEX_BEGIN) THEN
 		  AOP_block(i_indent     => g_initial_indent
                    ,i_nest       => 1
-		           ,i_regex_end  => G_REGEX_END_IF);
+		           ,i_regex_end  => G_REGEX_END_IF
+                   ,i_var_list => l_var_list);
 		
         WHEN matched_with(l_keyword , G_REGEX_PROCEDURE
                                ||'|'||G_REGEX_FUNCTION 
                                ||'|'||G_REGEX_PKG_BODY) THEN
-		  AOP_prog_units(i_indent => g_initial_indent );
+		  AOP_prog_units(i_indent   => g_initial_indent
+                        ,i_var_list => l_var_list      );
 
 		ELSE
 		  ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
