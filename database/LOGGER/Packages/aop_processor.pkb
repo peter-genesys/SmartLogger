@@ -75,7 +75,7 @@ create or replace package body aop_processor is
   G_REGEX_END_CASE_EXPR CONSTANT VARCHAR2(50) := '\sEND\W'; 
   G_REGEX_END_IF        CONSTANT VARCHAR2(50) := '\sEND\s+?IF\s*?;';
    
-  G_ANNOTATION          CONSTANT VARCHAR2(50) := '--';
+  --G_REGEX_ANNOTATION          CONSTANT VARCHAR2(50) := '--';
  
   G_REGEX_OPEN         CONSTANT VARCHAR2(200) :=   G_REGEX_DECLARE      
                                             ||'|'||G_REGEX_BEGIN        
@@ -85,10 +85,11 @@ create or replace package body aop_processor is
                                             ;   
   G_REGEX_NEUTRAL      CONSTANT VARCHAR2(200) :=   G_REGEX_ELSE         
                                             ||'|'||G_REGEX_ELSIF
-                                            ||'|'||G_REGEX_WHEN
-                                            ||'|'||G_REGEX_THEN     
+  --                                          ||'|'||G_REGEX_WHEN
+  --                                          ||'|'||G_REGEX_THEN     
                                             ||'|'||G_REGEX_EXCEPTION                                            
-                                            ;             
+                                            ;      
+  G_REGEX_WHEN_OTHERS_THEN          CONSTANT VARCHAR2(50) := '\sWHEN\s+?OTHERS\s+?THEN\s';
  
   G_REGEX_CLOSE        CONSTANT VARCHAR2(200) :=  G_REGEX_END_BEGIN    
                                            ||'|'||G_REGEX_END_LOOP     
@@ -788,12 +789,18 @@ BEGIN
                               ,i_colour      => G_COLOUR_PKG_BEGIN
                               ,i_raise_error => TRUE                              );
  
-  IF matched_with(l_keyword , G_REGEX_BEGIN) OR 
-     i_node_type <> 'new_pkg'                THEN --Packages don't need to have BEGIN.  
+  IF matched_with(l_keyword , G_REGEX_END_BEGIN) and i_node_type = 'new_pkg' THEN
+    --Packages don't need to have BEGIN. 
+	--and in this case we don't need the Initialisation node either, so remove it again.
+	--(This will leave the colour there, but that won't be visible.)
+	g_code := REPLACE(g_code, i_inject_node, ''); 
+ 
+  ELSE
     
     AOP_pu_block(i_prog_unit_name  => i_prog_unit_name
                 ,i_params          => l_inject_params
                 ,i_indent          => i_indent);
+ 		
   END IF;
  
 exception
@@ -828,16 +835,14 @@ BEGIN
 
   ms_logger.note(l_node, 'i_indent    '     ,i_indent     );
   ms_logger.note(l_node, 'i_regex_end '     ,i_regex_end  );
-  
-  
  
-
  
   loop
  
 	l_keyword := get_next_upper( i_search      => G_REGEX_OPEN
                                            ||'|'||G_REGEX_NEUTRAL
                                            ||'|'||G_REGEX_CLOSE
+                                           ||'|'||G_REGEX_WHEN_OTHERS_THEN
                                 ,i_stop        => G_REGEX_START_ANNOTATION --don't colour it
                                            ||'|'||G_REGEX_ASSIGN_TO_BIND_VAR
                                 ,i_colour      => G_COLOUR_BLOCK);
@@ -926,6 +931,12 @@ BEGIN
         inject( i_new_code => 'ms_logger.note(l_node,'''||l_bind_var||''','||l_bind_var||');'
         	   ,i_indent   => i_indent
         	   ,i_colour   => G_COLOUR_NOTE);
+			   
+      WHEN matched_with(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN	 	   
+	    --warn of error after WHEN OTHERS THEN	
+        inject( i_new_code => 'ms_logger.warn_error(l_node);'
+        	   ,i_indent   => i_indent
+        	   ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
  
       ELSE
 	    ms_logger.info(l_node,'No more blocks.');
