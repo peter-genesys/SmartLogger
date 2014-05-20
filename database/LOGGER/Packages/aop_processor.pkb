@@ -724,6 +724,33 @@ exception
     raise; 
  
 END AOP_pu_params;		
+
+
+--------------------------------------------------------------------------------- 
+-- AOP_exceptions - not yet implemented.
+---------------------------------------------------------------------------------
+PROCEDURE AOP_exceptions(i_indent       IN INTEGER) IS
+  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_declare'); 
+BEGIN
+ 
+  --Search for nested WHEN exception_name THEN 
+  --Drop out when final END; is reached.
+  NULL;
+  --AOP_prog_units(i_indent => i_indent + 1);
+  --
+  --AOP_block(i_indent    => i_indent + 1
+  --         ,i_nest      => 1
+  --         ,i_regex_end => G_REGEX_END_BEGIN);
+ 
+exception
+  when others then
+    ms_logger.warn_error(l_node);
+    raise; 
+ 
+END AOP_exceptions;
+
+
+
 		
 --------------------------------------------------------------------------------- 
 -- AOP_declare
@@ -731,9 +758,7 @@ END AOP_pu_params;
 PROCEDURE AOP_declare(i_indent       IN INTEGER) IS
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_declare'); 
 BEGIN
-
-  --go_past('\sDECLARE\s');
-  
+ 
   --Search for nested PROCEDURE and FUNCTION within the declaration section of the block.
   --Drop out when a BEGIN is reached.
  
@@ -742,9 +767,6 @@ BEGIN
   AOP_block(i_indent    => i_indent + 1
            ,i_nest      => 1
            ,i_regex_end => G_REGEX_END_BEGIN);
- 
-  
-  --go_past('\sBEGIN\s');
  
 exception
   when others then
@@ -820,7 +842,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                    ,i_regex_end      IN VARCHAR2 )  IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_block');
   
-  l_keyword               VARCHAR2(50);
+  l_keyword               CLOB;
   l_stashed_comment       VARCHAR2(50);
   l_function              VARCHAR2(30);
   l_bind_var              VARCHAR2(30);
@@ -829,7 +851,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   
   G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) := ':\w+?\W+?:=';
   G_REGEX_BIND_VAR            CONSTANT VARCHAR2(50) := ':\w+?\W';
-  
+  G_REGEX_SHOW_ME_LINE        CONSTANT VARCHAR2(50) :=  '.+--(\@\@)';
   
 BEGIN
 
@@ -843,6 +865,7 @@ BEGIN
                                            ||'|'||G_REGEX_NEUTRAL
                                            ||'|'||G_REGEX_CLOSE
                                            ||'|'||G_REGEX_WHEN_OTHERS_THEN
+                                           ||'|'||G_REGEX_SHOW_ME_LINE    
                                 ,i_stop        => G_REGEX_START_ANNOTATION --don't colour it
                                            ||'|'||G_REGEX_ASSIGN_TO_BIND_VAR
                                 ,i_colour      => G_COLOUR_BLOCK);
@@ -919,7 +942,14 @@ BEGIN
 						           ,i_colour => G_COLOUR_ANNOTATION)
 						 ||l_stashed_comment||''');');
  
-						  
+      WHEN matched_with(l_keyword ,G_REGEX_SHOW_ME_LINE) THEN
+	    --expose this line of code as a comment	
+        inject( i_new_code => 'ms_logger.comment(l_node,'''
+		                    ||SUBSTR(l_keyword,1,LENGTH(l_keyword)-4)  
+							||''');'
+        	   ,i_indent   => i_indent
+        	   ,i_colour   => G_COLOUR_COMMENT);
+ 	  
       WHEN matched_with(l_keyword ,G_REGEX_ASSIGN_TO_BIND_VAR) THEN	 
         -- find assignment of bind variable and inject a note
         go_upto;	  
@@ -976,7 +1006,21 @@ BEGIN
   inject( i_new_code  => i_params
          ,i_indent     => i_indent
 		 ,i_colour    => G_COLOUR_PARAM);
- 
+/*
+--TEMP DEBUGGING ONLY			 
+if 	i_params is not null then	 
+	 
+inject( i_new_code  => 	'ms_logger.note(l_node,''l_node.node_level'',l_node.node_level );'
+       ,i_indent     => i_indent
+	   ,i_colour    => G_COLOUR_NOTE);
+inject( i_new_code  =>  'ms_logger.note(l_node,''l_node.call_stack_level'',l_node.call_stack_level );'
+       ,i_indent     => i_indent
+	   ,i_colour    => G_COLOUR_NOTE);
+inject( i_new_code  => 	'ms_logger.note(l_node,''dbms_utility.format_call_stack'',dbms_utility.format_call_stack);'
+       ,i_indent     => i_indent
+	   ,i_colour    => G_COLOUR_NOTE);
+ end if; 
+*/ 
   --First Block is BEGIN 
   AOP_block(i_indent    => i_indent + 1
            ,i_nest      => 1
@@ -1464,9 +1508,10 @@ BEGIN
    DECLARE
   
    G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
+   G_REGEX_SHOW_ME               CONSTANT VARCHAR2(50) :=  '--(\@\@)';
    G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--..'    ;
    G_REGEX_START_MULTI_COMMENT   CONSTANT VARCHAR2(50) :=  '/\*'    ;
-   G_REGEX_START_QUOTE      CONSTANT VARCHAR2(50) :=  '\'''    ;
+   G_REGEX_START_QUOTE           CONSTANT VARCHAR2(50) :=  '\'''    ;
    G_REGEX_START_ADV_QUOTE  CONSTANT VARCHAR2(50) :=  'q\''\S' ;
  
    G_REGEX_START_COMMENT_OR_QUOTE CONSTANT VARCHAR2(200) := G_REGEX_START_SINGLE_COMMENT  
@@ -1475,10 +1520,10 @@ BEGIN
                                                      ||'|'||G_REGEX_START_ADV_QUOTE;
  
    G_REGEX_SINGLE_LINE_ANNOTATION   CONSTANT VARCHAR2(50)  :=    '.*';
-   G_REGEX_SINGLE_LINE_COMMENT   CONSTANT VARCHAR2(50)  :=    '--.*';
-   G_REGEX_MULTI_LINE_COMMENT    CONSTANT VARCHAR2(50)  :=    '/\*.*?\*/';
-   G_REGEX_MULTI_LINE_QUOTE      CONSTANT VARCHAR2(50)  :=    '\''.*?\''';
-   G_REGEX_MULTI_LINE_ADV_QUOTE  CONSTANT VARCHAR2(100) :=    'q\''\[.*?\]\''|q\''\{.*?\}\''|q\''\(.*?\)\''|q\''\<.*?\>\''|q\''(\S).*?\1\''';
+   G_REGEX_SINGLE_LINE_COMMENT      CONSTANT VARCHAR2(50)  :=    '--.*';
+   G_REGEX_MULTI_LINE_COMMENT       CONSTANT VARCHAR2(50)  :=    '/\*.*?\*/';
+   G_REGEX_MULTI_LINE_QUOTE         CONSTANT VARCHAR2(50)  :=    '\''.*?\''';
+   G_REGEX_MULTI_LINE_ADV_QUOTE     CONSTANT VARCHAR2(100) :=    'q\''\[.*?\]\''|q\''\{.*?\}\''|q\''\(.*?\)\''|q\''\<.*?\>\''|q\''(\S).*?\1\''';
  
     BEGIN
  
@@ -1497,7 +1542,14 @@ BEGIN
             --ANNOTATION          
             go_past;          
             extract_comment(i_mask     => G_REGEX_SINGLE_LINE_ANNOTATION          
-                           ,i_modifier => 'i');           
+                           ,i_modifier => 'i');   
+
+          ELSIF matched_with(l_keyword , G_REGEX_SHOW_ME) THEN                           
+            ms_logger.info(l_node, 'Show Me');         
+            --SHOW ME
+            --Just ignore this till later.			
+            go_past;          
+ 	   
           ELSE
  
             --Just a comment

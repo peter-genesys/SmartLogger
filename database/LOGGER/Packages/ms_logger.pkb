@@ -694,9 +694,26 @@ BEGIN
   --remove from the stack any node with a call_stack_level equal to or greater than the new node.
   --also remove any node that does not have common grandparent
   while f_index > 0 and
-        (i_node.call_stack_level <=           g_nodes(f_index).call_stack_level OR  
-		 i_node.call_stack_hist NOT LIKE '%'||g_nodes(f_index).call_stack_hist )
+        i_node.call_stack_level <=           g_nodes(f_index).call_stack_level --TEMP TEST
+		--OOPS My call_stack_hist clause does not seem to be reliable. Not sure why need to sort out.
+		--There were issues with the SUN.Rep_Pb_Pack package at runtime.
+        --(i_node.call_stack_level <=           g_nodes(f_index).call_stack_level OR   --ORIG
+		-- i_node.call_stack_hist NOT LIKE '%'||g_nodes(f_index).call_stack_hist )     --ORIG
+	    --(i_node.call_stack_level <=           g_nodes(f_index).call_stack_level OR  
+		-- i_node.call_stack_hist NOT LIKE      g_nodes(f_index).call_stack_hist||'%' )
+ 
   loop
+  
+	--comment(i_node,'pop_to_parent_node');
+    --note(i_node,'i_node.unit.unit_name',i_node.unit.unit_name);                         --TESTING ONLY
+    --note(i_node,'i_node.call_stack_level',i_node.call_stack_level);                     --TESTING ONLY
+    --note(i_node,'i_node.call_stack_hist',i_node.call_stack_hist);                       --TESTING ONLY	
+	--note(i_node,'f_index',f_index); 
+    --note(i_node,'g_nodes(f_index).unit.unit_name',g_nodes(f_index).unit.unit_name);     --TESTING ONLY
+	--note(i_node,'g_nodes(f_index).call_stack_level',g_nodes(f_index).call_stack_level); --TESTING ONLY
+	--note(i_node,'g_nodes(f_index).call_stack_hist',g_nodes(f_index).call_stack_hist);   --TESTING ONLY
+  
+  
 	   $if $$intlog $then intlog_note('last call_stack_level',g_nodes(f_index).call_stack_level ); $end
 	   $if $$intlog $then intlog_note('last call_stack_hist' ,g_nodes(f_index).call_stack_hist ); $end
 	   $if $$intlog $then intlog_debug('pop_to_parent_node: removing top node '||f_index );        $end
@@ -723,6 +740,17 @@ BEGIN
         g_nodes(f_index).call_stack_level > i_node.call_stack_level  loop
 	   $if $$intlog $then intlog_note('last call_stack_level',g_nodes(f_index).call_stack_level ); $end
 	   $if $$intlog $then intlog_debug('pop_descendent_nodes: removing top node '||f_index );      $end
+	   
+	--comment(i_node,'pop_descendent_nodes');
+    --note(i_node,'i_node.unit.unit_name',i_node.unit.unit_name);                         --TESTING ONLY
+    --note(i_node,'i_node.call_stack_level',i_node.call_stack_level);                     --TESTING ONLY
+    --note(i_node,'i_node.call_stack_hist',i_node.call_stack_hist);                       --TESTING ONLY	
+	--note(i_node,'f_index',f_index); 
+    --note(i_node,'g_nodes(f_index).unit.unit_name',g_nodes(f_index).unit.unit_name);     --TESTING ONLY
+	--note(i_node,'g_nodes(f_index).call_stack_level',g_nodes(f_index).call_stack_level); --TESTING ONLY
+	--note(i_node,'g_nodes(f_index).call_stack_hist',g_nodes(f_index).call_stack_hist);   --TESTING ONLY
+	   
+	   
        g_nodes.DELETE( f_index );
   end loop;
   $if $$intlog $then intlog_end('pop_descendent_nodes'); $end
