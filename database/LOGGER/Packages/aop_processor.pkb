@@ -108,6 +108,13 @@ create or replace package body aop_processor is
   G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '\s*\w+\s+(IN\s+OUT\s+|IN\s+|OUT\s+)?\w+';
  
   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
+  
+  G_REGEX_STASHED_COMMENT    VARCHAR2(50) := '##comment\d+##';
+  G_REGEX_COMMENT    VARCHAR2(50) := '--""';
+  G_REGEX_INFO       VARCHAR2(50) := '--\?\?';
+  G_REGEX_WARNING    VARCHAR2(50) := '--!!';
+  G_REGEX_FATAL      VARCHAR2(50) := '--##';  
+  
  
   ----------------------------------------------------------------------------
   -- COLOUR CODES
@@ -128,11 +135,12 @@ create or replace package body aop_processor is
   G_COLOUR_EXCEPTION_BLOCK  CONSTANT VARCHAR2(10) := '#FF9933'; 
   G_COLOUR_JAVA             CONSTANT VARCHAR2(10) := '#33CCCC'; 
   G_COLOUR_ANNOTATION       CONSTANT VARCHAR2(10) := '#FFCCFF'; 
-  
+  G_COLOUR_BIND_VAR         CONSTANT VARCHAR2(10) := '#FFFF00';
+  G_COLOUR_NOTE             CONSTANT VARCHAR2(10) := '#00FF99';
  
   
-  FUNCTION matched_with(i_match  IN CLOB
-                       ,i_search IN VARCHAR2) RETURN BOOLEAN IS
+  FUNCTION matched_with(i_match    IN CLOB
+                       ,i_search   IN VARCHAR2 	) RETURN BOOLEAN IS
   BEGIN
     RETURN REGEXP_LIKE(' '||i_match||' ',i_search);
   END;
@@ -142,7 +150,17 @@ create or replace package body aop_processor is
     return (sysdate - g_weave_start_time) * 24 * 60 * 60;
   end;
  
- 
+  FUNCTION f_colour(i_text   IN CLOB
+                   ,i_colour IN VARCHAR2) RETURN CLOB IS
+  BEGIN
+    IF g_for_aop_html AND i_colour IS NOT NULL THEN
+	  RETURN '<span style="background-color:#'||LTRIM(i_colour,'#')||';">'
+	       ||i_text
+		   ||'</span>';
+    ELSE
+	   RETURN i_text;
+	END IF;
+  END;
  
   procedure check_timeout is
   --The timeout is used to protect against infinite recursion or iteration.
@@ -272,17 +290,10 @@ create or replace package body aop_processor is
 	  ms_logger.param(l_node, 'p_colour  '      ,p_colour     );
  
 	  ms_logger.note(l_node, 'g_for_aop_html     '     ,g_for_aop_html     );
-	  IF g_for_aop_html THEN
-	    l_colour := NVL(p_colour, G_COLOUR_SPLICE);
-		ms_logger.note(l_node, 'l_colour     '     ,l_colour     );
-	  END IF;
  
-	  l_new_code := CASE 
-			          WHEN l_colour IS NULL THEN 
-				          p_new_code
-			          ELSE 
-				          '<span style="background-color:#'||LTRIM(l_colour,'#')||';">'||p_new_code||'</span>'
-                    END;
+	  l_new_code := f_colour(i_text   => p_new_code
+	                        ,i_colour => NVL(p_colour, G_COLOUR_SPLICE));
+
       ms_logger.note(l_node, 'l_new_code     '     ,l_new_code     );
 	  
 	  IF p_indent is not null then
@@ -321,14 +332,15 @@ create or replace package body aop_processor is
   --------------------------------------------------------------------
 	
     PROCEDURE inject( i_new_code in varchar2
-					 ,i_indent    in number
+					 ,i_indent   in number
 					 ,i_colour   in varchar2 default null) IS
 	BEGIN
 	  IF i_new_code IS NOT NULL THEN
+	    g_current_pos := g_current_pos - 1;
 	    splice( p_code      => g_code    
 	           ,p_new_code  => i_new_code
 	           ,p_pos       => g_current_pos     
-	           ,p_indent     => i_indent
+	           ,p_indent    => i_indent
                ,p_colour    => i_colour	 );  
 	  END IF;			 
 	END;
@@ -347,12 +359,16 @@ create or replace package body aop_processor is
 FUNCTION get_next(i_search             IN VARCHAR2 DEFAULT NULL
                  ,i_stop               IN VARCHAR2 DEFAULT NULL
                  ,i_modifier           IN VARCHAR2 DEFAULT 'i'
+				 ,i_upper              IN BOOLEAN  DEFAULT FALSE
+                 ,i_lower              IN BOOLEAN  DEFAULT FALSE
 				 ,i_colour             IN VARCHAR2 DEFAULT NULL 
                  ,i_raise_error        IN BOOLEAN  DEFAULT FALSE
-                 ,i_trim  		       IN BOOLEAN  DEFAULT TRUE		 ) return CLOB IS
+                 ,i_trim  		       IN BOOLEAN  DEFAULT TRUE
+                 ,i_sub_expr		   IN POSITIVE DEFAULT NULL	 ) return CLOB IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next');	
   
   l_either_match   VARCHAR2(32000);
+  l_colour_either_match   VARCHAR2(32000);
   l_search_match   VARCHAR2(32000);
   l_result         VARCHAR2(32000);
   l_either         VARCHAR2(32000);
@@ -366,6 +382,7 @@ BEGIN
  
   --Keep the original "either" match
   l_either_match := REGEXP_SUBSTR(g_code,l_either,g_current_pos,1,i_modifier);
+  --l_either_match := REGEXP_SUBSTR(g_code,l_either,g_current_pos,1,i_modifier,i_sub_expr);
   IF i_trim THEN
     l_result := TRIM(REGEXP_REPLACE(l_either_match,'^\s|\s$',''));
   ELSE
@@ -394,58 +411,67 @@ BEGIN
     ms_logger.note(l_node, 'l_search_match IS NOT NULL',l_search_match IS NOT NULL);
     ms_logger.comment(l_node, 'Consuming:' ||l_result);
  
-   --Don't default a colour, that will stuff up the comment extraction routines.
+    --Don't default a colour, that will stuff up the comment extraction routines.
+    
+     
+    l_colour_either_match := f_colour(i_text   => l_either_match	
+	                                 ,i_colour => i_colour);
  
-	IF g_for_aop_html and i_colour is not null THEN
- 
-   	  --USE THE SPLICE ROUTINE HERE..!!
-   	  g_code := SUBSTR(g_code,1,g_upto_pos-1)
-               ||'<span style="background-color:#'||LTRIM(i_colour,'#')||';">'||l_either_match||'</span>'
-               ||SUBSTR(g_code,g_past_pos)  ;
- 
-   	  g_past_pos := g_past_pos + LENGTH('<span style="background-color:#'||LTRIM(i_colour,'#')||';"></span>') - 1;
- 
-    end if;
-  
+    g_code := SUBSTR(g_code,1,g_upto_pos-1)
+            ||l_colour_either_match
+            ||SUBSTR(g_code,g_past_pos)  ;
+	 	   
+    g_past_pos := g_upto_pos + LENGTH(l_colour_either_match);
+    
     g_current_pos := g_past_pos;
   
   end if;
- 
-  RETURN l_result;
+  
+  IF i_upper THEN     
+    RETURN UPPER(l_result);
+  ELSIF i_lower THEN
+    RETURN LOWER(l_result);
+  ELSE
+    RETURN l_result;
+  END IF;	
 END get_next;
 --------------------------------------------------------------------------------- 
--- get_next_lower
+-- get_next_lower - deprecated
 --------------------------------------------------------------------------------- 
 FUNCTION get_next_lower(i_search             IN VARCHAR2 DEFAULT NULL
                        ,i_stop               IN VARCHAR2 DEFAULT NULL
                        ,i_modifier           IN VARCHAR2 DEFAULT 'i'
 				       ,i_colour             IN VARCHAR2 DEFAULT NULL 
                        ,i_raise_error        IN BOOLEAN  DEFAULT FALSE
-                       ,i_trim  		     IN BOOLEAN  DEFAULT TRUE	 ) return CLOB IS 
+                       ,i_trim  		     IN BOOLEAN  DEFAULT TRUE
+                       ,i_sub_expr		     IN POSITIVE DEFAULT NULL	 )return CLOB IS 
 BEGIN
   RETURN LOWER(get_next(i_search      => i_search     
                        ,i_stop        => i_stop       
 					   ,i_modifier    => i_modifier   
 					   ,i_colour      => i_colour     
 					   ,i_raise_error => i_raise_error
-                       ,i_trim        => i_trim	 ));
+                       ,i_trim        => i_trim	
+  					   ,i_sub_expr    => i_sub_expr ));
 END;
 --------------------------------------------------------------------------------- 
--- get_next_upper
+-- get_next_upper - deprecated
 --------------------------------------------------------------------------------- 
 FUNCTION get_next_upper(i_search             IN VARCHAR2 DEFAULT NULL
                        ,i_stop               IN VARCHAR2 DEFAULT NULL
                        ,i_modifier           IN VARCHAR2 DEFAULT 'i'
 				       ,i_colour             IN VARCHAR2 DEFAULT NULL 
                        ,i_raise_error        IN BOOLEAN  DEFAULT FALSE
-                       ,i_trim  		     IN BOOLEAN  DEFAULT TRUE	 ) return CLOB IS 
+                       ,i_trim  		     IN BOOLEAN  DEFAULT TRUE
+                       ,i_sub_expr		     IN POSITIVE DEFAULT NULL	 )return CLOB IS 
 BEGIN
   RETURN UPPER(get_next(i_search      => i_search     
                        ,i_stop        => i_stop       
 					   ,i_modifier    => i_modifier   
 					   ,i_colour      => i_colour     
 					   ,i_raise_error => i_raise_error
-                       ,i_trim        => i_trim	 ));
+                       ,i_trim        => i_trim	
+  					   ,i_sub_expr    => i_sub_expr ));
 END;
 
 --------------------------------------------------------------------------------- 
@@ -454,7 +480,7 @@ END;
 PROCEDURE go(i_search     IN VARCHAR2
             ,i_modifier   IN VARCHAR2 
 			,i_past_prior IN INTEGER
-			,i_offset IN INTEGER DEFAULT 0) IS
+			,i_offset     IN INTEGER DEFAULT 0) IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'go');
   l_new_pos INTEGER;
 BEGIN
@@ -790,13 +816,12 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_keyword               VARCHAR2(50);
   l_stashed_comment       VARCHAR2(50);
   l_function              VARCHAR2(30);
+  l_bind_var              VARCHAR2(30);
+
   
-  G_REGEX_STASHED_COMMENT    VARCHAR2(50) := '##comment\d+##';
- 
-  G_REGEX_COMMENT    VARCHAR2(50) := '--""';
-  G_REGEX_INFO       VARCHAR2(50) := '--\?\?';
-  G_REGEX_WARNING    VARCHAR2(50) := '--!!';
-  G_REGEX_FATAL      VARCHAR2(50) := '--##';  
+  
+  G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) := ':\w+?\W+?:=';
+  G_REGEX_BIND_VAR            CONSTANT VARCHAR2(50) := ':\w+?\W';
   
   
 BEGIN
@@ -814,6 +839,7 @@ BEGIN
                                            ||'|'||G_REGEX_NEUTRAL
                                            ||'|'||G_REGEX_CLOSE
                                 ,i_stop        => G_REGEX_START_ANNOTATION --don't colour it
+                                           ||'|'||G_REGEX_ASSIGN_TO_BIND_VAR
                                 ,i_colour      => G_COLOUR_BLOCK);
  
 	ms_logger.note(l_node, 'l_keyword',l_keyword);
@@ -884,15 +910,23 @@ BEGIN
   
          g_code := REPLACE(g_code
                          , l_keyword||l_stashed_comment
-                         , CASE WHEN g_for_aop_html THEN
-                             '<span style="background-color:'||G_COLOUR_ANNOTATION||';">'
-                           END
-                          ||'ms_logger.'||l_function||'(l_node,'''
-                          ||CASE WHEN g_for_aop_html THEN
-                            '</span>'
-                            END
-                          ||l_stashed_comment||''');');
-  
+                         , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'''
+						           ,i_colour => G_COLOUR_ANNOTATION)
+						 ||l_stashed_comment||''');');
+ 
+						  
+      WHEN matched_with(l_keyword ,G_REGEX_ASSIGN_TO_BIND_VAR) THEN	 
+        -- find assignment of bind variable and inject a note
+        go_upto;	  
+	    l_bind_var := get_next ( i_search      => G_REGEX_BIND_VAR
+		                        ,i_lower       => TRUE
+                                ,i_colour      => G_COLOUR_BIND_VAR);
+		l_bind_var := RTRIM(l_bind_var,':'); 						
+		go_past(';');	
+        inject( i_new_code => 'ms_logger.note(l_node,'''||l_bind_var||''','||l_bind_var||');'
+        	   ,i_indent   => i_indent
+        	   ,i_colour   => G_COLOUR_NOTE);
+ 
       ELSE
 	    ms_logger.info(l_node,'No more blocks.');
 		EXIT;
@@ -1352,20 +1386,14 @@ END AOP_prog_units;
       l_text CLOB;	  
   BEGIN
     FOR l_index in 1..g_comment_stack.count loop
-	  IF g_for_aop_html THEN
-	    l_text := '<span style="background-color:'||G_COLOUR_COMMENT||';">'||g_comment_stack(l_index)||'</span>';
-	  ELSE
-	    l_text := g_comment_stack(l_index);
-      END IF;	  
+	  l_text := f_colour(i_text   => g_comment_stack(l_index)
+	                    ,i_colour => G_COLOUR_COMMENT);
 	  g_code := REPLACE(g_code,'##comment'||l_index||'##',l_text);
 	END LOOP;
   
     FOR l_index in 1..g_quote_stack.count loop
-	  IF g_for_aop_html THEN
-	    l_text := '<span style="background-color:'||G_COLOUR_QUOTE||';">'||g_quote_stack(l_index)||'</span>';
-	  ELSE
-	    l_text := g_quote_stack(l_index);
-      END IF;	
+	  l_text := f_colour(i_text   => g_quote_stack(l_index)
+	                    ,i_colour => G_COLOUR_QUOTE);
 	  g_code := REPLACE(g_code,'##quote'||l_index||'##',l_text);
 	END LOOP;
   END;
