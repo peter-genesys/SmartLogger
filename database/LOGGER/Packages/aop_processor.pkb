@@ -184,7 +184,7 @@ create or replace package body aop_processor is
     --Line Count derived from length of CLOB minus length of CLOB-without-CR
 	l_weave_line_count := LENGTH(g_code) - LENGTH(REPLACE(g_code,chr(10)));
     ms_logger.note(l_node, 'l_weave_line_count ',l_weave_line_count );
-    g_weave_timeout_secs := ROUND(l_weave_line_count/1000*G_TIMEOUT_SECS_PER_1000_LINES);
+    g_weave_timeout_secs := ROUND(l_weave_line_count/1000*G_TIMEOUT_SECS_PER_1000_LINES)+2;
     ms_logger.note(l_node, 'g_weave_timeout_secs ',g_weave_timeout_secs );
 	g_weave_start_time := SYSDATE;
  
@@ -387,6 +387,7 @@ BEGIN
  
   --Keep the original "either" match
   l_either_match := REGEXP_SUBSTR(g_code,l_either,g_current_pos,1,i_modifier);
+  ms_logger.note(l_node, 'l_either_match',l_either_match  );
   --l_either_match := REGEXP_SUBSTR(g_code,l_either,g_current_pos,1,i_modifier,i_sub_expr);
   IF i_trim THEN
     l_result := TRIM(REGEXP_REPLACE(l_either_match,'^\s|\s$',''));
@@ -608,7 +609,7 @@ FUNCTION AOP_pu_params(io_var_list IN OUT var_list_typ) return CLOB is
   l_keyword              CLOB;
   l_bracket              VARCHAR2(50);
   x_out_param            EXCEPTION;
-  x_unhandled_param_type EXCEPTION;
+  x_unsupported_data_type EXCEPTION;
  
   l_bracket_count        INTEGER;
   
@@ -667,14 +668,10 @@ BEGIN
 	  	  ms_logger.note(l_node, 'l_param_name',l_param_name);
 	  	  l_param_type := UPPER(REGEXP_SUBSTR(l_param_line,G_REGEX_WORD,1,2,'i'));  
 	  	  ms_logger.note(l_node, 'l_param_type',l_param_type);
-	  	  IF  l_param_type NOT IN ('NUMBER'
-	  	                          ,'INTEGER'
-	  	  					      ,'BINARY_INTEGER'
-	  	  					      ,'PLS_INTEGER'
-	  	  					      ,'DATE'
-	  						      ,'VARCHAR2'
-	  						      ,'BOOLEAN') then
-		    RAISE x_unhandled_param_type;
+		  
+		  --NOT YET SUPPORTING RECORD TYPES IN PARAMETERS.
+	  	  IF  supported_data_type(i_data_type => l_param_type) = 'N' then
+		    RAISE x_unsupported_data_type;
           END IF;		  
           
           IF l_out_var THEN
@@ -722,7 +719,7 @@ BEGIN
 		    END CASE;	
 		    go_past(i_colour => G_COLOUR_BRACKETS);
 			
-		  END LOOP;
+		  END LOOP; 
  
 	    --NO MORE PARAMS
 		WHEN matched_with(l_keyword , G_REGEX_IS_AS) THEN EXIT;
@@ -736,7 +733,7 @@ BEGIN
     EXCEPTION
 	  WHEN x_out_param THEN  
 	    ms_logger.comment(l_node, 'Skipped OUT param');
-	  WHEN x_unhandled_param_type THEN
+	  WHEN x_unsupported_data_type THEN
 	    ms_logger.comment(l_node, 'Unsupported param type');
 	END;
  
@@ -752,7 +749,7 @@ exception
  
 END AOP_pu_params;		
 
-
+/*
 --------------------------------------------------------------------------------- 
 -- AOP_exceptions - not yet implemented.
 ---------------------------------------------------------------------------------
@@ -775,11 +772,8 @@ exception
     raise; 
  
 END AOP_exceptions;
-
-
-
-
-
+*/
+ 
 
 --------------------------------------------------------------------------------- 
 -- AOP_var_def - Harvests any vars and appends them to the var list.     
@@ -790,19 +784,25 @@ FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
   l_var_list              var_list_typ := i_var_list;
   l_var_def               CLOB;
   G_REGEX_VAR_DEF_LINE    CONSTANT VARCHAR2(200) := 
-    '\s\w+?\s+?(NUMBER|INTEGER|BINARY_INTEGER|PLS_INTEGER|DATE|VARCHAR2|BOOLEAN)';
-  G_REGEX_VAR_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+?)\s+?(\w+?)';
-  G_COLOUR_VAR_LINE       CONSTANT VARCHAR2(10) := '#00CCFF';
+    '\s(\w+?)\s+?(NUMBER|INTEGER|BINARY_INTEGER|PLS_INTEGER|DATE|VARCHAR2|BOOLEAN)';
+  G_REGEX_REC_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := 
+    '\s\w+?\s+?\w+?%ROWTYPE';
+	
+  G_REGEX_VAR_NAME_TYPE       CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)';
+  G_REGEX_REC_VAR_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)%ROWTYPE';
+  G_COLOUR_VAR_LINE           CONSTANT VARCHAR2(10) := '#00CCFF';
   
   l_param_name  VARCHAR2(30);
   l_param_type  VARCHAR2(106);
+  l_table_name  VARCHAR2(30);
  
 BEGIN
   --Search for var_name var_type pairs.
  
   loop
  
-	l_var_def := get_next_upper( i_search      => G_REGEX_VAR_DEF_LINE    
+	l_var_def := get_next_upper( i_search      => G_REGEX_VAR_DEF_LINE 
+                                           ||'|'||G_REGEX_REC_VAR_DEF_LINE	
                                 ,i_stop        => G_REGEX_BEGIN  
                                            ||'|'||G_REGEX_PROG_UNIT
                                 ,i_colour      => G_COLOUR_VAR_LINE);
@@ -811,14 +811,51 @@ BEGIN
  
     CASE 
 	  WHEN matched_with(l_var_def , G_REGEX_VAR_DEF_LINE) THEN 
+	    ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
+	    --LOOKING FOR ATOMIC VARS
         l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',1));
         l_param_type  := REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',2);
+		
+		--l_param_name  := LOWER(REGEXP_SUBSTR(g_code,G_REGEX_VAR_DEF_LINE,g_current_pos,1,'i',1));
+		--l_param_type  := REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_DEF_LINE,g_current_pos,1,'i',2);
+		
         ms_logger.note(l_node, 'l_param_name',l_param_name); 
         ms_logger.note(l_node, 'l_param_type',l_param_type); 
-      
-        l_var_list(l_param_name) := l_param_type;  
-        ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);        
-  
+		
+	    IF supported_data_type(i_data_type => l_param_type) = 'Y' then
+          
+		  --Supported data type so store in the var list.
+          l_var_list(l_param_name) := l_param_type;  
+          ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);     
+ 
+        END IF;	
+ 
+	  WHEN matched_with(l_var_def , G_REGEX_REC_VAR_DEF_LINE) THEN 
+	    ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
+	    --Looking for ROWTYPE VARS
+        l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_NAME_TYPE,1,1,'i',1));
+        l_table_name  := REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_NAME_TYPE,1,1,'i',2);
+ 
+        ms_logger.note(l_node, 'l_param_name',l_param_name); 
+        ms_logger.note(l_node, 'l_table_name',l_table_name); 
+ 
+        --Remember the Record name itself as a var with a type of TABLE_NAME
+        l_var_list(l_param_name) := l_table_name;  
+        ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);   
+		
+		--Also need to add 1 var def for each valid componant of the record type.
+		FOR l_column IN 
+		  (select lower(column_name) column_name
+		         ,data_type
+		   from user_tab_columns
+		   where table_name = l_table_name
+		   and   supported_data_type(i_data_type => data_type) = 'Y') LOOP
+		   
+          l_var_list(l_param_name||'.'||l_column.column_name) := l_column.data_type;  
+          ms_logger.note(l_node, 'l_var_list.count',l_var_list.count); 		   
+		   
+		END LOOP;   
+ 
       ELSE
 	    ms_logger.info(l_node,'No more variables.');
 		EXIT;
@@ -944,10 +981,12 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 
   l_var_list              var_list_typ := i_var_list;
   
+  G_REGEX_ASSIGN_TO_REC_COL   CONSTANT VARCHAR2(50) :=  '\W\w+?\.\w+?\s*?:=';
   G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  '\W\w+?\s*?:='; --matches on both G_REGEX_ASSIGN_TO_VAR and G_REGEX_ASSIGN_TO_BIND_VAR 
   G_REGEX_ASSIGN_TO_VAR       CONSTANT VARCHAR2(50) :=  '\s\w+?\s*?:=';
   G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) :=  ':\w+?\s*?:=';
   G_REGEX_VAR                 CONSTANT VARCHAR2(50) := G_REGEX_WORD;
+  G_REGEX_REC_COL             CONSTANT VARCHAR2(50) := G_REGEX_WORD||'.'||G_REGEX_WORD;
 
   G_REGEX_BIND_VAR            CONSTANT VARCHAR2(50) := ':'||G_REGEX_WORD;
   G_REGEX_SHOW_ME_LINE        CONSTANT VARCHAR2(50) :=  '.+--(\@\@)';
@@ -963,36 +1002,40 @@ BEGIN
  
   loop
  
-	l_keyword := get_next_upper( i_search      => G_REGEX_OPEN
-                                           ||'|'||G_REGEX_NEUTRAL
-                                           ||'|'||G_REGEX_CLOSE
-                                           ||'|'||G_REGEX_WHEN_EXCEPT_THEN
-                                           ||'|'||G_REGEX_WHEN_OTHERS_THEN
-                                           ||'|'||G_REGEX_SHOW_ME_LINE    
-                                ,i_stop        => G_REGEX_START_ANNOTATION --don't colour it
-                                           ||'|'||G_REGEX_ASSIGN_TO_VARS
-                                ,i_colour      => G_COLOUR_BLOCK);
+	l_keyword := get_next_upper(  i_search       => G_REGEX_OPEN
+                                             ||'|'||G_REGEX_NEUTRAL
+                                             ||'|'||G_REGEX_CLOSE
+                                             ||'|'||G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
+                                             ||'|'||G_REGEX_SHOW_ME_LINE    	
+                                , i_stop         => G_REGEX_START_ANNOTATION --don't colour it
+                                             ||'|'||G_REGEX_ASSIGN_TO_REC_COL
+                                             ||'|'||G_REGEX_ASSIGN_TO_VARS
+                                ,i_colour        => G_COLOUR_BLOCK);
  
 	ms_logger.note(l_node, 'l_keyword',l_keyword);
  
     CASE 
-	  WHEN matched_with(l_keyword , G_REGEX_DECLARE) THEN            
+	  WHEN matched_with(l_keyword , G_REGEX_DECLARE) THEN     
+        ms_logger.info(l_node, 'Declare');	  
         AOP_declare(i_indent    => i_indent + 1
                    ,i_var_list  => l_var_list);    
         
-      WHEN matched_with(l_keyword , G_REGEX_BEGIN) THEN                                                     
+      WHEN matched_with(l_keyword , G_REGEX_BEGIN) THEN    
+        ms_logger.info(l_node, 'Begin');		  
         AOP_block(i_indent     => i_indent + 1
                  ,i_nest       => i_nest + 1
 		         ,i_regex_end  => G_REGEX_END_BEGIN
                  ,i_var_list   => l_var_list);     
                  
-      WHEN matched_with(l_keyword , G_REGEX_LOOP) THEN                                                          
+      WHEN matched_with(l_keyword , G_REGEX_LOOP) THEN   
+        ms_logger.info(l_node, 'Loop');	
         AOP_block(i_indent     => i_indent + 1
                  ,i_nest       => i_nest + 1
 		         ,i_regex_end  => G_REGEX_END_LOOP
                 ,i_var_list    => l_var_list );                                
              
-      WHEN matched_with(l_keyword , G_REGEX_CASE) THEN    
+      WHEN matched_with(l_keyword , G_REGEX_CASE) THEN   
+        ms_logger.info(l_node, 'Case');	
 		--inc level +2 due to implied WHEN or ELSE
         AOP_block(i_indent     => i_indent + 2
                  ,i_nest       => i_nest + 1
@@ -1000,12 +1043,14 @@ BEGIN
                  ,i_var_list   => l_var_list );      
 	 
       WHEN matched_with(l_keyword , G_REGEX_IF) THEN    
+        ms_logger.info(l_node, 'If');	
         AOP_block(i_indent     => i_indent + 1
                  ,i_nest       => i_nest + 1
 		         ,i_regex_end  => G_REGEX_END_IF
                  ,i_var_list   => l_var_list );
 
       WHEN matched_with(l_keyword , G_REGEX_NEUTRAL) THEN
+        ms_logger.info(l_node, 'Neutral');	
         --Just let it keep going around the loop.
         NULL;
         
@@ -1051,6 +1096,7 @@ BEGIN
 						 ||l_stashed_comment||''');');
  
       WHEN matched_with(l_keyword ,G_REGEX_SHOW_ME_LINE) THEN
+	    ms_logger.info(l_node, 'Show Me');
 	    --expose this line of code as a comment	
         inject( i_new_code => 'ms_logger.comment(l_node,'''
 		                    ||SUBSTR(l_keyword,1,LENGTH(l_keyword)-4)  
@@ -1059,6 +1105,7 @@ BEGIN
         	   ,i_colour   => G_COLOUR_COMMENT);
  	  
       WHEN matched_with(l_keyword ,G_REGEX_ASSIGN_TO_BIND_VAR) THEN	 
+	    ms_logger.info(l_node, 'Assign Bind Var');
         -- find assignment of bind variable and inject a note
         go_upto;	  
 	    l_bind_var := get_next ( i_search      => G_REGEX_BIND_VAR
@@ -1066,36 +1113,94 @@ BEGIN
                                 ,i_colour      => G_COLOUR_BIND_VAR);
 	    --l_bind_var := RTRIM(l_bind_var,':'); 						
 		go_past(';');	
-        inject( i_new_code => 'ms_logger.note(l_node,'''||l_bind_var||''','||l_bind_var||');'
-        	   ,i_indent   => i_indent
-        	   ,i_colour   => G_COLOUR_NOTE);
+		
+		IF l_var_list.EXISTS(l_var) THEN
+          inject( i_new_code => 'ms_logger.note(l_node,'''||l_bind_var||''','||l_bind_var||');'
+          	   ,i_indent   => i_indent
+          	   ,i_colour   => G_COLOUR_NOTE);
+        END IF;
                
-               
-      WHEN matched_with(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN	 
+      WHEN matched_with(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN	
+        ms_logger.info(l_node, 'Assign Var');	  
         -- find assignment of bind variable and inject a note
         go_upto;	  
 	    l_var := get_next ( i_search      => G_REGEX_VAR
 		                   ,i_lower       => TRUE
                            ,i_colour      => G_COLOUR_VAR);
         ms_logger.note(l_node, 'l_var '     ,l_var  );                       
-		--l_var := RTRIM(l_var,':'); 	
+		--l_var := RTRIM(l_var,':'); 
+        go_past(';');
+		
         IF l_var_list.EXISTS(l_var) THEN
-          --This variable exists in the list of scoped variables with compatible types
-          --So we can write a note for it.
-		  go_past(';');	
-          inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
-          	   ,i_indent   => i_indent
-          	   ,i_colour   => G_COLOUR_NOTE);         
+          --This variable exists in the list of scoped variables with compatible types		
+		  ms_logger.comment(l_node, 'Scoped Var');
+		  ms_logger.note(l_node,'l_var_list(l_var)',l_var_list(l_var));
+		  IF supported_data_type(i_data_type => l_var_list(l_var)) = 'Y' THEN
+		    --Data type is supported.
+            ms_logger.comment(l_node, 'Data type is supported');
+            --So we can write a note for it.
+            inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
+            	   ,i_indent   => i_indent
+            	   ,i_colour   => G_COLOUR_NOTE); 
+          ELSE
+		    ms_logger.comment(l_node, 'Data type is TABLE_NAME');
+		    --Data type is unsupported so it is the name of a table instead.
+			--Now write a note for each supported column.
+			ms_logger.comment(l_node, 'Data type is supported');
+		    --Also need to add 1 var def for each valid componant of the record type.
+		    FOR l_column IN 
+		      (select lower(column_name) column_name
+		             ,data_type
+		       from user_tab_columns
+		       where table_name = l_var_list(l_var)
+		       and   supported_data_type(i_data_type => data_type) = 'Y') LOOP
+		       
+			   ms_logger.note(l_node,'l_var.l_column.column_name',l_var||'.'||l_column.column_name);
+			   
+               inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||'.'||l_column.column_name||''','||l_var||'.'||l_column.column_name||');'
+               	      ,i_indent   => i_indent
+               	      ,i_colour   => G_COLOUR_NOTE); 
+ 
+              --l_var_list(l_param_name||'.'||l_column.column_name) := l_column.data_type;  
+              --ms_logger.note(l_node, 'l_var_list.count',l_var_list.count); 		   
+		       
+		    END LOOP;  
+ 
+		  END IF;
+
+			   
         END IF;
-               
+ 	   
+      WHEN matched_with(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN	 
+        -- find assignment of rec.column variable and inject a note
+		ms_logger.info(l_node, 'Assign Record.Column');
+        go_upto;	  
+	    l_var := get_next( i_search      => G_REGEX_REC_COL
+		                  ,i_lower       => TRUE
+                          ,i_colour      => G_COLOUR_VAR);
+        ms_logger.note(l_node, 'l_var '     ,l_var  );                       
+		--l_var := RTRIM(l_var,':'); 
+		go_past(';');	
+		
+        IF l_var_list.EXISTS(l_var) THEN
+          --Tab Column rec variable exists 
+		  ms_logger.note(l_node,'l_var',l_var);
+          inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
+          	     ,i_indent   => i_indent
+          	     ,i_colour   => G_COLOUR_NOTE);         
+        END IF;
+ 
+	  --NEED TO DO TABLE.COLUMN%TYPE TOO.		   
     
-      WHEN matched_with(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN	 	   
+      WHEN matched_with(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN	 
+        ms_logger.info(l_node, 'WHEN OTHERS THEN');	  
 	    --warn of error after WHEN OTHERS THEN	
         inject( i_new_code => 'ms_logger.warn_error(l_node);'
         	   ,i_indent   => i_indent
         	   ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
                
-      WHEN matched_with(l_keyword ,G_REGEX_WHEN_EXCEPT_THEN) THEN	 	   
+      WHEN matched_with(l_keyword ,G_REGEX_WHEN_EXCEPT_THEN) THEN	
+        ms_logger.info(l_node, 'WHEN_EXCEPT_THEN');	  	  
 	    --comment the exception after WHEN exception THEN	
         inject( i_new_code => 'ms_logger.comment(l_node,'''||l_keyword||''');'
         	   ,i_indent   => i_indent
@@ -1357,6 +1462,7 @@ END AOP_prog_units;
 
 	  CASE 
         WHEN matched_with(l_keyword , G_REGEX_DECLARE) THEN
+		  go_past(G_REGEX_DECLARE);
 		  AOP_declare(i_indent   => g_initial_indent
                      ,i_var_list => l_var_list);
           

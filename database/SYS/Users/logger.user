@@ -21,6 +21,8 @@ grant create synonym to logger;
 grant create sequence to logger;
 grant create view to logger;
 
+grant select on DBA_TAB_COLUMNS to logger;
+ 
 -- QUOTAS
 ALTER USER logger QUOTA UNLIMITED ON USERS;
 

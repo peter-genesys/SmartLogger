@@ -1,5 +1,4 @@
-
-  CREATE OR REPLACE PACKAGE BODY "LOGGER"."AOP_TEST" is
+CREATE OR REPLACE PACKAGE BODY "LOGGER"."AOP_TEST" is
   --@AOP_LOG
 
     g number;
@@ -14,16 +13,20 @@
       l_temp varchar2(1);
       x number;
       f integer;
+      l_unit ms_unit%ROWTYPE;
     begin
+      l_unit.unit_name := 'X';
+
+      l_unit := l_unit;
       null;
       ms_feedback.comment('anon block1');
-      :x:= 1;
-      :x := 1;
-      :x  := 1;
+      --:x:= 1;
+      --:x := 1;
+      --:x  := 1;
       x:= 2;
       x := 2;
       x  := 2;
-      hello:= 23;
+      --hello:= 23;
       f:=3;
       g:= 4 ;
 
@@ -37,7 +40,7 @@
         l_var varchar2(32000);
       begin
         
-        x:= 4 ;
+        --x:= 4 ;
         l_var := q'[
 with event_details as (
 select q.*
@@ -182,7 +185,7 @@ where max_event_date >= :i_min_qa_date
 
    o_param23:= 1;
    io_param24:= 2;
-   i_param25:= 4;
+   --i_param25:= 4;
    
 
 
@@ -199,3 +202,4 @@ where max_event_date >= :i_min_qa_date
   --This is a single comment with an active multi-line comment close */
 
 end;
+/
