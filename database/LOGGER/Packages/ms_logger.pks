@@ -4,6 +4,7 @@ create or replace package ms_logger is
 -- Node Typ API functions (Public)
 ------------------------------------------------------------------------
 
+ 
 TYPE ref_list IS TABLE OF ms_reference%ROWTYPE INDEX BY BINARY_INTEGER;  
   
 TYPE node_typ IS RECORD
@@ -218,6 +219,13 @@ PROCEDURE new_process(i_module_name  IN VARCHAR2 DEFAULT NULL
                      ,i_unit_name    IN VARCHAR2 DEFAULT NULL
                      ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
                      ,i_comments     IN VARCHAR2 DEFAULT NULL);
+ 
+ 
+------------------------------------------------------------------------
+-- process_ref_cursor
+------------------------------------------------------------------------
+
+FUNCTION process_ref_cursor RETURN SYS_REFCURSOR;
  
  
 END;

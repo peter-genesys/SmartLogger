@@ -1142,6 +1142,44 @@ BEGIN
   RETURN l_result;
 END f_user_source;
 
+
+--------------------------------------------------------------------
+--f_dba_source
+--returns user_source record from user_source table
+--------------------------------------------------------------------
+
+FUNCTION f_dba_source( i_owner   IN   VARCHAR2
+                       ,i_name   IN   VARCHAR2
+                       ,i_type   IN   VARCHAR2
+                       ,i_line   IN   NUMBER)
+  RETURN dba_source%ROWTYPE IS
+  CURSOR cu_dba_source(
+    c_owner  VARCHAR2
+   ,c_name   VARCHAR2
+   ,c_type   VARCHAR2
+   ,c_line   NUMBER) IS
+    SELECT *
+      FROM dba_source
+     WHERE OWNER = c_owner
+       AND NAME = c_name
+       AND TYPE = c_type
+       AND line = c_line;
+
+  l_result   dba_source%ROWTYPE;
+BEGIN
+  OPEN cu_dba_source(c_owner => i_owner 
+                    , c_name  => i_name
+                    , c_type  => i_type
+                    , c_line  => i_line);
+
+  FETCH cu_dba_source
+   INTO l_result;
+
+  CLOSE cu_dba_source;
+
+  RETURN l_result;
+END f_dba_source;
+
 --------------------------------------------------------------------
 --warn_user_source_error_lines
 --write user source lines as warnings.
@@ -1160,7 +1198,7 @@ PROCEDURE warn_user_source_error_lines( i_node       IN ms_logger.node_typ
   l_error_line   NUMBER;
 
   l_result       VARCHAR2(4000);
-  l_user_source  user_source%ROWTYPE;
+  l_dba_source  dba_source%ROWTYPE;
   l_line_numbersYN VARCHAR2(1) := 'Y';
    
   l_message  VARCHAR2(2000);
@@ -1187,7 +1225,8 @@ BEGIN
 
   FOR l_line IN l_error_line - i_prev_lines .. l_error_line + i_post_lines LOOP
   
-    l_user_source := f_user_source( i_name => l_package_name
+    l_dba_source := f_dba_source(  i_owner => USER
+	                               ,i_name => l_package_name
                                    ,i_type => 'PACKAGE BODY'
                                    ,i_line => l_line);
  
@@ -1198,7 +1237,7 @@ BEGIN
       l_line_no := NULL;
     END IF;
  
-	l_message := l_line_no||' '||RTRIM(l_user_source.text,chr(10));
+	l_message := l_line_no||' '||RTRIM(l_dba_source.text,chr(10));
 	
 	if l_line = l_error_line then
 	  warning(i_node,l_message);
@@ -2088,6 +2127,32 @@ BEGIN
 
 END raise_fatal; 
 */
+
+ 
+------------------------------------------------------------------------
+-- process_ref_cursor
+------------------------------------------------------------------------
+
+FUNCTION process_ref_cursor RETURN SYS_REFCURSOR IS
+
+  cu_process_report SYS_REFCURSOR;
+  
+BEGIN
+  OPEN cu_process_report FOR 
+    SELECT lpad('+ ',(level-1)*2,'+ ')
+    ||module_name||'.'
+    ||unit_name
+    ||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_reference where traversal_id = t.traversal_id)
+    ||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id) as text
+    FROM ms_unit_traversal_vw t
+    WHERE process_id = g_process_id
+    START WITH parent_traversal_id IS NULL
+    CONNECT BY PRIOR traversal_id = parent_traversal_id
+    ORDER SIBLINGS BY traversal_id ;
+ 
+  RETURN cu_process_report;
+END;
+ 
   
 end;
 /

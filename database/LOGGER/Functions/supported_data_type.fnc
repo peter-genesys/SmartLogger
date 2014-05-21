@@ -5,10 +5,13 @@
   BEGIN   
     IF i_data_type IN ('NUMBER'
 	                  ,'INTEGER'
+					  ,'POSITIVE'
 	   			      ,'BINARY_INTEGER'
 	   			      ,'PLS_INTEGER'
 	   			      ,'DATE'
        			      ,'VARCHAR2'
+					  ,'VARCHAR'
+					  ,'CHAR'
        			      ,'BOOLEAN') then
       RETURN 'Y';
 	ELSE
