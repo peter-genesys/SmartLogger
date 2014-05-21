@@ -787,14 +787,19 @@ FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
     '\s(\w+?)\s+?(NUMBER|INTEGER|BINARY_INTEGER|PLS_INTEGER|DATE|VARCHAR2|BOOLEAN)';
   G_REGEX_REC_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := 
     '\s\w+?\s+?\w+?%ROWTYPE';
+  G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := 
+    '\s\w+?\s+?\w+?\.\w+?%TYPE';
+	
 	
   G_REGEX_VAR_NAME_TYPE       CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)';
   G_REGEX_REC_VAR_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)%ROWTYPE';
+  G_REGEX_TAB_COL_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)\.(\w+)%TYPE';
   G_COLOUR_VAR_LINE           CONSTANT VARCHAR2(10) := '#00CCFF';
   
   l_param_name  VARCHAR2(30);
   l_param_type  VARCHAR2(106);
   l_table_name  VARCHAR2(30);
+  l_column_name VARCHAR2(30);
  
 BEGIN
   --Search for var_name var_type pairs.
@@ -803,6 +808,7 @@ BEGIN
  
 	l_var_def := get_next_upper( i_search      => G_REGEX_VAR_DEF_LINE 
                                            ||'|'||G_REGEX_REC_VAR_DEF_LINE	
+                                           ||'|'||G_REGEX_TAB_COL_VAR_DEF_LINE
                                 ,i_stop        => G_REGEX_BEGIN  
                                            ||'|'||G_REGEX_PROG_UNIT
                                 ,i_colour      => G_COLOUR_VAR_LINE);
@@ -855,6 +861,30 @@ BEGIN
           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count); 		   
 		   
 		END LOOP;   
+		
+	  WHEN matched_with(l_var_def , G_REGEX_TAB_COL_VAR_DEF_LINE) THEN 
+	    ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
+        l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',1));
+		l_table_name    :=       REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',2);
+        l_column_name   :=       REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',3);
+		
+        ms_logger.note(l_node, 'l_param_name' ,l_param_name); 
+        ms_logger.note(l_node, 'l_table_name' ,l_table_name); 
+        ms_logger.note(l_node, 'l_column_name',l_column_name); 		
+		
+		--Also need to add 1 var def for each valid componant of the record type.
+		FOR l_column IN 
+		  (select lower(column_name) column_name
+		         ,data_type
+		   from user_tab_columns
+		   where table_name =  l_table_name
+		   and   column_name = l_column_name
+		   and   supported_data_type(i_data_type => data_type) = 'Y') LOOP
+		   
+          l_var_list(l_param_name) := l_column.data_type;  
+          ms_logger.note(l_node, 'l_var_list.count',l_var_list.count); 		   
+		   
+		END LOOP; 
  
       ELSE
 	    ms_logger.info(l_node,'No more variables.');

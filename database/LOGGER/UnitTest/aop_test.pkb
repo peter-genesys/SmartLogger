@@ -14,9 +14,11 @@ CREATE OR REPLACE PACKAGE BODY "LOGGER"."AOP_TEST" is
       x number;
       f integer;
       l_unit ms_unit%ROWTYPE;
-    begin
-      l_unit.unit_name := 'X';
+      l_unit_name ms_unit.unit_name%TYPE;      
 
+    begin
+      l_unit_name := 'X';
+      l_unit.unit_name := 'X';
       l_unit := l_unit;
       null;
       ms_feedback.comment('anon block1');
