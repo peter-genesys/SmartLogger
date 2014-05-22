@@ -45,7 +45,7 @@ SELECT  message_id
 	   ,r.value
 	   ,r.descr  
        ,0                                                                     --msg_level comment	
-       ,DECODE(r.param_ind,'Y','Param ','Note')                               --msg_type		   
+       ,DECODE(r.param_ind,'Y','Param','Note')                               --msg_type		   
        ,null                                                                  --time_now
        ,ms_metacode.msg_level_string(0)                                       --msg_level_text
 FROM ms_reference r

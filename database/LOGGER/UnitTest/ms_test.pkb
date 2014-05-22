@@ -400,12 +400,12 @@ END f_elapsed_time;
 	ms_logger.note(l_node,'l_node.call_stack_hist',l_node.call_stack_hist );
 	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
 
- 
+    msg_mode_node(i_node_count => 5); 
     max_nest_test(i_node_count => 5);
 
     max_nest_test(i_node_count => 25);
 	
-    msg_mode_node(i_node_count => 5);
+
 
   EXCEPTION
     WHEN OTHERS THEN

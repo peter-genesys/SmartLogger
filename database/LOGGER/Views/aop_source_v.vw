@@ -12,6 +12,11 @@ select
 ,aop.load_datetime        aop_load_datetime
 ,aop_html.text            html_text  
 ,aop_html.load_datetime   html_load_datetime  
+,decode((select count(1) 
+        from dba_source 
+		where NAME = orig.name 
+		and type = orig.type 
+		and text like '%--Logging by AOP_PROCESSOR%'),0,'No','Yes') using_aop
 from aop_source orig
     ,aop_source aop
 	,aop_source aop_html
@@ -22,3 +27,5 @@ and   NVL(aop.aop_ver,'AOP') = 'AOP'
 and   orig.name = aop_html.name  
 and   orig.type = aop_html.type  
 and   NVL(aop_html.aop_ver,'AOP_HTML') = 'AOP_HTML';
+
+

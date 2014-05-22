@@ -204,8 +204,6 @@ PROCEDURE  set_unit_normal(i_module_name IN VARCHAR2
 
 PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
                          ,i_unit_name   IN VARCHAR2 );
-					   
- 
  
 ------------------------------------------------------------------------
 -- Internal debugging routines (public)
@@ -222,11 +220,13 @@ PROCEDURE new_process(i_module_name  IN VARCHAR2 DEFAULT NULL
  
  
 ------------------------------------------------------------------------
--- process_ref_cursor
+-- get_plain_text_process_report
 ------------------------------------------------------------------------
-
-FUNCTION process_ref_cursor RETURN SYS_REFCURSOR;
- 
+FUNCTION get_plain_text_process_report RETURN CLOB;
+------------------------------------------------------------------------
+-- get_html_process_report
+------------------------------------------------------------------------
+FUNCTION get_html_process_report RETURN CLOB;
  
 END;
 /
