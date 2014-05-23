@@ -1,0 +1,2 @@
+ create synonym dba_source for sys.dba_source;
+ 
