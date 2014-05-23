@@ -36,6 +36,7 @@
 @application/pages/page_00021.sql
 @application/pages/page_00022.sql
 @application/pages/page_00023.sql
+@application/pages/page_00024.sql
 @application/pages/page_00101.sql
 @application/shared_components/navigation/breadcrumbs.sql
 @application/shared_components/user_interface/templates/page/login.sql

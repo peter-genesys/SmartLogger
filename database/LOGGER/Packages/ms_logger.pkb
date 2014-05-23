@@ -608,10 +608,15 @@ BEGIN
   END IF;
 END f_tf;
 
+----------------------------------------------------------------------
+-- EXPOSED FOR THE MS_API
+----------------------------------------------------------------------
+
+FUNCTION f_process_id RETURN INTEGER IS
+BEGIN
+  RETURN g_process_id;
+END f_process_id;
  
-----------------------------------------------------------------------
--- DERIVATION RULES (private)
-----------------------------------------------------------------------
 FUNCTION f_process_is_closed RETURN BOOLEAN IS
 BEGIN
   RETURN g_process_id IS NULL;
@@ -620,7 +625,13 @@ END f_process_is_closed;
 FUNCTION f_process_is_open RETURN BOOLEAN IS
 BEGIN
   RETURN NOT f_process_is_closed;
-END f_process_is_open;
+END f_process_is_open; 
+ 
+ 
+----------------------------------------------------------------------
+-- DERIVATION RULES (private)
+----------------------------------------------------------------------
+
 
  
  
@@ -2128,152 +2139,6 @@ BEGIN
 END raise_fatal; 
 */
 
- 
-------------------------------------------------------------------------
--- get_plain_text_process_report
-------------------------------------------------------------------------
- 
-FUNCTION get_plain_text_process_report RETURN CLOB IS
-  l_report CLOB;
-BEGIN
- 
-	FOR l_line IN (SELECT lpad('+ ',(level-1)*2,'+ ')
-                         ||module_name||'.'
-                         ||unit_name
-                         ||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_reference where traversal_id = t.traversal_id)
-                         ||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id) as text
-                   FROM ms_unit_traversal_vw t
-                   WHERE process_id = g_process_id
-                   START WITH parent_traversal_id IS NULL
-                   CONNECT BY PRIOR traversal_id = parent_traversal_id
-                   ORDER SIBLINGS BY traversal_id) LOOP
-	
-	 
-	  l_report := l_report ||chr(10)||l_line.text;
-
-	END LOOP;  
- 
-  RETURN l_report;
-
-END;
- 
-------------------------------------------------------------------------
--- get_html_process_report
-------------------------------------------------------------------------
-FUNCTION get_html_process_report RETURN CLOB IS
-
-  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_html_process_report');
-  l_report CLOB;
-  
-  G_COLOUR_PROG_UNIT  VARCHAR2(10) := '#6699FF';
-  G_COLOUR_NOTE       VARCHAR2(10) := '#FFFF99';
-  G_COLOUR_PARAM      VARCHAR2(10) := '#FF9999';
-  G_COLOUR_COMMENT    VARCHAR2(10) := '#99FF99';
-  G_COLOUR_INFO       VARCHAR2(10) := '#CCFF99';
-  G_COLOUR_WARNING    VARCHAR2(10) := '#FF6600';
-  G_COLOUR_ERROR      VARCHAR2(10) := '#FF0000';
-  
-  l_colour            VARCHAR2(10);  
-  
-  PROCEDURE write(i_line IN VARCHAR2 DEFAULT NULL) IS
-
-    l_node ms_logger.node_typ := ms_logger.new_proc($$plsql_unit ,'write');
- 
-  begin --write
-    ms_logger.param(l_node,'i_line',i_line);
-
- BEGIN
-    l_report := l_report ||i_line;
-  END;
-  exception
-    when others then
-      ms_logger.warn_error(l_node);
-      raise;
-  end; --write
-
-  
-  
-begin --get_html_process_report
-
-BEGIN
-
-
-
-  write('<HTML><BODY>');
-  write('<BR><BR>');
-  write(htf.tableopen(cattributes => 'width="1200px"'));
-  
-  --Level Unit Name    Name   Value   Message  Time 
-  write(htf.tablerowopen);
-    write(htf.tableheader('Level Unit Name'));
-	write(htf.tableheader('Name'));
-	write(htf.tableheader('Value'));
-	write(htf.tableheader('Message'));
-	write(htf.tableheader('Time'   ,cnowrap=> 'Y'));
-  write(htf.tablerowclose);
- 
-	FOR l_line IN (
-	   select a.* 
-             ,m.MESSAGE_ID
-             ,decode(instr(m.MESSAGE,chr(10)),0,m.MESSAGE,'<PRE>'||m.MESSAGE||'</PRE>')     MESSAGE
-             ,m.MSG_LEVEL
-             ,m.MSG_TYPE
-             ,to_char(m.TIME_NOW,'DD-Mon-YYYY HH24:MI:SS') time_now
-             ,m.MSG_LEVEL_TEXT
-             ,m.name
-             ,m.value
-             ,m.descr
-       from (
-       select level
-               ,ut.*
-             ,'<span style="padding-left:'||LEVEL*10||'px;">'||ut.unit_name||'</span>' level_unit_name
-         from ms_unit_traversal_vw ut
-		 WHERE process_id = g_process_id 
-         start with ut.PARENT_TRAVERSAL_ID IS NULL
-         connect by prior ut.TRAVERSAL_ID = ut.PARENT_TRAVERSAL_ID
-         order siblings by ut.TRAVERSAL_ID) a
-         ,ms_message_vw m
-       where m.traversal_id = a.traversal_id
-	   order by message_id
-	 ) LOOP
-	
-	   IF    l_line.MSG_TYPE       = 'Note'                      THEN l_colour := G_COLOUR_NOTE;
-	   ELSIF l_line.MSG_TYPE       = 'Param'                     THEN l_colour := G_COLOUR_PARAM;   
-	   ELSIF l_line.MSG_LEVEL_TEXT = 'Comment'                   THEN l_colour := G_COLOUR_COMMENT;  
-	   ELSIF l_line.MSG_LEVEL_TEXT = 'Info'                      THEN l_colour := G_COLOUR_INFO;
-	   ELSIF l_line.MSG_LEVEL_TEXT = 'Warning !'                 THEN l_colour := G_COLOUR_WARNING;
-	   ELSIF l_line.MSG_LEVEL_TEXT IN ('Oracle Error','Fatal !') THEN l_colour := G_COLOUR_ERROR;
-	   ELSE  l_colour := '#660066';
-	   END IF; 	
-	   
-     --Level Unit Name    Name   Value   Message  Time_Now
-     write(htf.tablerowopen);
-       write(htf.tabledata('<span style="background-color:'||G_COLOUR_PROG_UNIT||';">'||l_line.Level_Unit_Name||'</span>'));
-	   write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Name           ||'</span>'));
-	   write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Value          ||'</span>'));
-	   write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Message        ||'</span>'));
-	   write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Time_Now       ||'</span>',cnowrap=> 'Y'));
-     write(htf.tablerowclose);
- 
-  
-	END LOOP;  
- 
-   write(htf.tableclose);
-   write('</BODY></HTML>');
- 
-  RETURN l_report;
-
-END;
-exception
-  when others then
-    ms_logger.warn_error(l_node);
-    raise;
-end; --get_html_process_report
-
- 
- 
- 
- 
  
   
 end;

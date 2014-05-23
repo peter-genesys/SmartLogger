@@ -219,14 +219,15 @@ PROCEDURE new_process(i_module_name  IN VARCHAR2 DEFAULT NULL
                      ,i_comments     IN VARCHAR2 DEFAULT NULL);
  
  
-------------------------------------------------------------------------
--- get_plain_text_process_report
-------------------------------------------------------------------------
-FUNCTION get_plain_text_process_report RETURN CLOB;
-------------------------------------------------------------------------
--- get_html_process_report
-------------------------------------------------------------------------
-FUNCTION get_html_process_report RETURN CLOB;
+----------------------------------------------------------------------
+-- EXPOSED FOR THE MS_API
+----------------------------------------------------------------------
+
+FUNCTION f_process_id RETURN INTEGER; 
+
+FUNCTION f_process_is_closed RETURN BOOLEAN;
+
+FUNCTION f_process_is_open RETURN BOOLEAN;
  
 END;
 /

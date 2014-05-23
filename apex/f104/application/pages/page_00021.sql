@@ -25,7 +25,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140519172916'
+ ,p_last_upd_yyyymmddhh24miss => '20140520091356'
   );
 null;
  
@@ -154,7 +154,7 @@ wwv_flow_api.create_page_button(
   p_button_sequence=> 30,
   p_button_plug_id => 2773731843441189+wwv_flow_api.g_id_offset,
   p_button_name    => 'NEXT',
-  p_button_action  => 'SUBMIT',
+  p_button_action  => 'DEFINED_BY_DA',
   p_button_is_hot=>'N',
   p_button_image_alt=> 'Next >',
   p_button_position=> 'REGION_TEMPLATE_NEXT',
@@ -236,6 +236,9 @@ end;
 declare
     h varchar2(32767) := null;
 begin
+h := null;
+h:=h||'Package Name or Report Name';
+
 wwv_flow_api.create_page_item(
   p_id=>2910919872910094 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
@@ -248,7 +251,7 @@ wwv_flow_api.create_page_item(
   p_item_plug_id => 2773731843441189+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'YES',
   p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
-  p_prompt=>'Package Name',
+  p_prompt=>'Module Name',
   p_source_type=> 'STATIC',
   p_display_as=> 'NATIVE_TEXT_FIELD',
   p_lov_display_null=> 'NO',
@@ -269,6 +272,8 @@ wwv_flow_api.create_page_item(
   p_lov_display_extra=>'YES',
   p_protection_level => 'N',
   p_escape_on_http_output => 'Y',
+  p_restricted_characters => 'NO_SPECIAL_CHAR_NL',
+  p_help_text=> h,
   p_attribute_01 => 'N',
   p_attribute_02 => 'N',
   p_attribute_04 => 'TEXT',
@@ -365,6 +370,38 @@ wwv_flow_api.create_page_da_action (
  ,p_attribute_01 => 'RENDER'
  ,p_attribute_02 => 'COLLECTION'
  ,p_attribute_03 => 'RAW_INPUT'
+ ,p_stop_execution_on_error => 'Y'
+ );
+null;
+ 
+end;
+/
+
+ 
+begin
+ 
+wwv_flow_api.create_page_da_event (
+  p_id => 2935025764989774 + wwv_flow_api.g_id_offset
+ ,p_flow_id => wwv_flow.g_flow_id
+ ,p_page_id => 21
+ ,p_name => 'SubmitNextShowProcessing'
+ ,p_event_sequence => 40
+ ,p_triggering_element_type => 'BUTTON'
+ ,p_triggering_button_id => 2774118373441190 + wwv_flow_api.g_id_offset
+ ,p_bind_type => 'bind'
+ ,p_bind_event_type => 'click'
+  );
+wwv_flow_api.create_page_da_action (
+  p_id => 2935305639989797 + wwv_flow_api.g_id_offset
+ ,p_flow_id => wwv_flow.g_flow_id
+ ,p_page_id => 21
+ ,p_event_id => 2935025764989774 + wwv_flow_api.g_id_offset
+ ,p_event_result => 'TRUE'
+ ,p_action_sequence => 10
+ ,p_execute_on_page_init => 'N'
+ ,p_action => 'NATIVE_SUBMIT_PAGE'
+ ,p_attribute_01 => 'NEXT'
+ ,p_attribute_02 => 'Y'
  ,p_stop_execution_on_error => 'Y'
  );
 null;

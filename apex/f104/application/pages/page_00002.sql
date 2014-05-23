@@ -19,7 +19,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140514162315'
+ ,p_last_upd_yyyymmddhh24miss => '20140522155219'
   );
 null;
  
@@ -42,6 +42,8 @@ s:=s||'select '||unistr('\000a')||
 '--,AOP_TEXT	 '||unistr('\000a')||
 '--,AOP_RESULT '||unistr('\000a')||
 ',AOP_LOAD_DATETIME'||unistr('\000a')||
+',HTML_LOAD_DATETIME'||unistr('\000a')||
+',using_aop'||unistr('\000a')||
 'from aop_source_v'||unistr('\000a')||
 '  ';
 
@@ -86,6 +88,8 @@ a1:=a1||'select '||unistr('\000a')||
 '--,AOP_TEXT	 '||unistr('\000a')||
 '--,AOP_RESULT '||unistr('\000a')||
 ',AOP_LOAD_DATETIME'||unistr('\000a')||
+',HTML_LOAD_DATETIME'||unistr('\000a')||
+',using_aop'||unistr('\000a')||
 'from aop_source_v'||unistr('\000a')||
 '  ';
 
@@ -218,6 +222,7 @@ wwv_flow_api.create_worksheet_column(
   p_display_text_as        =>'ESCAPE_SC',
   p_heading_alignment      =>'CENTER',
   p_column_alignment       =>'LEFT',
+  p_format_mask            =>'DD-MON-YYYY HH:MIPM',
   p_tz_dependent           =>'N',
   p_rpt_distinct_lov       =>'Y',
   p_rpt_show_filter_lov    =>'D',
@@ -292,6 +297,7 @@ wwv_flow_api.create_worksheet_column(
   p_display_text_as        =>'ESCAPE_SC',
   p_heading_alignment      =>'CENTER',
   p_column_alignment       =>'LEFT',
+  p_format_mask            =>'DD-MON-YYYY HH:MIPM',
   p_tz_dependent           =>'N',
   p_rpt_distinct_lov       =>'Y',
   p_rpt_show_filter_lov    =>'D',
@@ -373,10 +379,85 @@ wwv_flow_api.create_worksheet_column(
   p_help_text              =>'');
 end;
 /
+begin
+wwv_flow_api.create_worksheet_column(
+  p_id => 3093126321299052+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 2,
+  p_worksheet_id => 2570108625994254+wwv_flow_api.g_id_offset,
+  p_db_column_name         =>'HTML_LOAD_DATETIME',
+  p_display_order          =>13,
+  p_column_identifier      =>'M',
+  p_column_label           =>'HTML Load Datetime',
+  p_report_label           =>'HTML Load Datetime',
+  p_sync_form_label        =>'Y',
+  p_display_in_default_rpt =>'Y',
+  p_is_sortable            =>'Y',
+  p_allow_sorting          =>'Y',
+  p_allow_filtering        =>'Y',
+  p_allow_highlighting     =>'Y',
+  p_allow_ctrl_breaks      =>'Y',
+  p_allow_aggregations     =>'Y',
+  p_allow_computations     =>'Y',
+  p_allow_charting         =>'Y',
+  p_allow_group_by         =>'Y',
+  p_allow_hide             =>'Y',
+  p_others_may_edit        =>'Y',
+  p_others_may_view        =>'Y',
+  p_column_type            =>'DATE',
+  p_display_as             =>'TEXT',
+  p_display_text_as        =>'ESCAPE_SC',
+  p_heading_alignment      =>'CENTER',
+  p_column_alignment       =>'LEFT',
+  p_format_mask            =>'DD-MON-YYYY HH:MIPM',
+  p_tz_dependent           =>'N',
+  p_rpt_distinct_lov       =>'Y',
+  p_rpt_show_filter_lov    =>'D',
+  p_rpt_filter_date_ranges =>'ALL',
+  p_help_text              =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_column(
+  p_id => 3179810275657053+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 2,
+  p_worksheet_id => 2570108625994254+wwv_flow_api.g_id_offset,
+  p_db_column_name         =>'USING_AOP',
+  p_display_order          =>14,
+  p_column_identifier      =>'N',
+  p_column_label           =>'Using Aop',
+  p_report_label           =>'Using Aop',
+  p_sync_form_label        =>'Y',
+  p_display_in_default_rpt =>'Y',
+  p_is_sortable            =>'Y',
+  p_allow_sorting          =>'Y',
+  p_allow_filtering        =>'Y',
+  p_allow_highlighting     =>'Y',
+  p_allow_ctrl_breaks      =>'Y',
+  p_allow_aggregations     =>'Y',
+  p_allow_computations     =>'Y',
+  p_allow_charting         =>'Y',
+  p_allow_group_by         =>'Y',
+  p_allow_hide             =>'Y',
+  p_others_may_edit        =>'Y',
+  p_others_may_view        =>'Y',
+  p_column_type            =>'STRING',
+  p_display_as             =>'TEXT',
+  p_display_text_as        =>'ESCAPE_SC',
+  p_heading_alignment      =>'CENTER',
+  p_column_alignment       =>'LEFT',
+  p_tz_dependent           =>'N',
+  p_rpt_distinct_lov       =>'Y',
+  p_rpt_show_filter_lov    =>'D',
+  p_rpt_filter_date_ranges =>'ALL',
+  p_help_text              =>'');
+end;
+/
 declare
     rc1 varchar2(32767) := null;
 begin
-rc1:=rc1||'ORIG_VALID_YN:ORIG_LOAD_DATETIME:AOP_VALID_YN:AOP_LOAD_DATETIME:NAME:TYPE';
+rc1:=rc1||'NAME:TYPE:ORIG_VALID_YN:ORIG_LOAD_DATETIME:AOP_VALID_YN:AOP_LOAD_DATETIME:HTML_LOAD_DATETIME:USING_AOP:';
 
 wwv_flow_api.create_worksheet_rpt(
   p_id => 2570813248994452+wwv_flow_api.g_id_offset,
