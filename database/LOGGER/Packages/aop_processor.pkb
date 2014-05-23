@@ -43,6 +43,8 @@ create or replace package body aop_processor is
   g_aop_module_name    VARCHAR2(30); 
   
   TYPE var_list_typ IS TABLE OF VARCHAR2(106) INDEX BY VARCHAR2(30);  
+  
+  g_indent_spaces     CONSTANT INTEGER := 2;
  
   ----------------------------------------------------------------------------
   -- REGULAR EXPRESSIONS
@@ -109,7 +111,7 @@ create or replace package body aop_processor is
   G_REGEX_IS_AS           CONSTANT VARCHAR2(20) := '\sIS\s|\sAS\s'; 
   G_REGEX_DEFAULT         CONSTANT VARCHAR2(20) := '(DEFAULT|:=)';
   
-  G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '\s*\w+\s+(IN\s+OUT\s+|IN\s+|OUT\s+)?\w+';
+  --G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '\s*\w+\s+(IN\s+OUT\s+|IN\s+|OUT\s+)?\w+';
  
   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
   
@@ -194,9 +196,7 @@ create or replace package body aop_processor is
   -- during_advise
   --------------------------------------------------------------------
   
-  function during_advise 
-  return boolean
-  is
+  function during_advise return boolean is
   begin 
     return g_during_advise;
   end during_advise;
@@ -302,7 +302,7 @@ create or replace package body aop_processor is
       ms_logger.note(l_node, 'l_new_code     '     ,l_new_code     );
 	  
 	  IF p_indent is not null then
-	    l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',(p_indent-1)*2+2,' '))||chr(10);
+	    l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',(p_indent-1)*g_indent_spaces+g_indent_spaces,' '))||chr(10);
 	  END IF; 
  
       p_code:= substr(p_code, 1, p_pos)
@@ -615,6 +615,8 @@ FUNCTION AOP_pu_params(io_var_list IN OUT var_list_typ) return CLOB is
   
   l_in_var               BOOLEAN;
   l_out_var              BOOLEAN;
+  
+    G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '(\w+)\s+(IN\s+)?(OUT\s+)?(\w+)';
  
 BEGIN  
  
@@ -641,34 +643,21 @@ BEGIN
 		  --find the parameter - Search for Eg
           --  varname IN OUT vartype ,
           --  varname IN vartype)
+          l_param_name := LOWER(REGEXP_SUBSTR(g_code,G_REGEX_PARAM_LINE,g_current_pos,1,'i',1));
+          ms_logger.note(l_node, 'l_param_name',l_param_name);
+          l_in_var  := UPPER(REGEXP_SUBSTR(g_code,G_REGEX_PARAM_LINE,g_current_pos,1,'i',2)) LIKE 'IN%';
+          ms_logger.note(l_node, 'l_in_var',l_in_var);
+          l_out_var :=UPPER(REGEXP_SUBSTR(g_code,G_REGEX_PARAM_LINE,g_current_pos,1,'i',3)) LIKE 'OUT%';
+          ms_logger.note(l_node, 'l_out_var',l_out_var);
+          l_param_type := UPPER(REGEXP_SUBSTR(g_code,G_REGEX_PARAM_LINE,g_current_pos,1,'i',4));
+          ms_logger.note(l_node, 'l_param_type',l_param_type);
   
+          --Move onto next param
           l_param_line := get_next( i_search       => G_REGEX_PARAM_LINE
                                    ,i_colour       => G_COLOUR_PARAM
                                    ,i_raise_error  => TRUE);	 
-		  --Move onto next param
-	      --go_past;--(l_param_line_mask);
-	      
 	  	  ms_logger.note(l_node, 'l_param_line',l_param_line);
-          
-          l_in_var  := REGEXP_LIKE(l_param_line,'\sIN\s','i');
-          l_out_var := REGEXP_LIKE(l_param_line,'\sOUT\s','i');
-          ms_logger.note(l_node, 'l_in_var',l_in_var);
-          ms_logger.note(l_node, 'l_out_var',l_out_var);
-      
-		  --IF UPPER(REGEXP_SUBSTR(l_param_line,G_REGEX_WORD,1,2,'i')) = 'OUT' THEN
-		  --  RAISE x_out_param;
-		  --END IF;
-          
-	      --Remove remaining IN and OUT
-	  	  l_param_line := REGEXP_REPLACE(l_param_line,'(\sIN\s)',' ',1,1,'i');
-		  l_param_line := REGEXP_REPLACE(l_param_line,'(\sOUT\s)',' ',1,1,'i');
-		  ms_logger.note(l_node, 'l_param_line',l_param_line);		
-		  
-	  	  l_param_name := LOWER(REGEXP_SUBSTR(l_param_line,G_REGEX_WORD,1,1,'i')); 
-	  	  ms_logger.note(l_node, 'l_param_name',l_param_name);
-	  	  l_param_type := UPPER(REGEXP_SUBSTR(l_param_line,G_REGEX_WORD,1,2,'i'));  
-	  	  ms_logger.note(l_node, 'l_param_type',l_param_type);
-		  
+
 		  --NOT YET SUPPORTING RECORD TYPES IN PARAMETERS.
 	  	  IF  supported_data_type(i_data_type => l_param_type) = 'N' then
 		    RAISE x_unsupported_data_type;
@@ -754,7 +743,7 @@ END AOP_pu_params;
 -- AOP_exceptions - not yet implemented.
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_exceptions(i_indent       IN INTEGER) IS
-  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_declare'); 
+  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_exceptions'); 
 BEGIN
  
   --Search for nested WHEN exception_name THEN 
