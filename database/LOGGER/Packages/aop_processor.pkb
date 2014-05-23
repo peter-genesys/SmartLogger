@@ -278,7 +278,7 @@ create or replace package body aop_processor is
     procedure splice( p_code     in out clob
                      ,p_new_code in clob
                      ,p_pos      in out number
-					 ,p_indent    in number   default null
+					 ,p_indent   in number   default null
 					 ,p_colour   in varchar2 default null ) IS
                      
       l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'splice');  
@@ -317,10 +317,10 @@ create or replace package body aop_processor is
     END;
 	
   --------------------------------------------------------------------
-  -- splice_here
+  -- wedge
   --------------------------------------------------------------------
-    PROCEDURE splice_here( i_new_code in varchar2
-                          ,i_colour   in varchar2 default null) IS
+    PROCEDURE wedge( i_new_code in varchar2
+                    ,i_colour   in varchar2 default null) IS
 	
 	BEGIN
 	  IF i_new_code IS NOT NULL THEN
@@ -402,8 +402,8 @@ BEGIN
  
   IF l_result IS NULL AND i_raise_error THEN
 	ms_logger.fatal(l_node, 'String missing '||l_either);
-	splice_here( i_new_code => 'STRING NOT FOUND '||l_either
-	            ,i_colour   => G_COLOUR_ERROR);
+	wedge( i_new_code => 'STRING NOT FOUND '||l_either
+	      ,i_colour   => G_COLOUR_ERROR);
     RAISE x_string_not_found;
 	
   END IF;	
@@ -498,7 +498,7 @@ BEGIN
   l_new_pos := REGEXP_INSTR(g_code,i_search,g_current_pos,1,i_past_prior,i_modifier);
   IF l_new_pos = 0 then
     ms_logger.fatal(l_node, 'String missing '||i_search);
-	splice_here( i_new_code => 'STRING NOT FOUND '||i_search
+	wedge( i_new_code => 'STRING NOT FOUND '||i_search
 	            ,i_colour   => G_COLOUR_ERROR);
     raise x_string_not_found;
   end if;
@@ -1529,11 +1529,11 @@ END AOP_prog_units;
  
   exception 
     when x_invalid_keyword then
-	  splice_here( i_new_code => 'INVALID KEYWORD'
+	  wedge( i_new_code => 'INVALID KEYWORD'
 	              ,i_colour  => G_COLOUR_ERROR);
       l_advised := false;
     when x_weave_timeout then
-	  splice_here( i_new_code => 'WEAVE TIMED OUT'
+	  wedge( i_new_code => 'WEAVE TIMED OUT'
 	              ,i_colour  => G_COLOUR_ERROR);
       l_advised := false;
     when x_string_not_found then
