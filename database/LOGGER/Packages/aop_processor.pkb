@@ -44,6 +44,8 @@ create or replace package body aop_processor is
   
   TYPE var_list_typ IS TABLE OF VARCHAR2(106) INDEX BY VARCHAR2(30);  
   
+  TYPE param_list_typ IS TABLE OF VARCHAR2(30) INDEX BY BINARY_INTEGER;  
+  
   g_indent_spaces     CONSTANT INTEGER := 2;
  
   ----------------------------------------------------------------------------
@@ -579,8 +581,8 @@ PROCEDURE AOP_prog_units(i_indent   IN INTEGER
 -- AOP_pu_block - Forward Declaration
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
-                      ,i_params         IN CLOB
                       ,i_indent         IN INTEGER
+                      ,i_param_list     IN param_list_typ
                       ,i_var_list       IN var_list_typ );
 
 --------------------------------------------------------------------------------- 
@@ -600,12 +602,17 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 --------------------------------------------------------------------------------- 
 -- AOP_pu_params
 ---------------------------------------------------------------------------------
-FUNCTION AOP_pu_params(io_var_list IN OUT var_list_typ) return CLOB is
+PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
+                       ,io_var_list   IN OUT var_list_typ ) is
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_params'); 
-  l_param_injection      CLOB;
+ 
   l_param_line           CLOB;
-  l_param_name           VARCHAR2(30);
-  l_param_type           VARCHAR2(50);
+  
+  l_param_name  VARCHAR2(30);
+  l_param_type  VARCHAR2(106);
+  l_table_name  VARCHAR2(30);
+  l_column_name VARCHAR2(30);
+ 
   l_keyword              CLOB;
   l_bracket              VARCHAR2(50);
   x_out_param            EXCEPTION;
@@ -617,6 +624,53 @@ FUNCTION AOP_pu_params(io_var_list IN OUT var_list_typ) return CLOB is
   l_out_var              BOOLEAN;
   
     G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '(\w+)\s+(IN\s+)?(OUT\s+)?(\w+)';
+    
+    G_REGEX_NAME_IN_OUT     CONSTANT VARCHAR2(200) := '(\w+)\s+(IN\s+)?(OUT\s+)?';
+    G_REGEX_SUPPORTED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER|DATE|VARCHAR2|VARCHAR|CHAR|BOOLEAN)';
+
+ 
+    
+  l_var_def                     CLOB;
+  G_REGEX_VAR_DEF_LINE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_SUPPORTED_TYPES;
+  G_REGEX_REC_VAR_DEF_LINE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'(\w+?)%ROWTYPE';
+  G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'(\w+?)\.(\w+?)%TYPE';
+	
+	
+  --G_REGEX_VAR_NAME_TYPE       CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)';
+  --G_REGEX_REC_VAR_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)%ROWTYPE';
+  --G_REGEX_TAB_COL_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)\.(\w+)%TYPE';
+    
+    
+  PROCEDURE store_var_def(i_param_name IN VARCHAR2
+                         ,i_param_type IN VARCHAR2  
+                         ,i_in_var     IN BOOLEAN
+                         ,i_out_var    IN BOOLEAN ) IS
+                         
+  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_params'); 
+                         
+  BEGIN
+  
+    ms_logger.param(l_node, 'i_param_name' ,i_param_name); 
+    ms_logger.param(l_node, 'i_param_type' ,i_param_type); 
+    ms_logger.param(l_node, 'i_in_var    ' ,i_in_var    ); 
+    ms_logger.param(l_node, 'i_out_var   ' ,i_out_var   ); 
+ 
+    IF REGEXP_LIKE(i_param_type,G_REGEX_SUPPORTED_TYPES,'i') THEN
+ 
+	  IF i_in_var OR NOT l_out_var THEN
+        --IN and IN OUT and (implicit IN) included in the param input list.
+        io_param_list(io_param_list.COUNT+1) := i_param_name;	 
+
+     END IF;  
+  
+      IF l_out_var THEN
+        --Save IN OUT and OUT params in the variable list.        
+        io_var_list(i_param_name) := i_param_type;  
+        ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);
+      END IF;
+ 
+    END IF;
+  END;  
  
 BEGIN  
  
@@ -639,45 +693,99 @@ BEGIN
 		--NEW PARAMETER LINE
 		WHEN matched_with(l_keyword , G_REGEX_OPEN_BRACKET
                                ||'|'||G_REGEX_COMMA)        THEN
-	      ms_logger.comment(l_node, 'Found new parameter');
-		  --find the parameter - Search for Eg
-          --  varname IN OUT vartype ,
-          --  varname IN vartype)
-          l_param_name := LOWER(REGEXP_SUBSTR(g_code,G_REGEX_PARAM_LINE,g_current_pos,1,'i',1));
-          ms_logger.note(l_node, 'l_param_name',l_param_name);
-          l_in_var  := UPPER(REGEXP_SUBSTR(g_code,G_REGEX_PARAM_LINE,g_current_pos,1,'i',2)) LIKE 'IN%';
-          ms_logger.note(l_node, 'l_in_var',l_in_var);
-          l_out_var :=UPPER(REGEXP_SUBSTR(g_code,G_REGEX_PARAM_LINE,g_current_pos,1,'i',3)) LIKE 'OUT%';
-          ms_logger.note(l_node, 'l_out_var',l_out_var);
-          l_param_type := UPPER(REGEXP_SUBSTR(g_code,G_REGEX_PARAM_LINE,g_current_pos,1,'i',4));
-          ms_logger.note(l_node, 'l_param_type',l_param_type);
+	         ms_logger.comment(l_node, 'Found new parameter');
+		     --find the parameter - Search for Eg
+             --  varname IN OUT vartype ,
+             --  varname IN vartype)
+             
+         	  l_var_def := get_next_upper( i_search      => G_REGEX_VAR_DEF_LINE 
+                                                     ||'|'||G_REGEX_REC_VAR_DEF_LINE	
+                                                     ||'|'||G_REGEX_TAB_COL_VAR_DEF_LINE
+                                          ,i_colour      => G_COLOUR_PARAM
+                                          ,i_raise_error  => TRUE);
+             
+         	  ms_logger.note(l_node, 'l_var_def',l_var_def);
+             
+             l_in_var  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',2)) LIKE 'IN%';
+             l_out_var := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',3)) LIKE 'OUT%';
+             ms_logger.note(l_node, 'l_in_var',l_in_var);
+             ms_logger.note(l_node, 'l_out_var',l_out_var);
+     
+             CASE 
+         	  WHEN matched_with(l_var_def , G_REGEX_VAR_DEF_LINE) THEN 
+         	    ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
+         	    --LOOKING FOR ATOMIC VARS
+                l_param_name := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_DEF_LINE,1,1,'i',1));
+                l_param_type := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_DEF_LINE,1,1,'i',4));
+                ms_logger.note(l_node, 'l_param_name',l_param_name);
+                ms_logger.note(l_node, 'l_param_type',l_param_type);
+                
+                store_var_def(i_param_name  => l_param_name
+                             ,i_param_type  => l_param_type
+                             ,i_in_var      => l_in_var
+                             ,i_out_var     => l_out_var );
+ 
+          
+         	  WHEN matched_with(l_var_def , G_REGEX_REC_VAR_DEF_LINE) THEN 
+         	    ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
+         	    --Looking for ROWTYPE VARS
+                 l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_DEF_LINE,1,1,'i',1));
+                 l_table_name  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_DEF_LINE,1,1,'i',4));
+          
+                 ms_logger.note(l_node, 'l_param_name',l_param_name); 
+                 ms_logger.note(l_node, 'l_table_name',l_table_name); 
   
-          --Move onto next param
-          l_param_line := get_next( i_search       => G_REGEX_PARAM_LINE
-                                   ,i_colour       => G_COLOUR_PARAM
-                                   ,i_raise_error  => TRUE);	 
-	  	  ms_logger.note(l_node, 'l_param_line',l_param_line);
-
-		  --NOT YET SUPPORTING RECORD TYPES IN PARAMETERS.
-	  	  IF  supported_data_type(i_data_type => l_param_type) = 'N' then
-		    RAISE x_unsupported_data_type;
-          END IF;		  
-          
-          IF l_out_var THEN
-            --Save IN OUT and OUT params in the variable list.        
-            io_var_list(l_param_name) := l_param_type;  
-            ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);
-          END IF;
-          
-          
-		  IF NOT l_in_var THEN
-            --Out only params with not need to be included in the param input section.
-		    RAISE x_out_param;
-		  END IF;
+                 --Remember the Record name itself as a var with a type of TABLE_NAME
+                 io_var_list(l_param_name) := l_table_name;  
+                 ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
+         		
+         		--Also need to add 1 var def for each valid componant of the record type.
+         		FOR l_column IN 
+         		  (select lower(column_name) column_name
+         		         ,data_type
+         		   from user_tab_columns
+         		   where table_name = l_table_name ) LOOP
+         		   
+                   store_var_def(i_param_name  => l_param_name||'.'||l_column.column_name
+                                ,i_param_type  => l_column.data_type
+                                ,i_in_var      => l_in_var
+                                ,i_out_var     => l_out_var );
  
-		  					
-	  	  l_param_injection := LTRIM(l_param_injection||chr(10)||'  ms_logger.param(l_node,'''||l_param_name||''','||l_param_name||');',chr(10));
- 
+         		END LOOP;   
+         		
+         	  WHEN matched_with(l_var_def , G_REGEX_TAB_COL_VAR_DEF_LINE) THEN 
+         	    ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
+                 l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',1));
+         		 l_table_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',4));
+                 l_column_name   := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',5));
+         		
+                 ms_logger.note(l_node, 'l_param_name' ,l_param_name); 
+                 ms_logger.note(l_node, 'l_table_name' ,l_table_name); 
+                 ms_logger.note(l_node, 'l_column_name',l_column_name); 		
+         		
+         		--This should find only 1 record
+         		FOR l_column IN 
+         		  (select lower(column_name) column_name
+         		         ,data_type
+         		   from user_tab_columns
+         		   where table_name =  l_table_name
+         		   and   column_name = l_column_name ) LOOP
+         		   
+                   store_var_def(i_param_name  => l_param_name 
+                                ,i_param_type  => l_column.data_type
+                                ,i_in_var      => l_in_var
+                                ,i_out_var     => l_out_var );
+  
+         		END LOOP; 
+          
+               --OOPS
+               ELSE
+		         ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
+                 RAISE x_invalid_keyword;
+         
+             END CASE; 
+          
+  
  
        --DEFAULT or :=
 		WHEN matched_with(l_keyword , G_REGEX_DEFAULT) THEN 
@@ -729,8 +837,7 @@ BEGIN
   END LOOP; 
   
   --NB g_current_pos is still behind next keyword 'IS'
-  return l_param_injection;
-   
+ 
 exception
   when others then
     ms_logger.warn_error(l_node);
@@ -934,15 +1041,16 @@ PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
 				   ,i_node_type      IN VARCHAR2
                    ,i_var_list       IN var_list_typ) IS
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_is_as'); 
-  l_inject_params   CLOB;
-  
+ 
   l_keyword               VARCHAR2(50);
 
+  l_param_list            param_list_typ;
   l_var_list              var_list_typ := i_var_list;
   
 BEGIN
-
-  l_inject_params := AOP_pu_params(io_var_list => l_var_list);
+ 
+  AOP_pu_params(io_param_list => l_param_list                 
+               ,io_var_list   => l_var_list);                                  
  
   inject( i_new_code  => i_inject_node
          ,i_indent     => i_indent
@@ -968,8 +1076,8 @@ BEGIN
   ELSE
     
     AOP_pu_block(i_prog_unit_name  => i_prog_unit_name
-                ,i_params          => l_inject_params
                 ,i_indent          => i_indent
+                ,i_param_list      => l_param_list
                 ,i_var_list        => l_var_list);
  		
   END IF;
@@ -1247,12 +1355,13 @@ END AOP_block;
 -- AOP_pu_block
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
-                      ,i_params         IN CLOB
                       ,i_indent         IN INTEGER
+                      ,i_param_list     IN param_list_typ
                       ,i_var_list       IN var_list_typ ) IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_block');
   
   l_var_list              var_list_typ := i_var_list;
+  l_index                 BINARY_INTEGER;
   
 BEGIN
  
@@ -1263,9 +1372,19 @@ BEGIN
               ,i_indent     => i_indent
 			  ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
   --Add the params (if any)
-  inject( i_new_code  => i_params
-         ,i_indent     => i_indent
-		 ,i_colour    => G_COLOUR_PARAM);
+  l_index := i_param_list.FIRST;
+  WHILE l_index IS NOT NULL LOOP
+ 
+    inject( i_new_code  => '  ms_logger.param(l_node,'''||i_param_list(l_index)||''','||i_param_list(l_index)||');'
+           ,i_indent    => i_indent
+   		   ,i_colour    => G_COLOUR_PARAM);
+           
+    l_index := i_param_list.NEXT(l_index);    
+ 
+  END LOOP;
+  
+ 
+
 /*
 --TEMP DEBUGGING ONLY			 
 if 	i_params is not null then	 
