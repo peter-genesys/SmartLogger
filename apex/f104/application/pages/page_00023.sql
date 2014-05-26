@@ -20,7 +20,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140515122146'
+ ,p_last_upd_yyyymmddhh24miss => '20140526104602'
   );
 null;
  
@@ -54,176 +54,6 @@ wwv_flow_api.create_page_plug (
   p_plug_query_headings_type=> 'COLON_DELMITED_LIST',
   p_plug_query_row_count_max => 500,
   p_plug_display_condition_type => '',
-  p_plug_caching=> 'NOT_CACHED',
-  p_plug_comment=> '');
-end;
-/
-declare
-  s varchar2(32767) := null;
-  l_clob clob;
-  l_length number := 1;
-begin
-s:=s||'"ORIG_TEXT"';
-
-wwv_flow_api.create_page_plug (
-  p_id=> 3712121570027863 + wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 23,
-  p_plug_name=> 'Original Text',
-  p_region_name=>'',
-  p_escape_on_http_output=>'Y',
-  p_plug_template=> 17756239625931434+ wwv_flow_api.g_id_offset,
-  p_plug_display_sequence=> 20,
-  p_plug_new_grid         => true,
-  p_plug_new_grid_row     => true,
-  p_plug_new_grid_column  => true,
-  p_plug_display_column=> 1,
-  p_plug_display_point=> 'BODY_3',
-  p_plug_item_display_point=> 'ABOVE',
-  p_plug_source=> s,
-  p_plug_source_type=> 'STATIC_TEXT_WITH_SHORTCUTS',
-  p_translate_title=> 'Y',
-  p_plug_query_row_template=> 1,
-  p_plug_query_headings_type=> 'QUERY_COLUMNS',
-  p_plug_query_num_rows_type => 'NEXT_PREVIOUS_LINKS',
-  p_plug_query_row_count_max => 500,
-  p_plug_query_show_nulls_as => ' - ',
-  p_plug_display_condition_type => 'NEVER',
-  p_pagination_display_position=>'BOTTOM_RIGHT',
-  p_plug_customized=>'0',
-  p_plug_caching=> 'NOT_CACHED',
-  p_plug_comment=> '');
-end;
-/
-declare
-  s varchar2(32767) := null;
-  l_clob clob;
-  l_length number := 1;
-begin
-s:=s||'"AOP_TEXT"';
-
-wwv_flow_api.create_page_plug (
-  p_id=> 3712322196027864 + wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 23,
-  p_plug_name=> 'AOP Text',
-  p_region_name=>'',
-  p_escape_on_http_output=>'Y',
-  p_plug_template=> 17756239625931434+ wwv_flow_api.g_id_offset,
-  p_plug_display_sequence=> 30,
-  p_plug_new_grid         => false,
-  p_plug_new_grid_row     => false,
-  p_plug_new_grid_column  => true,
-  p_plug_display_column=> 2,
-  p_plug_display_point=> 'BODY_3',
-  p_plug_item_display_point=> 'ABOVE',
-  p_plug_source=> s,
-  p_plug_source_type=> 'STATIC_TEXT_WITH_SHORTCUTS',
-  p_translate_title=> 'Y',
-  p_plug_query_row_template=> 1,
-  p_plug_query_headings_type=> 'QUERY_COLUMNS',
-  p_plug_query_num_rows_type => 'NEXT_PREVIOUS_LINKS',
-  p_plug_query_row_count_max => 500,
-  p_plug_query_show_nulls_as => ' - ',
-  p_plug_display_condition_type => 'NEVER',
-  p_pagination_display_position=>'BOTTOM_RIGHT',
-  p_plug_customized=>'0',
-  p_plug_caching=> 'NOT_CACHED',
-  p_plug_comment=> '');
-end;
-/
-declare
-  s varchar2(32767) := null;
-  l_clob clob;
-  l_length number := 1;
-begin
-s:=s||'DECLARE'||unistr('\000a')||
-'  CURSOR cu_source IS'||unistr('\000a')||
-'  select aop_text'||unistr('\000a')||
-'  from aop_source_v'||unistr('\000a')||
-'  where name = :P23_name and type = :P23_type;'||unistr('\000a')||
-' '||unistr('\000a')||
-'  l_body CLOB;'||unistr('\000a')||
-' '||unistr('\000a')||
-'  procedure print_clob(i_clob IN CLOB) IS'||unistr('\000a')||
-'   '||unistr('\000a')||
-'    v_clob        clob;'||unistr('\000a')||
-'    v_buffer      varchar2(32767);'||unistr('\000a')||
-'    v_length      number;'||unistr('\000a')||
-'    v_amount      number := 32767;'||unistr('\000a')||
-'    v_offset      number := 1;'||unistr('\000a')||
-'  '||unistr('\000a')||
-'  begin'||unistr('\000a')||
-'  '||unistr('\000a')||
-'    --sys.htp.init;'||unistr('\000a')||
-'    --wwv_flow.g_page_text_generate';
-
-s:=s||'d := true;'||unistr('\000a')||
-'    --wwv_flow.g_unrecoverable_error := true;'||unistr('\000a')||
-'  '||unistr('\000a')||
-'    --dbms_lob.createtemporary(lob_loc => v_clob, cache => false, dur => dbms_lob.session);'||unistr('\000a')||
-'    v_clob   := i_clob;'||unistr('\000a')||
-'    v_length := dbms_lob.getlength(v_clob);'||unistr('\000a')||
-'  '||unistr('\000a')||
-'    --sys.owa_util.mime_header(''text/xml'', false);'||unistr('\000a')||
-'    --sys.htp.p(''Content-Length: '' || v_length);'||unistr('\000a')||
-'    --sys.owa_util.http_header_close;'||unistr('\000a')||
-'  '||unistr('\000a')||
-'    -- read and write in chunk of 32';
-
-s:=s||'k'||unistr('\000a')||
-'    while v_offset <= v_length loop          '||unistr('\000a')||
-'      dbms_lob.read(v_clob, v_amount, v_offset, v_buffer);'||unistr('\000a')||
-'      htp.prn(v_buffer);'||unistr('\000a')||
-'      v_offset := v_offset + v_amount;'||unistr('\000a')||
-'    end loop;'||unistr('\000a')||
-'  '||unistr('\000a')||
-'    dbms_lob.freetemporary(lob_loc => v_clob);'||unistr('\000a')||
-'    '||unistr('\000a')||
-'  end;'||unistr('\000a')||
-'  '||unistr('\000a')||
-''||unistr('\000a')||
-'BEGIN'||unistr('\000a')||
-'  OPEN cu_source;'||unistr('\000a')||
-'  FETCH cu_source INTO l_body;'||unistr('\000a')||
-'  CLOSE cu_source;'||unistr('\000a')||
-''||unistr('\000a')||
-'  l_body := REPLACE(REPLACE(l_body,''<<'',''&lt;&lt;''),''>>'',''&gt;&gt;'');'||unistr('\000a')||
-'  l_';
-
-s:=s||'body := REGEXP_REPLACE(l_body,''(ms_logger)(.+)(;)'',''<B>\1\2\3</B>'');'||unistr('\000a')||
-'  l_body := ''<PRE>''||l_body||''</PRE>'';'||unistr('\000a')||
-''||unistr('\000a')||
-'  print_clob(i_clob => l_body);'||unistr('\000a')||
-' '||unistr('\000a')||
-'end;';
-
-wwv_flow_api.create_page_plug (
-  p_id=> 3712731156027864 + wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 23,
-  p_plug_name=> 'AOP Text 2',
-  p_region_name=>'',
-  p_escape_on_http_output=>'Y',
-  p_plug_template=> 17756239625931434+ wwv_flow_api.g_id_offset,
-  p_plug_display_sequence=> 40,
-  p_plug_new_grid         => false,
-  p_plug_new_grid_row     => false,
-  p_plug_new_grid_column  => true,
-  p_plug_display_column=> 2,
-  p_plug_display_point=> 'BODY_3',
-  p_plug_item_display_point=> 'ABOVE',
-  p_plug_source=> s,
-  p_plug_source_type=> 'PLSQL_PROCEDURE',
-  p_translate_title=> 'Y',
-  p_plug_query_row_template=> 1,
-  p_plug_query_headings_type=> 'QUERY_COLUMNS',
-  p_plug_query_num_rows_type => 'NEXT_PREVIOUS_LINKS',
-  p_plug_query_row_count_max => 500,
-  p_plug_query_show_nulls_as => ' - ',
-  p_plug_display_condition_type => 'NEVER',
-  p_pagination_display_position=>'BOTTOM_RIGHT',
-  p_plug_customized=>'0',
   p_plug_caching=> 'NOT_CACHED',
   p_plug_comment=> '');
 end;
@@ -587,51 +417,6 @@ declare
     h varchar2(32767) := null;
 begin
 wwv_flow_api.create_page_item(
-  p_id=>3710701442027860 + wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_flow_step_id=> 23,
-  p_name=>'P23_ORIG_TEXT',
-  p_data_type=> 'VARCHAR',
-  p_is_required=> false,
-  p_accept_processing=> 'REPLACE_EXISTING',
-  p_item_sequence=> 60,
-  p_item_plug_id => 3709703988027853+wwv_flow_api.g_id_offset,
-  p_use_cache_before_default=> 'NO',
-  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
-  p_prompt=>'Orig Text',
-  p_source=>'ORIG_TEXT',
-  p_source_type=> 'DB_COLUMN',
-  p_display_as=> 'NATIVE_HIDDEN',
-  p_lov_display_null=> 'NO',
-  p_lov_translated=> 'N',
-  p_cSize=> 60,
-  p_cMaxlength=> 255,
-  p_cHeight=> 4,
-  p_new_grid=> false,
-  p_begin_on_new_line=> 'YES',
-  p_begin_on_new_field=> 'YES',
-  p_colspan=> null,
-  p_rowspan=> null,
-  p_grid_column=> null,
-  p_label_alignment=> 'RIGHT',
-  p_field_alignment=> 'LEFT',
-  p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
-  p_is_persistent=> 'Y',
-  p_lov_display_extra=>'YES',
-  p_protection_level => 'N',
-  p_escape_on_http_output => 'Y',
-  p_attribute_01 => 'Y',
-  p_show_quick_picks=>'N',
-  p_item_comment => '');
- 
- 
-end;
-/
-
-declare
-    h varchar2(32767) := null;
-begin
-wwv_flow_api.create_page_item(
   p_id=>3710927321027861 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_flow_step_id=> 23,
@@ -762,51 +547,6 @@ wwv_flow_api.create_page_item(
   p_escape_on_http_output => 'Y',
   p_attribute_01 => '1',
   p_attribute_02 => 'VERTICAL',
-  p_show_quick_picks=>'N',
-  p_item_comment => '');
- 
- 
-end;
-/
-
-declare
-    h varchar2(32767) := null;
-begin
-wwv_flow_api.create_page_item(
-  p_id=>3711530293027861 + wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_flow_step_id=> 23,
-  p_name=>'P23_AOP_TEXT',
-  p_data_type=> 'VARCHAR',
-  p_is_required=> false,
-  p_accept_processing=> 'REPLACE_EXISTING',
-  p_item_sequence=> 70,
-  p_item_plug_id => 3709703988027853+wwv_flow_api.g_id_offset,
-  p_use_cache_before_default=> 'NO',
-  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
-  p_prompt=>'Aop Text',
-  p_source=>'AOP_TEXT',
-  p_source_type=> 'DB_COLUMN',
-  p_display_as=> 'NATIVE_HIDDEN',
-  p_lov_display_null=> 'NO',
-  p_lov_translated=> 'N',
-  p_cSize=> 60,
-  p_cMaxlength=> 255,
-  p_cHeight=> 4,
-  p_new_grid=> false,
-  p_begin_on_new_line=> 'YES',
-  p_begin_on_new_field=> 'YES',
-  p_colspan=> null,
-  p_rowspan=> null,
-  p_grid_column=> null,
-  p_label_alignment=> 'RIGHT',
-  p_field_alignment=> 'LEFT',
-  p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
-  p_is_persistent=> 'Y',
-  p_lov_display_extra=>'YES',
-  p_protection_level => 'N',
-  p_escape_on_http_output => 'Y',
-  p_attribute_01 => 'Y',
   p_show_quick_picks=>'N',
   p_item_comment => '');
  
@@ -1131,6 +871,7 @@ wwv_flow_api.create_page_da_event (
  ,p_event_sequence => 20
  ,p_bind_type => 'bind'
  ,p_bind_event_type => 'apexbeforepagesubmit'
+ ,p_display_when_type => 'NEVER'
  ,p_da_event_comment => 'This extra upload is here to stop a server error that occurs when the page implicitly submits and the value is otherwise too big.'
   );
 wwv_flow_api.create_page_da_action (
@@ -1190,6 +931,22 @@ wwv_flow_api.create_page_da_action (
  ,p_da_action_comment => 'RAW_INPUT will be loaded by the Quick AOP Input Page'
  );
 wwv_flow_api.create_page_da_action (
+  p_id => 3269831847369991 + wwv_flow_api.g_id_offset
+ ,p_flow_id => wwv_flow.g_flow_id
+ ,p_page_id => 23
+ ,p_event_id => 3718812792540004 + wwv_flow_api.g_id_offset
+ ,p_event_result => 'TRUE'
+ ,p_action_sequence => 15
+ ,p_execute_on_page_init => 'Y'
+ ,p_action => 'NATIVE_SET_VALUE'
+ ,p_affected_elements_type => 'ITEM'
+ ,p_affected_elements => 'P23_ORIG_TEXT_DISPLAY,P23_HTML_TEXT_DISPLAY,P23_AOP_TEXT_DISPLAY'
+ ,p_attribute_01 => 'STATIC_ASSIGNMENT'
+ ,p_attribute_09 => 'N'
+ ,p_stop_execution_on_error => 'Y'
+ ,p_wait_for_result => 'Y'
+ );
+wwv_flow_api.create_page_da_action (
   p_id => 3721112839631678 + wwv_flow_api.g_id_offset
  ,p_flow_id => wwv_flow.g_flow_id
  ,p_page_id => 23
@@ -1201,6 +958,41 @@ wwv_flow_api.create_page_da_action (
  ,p_attribute_01 => 'QUICK_AOP'
  ,p_attribute_02 => 'Y'
  ,p_stop_execution_on_error => 'Y'
+ );
+null;
+ 
+end;
+/
+
+ 
+begin
+ 
+wwv_flow_api.create_page_da_event (
+  p_id => 3268022260340826 + wwv_flow_api.g_id_offset
+ ,p_flow_id => wwv_flow.g_flow_id
+ ,p_page_id => 23
+ ,p_name => 'beforeSubmitSetDisplaystoNull'
+ ,p_event_sequence => 40
+ ,p_bind_type => 'bind'
+ ,p_bind_event_type => 'apexbeforepagesubmit'
+ ,p_display_when_type => 'NEVER'
+ ,p_da_event_comment => 'This extra upload is here to stop a server error that occurs when the page implicitly submits and the value is otherwise too big.'
+  );
+wwv_flow_api.create_page_da_action (
+  p_id => 3268331869340827 + wwv_flow_api.g_id_offset
+ ,p_flow_id => wwv_flow.g_flow_id
+ ,p_page_id => 23
+ ,p_event_id => 3268022260340826 + wwv_flow_api.g_id_offset
+ ,p_event_result => 'TRUE'
+ ,p_action_sequence => 10
+ ,p_execute_on_page_init => 'N'
+ ,p_action => 'NATIVE_SET_VALUE'
+ ,p_affected_elements_type => 'ITEM'
+ ,p_affected_elements => 'P23_ORIG_TEXT_DISPLAYP23_HTML_TEXT_DISPLAYP23_AOP_TEXT_DISPLAY'
+ ,p_attribute_01 => 'STATIC_ASSIGNMENT'
+ ,p_attribute_09 => 'N'
+ ,p_stop_execution_on_error => 'Y'
+ ,p_wait_for_result => 'Y'
  );
 null;
  
@@ -1245,7 +1037,7 @@ declare
   l_clob clob;
   l_length number := 1;
 begin
-p:=p||'#OWNER#:AOP_SOURCE_V:P23_NAME:NAME:P23_TYPE:TYPE|';
+p:=p||'#OWNER#:AOP_SOURCE_V:P23_NAME:NAME:P23_TYPE:TYPE';
 
 wwv_flow_api.create_page_process(
   p_id     => 3713606300027877 + wwv_flow_api.g_id_offset,

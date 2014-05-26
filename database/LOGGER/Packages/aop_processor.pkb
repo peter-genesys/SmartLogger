@@ -113,7 +113,7 @@ create or replace package body aop_processor is
   G_REGEX_IS_AS           CONSTANT VARCHAR2(20) := '\sIS\s|\sAS\s'; 
   G_REGEX_DEFAULT         CONSTANT VARCHAR2(20) := '(DEFAULT|:=)';
   
-  --G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '\s*\w+\s+(IN\s+OUT\s+|IN\s+|OUT\s+)?\w+';
+  G_REGEX_SUPPORTED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER|DATE|VARCHAR2|VARCHAR|CHAR|BOOLEAN)';
  
   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
   
@@ -146,6 +146,7 @@ create or replace package body aop_processor is
   G_COLOUR_BIND_VAR         CONSTANT VARCHAR2(10) := '#FFFF00';
   G_COLOUR_VAR              CONSTANT VARCHAR2(10) := '#99FF66';
   G_COLOUR_NOTE             CONSTANT VARCHAR2(10) := '#00FF99';
+  G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
  
   
   FUNCTION matched_with(i_match    IN CLOB
@@ -270,10 +271,6 @@ create or replace package body aop_processor is
       
   END;
  
-  
-
- 
- 
   --------------------------------------------------------------------
   -- splice
   --------------------------------------------------------------------
@@ -304,14 +301,34 @@ create or replace package body aop_processor is
       ms_logger.note(l_node, 'l_new_code     '     ,l_new_code     );
 	  
 	  IF p_indent is not null then
-	    l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',(p_indent-1)*g_indent_spaces+g_indent_spaces,' '))||chr(10);
+	    --INJECT LINE
+        p_pos := p_pos - 1;
+ 
+		IF ascii(substr(p_code, p_pos, 1)) = 10 then
+		  p_pos := p_pos - 1;
+		END IF;
+		
+		--ms_logger.note(l_node, 'char @ pos-2     '   ,ascii(substr(p_code, p_pos-2, 1)));
+	    --ms_logger.note(l_node, 'char @ pos-1     '   ,ascii(substr(p_code, p_pos-1, 1)));
+		--ms_logger.note(l_node, 'char @ pos     '     ,ascii(substr(p_code, p_pos, 1)));
+		--ms_logger.note(l_node, 'char @ pos+1     '     ,ascii(substr(p_code, p_pos+1, 1)));
+		--ms_logger.note(l_node, 'char @ pos+2     '     ,ascii(substr(p_code, p_pos+1, 2)));
+ 
+		--Apply a leading new line and indent by g_indent_spaces * p_indent
+	    l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',(p_indent-1)*g_indent_spaces+g_indent_spaces,' '));
+		IF --ascii(substr(p_code, p_pos, 1))   <> 10 AND
+		   ascii(substr(p_code, p_pos+1, 1)) <> 10 THEN
+		  --Add a trailing newline, because we are not injecting at a newline already. 
+		  l_new_code := l_new_code||chr(10);
+		END IF;
+ 
 	  END IF; 
  
       p_code:= substr(p_code, 1, p_pos)
 	         ||l_new_code
              ||substr(p_code, p_pos+1);
   
-	  p_pos := p_pos + length(l_new_code) ;	
+	  p_pos := p_pos + length(l_new_code)+1;	
 	  
 	  --ms_logger.note(l_node, 'p_code     '     ,p_code     );
 	  --ms_logger.note(l_node, 'p_pos     '      ,p_pos     );
@@ -343,7 +360,7 @@ create or replace package body aop_processor is
 					 ,i_colour   in varchar2 default null) IS
 	BEGIN
 	  IF i_new_code IS NOT NULL THEN
-	    g_current_pos := g_current_pos - 1;
+	    --g_current_pos := g_current_pos - 1;
 	    splice( p_code      => g_code    
 	           ,p_new_code  => i_new_code
 	           ,p_pos       => g_current_pos     
@@ -623,10 +640,8 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
   l_in_var               BOOLEAN;
   l_out_var              BOOLEAN;
   
-    G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '(\w+)\s+(IN\s+)?(OUT\s+)?(\w+)';
-    
-    G_REGEX_NAME_IN_OUT     CONSTANT VARCHAR2(200) := '(\w+)\s+(IN\s+)?(OUT\s+)?';
-    G_REGEX_SUPPORTED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER|DATE|VARCHAR2|VARCHAR|CHAR|BOOLEAN)';
+  G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '(\w+)\s+(IN\s+)?(OUT\s+)?(\w+)';
+  G_REGEX_NAME_IN_OUT     CONSTANT VARCHAR2(200) := '(\w+)\s+(IN\s+)?(OUT\s+)?';
 
  
     
@@ -635,11 +650,7 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
   G_REGEX_REC_VAR_DEF_LINE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'(\w+?)%ROWTYPE';
   G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'(\w+?)\.(\w+?)%TYPE';
 	
-	
-  --G_REGEX_VAR_NAME_TYPE       CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)';
-  --G_REGEX_REC_VAR_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)%ROWTYPE';
-  --G_REGEX_TAB_COL_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)\.(\w+)%TYPE';
-    
+ 
     
   PROCEDURE store_var_def(i_param_name IN VARCHAR2
                          ,i_param_type IN VARCHAR2  
@@ -880,7 +891,7 @@ FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
   l_var_list              var_list_typ := i_var_list;
   l_var_def               CLOB;
   G_REGEX_VAR_DEF_LINE    CONSTANT VARCHAR2(200) := 
-    '\s(\w+?)\s+?(NUMBER|INTEGER|BINARY_INTEGER|PLS_INTEGER|DATE|VARCHAR2|BOOLEAN)';
+    '\s(\w+?)\s+?'||G_REGEX_SUPPORTED_TYPES;
   G_REGEX_REC_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := 
     '\s\w+?\s+?\w+?%ROWTYPE';
   G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := 
@@ -890,7 +901,7 @@ FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
   G_REGEX_VAR_NAME_TYPE       CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)';
   G_REGEX_REC_VAR_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)%ROWTYPE';
   G_REGEX_TAB_COL_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)\.(\w+)%TYPE';
-  G_COLOUR_VAR_LINE           CONSTANT VARCHAR2(10) := '#00CCFF';
+
   
   l_param_name  VARCHAR2(30);
   l_param_type  VARCHAR2(106);
@@ -917,10 +928,7 @@ BEGIN
 	    --LOOKING FOR ATOMIC VARS
         l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',1));
         l_param_type  := REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',2);
-		
-		--l_param_name  := LOWER(REGEXP_SUBSTR(g_code,G_REGEX_VAR_DEF_LINE,g_current_pos,1,'i',1));
-		--l_param_type  := REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_DEF_LINE,g_current_pos,1,'i',2);
-		
+	 
         ms_logger.note(l_node, 'l_param_name',l_param_name); 
         ms_logger.note(l_node, 'l_param_type',l_param_type); 
 		
@@ -1375,7 +1383,7 @@ BEGIN
   l_index := i_param_list.FIRST;
   WHILE l_index IS NOT NULL LOOP
  
-    inject( i_new_code  => '  ms_logger.param(l_node,'''||i_param_list(l_index)||''','||i_param_list(l_index)||');'
+    inject( i_new_code  => '  ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',32)||','||i_param_list(l_index)||');'
            ,i_indent    => i_indent
    		   ,i_colour    => G_COLOUR_PARAM);
            

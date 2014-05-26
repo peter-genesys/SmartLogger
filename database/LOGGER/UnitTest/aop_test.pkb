@@ -1,26 +1,25 @@
-
-  CREATE OR REPLACE PACKAGE BODY "LOGGER"."AOP_TEST" is
+CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
   --@AOP_LOG
 
-    g number;
-    
+  g number;
+
   function test4(i_module ms_module%ROWTYPE
                 ,o_unit      out ms_unit%ROWTYPE) return varchar2 is
   begin
     null;
- 
+
     --i_module.module_name := 'X';
 
     o_unit.unit_name := 'X';
   end;
-    
+
 
   function test3(i_param31 in varchar2 ) return varchar2 is
   begin
     null;
     ms_feedback.comment('Eg of debugging message added by a developer');
 
- 
+
     <<anon1>>
     declare
       l_temp varchar2(1) := trim(' X ');
