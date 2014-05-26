@@ -448,6 +448,30 @@ end; --get_html_process_report
  
  
 ------------------------------------------------------------------------
+-- get_trace_URL
+------------------------------------------------------------------------
+FUNCTION get_trace_URL(i_process_id IN INTEGER  DEFAULT NULL
+                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN VARCHAR2 IS
+ 
+  l_process_id INTEGER;
+  l_result     VARCHAR2(2000);
+  
+ 
+BEGIN
+
+  l_process_id := ms_logger.f_process_id(i_process_id => i_process_id
+                                        ,i_ext_ref    => i_ext_ref );  
+ 
+  IF l_process_id IS NOT NULL THEN
+    l_result := 'http://soraempl002.au.fcl.internal:8080/apex/f?p=104:24::::RIR,RP,24:P24_PROCESS_ID:' ||ms_logger.f_process_id;
+  END IF;
+  
+  RETURN l_result;
+ 
+END;
+ 
+ 
+------------------------------------------------------------------------
 -- get_user_feedback_URL
 ------------------------------------------------------------------------
  

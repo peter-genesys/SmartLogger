@@ -217,7 +217,7 @@ END;
 PROCEDURE intlog_start(i_message IN VARCHAR2 ) IS
 BEGIN 
   intlog_putline('BEGAN: '||i_message);
-  g_debug_indent := g_debug_indent + 1;
+  g_debug_indent := g_debug_indent + 1;	
 END;
 
 PROCEDURE intlog_end(i_message IN VARCHAR2 ) IS
@@ -612,9 +612,31 @@ END f_tf;
 -- EXPOSED FOR THE MS_API
 ----------------------------------------------------------------------
 
-FUNCTION f_process_id RETURN INTEGER IS
+FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
+                     ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN INTEGER IS
+					 
+  CURSOR cu_process IS
+  SELECT process_id
+  FROM   ms_process 
+  WHERE  process_id = i_process_id
+  OR     ext_ref    = i_ext_ref;  
+ 				 
+  l_result INTEGER;				 
+				 
 BEGIN
-  RETURN g_process_id;
+  IF i_process_id IS NOT NULL OR i_ext_ref IS NOT NULL THEN
+    OPEN cu_process;
+    FETCH cu_process INTO l_result;
+    CLOSE cu_process;
+    
+    RETURN l_result;
+   
+  ELSE
+   
+    RETURN g_process_id;
+    
+  END IF;  
+  
 END f_process_id;
  
 FUNCTION f_process_is_closed RETURN BOOLEAN IS
@@ -824,14 +846,12 @@ END;
 -- These routines write to the logging tables
 ------------------------------------------------------------------------
 
-PROCEDURE log_process(i_module_name  IN VARCHAR2 DEFAULT NULL
-                     ,i_unit_name    IN VARCHAR2 DEFAULT NULL
+PROCEDURE log_process(i_origin       IN VARCHAR2 DEFAULT NULL
                      ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
                      ,i_comments     IN VARCHAR2 DEFAULT NULL)
 
 IS
-  l_username VARCHAR2(30);
-
+ 
   PRAGMA AUTONOMOUS_TRANSACTION;
   
   l_process ms_process%ROWTYPE;
@@ -843,10 +863,8 @@ BEGIN
  
     SELECT ms_process_seq.NEXTVAL INTO g_process_id FROM DUAL;
     
-    l_process.process_id   := g_process_id;
-    l_process.origin       := i_module_name
-                       ||' '||i_unit_name
-                       ||' '||get_module(i_module_name=>i_module_name).revision;
+    l_process.process_id     := g_process_id;
+    l_process.origin         := i_origin;
     l_process.ext_ref        := i_ext_ref;
     l_process.username       := USER;
     l_process.created_date   := SYSDATE; 
@@ -914,11 +932,9 @@ BEGIN
   IF  io_node.open_process = G_OPEN_PROCESS_ALWAYS    OR 
      (io_node.open_process = G_OPEN_PROCESS_IF_CLOSED AND 
       f_process_is_closed) THEN
-   
-  
+ 
     --if the procedure stack if empty then we'll start a new process
-    log_process(i_module_name  => io_node.module.module_name
-               ,i_unit_name    => io_node.unit.unit_name  );
+    log_process(i_origin  => io_node.module.module_name||' '||io_node.unit.unit_name  );
   END IF;
 
   --fill in the NULLs
@@ -1323,18 +1339,7 @@ END warn_error;
 ------------------------------------------------------------------------
 -- METACODE ROUTINES (Public)
 ------------------------------------------------------------------------
-
-PROCEDURE new_process(i_module_name  IN VARCHAR2 DEFAULT NULL
-                     ,i_unit_name    IN VARCHAR2 DEFAULT NULL
-                     ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
-                     ,i_comments     IN VARCHAR2 DEFAULT NULL) IS
-BEGIN
-  log_process(i_module_name  => i_module_name
-             ,i_unit_name    => i_unit_name  
-             ,i_ext_ref      => i_ext_ref    
-             ,i_comments     => i_comments);   
-END;
-
+ 
  
 ------------------------------------------------------------------------
 -- Reference operations (private)
@@ -1634,119 +1639,7 @@ BEGIN
 
 END note_length;
 
-------------------------------------------------------------------------
--- Log Register operations (private)
-------------------------------------------------------------------------
- 
-PROCEDURE  register_module(i_module_name  IN VARCHAR2
-                          ,i_module_type  IN VARCHAR2
-                          ,i_revision     IN VARCHAR2
-						  ,i_msg_mode     IN NUMBER   DEFAULT G_MSG_MODE_DEBUG  
-						  ,i_open_process IN VARCHAR2 DEFAULT G_OPEN_PROCESS_IF_CLOSED 
-						  )
-IS
- 
-  l_module       ms_module%ROWTYPE ;
-  l_module_name  ms_module.module_name%TYPE := LTRIM(RTRIM(SUBSTR(i_module_name,1,G_MODULE_NAME_WIDTH)));
- 
-  PRAGMA AUTONOMOUS_TRANSACTION;
 
-BEGIN
-  $if $$intlog $then intlog_start('register_module');            $end
-  $if $$intlog $then intlog_note('i_module_name',i_module_name); $end
-  $if $$intlog $then intlog_note('i_module_type',i_module_type); $end
-  $if $$intlog $then intlog_note('i_revision',i_revision);       $end
-
-  --get a registered module or register this one
-  l_module := get_module(i_module_name => l_module_name); 
-
-  IF l_module.revision     <> i_revision     OR
-     l_module.module_type  <> i_module_type  OR 
-	 l_module.msg_mode     <> i_msg_mode     OR
-	 l_module.open_process <> i_open_process THEN
- 
-     UPDATE ms_module 
-     SET revision     = i_revision     
-        ,module_type  = i_module_type 
-		,msg_mode     = i_msg_mode    
-		,open_process = i_open_process
-     WHERE module_id = l_module.module_id;
-
-  END IF;
-
-  
-  COMMIT;
-  $if $$intlog $then intlog_end('register_module'); $end
-
-EXCEPTION
-  WHEN OTHERS THEN
-    ROLLBACK;
-    err_warn_oracle_error('register_module');
-  
-END;  
-
-------------------------------------------------------------------------
--- Log Register operations (PUBLIC) Overloaded on private routine register_module
--- 
---   register_package
---   register_form
---   register_report
---   register_standalone_procedure
---   register_standalone_function
-------------------------------------------------------------------------
-
- 
-PROCEDURE  register_package(i_name      IN VARCHAR2
-                           ,i_revision  IN VARCHAR2  DEFAULT NULL) IS
-BEGIN
-  register_module(i_module_name => i_name
-                 ,i_module_type => G_MODULE_TYPE_PACKAGE
-                 ,i_revision    => i_revision);
-END;
-------------------------------------------------------------------------
- 
-PROCEDURE  register_form(i_name     IN VARCHAR2
-                        ,i_revision IN VARCHAR2) IS
-BEGIN
-  register_module(i_module_name => i_name
-                 ,i_module_type => G_MODULE_TYPE_FORM
-                 ,i_revision    => i_revision);
-END;
-
------------------------------------------------------------------------- 
-PROCEDURE  register_report(i_name     IN VARCHAR2
-                          ,i_revision IN VARCHAR2) IS
-BEGIN
-  register_module(i_module_name => i_name
-                 ,i_module_type => G_MODULE_TYPE_REPORT
-                 ,i_revision    => i_revision);
-END;
-
------------------------------------------------------------------------- 
-PROCEDURE  register_standalone_procedure(i_name     IN VARCHAR2
-                                        ,i_revision IN VARCHAR2) IS
-BEGIN
-  register_module(i_module_name => i_name
-                 ,i_module_type => G_MODULE_TYPE_PROCEDURE
-                 ,i_revision    => i_revision);
-END;
-
------------------------------------------------------------------------- 
-PROCEDURE  register_standalone_function(i_name     IN VARCHAR2
-                                       ,i_revision IN VARCHAR2) IS
-BEGIN
-  register_module(i_module_name => i_name
-                 ,i_module_type => G_MODULE_TYPE_FUNCTION
-                 ,i_revision    => i_revision);
-END;
-------------------------------------------------------------------------
-PROCEDURE  register_SQL_script(i_name     IN VARCHAR2
-                              ,i_revision IN VARCHAR2) IS
-BEGIN
-  register_module(i_module_name => i_name
-                 ,i_module_type => G_MODULE_TYPE_SQL
-                 ,i_revision    => i_revision);
-END;
 
 ------------------------------------------------------------------------
 -- Message Mode operations (private)
@@ -1884,12 +1777,12 @@ END create_traversal;
 
 
 ------------------------------------------------------------------------
--- Node Typ API functions (Public)
+-- Node Typ API functions (Private)
 ------------------------------------------------------------------------
 
 FUNCTION new_node(i_module_name IN VARCHAR2
                  ,i_unit_name   IN VARCHAR2
-				 ,i_unit_type   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
+				 ,i_unit_type   IN VARCHAR2) RETURN ms_logger.node_typ IS
 				 
   --When upgraded to 12C may not need to pass any params				 
 
@@ -1985,6 +1878,27 @@ BEGIN
   ------------------------------------------------------------------------
   -- Node Typ API functions (Public)
   ------------------------------------------------------------------------
+  
+ 
+FUNCTION new_process(i_process_name IN VARCHAR2
+                    ,i_process_type IN VARCHAR2
+                    ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
+					--,i_msg_mode     IN INTEGER  DEFAULT G_MSG_MODE_NORMAL
+                    ,i_comments     IN VARCHAR2 DEFAULT NULL       ) RETURN INTEGER IS
+ 
+BEGIN
+  
+   log_process(i_origin  => i_process_type ||' '||  i_process_name
+   		    --  ,i_msg_mode     => i_msg_mode
+              ,i_ext_ref      => i_ext_ref    
+              ,i_comments     => i_comments);  
+ 
+  RETURN g_process_id;
+					
+ 		 
+END;
+  
+ 
   FUNCTION new_pkg(i_module_name IN VARCHAR2
                   ,i_unit_name   IN VARCHAR2 DEFAULT 'Initialisation') RETURN ms_logger.node_typ IS
  
@@ -2043,21 +1957,7 @@ BEGIN
  --
  -- END;
   
-/*  
-------------------------------------------------------------------------
--- PASS operations (PUBLIC)
--- Pass is a metacoding shortcut.  
--- Creates and uses nodes that don't really exist, by adding 1 to the node_level
-------------------------------------------------------------------------
-PROCEDURE do_pass(io_node     IN OUT  ms_logger.node_typ
-                 ,i_pass_name IN VARCHAR2 DEFAULT NULL) IS
-BEGIN
-  ms_metacode.do_pass(io_node     => io_node    
-                     ,i_pass_name => i_pass_name);
-
-END;
-  
-*/  
+ 
   
 ------------------------------------------------------------------------
 -- Message ROUTINES (Public)

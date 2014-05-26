@@ -11,17 +11,30 @@ TYPE node_typ IS RECORD
   (traversal        ms_traversal%ROWTYPE
   ,module           ms_module%ROWTYPE
   ,unit             ms_unit%ROWTYPE
-  ,msg_mode         number
+  ,msg_mode         INTEGER
   ,open_process     ms_unit.open_process%TYPE
   ,node_level       BINARY_INTEGER
   ,logged           BOOLEAN
   ,unlogged_refs    ref_list
   ,internal_error   BOOLEAN DEFAULT NULL --start undefined, set to false by an ENTER routine.
-  ,pass_count       NUMBER  DEFAULT 0    --initialised at 0 
+  ,pass_count       INTEGER  DEFAULT 0    --initialised at 0 
   ,call_stack_level BINARY_INTEGER
   ,call_stack_hist  VARCHAR2(32000));  
 
---SUBTYPE node_typ IS ms_logger.node_typ;
+  
+--FUNCTION new_process(i_module_name IN VARCHAR2
+--                    ,i_unit_name   IN VARCHAR2
+--                    ,i_ext_ref     IN VARCHAR2 DEFAULT NULL
+--                    ,i_comments    IN VARCHAR2 DEFAULT NULL       ) RETURN ms_logger.node_typ;
+ 
+ 
+FUNCTION new_process(i_process_name IN VARCHAR2
+                    ,i_process_type IN VARCHAR2
+                    ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
+					--,i_msg_mode     IN INTEGER  DEFAULT G_MSG_MODE_NORMAL
+                    ,i_comments     IN VARCHAR2 DEFAULT NULL       ) RETURN INTEGER; 
+ 
+ 
 FUNCTION new_pkg(i_module_name IN VARCHAR2
                 ,i_unit_name   IN VARCHAR2 DEFAULT 'Initialisation' ) RETURN ms_logger.node_typ;
  
@@ -152,7 +165,7 @@ PROCEDURE oracle_error( i_node            IN ms_logger.node_typ
  
 PROCEDURE warn_error( i_node            IN ms_logger.node_typ 
                      ,i_message         IN VARCHAR2 DEFAULT NULL  );
- 				   
+/* 				   
 ------------------------------------------------------------------------
 -- Log Register operations (PUBLIC) Overloaded on private routine register_module
 -- 
@@ -186,7 +199,7 @@ PROCEDURE  register_standalone_function(i_name     IN VARCHAR2
 PROCEDURE  register_SQL_script(i_name     IN VARCHAR2
                               ,i_revision IN VARCHAR2);
 
-
+*/
 
 ------------------------------------------------------------------------
 -- Message Mode operations (PUBLIC)
@@ -213,17 +226,13 @@ PROCEDURE set_internal_debug;
 
 PROCEDURE reset_internal_debug;
  
-PROCEDURE new_process(i_module_name  IN VARCHAR2 DEFAULT NULL
-                     ,i_unit_name    IN VARCHAR2 DEFAULT NULL
-                     ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
-                     ,i_comments     IN VARCHAR2 DEFAULT NULL);
- 
  
 ----------------------------------------------------------------------
 -- EXPOSED FOR THE MS_API
 ----------------------------------------------------------------------
 
-FUNCTION f_process_id RETURN INTEGER; 
+FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
+                     ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN INTEGER; 
 
 FUNCTION f_process_is_closed RETURN BOOLEAN;
 

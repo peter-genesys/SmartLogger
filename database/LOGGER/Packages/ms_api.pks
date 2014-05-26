@@ -32,6 +32,12 @@ FUNCTION get_plain_text_process_report RETURN CLOB;
 ------------------------------------------------------------------------
 FUNCTION get_html_process_report RETURN CLOB;
  
+------------------------------------------------------------------------
+-- get_trace_URL
+------------------------------------------------------------------------
+ 
+FUNCTION get_trace_URL(i_process_id IN INTEGER  DEFAULT NULL
+                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN VARCHAR2; 
  
 ------------------------------------------------------------------------
 -- get_user_feedback_URL
