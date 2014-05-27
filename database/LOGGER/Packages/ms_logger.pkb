@@ -944,7 +944,9 @@ END;
 ------------------------------------------------------------------------
 
 PROCEDURE log_node(io_node  IN OUT node_typ ) IS
- 
+--Log traversal or update it if already logged.
+--Log any unlogged refs.
+
   l_ref_index BINARY_INTEGER;
   x_too_deeply_nested   EXCEPTION;
   PRAGMA AUTONOMOUS_TRANSACTION;
@@ -964,22 +966,35 @@ BEGIN
     log_process(i_origin  => io_node.module.module_name||' '||io_node.unit.unit_name  );
   END IF;
 
-  --fill in the NULLs
-  io_node.traversal.traversal_id        := new_traversal_id; 
-  io_node.traversal.parent_traversal_id := f_current_traversal_id;
-  io_node.traversal.process_id          := g_process_id;
+  --Now that we can re-log a node, need to test if already logged.
+  IF io_node.logged THEN
+    $if $$intlog $then intlog_debug('Re-logging a Node'); $end
+    UPDATE ms_traversal 
+    SET ROW = io_node.traversal
+    WHERE traversal_id = io_node.traversal.traversal_id;	
   
-  $if $$intlog $then intlog_note('module_name        ',io_node.module.module_name );           $end
-  $if $$intlog $then intlog_note('unit_name          ',io_node.unit.unit_name  );              $end
-  $if $$intlog $then intlog_note('traversal_id       ',io_node.traversal.traversal_id       ); $end
-  $if $$intlog $then intlog_note('unit_id            ',io_node.traversal.unit_id);             $end
-  $if $$intlog $then intlog_note('parent_traversal_id',io_node.traversal.parent_traversal_id); $end
-  $if $$intlog $then intlog_note('process_id         ',io_node.traversal.process_id         ); $end
-  $if $$intlog $then intlog_note('msg_mode           ',io_node.traversal.msg_mode);            $end
+  ELSE
+    $if $$intlog $then intlog_debug('Log a node first time'); $end
+    --fill in the NULLs
+    io_node.traversal.traversal_id        := new_traversal_id; 
+    io_node.traversal.parent_traversal_id := f_current_traversal_id;
+    io_node.traversal.process_id          := g_process_id;
+    
+    $if $$intlog $then intlog_note('module_name        ',io_node.module.module_name );           $end
+    $if $$intlog $then intlog_note('unit_name          ',io_node.unit.unit_name  );              $end
+    $if $$intlog $then intlog_note('traversal_id       ',io_node.traversal.traversal_id       ); $end
+    $if $$intlog $then intlog_note('unit_id            ',io_node.traversal.unit_id);             $end
+    $if $$intlog $then intlog_note('parent_traversal_id',io_node.traversal.parent_traversal_id); $end
+    $if $$intlog $then intlog_note('process_id         ',io_node.traversal.process_id         ); $end
+    $if $$intlog $then intlog_note('msg_mode           ',io_node.traversal.msg_mode);            $end
 
-  INSERT INTO ms_traversal VALUES io_node.traversal; 
+    INSERT INTO ms_traversal VALUES io_node.traversal; 
+  	io_node.logged := TRUE;
+	
+  END IF;
+  
   COMMIT;  --commit prior to logging refs
-   
+ 
   IF io_node.traversal.msg_mode = G_MSG_MODE_DEBUG THEN
     --incase there are any unlogged refs attached,
     --log them all.
@@ -996,7 +1011,7 @@ BEGIN
  
   END IF;
   
-  io_node.logged := TRUE;
+  
   $if $$intlog $then intlog_end('log_node'); $end
   
 EXCEPTION
@@ -1018,13 +1033,18 @@ END;
 PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
                     ,i_msg_mode IN NUMBER)IS
  
-  --Log traversals that have not yet been logged, using the given msg_mode 
-  --search back recursively to first logged traversal
-  --log traversals and change msg_mode while dropping out.
+  --Log traversals (using the given msg_mode) that have not yet been logged,
+  --or were logged at a higher msg_mode.
+  --search back recursively to first logged traversal, at an equal msg_mode
+  --log_node will update node with the new msg_mode
+  --and log any remaining unlogged refs.
+
   l_traversal_index BINARY_INTEGER;
 BEGIN
   $if $$intlog $then intlog_start('dump_nodes'); $end
-  IF i_index > 0 AND NOT g_nodes(i_index).logged THEN
+  IF i_index > 0 AND ( 
+          NOT g_nodes(i_index).logged 
+	  OR  g_nodes(i_index).traversal.msg_mode > i_msg_mode)  THEN
     --dump any previous traversals too
     dump_nodes(i_index    => g_nodes.PRIOR(i_index)
               ,i_msg_mode => i_msg_mode);
@@ -1417,8 +1437,10 @@ BEGIN
       l_reference.value        := SUBSTR(i_value,1,G_REF_DATA_WIDTH);
       l_reference.descr        := SUBSTR(i_descr,1,G_REF_DATA_WIDTH);
       l_reference.param_ind    := l_param_ind; 
-
-      IF NOT g_nodes(f_index).logged THEN
+     
+      IF NOT g_nodes(f_index).logged OR 
+	     g_nodes(f_index).traversal.msg_mode > G_MSG_MODE_DEBUG THEN
+		--Node is unlogged or not set to debug level, yet..
         --push onto unlogged refs
         push_ref(
          io_refs     => g_nodes(f_index).unlogged_refs 
