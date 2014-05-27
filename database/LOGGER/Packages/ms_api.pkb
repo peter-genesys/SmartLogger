@@ -457,13 +457,13 @@ FUNCTION get_trace_URL(i_process_id IN INTEGER  DEFAULT NULL
   l_result     VARCHAR2(2000);
   
  
-BEGIN
+BEGIN 
 
   l_process_id := ms_logger.f_process_id(i_process_id => i_process_id
                                         ,i_ext_ref    => i_ext_ref );  
  
-  IF l_process_id IS NOT NULL THEN
-    l_result := 'http://soraempl002.au.fcl.internal:8080/apex/f?p=104:24::::RIR,RP,24:P24_PROCESS_ID:' ||ms_logger.f_process_id;
+  IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
+    l_result := 'http://soraempl002.au.fcl.internal:8080/apex/f?p=104:24::IR_REPORT_MESSAGES::RIR,RP,24:P24_PROCESS_ID:' ||l_process_id;
   END IF;
   
   RETURN l_result;
@@ -476,11 +476,14 @@ END;
 ------------------------------------------------------------------------
  
 FUNCTION get_user_feedback_URL RETURN VARCHAR2 IS
- 
+  l_process_id INTEGER;
 BEGIN
-  IF ms_logger.f_process_is_open THEN
+
+  l_process_id := ms_logger.f_process_id;
+
+  IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
   
-    RETURN 'Click to view Trace:  http://soraempl002.au.fcl.internal:8080/apex/f?p=104:24::::RIR,RP,24:P24_PROCESS_ID:' ||ms_logger.f_process_id;
+    RETURN 'Click to view Trace:  http://soraempl002.au.fcl.internal:8080/apex/f?p=104:24::IR_REPORT_MESSAGES::RIR,RP,24:P24_PROCESS_ID:' ||l_process_id;
   ELSE
     RETURN NULL;
   END IF;
@@ -492,12 +495,15 @@ END;
 ------------------------------------------------------------------------
  
 FUNCTION get_user_feedback_anchor RETURN VARCHAR2 IS
- 
+  l_process_id INTEGER;
 BEGIN
-  IF ms_logger.f_process_is_open THEN
+
+  l_process_id := ms_logger.f_process_id;
+
+  IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
   
-    return htf.anchor(curl        =>'http://soraempl002.au.fcl.internal:8080/apex/f?p=104:24::::RIR,RP,24:P24_PROCESS_ID:'
-	                                 ||ms_logger.f_process_id
+    return htf.anchor(curl        =>'http://soraempl002.au.fcl.internal:8080/apex/f?p=104:24::IR_REPORT_MESSAGES::RIR,RP,24:P24_PROCESS_ID:'
+	                                 ||l_process_id
                      ,ctext       => 'Click to view Trace'
                      ,cname       => NULL
                      ,cattributes => NULL);
@@ -514,11 +520,15 @@ END;
  
 FUNCTION get_support_feedback_anchor RETURN VARCHAR2 IS
  
+  l_process_id INTEGER;
 BEGIN
 
-  IF ms_logger.f_process_is_open THEN
+  l_process_id := ms_logger.f_process_id;
+
+  IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
+  
     return htf.anchor(curl        =>'http://soraempl002.au.fcl.internal:8080/apex/f?p=104:8'
-	                             ||'::IR_REPORT_EXCEPTIONS:NO::P8_PROCESS_ID:'||ms_logger.f_process_id
+	                             ||'::IR_REPORT_EXCEPTIONS:NO::P8_PROCESS_ID:'||l_process_id
                      ,ctext       => 'Click to view Debugging'
                      ,cname       => NULL
                      ,cattributes => NULL);

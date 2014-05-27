@@ -44,7 +44,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140523171015'
+ ,p_last_upd_yyyymmddhh24miss => '20140527103613'
   );
 null;
  
@@ -275,8 +275,8 @@ wwv_flow_api.create_worksheet_column(
   p_db_column_name         =>'EXT_REF',
   p_display_order          =>3,
   p_column_identifier      =>'C',
-  p_column_label           =>'Ext Ref',
-  p_report_label           =>'Ext Ref',
+  p_column_label           =>'External Ref',
+  p_report_label           =>'External Ref',
   p_sync_form_label        =>'Y',
   p_display_in_default_rpt =>'Y',
   p_is_sortable            =>'Y',
@@ -1016,16 +1016,16 @@ begin
 rc1:=rc1||'LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:TIME_NOW:MESSAGE_ID';
 
 wwv_flow_api.create_worksheet_rpt(
-  p_id => 17786745666976195+wwv_flow_api.g_id_offset,
+  p_id => 3316703584729671+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
   p_session_id  => null,
   p_base_report_id  => null+wwv_flow_api.g_id_offset,
   p_application_user => 'APXWS_ALTERNATIVE',
-  p_name                    =>'Notes and Messsages',
+  p_name                    =>'Params and Notes',
   p_report_seq              =>10,
-  p_report_alias            =>'76246',
+  p_report_alias            =>'33168',
   p_status                  =>'PUBLIC',
   p_category_id             =>null+wwv_flow_api.g_id_offset,
   p_is_default              =>'Y',
@@ -1051,11 +1051,11 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17787042269976195+wwv_flow_api.g_id_offset,
+  p_id => 3318628897734502+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17786745666976195+wwv_flow_api.g_id_offset,
+  p_report_id => 3316703584729671+wwv_flow_api.g_id_offset,
   p_name                    =>'Unit Name',
   p_condition_type          =>'HIGHLIGHT',
   p_allow_delete            =>'Y',
@@ -1071,11 +1071,11 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17787143668976195+wwv_flow_api.g_id_offset,
+  p_id => 3318717130734502+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17786745666976195+wwv_flow_api.g_id_offset,
+  p_report_id => 3316703584729671+wwv_flow_api.g_id_offset,
   p_name                    =>'Comment',
   p_condition_type          =>'HIGHLIGHT',
   p_allow_delete            =>'Y',
@@ -1092,11 +1092,11 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17787232126976195+wwv_flow_api.g_id_offset,
+  p_id => 3318820155734502+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17786745666976195+wwv_flow_api.g_id_offset,
+  p_report_id => 3316703584729671+wwv_flow_api.g_id_offset,
   p_name                    =>'Warning',
   p_condition_type          =>'HIGHLIGHT',
   p_allow_delete            =>'Y',
@@ -1113,11 +1113,11 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17787357919976195+wwv_flow_api.g_id_offset,
+  p_id => 3318929210734502+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17786745666976195+wwv_flow_api.g_id_offset,
+  p_report_id => 3316703584729671+wwv_flow_api.g_id_offset,
   p_name                    =>'Error',
   p_condition_type          =>'HIGHLIGHT',
   p_allow_delete            =>'Y',
@@ -1128,17 +1128,17 @@ wwv_flow_api.create_worksheet_condition(
   p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Oracle Error, Fatal !''  ',
   p_enabled                 =>'Y',
   p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FF3333',
+  p_row_bg_color            =>'#F24343',
   p_column_format           =>'');
 end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17787447081976195+wwv_flow_api.g_id_offset,
+  p_id => 3319015833734502+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17786745666976195+wwv_flow_api.g_id_offset,
+  p_report_id => 3316703584729671+wwv_flow_api.g_id_offset,
   p_name                    =>'Note',
   p_condition_type          =>'HIGHLIGHT',
   p_allow_delete            =>'Y',
@@ -1155,19 +1155,19 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17787556884976195+wwv_flow_api.g_id_offset,
+  p_id => 3319131322734502+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17786745666976195+wwv_flow_api.g_id_offset,
+  p_report_id => 3316703584729671+wwv_flow_api.g_id_offset,
   p_name                    =>'Param',
   p_condition_type          =>'HIGHLIGHT',
   p_allow_delete            =>'Y',
   p_column_name             =>'MSG_TYPE',
   p_operator                =>'=',
-  p_expr                    =>'Param ',
+  p_expr                    =>'Param',
   p_condition_sql           =>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Param ''  ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Param''  ',
   p_enabled                 =>'Y',
   p_highlight_sequence      =>10,
   p_row_bg_color            =>'#FFCCCC',
@@ -1176,18 +1176,242 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17786944563976195+wwv_flow_api.g_id_offset,
+  p_id => 3319213695734502+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17786745666976195+wwv_flow_api.g_id_offset,
+  p_report_id => 3316703584729671+wwv_flow_api.g_id_offset,
+  p_name                    =>'Info',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_LEVEL_TEXT',
+  p_operator                =>'=',
+  p_expr                    =>'Info ?',
+  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Info ?''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#C77AC6',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 3318520207734502+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 3316703584729671+wwv_flow_api.g_id_offset,
   p_condition_type          =>'FILTER',
   p_allow_delete            =>'Y',
   p_column_name             =>'MSG_TYPE',
-  p_operator                =>'!=',
-  p_expr                    =>'Param ',
-  p_condition_sql           =>'"MSG_TYPE" != #APXWS_EXPR#',
-  p_condition_display       =>'#APXWS_COL_NAME# != ''Param ''  ',
+  p_operator                =>'in',
+  p_expr                    =>'Param,Note',
+  p_condition_sql           =>'"MSG_TYPE" in (#APXWS_EXPR_VAL1#, #APXWS_EXPR_VAL2#)',
+  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Param, Note''  ',
+  p_enabled                 =>'Y',
+  p_column_format           =>'');
+end;
+/
+declare
+    rc1 varchar2(32767) := null;
+begin
+rc1:=rc1||'LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:TIME_NOW:MESSAGE_ID';
+
+wwv_flow_api.create_worksheet_rpt(
+  p_id => 3319330249737342+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_session_id  => null,
+  p_base_report_id  => null+wwv_flow_api.g_id_offset,
+  p_application_user => 'APXWS_ALTERNATIVE',
+  p_name                    =>'Messages',
+  p_report_seq              =>10,
+  p_report_alias            =>'33194',
+  p_status                  =>'PUBLIC',
+  p_category_id             =>null+wwv_flow_api.g_id_offset,
+  p_is_default              =>'Y',
+  p_display_rows            =>1000,
+  p_report_columns          =>rc1,
+  p_sort_column_1           =>'MESSAGE_ID',
+  p_sort_direction_1        =>'ASC',
+  p_sort_column_2           =>'0',
+  p_sort_direction_2        =>'ASC',
+  p_sort_column_3           =>'0',
+  p_sort_direction_3        =>'ASC',
+  p_sort_column_4           =>'0',
+  p_sort_direction_4        =>'ASC',
+  p_sort_column_5           =>'0',
+  p_sort_direction_5        =>'ASC',
+  p_sort_column_6           =>'0',
+  p_sort_direction_6        =>'ASC',
+  p_break_on                =>'LEVEL_UNIT_NAME:0:0:0:0:0',
+  p_break_enabled_on        =>'0:0:0:0:0',
+  p_flashback_enabled       =>'N',
+  p_calendar_display_column =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 3321208841743764+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 3319330249737342+wwv_flow_api.g_id_offset,
+  p_name                    =>'Unit Name',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'LEVEL_UNIT_NAME',
+  p_operator                =>'is not null',
+  p_condition_sql           =>' (case when ("LEVEL_UNIT_NAME" is not null) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME#',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_column_bg_color         =>'#99CCFF',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 3321310546743764+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 3319330249737342+wwv_flow_api.g_id_offset,
+  p_name                    =>'Comment',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_LEVEL_TEXT',
+  p_operator                =>'=',
+  p_expr                    =>'Comment',
+  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Comment''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#CCFFCC',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 3321417725743764+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 3319330249737342+wwv_flow_api.g_id_offset,
+  p_name                    =>'Warning',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_LEVEL_TEXT',
+  p_operator                =>'=',
+  p_expr                    =>'Warning !',
+  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Warning !''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#FF9900',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 3321528790743764+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 3319330249737342+wwv_flow_api.g_id_offset,
+  p_name                    =>'Error',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_LEVEL_TEXT',
+  p_operator                =>'in',
+  p_expr                    =>'Oracle Error,Fatal !',
+  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" in (#APXWS_EXPR_VAL1#, #APXWS_EXPR_VAL2#)) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Oracle Error, Fatal !''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#F24343',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 3321619685743764+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 3319330249737342+wwv_flow_api.g_id_offset,
+  p_name                    =>'Note',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_TYPE',
+  p_operator                =>'=',
+  p_expr                    =>'Note',
+  p_condition_sql           =>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Note''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#FFFF99',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 3321722730743764+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 3319330249737342+wwv_flow_api.g_id_offset,
+  p_name                    =>'Param',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_TYPE',
+  p_operator                =>'=',
+  p_expr                    =>'Param',
+  p_condition_sql           =>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Param''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#FFCCCC',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 3321822509743764+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 3319330249737342+wwv_flow_api.g_id_offset,
+  p_name                    =>'Info',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_LEVEL_TEXT',
+  p_operator                =>'=',
+  p_expr                    =>'Info ?',
+  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Info ?''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#C77AC6',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 3321119645743764+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 3319330249737342+wwv_flow_api.g_id_offset,
+  p_condition_type          =>'FILTER',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_TYPE',
+  p_operator                =>'=',
+  p_expr                    =>'Normal',
+  p_condition_sql           =>'"MSG_TYPE" = #APXWS_EXPR#',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Normal''  ',
   p_enabled                 =>'Y',
   p_column_format           =>'');
 end;
@@ -1232,7 +1456,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17787844194976195+wwv_flow_api.g_id_offset,
+  p_id => 3316007955721501+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1252,7 +1476,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17787943269976195+wwv_flow_api.g_id_offset,
+  p_id => 3316124165721501+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1273,7 +1497,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17788043901976195+wwv_flow_api.g_id_offset,
+  p_id => 3316215410721501+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1294,7 +1518,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17788137851976195+wwv_flow_api.g_id_offset,
+  p_id => 3316328131721501+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1309,13 +1533,13 @@ wwv_flow_api.create_worksheet_condition(
   p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Oracle Error, Fatal !''  ',
   p_enabled                 =>'Y',
   p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FF3333',
+  p_row_bg_color            =>'#F24343',
   p_column_format           =>'');
 end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17788251129976196+wwv_flow_api.g_id_offset,
+  p_id => 3316431912721501+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1336,7 +1560,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 17788338388976196+wwv_flow_api.g_id_offset,
+  p_id => 3316516085721501+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1346,12 +1570,33 @@ wwv_flow_api.create_worksheet_condition(
   p_allow_delete            =>'Y',
   p_column_name             =>'MSG_TYPE',
   p_operator                =>'=',
-  p_expr                    =>'Param ',
+  p_expr                    =>'Param',
   p_condition_sql           =>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Param ''  ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Param''  ',
   p_enabled                 =>'Y',
   p_highlight_sequence      =>10,
   p_row_bg_color            =>'#FFCCCC',
+  p_column_format           =>'');
+end;
+/
+begin
+wwv_flow_api.create_worksheet_condition(
+  p_id => 3316612678721501+wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_page_id=> 8,
+  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
+  p_report_id => 17787661063976195+wwv_flow_api.g_id_offset,
+  p_name                    =>'Info',
+  p_condition_type          =>'HIGHLIGHT',
+  p_allow_delete            =>'Y',
+  p_column_name             =>'MSG_LEVEL_TEXT',
+  p_operator                =>'=',
+  p_expr                    =>'Info ?',
+  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Info ?''  ',
+  p_enabled                 =>'Y',
+  p_highlight_sequence      =>10,
+  p_row_bg_color            =>'#C77AC6',
   p_column_format           =>'');
 end;
 /
@@ -1396,28 +1641,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 2829720787788995+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Param',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_TYPE',
-  p_operator                =>'=',
-  p_expr                    =>'Param ',
-  p_condition_sql           =>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Param ''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FFCCCC',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 2829810109788995+wwv_flow_api.g_id_offset,
+  p_id => 3315622668706945+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1437,28 +1661,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 2829902022788995+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Comment',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_LEVEL_TEXT',
-  p_operator                =>'=',
-  p_expr                    =>'Comment',
-  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Comment''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#CCFFCC',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 2830013468788995+wwv_flow_api.g_id_offset,
+  p_id => 3315714752706945+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1479,7 +1682,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 2830124133788995+wwv_flow_api.g_id_offset,
+  p_id => 3315820644706945+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1500,28 +1703,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 2830212276788995+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17788439880976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Note',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_TYPE',
-  p_operator                =>'=',
-  p_expr                    =>'Note',
-  p_condition_sql           =>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Note''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FFFF99',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 2829629710788995+wwv_flow_api.g_id_offset,
+  p_id => 3315523277706945+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
   p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
@@ -1533,188 +1715,6 @@ wwv_flow_api.create_worksheet_condition(
   p_expr                    =>'Internal Error,Warning !,Fatal !',
   p_condition_sql           =>'"MSG_LEVEL_TEXT" in (#APXWS_EXPR_VAL1#, #APXWS_EXPR_VAL2#, #APXWS_EXPR_VAL3#)',
   p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Internal Error, Warning !, Fatal !''  ',
-  p_enabled                 =>'Y',
-  p_column_format           =>'');
-end;
-/
-declare
-    rc1 varchar2(32767) := null;
-begin
-rc1:=rc1||'LEVEL_UNIT_NAME:NAME:VALUE';
-
-wwv_flow_api.create_worksheet_rpt(
-  p_id => 17789352024976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_session_id  => null,
-  p_base_report_id  => null+wwv_flow_api.g_id_offset,
-  p_application_user => 'APXWS_ALTERNATIVE',
-  p_name                    =>'Params Only',
-  p_report_seq              =>10,
-  p_report_alias            =>'76272',
-  p_status                  =>'PUBLIC',
-  p_category_id             =>null+wwv_flow_api.g_id_offset,
-  p_is_default              =>'Y',
-  p_display_rows            =>1000,
-  p_report_columns          =>rc1,
-  p_sort_column_1           =>'MESSAGE_ID',
-  p_sort_direction_1        =>'ASC',
-  p_sort_column_2           =>'0',
-  p_sort_direction_2        =>'ASC',
-  p_sort_column_3           =>'0',
-  p_sort_direction_3        =>'ASC',
-  p_sort_column_4           =>'0',
-  p_sort_direction_4        =>'ASC',
-  p_sort_column_5           =>'0',
-  p_sort_direction_5        =>'ASC',
-  p_sort_column_6           =>'0',
-  p_sort_direction_6        =>'ASC',
-  p_break_on                =>'LEVEL_UNIT_NAME:0:0:0:0:0',
-  p_break_enabled_on        =>'0:0:0:0:0',
-  p_flashback_enabled       =>'N',
-  p_calendar_display_column =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17789639581976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17789352024976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Unit Name',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'LEVEL_UNIT_NAME',
-  p_operator                =>'is not null',
-  p_condition_sql           =>' (case when ("LEVEL_UNIT_NAME" is not null) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME#',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_column_bg_color         =>'#99CCFF',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17789758465976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17789352024976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Comment',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_LEVEL_TEXT',
-  p_operator                =>'=',
-  p_expr                    =>'Comment',
-  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Comment''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#CCFFCC',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17789857764976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17789352024976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Warning',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_LEVEL_TEXT',
-  p_operator                =>'=',
-  p_expr                    =>'Warning !',
-  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Warning !''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FF9900',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17789933957976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17789352024976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Error',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_LEVEL_TEXT',
-  p_operator                =>'in',
-  p_expr                    =>'Oracle Error,Fatal !',
-  p_condition_sql           =>' (case when ("MSG_LEVEL_TEXT" in (#APXWS_EXPR_VAL1#, #APXWS_EXPR_VAL2#)) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Oracle Error, Fatal !''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FF3333',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17790061075976197+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17789352024976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Note',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_TYPE',
-  p_operator                =>'=',
-  p_expr                    =>'Note',
-  p_condition_sql           =>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Note''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FFFF99',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17790159965976197+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17789352024976196+wwv_flow_api.g_id_offset,
-  p_name                    =>'Param',
-  p_condition_type          =>'HIGHLIGHT',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_TYPE',
-  p_operator                =>'=',
-  p_expr                    =>'Param ',
-  p_condition_sql           =>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) ',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Param ''  ',
-  p_enabled                 =>'Y',
-  p_highlight_sequence      =>10,
-  p_row_bg_color            =>'#FFCCCC',
-  p_column_format           =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_condition(
-  p_id => 17789536778976196+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 8,
-  p_worksheet_id => 17784432860976193+wwv_flow_api.g_id_offset,
-  p_report_id => 17789352024976196+wwv_flow_api.g_id_offset,
-  p_condition_type          =>'FILTER',
-  p_allow_delete            =>'Y',
-  p_column_name             =>'MSG_TYPE',
-  p_operator                =>'=',
-  p_expr                    =>'Param ',
-  p_condition_sql           =>'"MSG_TYPE" = #APXWS_EXPR#',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Param ''  ',
   p_enabled                 =>'Y',
   p_column_format           =>'');
 end;
@@ -1884,7 +1884,7 @@ wwv_flow_api.create_report_columns (
   p_form_element_id=> null,
   p_column_alias=> 'PROCESS_ID',
   p_column_display_sequence=> 1,
-  p_column_heading=> 'PROCESS_ID',
+  p_column_heading=> 'Process Id',
   p_use_as_row_header=> 'N',
   p_column_link=>'f?p=&APP_ID.:8:&SESSION.::&DEBUG.:RIR:P8_PROCESS_ID,P8_TRAVERSAL_ID:#PROCESS_ID#,#TOP_TRAVERSAL_ID#',
   p_column_linktext=>'#PROCESS_ID#',
@@ -1915,15 +1915,15 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 2,
   p_form_element_id=> null,
   p_column_alias=> 'EXT_REF',
-  p_column_display_sequence=> 2,
-  p_column_heading=> 'EXT_REF',
+  p_column_display_sequence=> 3,
+  p_column_heading=> 'External Ref',
   p_use_as_row_header=> 'N',
   p_column_alignment=>'LEFT',
-  p_heading_alignment=>'CENTER',
+  p_heading_alignment=>'LEFT',
   p_default_sort_column_sequence=>0,
   p_disable_sort_column=>'N',
   p_sum_column=> 'N',
-  p_hidden_column=> 'Y',
+  p_hidden_column=> 'N',
   p_display_as=>'ESCAPE_SC',
   p_lov_show_nulls=> 'NO',
   p_is_required=> false,
@@ -1944,7 +1944,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 3,
   p_form_element_id=> null,
   p_column_alias=> 'ORIGIN',
-  p_column_display_sequence=> 3,
+  p_column_display_sequence=> 2,
   p_column_heading=> 'Origin',
   p_use_as_row_header=> 'N',
   p_column_alignment=>'LEFT',
@@ -1974,7 +1974,7 @@ wwv_flow_api.create_report_columns (
   p_form_element_id=> null,
   p_column_alias=> 'USERNAME',
   p_column_display_sequence=> 4,
-  p_column_heading=> 'USERNAME',
+  p_column_heading=> 'Username',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
   p_default_sort_column_sequence=>0,
@@ -2027,7 +2027,7 @@ wwv_flow_api.create_report_columns (
   p_form_element_id=> null,
   p_column_alias=> 'COMMENTS',
   p_column_display_sequence=> 6,
-  p_column_heading=> 'COMMENTS',
+  p_column_heading=> 'Comments',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
   p_default_sort_column_sequence=>0,
@@ -2077,7 +2077,7 @@ wwv_flow_api.create_report_columns (
   p_form_element_id=> null,
   p_column_alias=> 'NOTIFIED_FLAG',
   p_column_display_sequence=> 8,
-  p_column_heading=> 'NOTIFIED_FLAG',
+  p_column_heading=> 'Notified Flag',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
   p_default_sort_column_sequence=>0,
@@ -2312,6 +2312,41 @@ wwv_flow_api.create_page_item(
   p_show_quick_picks=>'N',
   p_item_comment => '');
  
+ 
+end;
+/
+
+ 
+begin
+ 
+wwv_flow_api.create_page_da_event (
+  p_id => 3336029669945308 + wwv_flow_api.g_id_offset
+ ,p_flow_id => wwv_flow.g_flow_id
+ ,p_page_id => 8
+ ,p_name => 'HideControlPanel'
+ ,p_event_sequence => 10
+ ,p_triggering_element_type => 'REGION'
+ ,p_triggering_region_id => 17784247198976192 + wwv_flow_api.g_id_offset
+ ,p_bind_type => 'bind'
+ ,p_bind_event_type => 'apexafterrefresh'
+  );
+wwv_flow_api.create_page_da_action (
+  p_id => 3336331655945314 + wwv_flow_api.g_id_offset
+ ,p_flow_id => wwv_flow.g_flow_id
+ ,p_page_id => 8
+ ,p_event_id => 3336029669945308 + wwv_flow_api.g_id_offset
+ ,p_event_result => 'TRUE'
+ ,p_action_sequence => 10
+ ,p_execute_on_page_init => 'Y'
+ ,p_action => 'NATIVE_JAVASCRIPT_CODE'
+ ,p_attribute_01 => '//If Control Panel is visible , toggle it off.'||unistr('\000a')||
+'if(!($(''#apexir_CONTROL_PANEL_COMPLETE'').css(''display'') == ''none'') ){'||unistr('\000a')||
+'   gReport.toggle_controls( $x(''apexir_CONTROL_PANEL_CONTROL'') );'||unistr('\000a')||
+'    return false;'||unistr('\000a')||
+'}'
+ ,p_stop_execution_on_error => 'Y'
+ );
+null;
  
 end;
 /

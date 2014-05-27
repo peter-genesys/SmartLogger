@@ -231,6 +231,11 @@ PROCEDURE reset_internal_debug;
 -- EXPOSED FOR THE MS_API
 ----------------------------------------------------------------------
 
+----------------------------------------------------------------------
+-- f_process_traced
+----------------------------------------------------------------------
+FUNCTION f_process_traced(i_process_id IN INTEGER) RETURN BOOLEAN;
+
 FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN INTEGER; 
 

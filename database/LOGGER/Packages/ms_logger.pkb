@@ -612,14 +612,41 @@ END f_tf;
 -- EXPOSED FOR THE MS_API
 ----------------------------------------------------------------------
 
+
+----------------------------------------------------------------------
+-- f_process_traced
+----------------------------------------------------------------------
+FUNCTION f_process_traced(i_process_id IN INTEGER) RETURN BOOLEAN IS
+  CURSOR cu_traversal IS
+  SELECT 1
+  FROM   ms_traversal t  
+  WHERE  t.process_id = i_process_id ;  
+ 				 
+  l_dummy  INTEGER;	
+  l_result BOOLEAN;  
+				 
+BEGIN
+ 
+    OPEN cu_traversal;
+    FETCH cu_traversal INTO l_dummy;
+	l_result := cu_traversal%FOUND;
+    CLOSE cu_traversal;
+    
+    RETURN l_result;
+   
+END f_process_traced;
+ 
+----------------------------------------------------------------------
+-- f_process_id
+----------------------------------------------------------------------
 FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN INTEGER IS
 					 
   CURSOR cu_process IS
   SELECT process_id
-  FROM   ms_process 
-  WHERE  process_id = i_process_id
-  OR     ext_ref    = i_ext_ref;  
+  FROM   ms_process   p
+  WHERE  p.process_id = i_process_id
+     OR  p.ext_ref    = i_ext_ref;  
  				 
   l_result INTEGER;				 
 				 

@@ -1249,11 +1249,9 @@ BEGIN
 	    --l_bind_var := RTRIM(l_bind_var,':'); 						
 		go_past(';');	
 		
-		IF l_var_list.EXISTS(l_var) THEN
           inject( i_new_code => 'ms_logger.note(l_node,'''||l_bind_var||''','||l_bind_var||');'
           	   ,i_indent   => i_indent
           	   ,i_colour   => G_COLOUR_NOTE);
-        END IF;
                
       WHEN matched_with(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN	
         ms_logger.info(l_node, 'Assign Var');	  
@@ -1500,7 +1498,12 @@ BEGIN
       ms_logger.note(l_node, 'l_prog_unit_name' ,l_prog_unit_name);
       
       l_inject_node    := '  l_node ms_logger.node_typ := ms_logger.'||l_node_type||'('||g_aop_module_name||' ,'''||l_prog_unit_name||''');';
-     
+	  IF UPPER(l_prog_unit_name) = 'BEFOREPFORM' THEN
+	  --BEFOREPFORM signifies beginning of report. Create a new process before the node
+	    l_inject_node    := '  l_process_id INTEGER := ms_logger.new_process('||g_aop_module_name||',''REPORT'',:p_report_run_id);'
+		           ||chr(10)||l_inject_node;
+	  END IF;
+ 
       AOP_is_as(i_prog_unit_name => l_prog_unit_name
                ,i_indent         => i_indent
                ,i_inject_node    => l_inject_node
