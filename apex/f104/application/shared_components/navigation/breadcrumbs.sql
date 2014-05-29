@@ -12,11 +12,11 @@ wwv_flow_api.create_menu (
 wwv_flow_api.create_menu_option (
   p_id=>2634224359024772 + wwv_flow_api.g_id_offset,
   p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
-  p_parent_id=>null,
+  p_parent_id=>0,
   p_option_sequence=>10,
-  p_short_name=>'Source Code',
+  p_short_name=>'Source Library',
   p_long_name=>'',
-  p_link=>'f?p=&FLOW_ID.:2:&SESSION.',
+  p_link=>'f?p=&APP_ID.:2:&SESSION.::&DEBUG.:::',
   p_page_id=>2,
   p_also_current_for_pages=> '');
  
@@ -124,9 +124,9 @@ wwv_flow_api.create_menu_option (
   p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
   p_parent_id=>2634224359024772 + wwv_flow_api.g_id_offset,
   p_option_sequence=>10,
-  p_short_name=>'View Source',
+  p_short_name=>'Compare Source',
   p_long_name=>'',
-  p_link=>'f?p=&APP_ID.:23:&SESSION.',
+  p_link=>'f?p=&APP_ID.:23:&SESSION.::&DEBUG.:::',
   p_page_id=>23,
   p_also_current_for_pages=> '');
  

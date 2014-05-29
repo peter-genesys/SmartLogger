@@ -1,5 +1,5 @@
 --application/pages/page_00009
-prompt  ...PAGE 9: Modules Registry
+prompt  ...PAGE 9: Logger Control
 --
  
 begin
@@ -9,8 +9,9 @@ wwv_flow_api.create_page (
  ,p_id => 9
  ,p_user_interface_id => 2512031460610037 + wwv_flow_api.g_id_offset
  ,p_tab_set => 'TS1'
- ,p_name => 'Modules Registry'
- ,p_step_title => 'Modules Registry'
+ ,p_name => 'Logger Control'
+ ,p_step_title => 'Logger Control'
+ ,p_allow_duplicate_submissions => 'Y'
  ,p_step_sub_title => 'Modules Registry'
  ,p_step_sub_title_type => 'TEXT_WITH_SUBSTITUTIONS'
  ,p_first_item => 'NO_FIRST_ITEM'
@@ -19,11 +20,14 @@ wwv_flow_api.create_page (
  ,p_javascript_code => 
 'var htmldb_delete_message=''"DELETE_CONFIRM_MSG"'';'
  ,p_page_is_public_y_n => 'N'
+ ,p_protection_level => 'N'
  ,p_cache_page_yn => 'N'
+ ,p_cache_timeout_seconds => 21600
+ ,p_cache_by_user_yn => 'N'
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140522115015'
+ ,p_last_upd_yyyymmddhh24miss => '20140529144816'
   );
 null;
  
@@ -224,7 +228,7 @@ wwv_flow_api.create_report_columns (
   p_default_sort_column_sequence=>0,
   p_disable_sort_column=>'N',
   p_sum_column=> 'N',
-  p_hidden_column=> 'N',
+  p_hidden_column=> 'Y',
   p_display_as=>'ESCAPE_SC',
   p_column_width=> '16',
   p_is_required=> false,

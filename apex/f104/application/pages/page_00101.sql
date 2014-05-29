@@ -11,14 +11,19 @@ wwv_flow_api.create_page (
  ,p_name => 'Login'
  ,p_alias => 'LOGIN'
  ,p_step_title => 'Login'
+ ,p_allow_duplicate_submissions => 'Y'
  ,p_step_sub_title_type => 'TEXT_WITH_SUBSTITUTIONS'
  ,p_first_item => 'AUTO_FIRST_ITEM'
  ,p_include_apex_css_js_yn => 'Y'
  ,p_autocomplete_on_off => 'OFF'
  ,p_step_template => 17752956143931429 + wwv_flow_api.g_id_offset
  ,p_page_is_public_y_n => 'N'
+ ,p_protection_level => 'N'
  ,p_cache_page_yn => 'N'
- ,p_last_upd_yyyymmddhh24miss => '20140415151502'
+ ,p_cache_timeout_seconds => 21600
+ ,p_cache_by_user_yn => 'N'
+ ,p_last_updated_by => 'PBURGESS'
+ ,p_last_upd_yyyymmddhh24miss => '20140529091016'
   );
 null;
  

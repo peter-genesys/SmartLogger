@@ -8,19 +8,23 @@ wwv_flow_api.create_page (
   p_flow_id => wwv_flow.g_flow_id
  ,p_id => 23
  ,p_user_interface_id => 2512031460610037 + wwv_flow_api.g_id_offset
- ,p_tab_set => 'TS1'
  ,p_name => 'Compare Source'
  ,p_step_title => 'Compare Source'
+ ,p_allow_duplicate_submissions => 'Y'
  ,p_step_sub_title => 'Compare Source'
  ,p_step_sub_title_type => 'TEXT_WITH_SUBSTITUTIONS'
+ ,p_first_item => 'AUTO_FIRST_ITEM'
  ,p_include_apex_css_js_yn => 'Y'
  ,p_autocomplete_on_off => 'ON'
  ,p_page_is_public_y_n => 'N'
+ ,p_protection_level => 'N'
  ,p_cache_page_yn => 'N'
+ ,p_cache_timeout_seconds => 21600
+ ,p_cache_by_user_yn => 'N'
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140526104602'
+ ,p_last_upd_yyyymmddhh24miss => '20140529150820'
   );
 null;
  
@@ -37,7 +41,7 @@ wwv_flow_api.create_page_plug (
   p_id=> 3709703988027853 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 23,
-  p_plug_name=> 'View Source',
+  p_plug_name=> 'Compare Source',
   p_region_name=>'',
   p_escape_on_http_output=>'N',
   p_plug_template=> 17755453133931434+ wwv_flow_api.g_id_offset,
@@ -50,10 +54,12 @@ wwv_flow_api.create_page_plug (
   p_plug_item_display_point=> 'ABOVE',
   p_plug_source=> s,
   p_plug_source_type=> 'STATIC_TEXT',
+  p_translate_title=> 'Y',
   p_plug_query_row_template=> 1,
   p_plug_query_headings_type=> 'COLON_DELMITED_LIST',
   p_plug_query_row_count_max => 500,
   p_plug_display_condition_type => '',
+  p_plug_customized=>'0',
   p_plug_caching=> 'NOT_CACHED',
   p_plug_comment=> '');
 end;

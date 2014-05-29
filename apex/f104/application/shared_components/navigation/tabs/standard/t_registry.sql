@@ -5,7 +5,7 @@ wwv_flow_api.create_tab (
   p_tab_set=> 'TS1',
   p_tab_sequence=> 15,
   p_tab_name=> 'T_REGISTRY',
-  p_tab_text => 'Registry',
+  p_tab_text => 'Logger Control',
   p_tab_step => 9,
   p_tab_also_current_for_pages => '10',
   p_tab_parent_tabset=>'',

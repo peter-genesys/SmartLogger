@@ -1,5 +1,5 @@
 --application/pages/page_00002
-prompt  ...PAGE 2: Source Code
+prompt  ...PAGE 2: Source Library
 --
  
 begin
@@ -9,17 +9,22 @@ wwv_flow_api.create_page (
  ,p_id => 2
  ,p_user_interface_id => 2512031460610037 + wwv_flow_api.g_id_offset
  ,p_tab_set => 'TS1'
- ,p_name => 'Source Code'
- ,p_step_title => 'Source Code'
+ ,p_name => 'Source Library'
+ ,p_step_title => 'Source Library'
+ ,p_allow_duplicate_submissions => 'Y'
  ,p_step_sub_title_type => 'TEXT_WITH_SUBSTITUTIONS'
+ ,p_first_item => 'AUTO_FIRST_ITEM'
  ,p_include_apex_css_js_yn => 'Y'
  ,p_autocomplete_on_off => 'ON'
  ,p_page_is_public_y_n => 'N'
+ ,p_protection_level => 'N'
  ,p_cache_page_yn => 'N'
+ ,p_cache_timeout_seconds => 21600
+ ,p_cache_by_user_yn => 'N'
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140522155219'
+ ,p_last_upd_yyyymmddhh24miss => '20140529150646'
   );
 null;
  
@@ -426,8 +431,8 @@ wwv_flow_api.create_worksheet_column(
   p_db_column_name         =>'USING_AOP',
   p_display_order          =>14,
   p_column_identifier      =>'N',
-  p_column_label           =>'Using Aop',
-  p_report_label           =>'Using Aop',
+  p_column_label           =>'Using AOP',
+  p_report_label           =>'Using AOP',
   p_sync_form_label        =>'Y',
   p_display_in_default_rpt =>'Y',
   p_is_sortable            =>'Y',

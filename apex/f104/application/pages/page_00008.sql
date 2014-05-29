@@ -1,5 +1,5 @@
 --application/pages/page_00008
-prompt  ...PAGE 8: Traversal Tree
+prompt  ...PAGE 8: Process Traces
 --
  
 begin
@@ -9,8 +9,8 @@ wwv_flow_api.create_page (
  ,p_id => 8
  ,p_user_interface_id => 2512031460610037 + wwv_flow_api.g_id_offset
  ,p_tab_set => 'TS1'
- ,p_name => 'Traversal Tree'
- ,p_step_title => 'Traversal Tree'
+ ,p_name => 'Process Traces'
+ ,p_step_title => 'Process Traces'
  ,p_allow_duplicate_submissions => 'Y'
  ,p_step_sub_title => 'Traversal Tree'
  ,p_step_sub_title_type => 'TEXT_WITH_SUBSTITUTIONS'
@@ -40,11 +40,14 @@ wwv_flow_api.create_page (
 ''||unistr('\000a')||
 '</script>'
  ,p_page_is_public_y_n => 'N'
+ ,p_protection_level => 'N'
  ,p_cache_page_yn => 'N'
+ ,p_cache_timeout_seconds => 21600
+ ,p_cache_by_user_yn => 'N'
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140527103613'
+ ,p_last_upd_yyyymmddhh24miss => '20140529150505'
   );
 null;
  
@@ -1745,7 +1748,7 @@ wwv_flow_api.create_page_plug (
   p_id=> 17790450819976198 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
-  p_plug_name=> 'Process &P8_PROCESS_ID. - Traversals',
+  p_plug_name=> 'Process &P8_PROCESS_ID. - Stack Trace',
   p_region_name=>'',
   p_escape_on_http_output=>'N',
   p_plug_template=> 17755453133931434+ wwv_flow_api.g_id_offset,
@@ -1836,7 +1839,7 @@ wwv_flow_api.create_report_region (
   p_id=> 17791439222976199 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 8,
-  p_name=> 'Processes',
+  p_name=> 'Process Traces',
   p_region_name=>'',
   p_template=> 17755453133931434+ wwv_flow_api.g_id_offset,
   p_display_sequence=> 5,

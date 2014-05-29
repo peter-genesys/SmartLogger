@@ -25,7 +25,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140520091356'
+ ,p_last_upd_yyyymmddhh24miss => '20140529145909'
   );
 null;
  
@@ -42,7 +42,7 @@ wwv_flow_api.create_page_plug (
   p_id=> 2773731843441189 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 21,
-  p_plug_name=> 'Step 1',
+  p_plug_name=> 'Original PL/SQL',
   p_region_name=>'',
   p_escape_on_http_output=>'N',
   p_plug_template=> 17756839023931435+ wwv_flow_api.g_id_offset,
@@ -70,7 +70,22 @@ declare
   l_clob clob;
   l_length number := 1;
 begin
-s := null;
+s:=s||'Paste unwoven pl/sql from forms or reports program units, into this window.'||unistr('\000a')||
+'<BR><BR>'||unistr('\000a')||
+'The text will be "woven" using the AOP_PROCESSOR, employing the same process used on the database.'||unistr('\000a')||
+'<BR><BR>'||unistr('\000a')||
+'SPECIAL COMMENTS'||unistr('\000a')||
+'These special comments can be added to the code to be exposed in the trace.'||unistr('\000a')||
+'<BR><BR>'||unistr('\000a')||
+'<LI>--"" Comment'||unistr('\000a')||
+'<LI>--?? Info'||unistr('\000a')||
+'<LI>--!! Warning'||unistr('\000a')||
+'<LI>--## Fatal'||unistr('\000a')||
+'<LI>--@@ Show me - the preceding text on t';
+
+s:=s||'his line.'||unistr('\000a')||
+'';
+
 wwv_flow_api.create_page_plug (
   p_id=> 2774530025441190 + wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
@@ -88,10 +103,12 @@ wwv_flow_api.create_page_plug (
   p_plug_item_display_point=> 'ABOVE',
   p_plug_source=> s,
   p_plug_source_type=> 'STATIC_TEXT',
+  p_translate_title=> 'Y',
   p_plug_query_row_template=> 1,
   p_plug_query_headings_type=> 'COLON_DELMITED_LIST',
   p_plug_query_row_count_max => 500,
   p_plug_display_condition_type => '',
+  p_plug_customized=>'0',
   p_plug_caching=> 'NOT_CACHED',
   p_plug_comment=> '');
 end;

@@ -5,7 +5,7 @@ wwv_flow_api.create_tab (
   p_tab_set=> 'TS1',
   p_tab_sequence=> 20,
   p_tab_name=> 'T_PROCESSES',
-  p_tab_text => 'Processes',
+  p_tab_text => 'Process Traces',
   p_tab_step => 8,
   p_tab_also_current_for_pages => '',
   p_tab_parent_tabset=>'',

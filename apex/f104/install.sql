@@ -10,7 +10,7 @@
 @application/shared_components/navigation/tabs/standard/t_page_1.sql
 @application/shared_components/navigation/tabs/standard/t_registry.sql
 @application/shared_components/navigation/tabs/standard/t_processes.sql
-@application/shared_components/navigation/tabs/standard/source.sql
+@application/shared_components/navigation/tabs/standard/aop_source.sql
 @application/shared_components/navigation/tabs/standard/t_plugin.sql
 @application/pages/page_groups.sql
 @application/pages/page_00001.sql
