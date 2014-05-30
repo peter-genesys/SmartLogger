@@ -53,9 +53,10 @@ create or replace package body aop_processor is
   ----------------------------------------------------------------------------
   G_REGEX_WORD          VARCHAR2(10) := '\w+';  
  
-  G_REGEX_PKG_BODY       CONSTANT VARCHAR2(50) := '\sPACKAGE\s+?BODY\s';
-  G_REGEX_PROCEDURE      CONSTANT VARCHAR2(50) := '\sPROCEDURE\s';
-  G_REGEX_FUNCTION       CONSTANT VARCHAR2(50) := '\sFUNCTION\s';
+  G_REGEX_PKG_BODY       CONSTANT VARCHAR2(50) := '\s *PACKAGE\s+?BODY\s';
+  G_REGEX_PROCEDURE      CONSTANT VARCHAR2(50) := '\s *PROCEDURE\s';
+  G_REGEX_FUNCTION       CONSTANT VARCHAR2(50) := '\s *FUNCTION\s';
+  G_REGEX_CREATE         CONSTANT VARCHAR2(50) := '\s *CREATE\s';
   G_REGEX_PROG_UNIT      CONSTANT VARCHAR2(200) := G_REGEX_PKG_BODY
                                             ||'|'||G_REGEX_PROCEDURE
                                             ||'|'||G_REGEX_FUNCTION;
@@ -63,11 +64,11 @@ create or replace package body aop_processor is
   G_REGEX_JAVA           CONSTANT VARCHAR2(50) := '\sLANGUAGE\s+?JAVA\s+?NAME\s';
  
   --Opening Blocks
-  G_REGEX_DECLARE       CONSTANT VARCHAR2(50) := '\sDECLARE\s';
+  G_REGEX_DECLARE       CONSTANT VARCHAR2(50) := '\s *DECLARE\s';
   G_REGEX_BEGIN         CONSTANT VARCHAR2(50) := '\s *BEGIN\s';
-  G_REGEX_LOOP          CONSTANT VARCHAR2(50) := '\sLOOP\s';
-  G_REGEX_CASE          CONSTANT VARCHAR2(50) := '\sCASE\s';
-  G_REGEX_IF            CONSTANT VARCHAR2(50) := '\sIF\s';
+  G_REGEX_LOOP          CONSTANT VARCHAR2(50) := '\s *LOOP\s';
+  G_REGEX_CASE          CONSTANT VARCHAR2(50) := '\s *CASE\s';
+  G_REGEX_IF            CONSTANT VARCHAR2(50) := '\s *IF\s';
   --Neutral Blocks
   G_REGEX_ELSE          CONSTANT VARCHAR2(50) := '\sELSE\s';
   G_REGEX_ELSIF         CONSTANT VARCHAR2(50) := '\sELSIF\s';
@@ -150,11 +151,26 @@ create or replace package body aop_processor is
   G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
  
   
-  FUNCTION matched_with(i_match    IN CLOB
-                       ,i_search   IN VARCHAR2  ) RETURN BOOLEAN IS
+  --------------------------------------------------------------------
+  -- calc_indent
+  --------------------------------------------------------------------
+  FUNCTION calc_indent(i_indent IN INTEGER
+                      ,i_match  IN VARCHAR2) RETURN INTEGER IS
+    l_indent INTEGER;
   BEGIN
-    RETURN REGEXP_LIKE(' '||i_match||' ',i_search);
+
+    IF substr(i_match,1,1) = chr(10) THEN
+
+      l_indent := LENGTH(REGEXP_SUBSTR(i_match,'\s*'))-1; --Count leading spaces
+
+      RETURN l_indent;
+
+    ELSE
+      RETURN i_indent;
+
+    END IF;
   END;
+
  
   function elapsed_time_secs return integer is
   begin
@@ -272,6 +288,8 @@ create or replace package body aop_processor is
       
   END;
  
+ 
+
   --------------------------------------------------------------------
   -- splice
   --------------------------------------------------------------------
@@ -298,9 +316,9 @@ create or replace package body aop_processor is
     --ms_logger.param(l_node, 'p_code'          ,p_code );
     --ms_logger.param(l_node, 'LENGTH(p_code)'  ,LENGTH(p_code)  );
     --ms_logger.param(l_node, 'p_new_code'      ,p_new_code);
-    ms_logger.param(l_node, 'p_pos     '      ,p_pos     );
+    ms_logger.param(l_node, 'p_pos     '       ,p_pos     );
     ms_logger.param(l_node, 'p_indent     '    ,p_indent     );
-    ms_logger.param(l_node, 'p_colour  '      ,p_colour     );
+    ms_logger.param(l_node, 'p_colour  '       ,p_colour     );
 
     ms_logger.note(l_node, 'g_for_aop_html     '     ,g_for_aop_html     );
 
@@ -324,8 +342,9 @@ create or replace package body aop_processor is
         l_leading_nl_offset := 1;
       END IF;
  
-      --Apply a leading new line and indent by g_indent_spaces * p_indent
-      l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',(p_indent-1)*g_indent_spaces+g_indent_spaces,' '));
+      --Apply a leading new line and indent by p_indent spaces
+      --l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',(p_indent-1)*g_indent_spaces+g_indent_spaces,' '));
+      l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',p_indent+g_indent_spaces,' '));
  
       IF REGEXP_INSTR(p_code,'\w',p_pos) < INSTR(p_code,chr(10),p_pos) THEN
         --Add a trailing newline, because there is a word-char before the next NL.
@@ -376,8 +395,8 @@ create or replace package body aop_processor is
   --------------------------------------------------------------------
   
     PROCEDURE inject( i_new_code in varchar2
-           ,i_indent   in number
-           ,i_colour   in varchar2 default null) IS
+                     ,i_indent   in number
+                     ,i_colour   in varchar2 default null) IS
   BEGIN
     IF i_new_code IS NOT NULL THEN
       --g_current_pos := g_current_pos - 1;
@@ -1004,7 +1023,7 @@ PROCEDURE AOP_declare(i_indent   IN INTEGER
                      ,i_var_list IN var_list_typ) IS
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_declare'); 
   
-  l_var_list              var_list_typ := i_var_list;
+  l_var_list          var_list_typ := i_var_list;
   
 BEGIN
 
@@ -1015,13 +1034,12 @@ BEGIN
  
   l_var_list := AOP_var_defs( i_var_list => l_var_list);    
  
-  AOP_prog_units(i_indent   => i_indent + 1
+  AOP_prog_units(i_indent   => i_indent + g_indent_spaces
                 ,i_var_list => l_var_list);
   
-  go_past(i_search => G_REGEX_BEGIN
-         ,i_colour => G_COLOUR_GO_PAST);
-
-  AOP_block(i_indent    => i_indent
+  --calc indent and consume BEGIN
+  AOP_block(i_indent    => calc_indent(i_indent, get_next(i_search => G_REGEX_BEGIN
+                                                         ,i_colour => G_COLOUR_GO_PAST))
            ,i_regex_end => G_REGEX_END_BEGIN
            ,i_var_list  => l_var_list);
  
@@ -1059,7 +1077,7 @@ BEGIN
   --NEW PROCESS
   IF UPPER(i_prog_unit_name) = 'BEFOREPFORM' THEN
     --BEFOREPFORM signifies beginning of report. Create a new process before the node
-    l_inject_process :=  '  l_process_id INTEGER := ms_logger.new_process('||g_aop_module_name||',''REPORT'',:p_report_run_id);';
+    l_inject_process :=  'l_process_id INTEGER := ms_logger.new_process('||g_aop_module_name||',''REPORT'',:p_report_run_id);';
     inject( i_new_code  => l_inject_process
            ,i_indent    => i_indent
            ,i_colour    => G_COLOUR_NODE);
@@ -1068,12 +1086,12 @@ BEGIN
   --NEW NODE
   l_inject_node := 'l_node ms_logger.node_typ := ms_logger.'||i_node_type||'('||g_aop_module_name||' ,'''||i_prog_unit_name||''');';
   inject( i_new_code  =>  l_inject_node
-         ,i_indent     => i_indent + 1
+         ,i_indent     => i_indent
          ,i_colour     => G_COLOUR_NODE);   
        
   l_var_list := AOP_var_defs( i_var_list => l_var_list);    
  
-  AOP_prog_units(i_indent => i_indent + 1
+  AOP_prog_units(i_indent    => i_indent + g_indent_spaces
                 ,i_var_list  => l_var_list);
   
   
@@ -1125,6 +1143,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_function              VARCHAR2(30);
   l_bind_var              VARCHAR2(30);
   l_var                   VARCHAR2(30);
+  --l_indent                INTEGER;
 
   l_var_list              var_list_typ := i_var_list;
   
@@ -1141,9 +1160,9 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   
 BEGIN
 
-  ms_logger.param(l_node, 'i_indent    '     ,i_indent     );
+  ms_logger.param(l_node, 'i_indent    '      ,i_indent     );
   ms_logger.param(l_node, 'i_regex_end '     ,i_regex_end  );
- 
+
  
   loop
  
@@ -1164,31 +1183,31 @@ BEGIN
     CASE 
     WHEN REGEXP_LIKE(l_keyword , G_REGEX_DECLARE) THEN     
         ms_logger.info(l_node, 'Declare');    
-        AOP_declare(i_indent    => i_indent + 1
+        AOP_declare(i_indent    => calc_indent(i_indent,l_keyword)
                    ,i_var_list  => l_var_list);    
         
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_BEGIN) THEN    
         ms_logger.info(l_node, 'Begin');      
-        AOP_block(i_indent     => i_indent + 1
+        AOP_block(i_indent     => calc_indent(i_indent,l_keyword)
                  ,i_regex_end  => G_REGEX_END_BEGIN
                  ,i_var_list   => l_var_list);     
                  
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_LOOP) THEN   
         ms_logger.info(l_node, 'Loop'); 
-        AOP_block(i_indent     => i_indent + 1
+        AOP_block(i_indent     => calc_indent(i_indent,l_keyword)
                  ,i_regex_end  => G_REGEX_END_LOOP
                  ,i_var_list   => l_var_list );                                
              
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_CASE) THEN   
         ms_logger.info(l_node, 'Case'); 
     --inc level +2 due to implied WHEN or ELSE
-        AOP_block(i_indent     => i_indent + 2
+        AOP_block(i_indent     => calc_indent(i_indent,l_keyword) +  g_indent_spaces
                  ,i_regex_end  => G_REGEX_END_CASE||'|'||G_REGEX_END_CASE_EXPR
                  ,i_var_list   => l_var_list );      
    
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_IF) THEN    
         ms_logger.info(l_node, 'If'); 
-        AOP_block(i_indent     => i_indent + 1
+        AOP_block(i_indent     => calc_indent(i_indent,l_keyword)
                  ,i_regex_end  => G_REGEX_END_IF
                  ,i_var_list   => l_var_list );
 
@@ -1380,14 +1399,14 @@ BEGIN
   go_upto(i_stop      => G_REGEX_BEGIN); --default is i_trim_pointers FALSE
  
   inject( i_new_code  => 'begin --'||i_prog_unit_name
-          ,i_indent   => i_indent
+          ,i_indent   => i_indent - g_indent_spaces
           ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
   --Add the params (if any)
   l_index := i_param_list.FIRST;
   WHILE l_index IS NOT NULL LOOP
  
     inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',32)||','||i_param_list(l_index)||');'
-           ,i_indent    => i_indent + 1
+           ,i_indent    => i_indent
            ,i_colour    => G_COLOUR_PARAM);
            
     l_index := i_param_list.NEXT(l_index);    
@@ -1395,25 +1414,36 @@ BEGIN
   END LOOP;
  
   --First Block is BEGIN 
-  --Must adv past the BEGIN first.
-  go_past(i_search => G_REGEX_BEGIN
-         ,i_colour => G_COLOUR_GO_PAST);
-
-  --At this stage we are not going to reindent the whole block, so we wont inc the indent, 
-  --even though we've wrapped another block around it.
-  AOP_block(i_indent     => i_indent 
+  --calc indent and consume BEGIN
+  AOP_block(i_indent    => calc_indent(i_indent, get_next(i_search => G_REGEX_BEGIN
+                                                         ,i_colour => G_COLOUR_GO_PAST))
            ,i_regex_end  => G_REGEX_END_BEGIN
            ,i_var_list   => l_var_list  );
   
   --Add extra exception handler
   --add the terminating exception handler of the new surrounding block
   inject( i_new_code  => 'exception'
-               ||chr(10)||'  when others then'
-               ||chr(10)||'    ms_logger.warn_error(l_node);'
-               ||chr(10)||'    raise;'
-               ||chr(10)||'end; --'||i_prog_unit_name
-              ,i_indent     => i_indent
-        ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+         ,i_indent    => i_indent - g_indent_spaces
+         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+
+  inject( i_new_code  => '  when others then'
+         ,i_indent    => i_indent - g_indent_spaces
+         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+
+  inject( i_new_code  => '    ms_logger.warn_error(l_node);'
+         ,i_indent    => i_indent - g_indent_spaces
+         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+
+  inject( i_new_code  => '    raise;'
+         ,i_indent    => i_indent - g_indent_spaces
+         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+
+  inject( i_new_code  => 'end; --'||i_prog_unit_name
+         ,i_indent    => i_indent - g_indent_spaces
+         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+
+ 
+
 exception
   when others then
     ms_logger.warn_error(l_node);
@@ -1431,6 +1461,7 @@ PROCEDURE AOP_prog_units(i_indent   IN INTEGER
   l_node    ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_prog_units'); 
 
   l_keyword         VARCHAR2(50);
+  l_language        VARCHAR2(50);
   l_node_type       VARCHAR2(50);
   l_prog_unit_name  VARCHAR2(30);
   
@@ -1474,14 +1505,14 @@ BEGIN
       --Check for LANGUAGE JAVA NAME
       --If this is a JAVA function then we don't want a node and don't need to bother reading spec or parsing body.
       --Will find a LANGUAGE keyword before next ";"
-      l_keyword := get_next(i_search       => G_REGEX_JAVA 
+      l_language := get_next(i_search       => G_REGEX_JAVA 
                            ,i_stop         => ';'
                            ,i_upper        => TRUE
                            ,i_colour       => G_COLOUR_JAVA
                            ,i_raise_error  => TRUE );
      
-      ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
-      IF l_keyword LIKE 'LANGUAGE%' THEN
+      ms_logger.note(l_node, 'l_language' ,l_language); 
+      IF l_language LIKE 'LANGUAGE%' THEN
         RAISE x_language_java_name; 
       END IF;
       
@@ -1496,8 +1527,7 @@ BEGIN
       
  
       AOP_is_as(i_prog_unit_name => l_prog_unit_name
-               ,i_indent         => i_indent
-               --,i_inject_node    => l_inject_node
+               ,i_indent         => calc_indent(i_indent, l_keyword)
                ,i_node_type      => l_node_type
                ,i_var_list       => l_var_list);
       
@@ -1596,6 +1626,7 @@ END AOP_prog_units;
                                    ||'|'||G_REGEX_PROCEDURE
                                    ||'|'||G_REGEX_FUNCTION 
                                    ||'|'||G_REGEX_PKG_BODY 
+                                   ||'|'||G_REGEX_CREATE
                          ,i_upper      => TRUE
                          ,i_raise_error => TRUE  );
  
@@ -1603,20 +1634,23 @@ END AOP_prog_units;
 
     CASE 
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_DECLARE) THEN
-        go_past(G_REGEX_DECLARE);
-        AOP_declare(i_indent   => g_initial_indent
+        --calc indent and consume DECLARE
+        AOP_declare(i_indent    => calc_indent(g_initial_indent, get_next(i_search => G_REGEX_DECLARE
+                                                                         ,i_colour => G_COLOUR_GO_PAST))
                    ,i_var_list => l_var_list);
           
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_BEGIN) THEN
-        go_past(G_REGEX_BEGIN);
-        AOP_block(i_indent     => g_initial_indent
+        --calc indent and consume BEGIN
+        AOP_block(i_indent    => calc_indent(g_initial_indent, get_next(i_search => G_REGEX_BEGIN
+                                                                       ,i_colour => G_COLOUR_GO_PAST))
                  ,i_regex_end  => G_REGEX_END_BEGIN
                  ,i_var_list   => l_var_list);
     
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_PROCEDURE
                             ||'|'||G_REGEX_FUNCTION 
-                            ||'|'||G_REGEX_PKG_BODY) THEN
-        AOP_prog_units(i_indent   => g_initial_indent
+                            ||'|'||G_REGEX_PKG_BODY
+                            ||'|'||G_REGEX_CREATE) THEN
+        AOP_prog_units(i_indent   => calc_indent(g_initial_indent,l_keyword)
                       ,i_var_list => l_var_list      );
 
     ELSE
