@@ -1388,7 +1388,7 @@ PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
   
   l_var_list              var_list_typ := i_var_list;
   l_index                 BINARY_INTEGER;
-  
+ 
 BEGIN
  
   ms_logger.param(l_node, 'i_prog_unit_name'     ,i_prog_unit_name     );
@@ -1412,6 +1412,16 @@ BEGIN
     l_index := i_param_list.NEXT(l_index);    
  
   END LOOP;
+
+  IF i_prog_unit_name = 'beforepform' THEN
+    inject( i_new_code  => 'ms_logger.info(l_node,''Starting Report ''||'||g_aop_module_name||');'
+           ,i_indent   => i_indent+1
+           ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+  ELSIF i_prog_unit_name = 'afterreport' THEN
+    inject( i_new_code  => 'ms_logger.info(l_node,''Finished Report ''||'||g_aop_module_name||');'
+           ,i_indent   => i_indent+1
+           ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+  END IF;
  
   --First Block is BEGIN 
   --calc indent and consume BEGIN
