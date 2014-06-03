@@ -6,7 +6,7 @@ alter session set plsql_optimize_level = 1;
 set define off;
 
 create or replace package body aop_processor is
-  -- AUTHID CURRENT_USER
+  -- AUTHID CURRENT_USER - see spec
   -- @AOP_NEVER
  
   g_package_name        CONSTANT VARCHAR2(30) := 'aop_processor'; 
@@ -47,6 +47,8 @@ create or replace package body aop_processor is
   TYPE param_list_typ IS TABLE OF VARCHAR2(30) INDEX BY BINARY_INTEGER;  
   
   g_indent_spaces     CONSTANT INTEGER := 2;
+
+  g_end_user          VARCHAR2(30); --owner for normal packages, invoker for invoker packages.
  
   ----------------------------------------------------------------------------
   -- REGULAR EXPRESSIONS
@@ -150,15 +152,43 @@ create or replace package body aop_processor is
   G_COLOUR_NOTE             CONSTANT VARCHAR2(10) := '#00FF99';
   G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
  
+
+  
+  --------------------------------------------------------------------
+  -- table_owner
+  --------------------------------------------------------------------
+  FUNCTION table_owner(i_table_name IN VARCHAR2) RETURN VARCHAR2 IS
+    
+    -- find the most appropriate table owner.
+    -- Of All Tables (that the end user can see)
+    -- Select 1 owner, with preference to the end user
+    CURSOR cu_owner IS
+    select owner
+    from   all_tables
+    where  table_name = i_table_name
+    order by decode(owner,g_end_user,1,2);
+
+    l_result VARCHAR2(30);
+
+  BEGIN
+    OPEN cu_owner;
+    FETCH cu_owner INTO l_result;
+    CLOSE cu_owner;
+
+    RETURN l_result;
+ 
+  END;
+
+ 
   
   --------------------------------------------------------------------
   -- calc_indent
   --------------------------------------------------------------------
-  FUNCTION calc_indent(i_indent IN INTEGER
-                      ,i_match  IN VARCHAR2) RETURN INTEGER IS
+  FUNCTION calc_indent(i_default IN INTEGER
+                      ,i_match   IN VARCHAR2) RETURN INTEGER IS
     l_indent INTEGER;
   BEGIN
-
+ 
     IF substr(i_match,1,1) = chr(10) THEN
 
       l_indent := LENGTH(REGEXP_SUBSTR(i_match,'\s*'))-1; --Count leading spaces
@@ -166,7 +196,7 @@ create or replace package body aop_processor is
       RETURN l_indent;
 
     ELSE
-      RETURN i_indent;
+      RETURN i_default;
 
     END IF;
   END;
@@ -653,6 +683,7 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
   l_param_type  VARCHAR2(106);
   l_table_name  VARCHAR2(30);
   l_column_name VARCHAR2(30);
+  l_table_owner VARCHAR2(30);
  
   l_keyword              CLOB;
   l_bracket              VARCHAR2(50);
@@ -674,14 +705,14 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
   G_REGEX_REC_VAR_DEF_LINE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'(\w+?)%ROWTYPE';
   G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'(\w+?)\.(\w+?)%TYPE';
   
- 
+   
     
   PROCEDURE store_var_def(i_param_name IN VARCHAR2
                          ,i_param_type IN VARCHAR2  
                          ,i_in_var     IN BOOLEAN
                          ,i_out_var    IN BOOLEAN ) IS
                          
-  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_params'); 
+  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'store_var_def'); 
                          
   BEGIN
   
@@ -705,7 +736,7 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
       END IF;
  
     END IF;
-  END;  
+  END store_var_def;  
  
 BEGIN  
  
@@ -766,11 +797,13 @@ BEGIN
                  ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
             
             --Also need to add 1 var def for each valid componant of the record type.
+            l_table_owner := table_owner(i_table_name => l_table_name);
             FOR l_column IN 
               (select lower(column_name) column_name
                      ,data_type
-               from user_tab_columns
-               where table_name = l_table_name ) LOOP
+               from all_tab_columns
+               where table_name = l_table_name 
+               and   owner      = l_table_owner ) LOOP
                
                    store_var_def(i_param_name  => l_param_name||'.'||l_column.column_name
                                 ,i_param_type  => l_column.data_type
@@ -790,12 +823,14 @@ BEGIN
                  ms_logger.note(l_node, 'l_column_name',l_column_name);     
             
             --This should find only 1 record
+            l_table_owner := table_owner(i_table_name => l_table_name);
             FOR l_column IN 
               (select lower(column_name) column_name
                      ,data_type
-               from user_tab_columns
+               from all_tab_columns
                where table_name =  l_table_name
-               and   column_name = l_column_name ) LOOP
+               and   column_name = l_column_name 
+               and   owner      = l_table_owner ) LOOP
                
                    store_var_def(i_param_name  => l_param_name 
                                 ,i_param_type  => l_column.data_type
@@ -914,6 +949,7 @@ FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
   l_param_type  VARCHAR2(106);
   l_table_name  VARCHAR2(30);
   l_column_name VARCHAR2(30);
+  l_table_owner VARCHAR2(30);
  
 BEGIN
   --Search for var_name var_type pairs.
@@ -940,7 +976,7 @@ BEGIN
         ms_logger.note(l_node, 'l_param_name',l_param_name); 
         ms_logger.note(l_node, 'l_param_type',l_param_type); 
     
-      IF supported_data_type(i_data_type => l_param_type) = 'Y' then
+      IF  REGEXP_LIKE(l_param_type , G_REGEX_SUPPORTED_TYPES) THEN
           
       --Supported data type so store in the var list.
           l_var_list(l_param_name) := l_param_type;  
@@ -962,15 +998,19 @@ BEGIN
         ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);   
     
     --Also need to add 1 var def for each valid componant of the record type.
+    l_table_owner := table_owner(i_table_name => l_table_name);
     FOR l_column IN 
       (select lower(column_name) column_name
              ,data_type
-       from user_tab_columns
-       where table_name = l_table_name
-       and   supported_data_type(i_data_type => data_type) = 'Y') LOOP
+       from all_tab_columns
+       where table_name = l_table_name 
+       and   owner      = l_table_owner  ) LOOP
+
+         IF  REGEXP_LIKE(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
        
-          l_var_list(l_param_name||'.'||l_column.column_name) := l_column.data_type;  
-          ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);       
+           l_var_list(l_param_name||'.'||l_column.column_name) := l_column.data_type;  
+           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);       
+         END IF; 
        
     END LOOP;   
     
@@ -985,16 +1025,21 @@ BEGIN
         ms_logger.note(l_node, 'l_column_name',l_column_name);    
     
     --Also need to add 1 var def for each valid componant of the record type.
+    l_table_owner := table_owner(i_table_name => l_table_name);
     FOR l_column IN 
       (select lower(column_name) column_name
              ,data_type
-       from user_tab_columns
+       from all_tab_columns
        where table_name =  l_table_name
-       and   column_name = l_column_name
-       and   supported_data_type(i_data_type => data_type) = 'Y') LOOP
+       and   column_name = l_column_name 
+       and   owner       = l_table_owner  ) LOOP
+
+         IF  REGEXP_LIKE(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
        
           l_var_list(l_param_name) := l_column.data_type;  
-          ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);       
+          ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
+
+         END IF;    
        
     END LOOP; 
  
@@ -1143,9 +1188,10 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_function              VARCHAR2(30);
   l_bind_var              VARCHAR2(30);
   l_var                   VARCHAR2(30);
-  --l_indent                INTEGER;
 
   l_var_list              var_list_typ := i_var_list;
+
+  l_table_owner           VARCHAR2(30);
   
   G_REGEX_ASSIGN_TO_REC_COL   CONSTANT VARCHAR2(50) :=  '\W\w+?\.\w+?\s*?:=';
   G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  '\W\w+?\s*?:='; --matches on both G_REGEX_ASSIGN_TO_VAR and G_REGEX_ASSIGN_TO_BIND_VAR 
@@ -1183,31 +1229,31 @@ BEGIN
     CASE 
     WHEN REGEXP_LIKE(l_keyword , G_REGEX_DECLARE) THEN     
         ms_logger.info(l_node, 'Declare');    
-        AOP_declare(i_indent    => calc_indent(i_indent,l_keyword)
+        AOP_declare(i_indent    => calc_indent(i_indent + g_indent_spaces,l_keyword)
                    ,i_var_list  => l_var_list);    
         
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_BEGIN) THEN    
         ms_logger.info(l_node, 'Begin');      
-        AOP_block(i_indent     => calc_indent(i_indent,l_keyword)
+        AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_BEGIN
                  ,i_var_list   => l_var_list);     
                  
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_LOOP) THEN   
         ms_logger.info(l_node, 'Loop'); 
-        AOP_block(i_indent     => calc_indent(i_indent,l_keyword)
+        AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_LOOP
                  ,i_var_list   => l_var_list );                                
              
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_CASE) THEN   
         ms_logger.info(l_node, 'Case'); 
     --inc level +2 due to implied WHEN or ELSE
-        AOP_block(i_indent     => calc_indent(i_indent,l_keyword) +  g_indent_spaces
+        AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword) +  g_indent_spaces
                  ,i_regex_end  => G_REGEX_END_CASE||'|'||G_REGEX_END_CASE_EXPR
                  ,i_var_list   => l_var_list );      
    
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_IF) THEN    
         ms_logger.info(l_node, 'If'); 
-        AOP_block(i_indent     => calc_indent(i_indent,l_keyword)
+        AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_IF
                  ,i_var_list   => l_var_list );
 
@@ -1293,7 +1339,7 @@ BEGIN
           --This variable exists in the list of scoped variables with compatible types    
           ms_logger.comment(l_node, 'Scoped Var');
           ms_logger.note(l_node,'l_var_list(l_var)',l_var_list(l_var));
-          IF supported_data_type(i_data_type => l_var_list(l_var)) = 'Y' THEN
+          IF  REGEXP_LIKE(l_var_list(l_var) , G_REGEX_SUPPORTED_TYPES) THEN
             --Data type is supported.
             ms_logger.comment(l_node, 'Data type is supported');
             --So we can write a note for it.
@@ -1306,19 +1352,23 @@ BEGIN
             --Now write a note for each supported column.
             ms_logger.comment(l_node, 'Data type is supported');
             --Also need to add 1 var def for each valid componant of the record type.
+            l_table_owner := table_owner(i_table_name => l_var_list(l_var));
             FOR l_column IN 
               (select lower(column_name) column_name
                      ,data_type
-               from user_tab_columns
-               where table_name = l_var_list(l_var)
-               and   supported_data_type(i_data_type => data_type) = 'Y') LOOP
+               from all_tab_columns
+               where table_name = l_var_list(l_var) 
+               and   owner      = l_table_owner  ) LOOP
+
+               IF  REGEXP_LIKE(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
                
-               ms_logger.note(l_node,'l_var.l_column.column_name',l_var||'.'||l_column.column_name);
+                 ms_logger.note(l_node,'l_var.l_column.column_name',l_var||'.'||l_column.column_name);
              
                    inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||'.'||l_column.column_name||''','||l_var||'.'||l_column.column_name||');'
                           ,i_indent   => i_indent
                           ,i_colour   => G_COLOUR_NOTE); 
- 
+               END IF;
+
             END LOOP;  
  
           END IF;
@@ -1561,9 +1611,10 @@ END AOP_prog_units;
 -- weave
 ---------------------------------------------------------------------------------
   function weave
-  ( p_code in out clob
+  ( p_code         in out clob
   , p_package_name in varchar2
-  , p_for_html in boolean default false
+  , p_for_html     in boolean default false
+  , p_end_user     in varchar default null
   ) return boolean
   is
 
@@ -1592,6 +1643,7 @@ END AOP_prog_units;
   END IF;
  
   g_for_aop_html := p_for_html;
+  g_end_user     := p_end_user;
  
   --First task will be to remove all comments or 
   --somehow identify and remember all sections that can be ignored because they are comments
@@ -1799,7 +1851,8 @@ END AOP_prog_units;
   l_aop_body := l_orig_body;
     -- manipulate source by weaving in aspects as required; only weave if the key logging not yet applied.
     l_advised := weave( p_code         => l_aop_body
-                      , p_package_name => lower(p_object_name)  );
+                      , p_package_name => lower(p_object_name)
+                      , p_end_user     => p_object_owner        );
  
     -- (re)compile the source if any advises have been applied
     if l_advised then
@@ -1825,8 +1878,9 @@ END AOP_prog_units;
     l_html_body := l_orig_body;
       l_advised := weave( p_code         => l_html_body
                         , p_package_name => lower(p_object_name)
-                        , p_for_html     => true );
-
+                        , p_for_html     => true
+                        , p_end_user     => p_object_owner);
+ 
     IF NOT validate_source(i_name  => p_object_name
                          , i_type  => p_object_type
                          , i_text  => l_html_body
@@ -1848,25 +1902,78 @@ END AOP_prog_units;
     --I think we need to ensure the routine does not fail, or it will re-submit job.
       g_during_advise:= false; 
   end advise_package;
-  
+
+/*
   --------------------------------------------------------------------
   -- reapply_aspect
   --------------------------------------------------------------------  
   procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL) is
+  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'reapply_aspect'); 
+    PRAGMA AUTONOMOUS_TRANSACTION;
+    l_job number;
   begin
-    for l_object in (select object_name 
-                        , object_type
-              , owner 
-             from all_objects 
-           where object_type ='PACKAGE BODY'
-           and   object_name = NVL(i_object_name,object_name)) loop
-        advise_package( p_object_name  => l_object.object_name
-                      , p_object_type  => l_object.object_type
-                      , p_object_owner => l_object.owner);
-
-    end loop;
-  end reapply_aspect;
+    ms_logger.param(l_node, 'i_object_name'  ,i_object_name  );
+    ms_logger.note(l_node, 'during_advise'  ,during_advise  );
+    dbms_output.enable(1000000);
+    IF during_advise then 
+      ms_logger.info(l_node, 'AOP Processor is already running' );
+      dbms_output.put_line('aop_processor.reapply_aspect: AOP Processor is already running'); 
+    ELSE
+   
+      dbms_output.put_line('aop_processor.reapply_aspect: for '|| i_object_name); 
   
+      for l_object in (select object_name 
+                          , object_type
+                , owner 
+               from all_objects 
+             where object_type ='PACKAGE BODY'
+             and   object_name = NVL(i_object_name,object_name)) loop
+  
+      
+        ms_logger.info(l_node,'About to create a job to weave '||l_object.object_type||' '||l_object.owner||'.'||l_object.object_name); 
+        dbms_output.put_line('aop_processor.reapply_aspect: Creating AOP_PROCESSOR Job for '||l_object.object_type||' '||l_object.owner||'.'||l_object.object_name); 
+    
+        -- submit a job to weave new aspects and recompile the package 
+        -- as direct compilation is not a legal operation from a system event trigger 
+        dbms_job.submit
+          ( JOB  => l_job
+          , WHAT => 'begin     
+                       logger.aop_processor.advise_package
+                       ( p_object_name   => '''||l_object.object_name ||''' 
+                       , p_object_type   => '''||l_object.object_type ||'''
+                       , p_object_owner  => '''||l_object.owner||'''
+                       );
+                     end;'
+          );
+        commit;
+        dbms_output.put_line('aop_processor.reapply_aspect: Successfully created Job.'); 
+ 
+      end loop;
+
+    END IF;
+  end reapply_aspect;
+*/ 
+
+  --------------------------------------------------------------------
+  -- reapply_aspect
+  --------------------------------------------------------------------  
+  procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL) is
+    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'reapply_aspect'); 
+  begin
+ 
+      for l_object in (select object_name 
+                            , object_type
+                            , USER         owner
+               from user_objects  --only want to see objects owned by the invoker
+             where object_type ='PACKAGE BODY'
+             and   object_name = NVL(i_object_name,object_name)) loop
+          --AOP the package
+          advise_package( p_object_name  => l_object.object_name
+                        , p_object_type  => l_object.object_type
+                        , p_object_owner => l_object.owner);
+  
+      end loop;
+  end reapply_aspect;
 
 
   --------------------------------------------------------------------

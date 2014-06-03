@@ -5,10 +5,11 @@ is
   function during_advise return boolean;
  
   function weave
-  ( p_code in out clob
+  ( p_code         in out clob
   , p_package_name in varchar2
-  , p_for_html in boolean default false
-  ) return boolean;
+  , p_for_html     in boolean default false
+  , p_end_user     in varchar default null
+  ) return boolean; 
  
  
   procedure advise_package

@@ -5,11 +5,28 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
 
   function test4(i_module ms_module%ROWTYPE
                 ,o_unit      out ms_unit%ROWTYPE) return varchar2 is
+    l_var number;
   begin
     null;
 
     --i_module.module_name := 'X';
 
+    FOR l_record IN (select 1 from dual) LOOP
+      l_var := 1;
+    END LOOP;
+
+    IF l_var = 0 then
+      l_var := 1;
+
+    else
+      IF l_var = 0 then  
+        l_var := 1;
+      elsif l_var = 0 then 
+        l_var := 1;
+      end if;
+      l_var := 1;
+    end if;
+ 
     o_unit.unit_name := 'X';
   end;
 
@@ -192,14 +209,14 @@ where max_event_date >= :i_min_qa_date
     ms_feedback.warning('Should not have reached here.');
 
 
-  --""This is a special comment
-  --??This is a special info
-  --!!This is a special warning
-  --##This is a special fatal
+    --""This is a special comment
+    --??This is a special info
+    --!!This is a special warning
+    --##This is a special fatal
 
-   o_param23:= 1;
-   io_param24:= 2;
-   --i_param25:= 4;
+    o_param23:= 1;
+    io_param24:= 2;
+    --i_param25:= 4;
 
 
 
@@ -217,3 +234,5 @@ where max_event_date >= :i_min_qa_date
 
 end;
 /
+show errors;
+--execute logger.aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST');

@@ -23,6 +23,7 @@ grant create view to logger;
 
 grant select on DBA_TAB_COLUMNS to logger;
 grant select on DBA_SOURCE to logger; 
+grant select any table to logger;
  
 -- QUOTAS
 ALTER USER logger QUOTA UNLIMITED ON USERS;
