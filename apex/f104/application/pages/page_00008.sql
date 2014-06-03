@@ -47,7 +47,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140529150505'
+ ,p_last_upd_yyyymmddhh24miss => '20140602172929'
   );
 null;
  
@@ -2362,7 +2362,7 @@ declare
   l_clob clob;
   l_length number := 1;
 begin
-p:=p||'ms_metacode.purge_old_processes(i_keep_day_count => 1);';
+p:=p||'ms_logger.purge_old_processes(i_keep_day_count => 1);';
 
 wwv_flow_api.create_page_process(
   p_id     => 17792862111976200 + wwv_flow_api.g_id_offset,
@@ -2393,7 +2393,7 @@ declare
   l_clob clob;
   l_length number := 1;
 begin
-p:=p||'ms_metacode.purge_old_processes(i_keep_day_count => 0);';
+p:=p||'ms_logger.purge_old_processes(i_keep_day_count => 0);';
 
 wwv_flow_api.create_page_process(
   p_id     => 17793034406976201 + wwv_flow_api.g_id_offset,

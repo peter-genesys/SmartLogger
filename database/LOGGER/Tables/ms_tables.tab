@@ -42,6 +42,7 @@ NOCACHE
 NOPARALLEL
 /
 
+alter table ms_module add owner varchar2(30);
 
 
 CREATE TABLE MS_TRAVERSAL

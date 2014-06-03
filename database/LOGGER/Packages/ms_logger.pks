@@ -30,10 +30,12 @@ TYPE node_typ IS RECORD
 --                    ,i_comments    IN VARCHAR2 DEFAULT NULL       ) RETURN ms_logger.node_typ;
  
  
-FUNCTION new_process(i_process_name IN VARCHAR2
-                    ,i_process_type IN VARCHAR2
+FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
+                    ,i_process_type IN VARCHAR2 DEFAULT NULL
                     ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
-					--,i_msg_mode     IN INTEGER  DEFAULT G_MSG_MODE_NORMAL
+                    ,i_module_name  IN VARCHAR2 DEFAULT NULL
+                    ,i_unit_name    IN VARCHAR2 DEFAULT NULL
+          --,i_msg_mode     IN INTEGER  DEFAULT G_MSG_MODE_NORMAL
                     ,i_comments     IN VARCHAR2 DEFAULT NULL       ) RETURN INTEGER; 
  
  
@@ -227,6 +229,14 @@ PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
 PROCEDURE set_internal_debug;
 
 PROCEDURE reset_internal_debug;
+ 
+ 
+--------------------------------------------------------------------
+--purge_old_processes
+-------------------------------------------------------------------
+
+
+PROCEDURE purge_old_processes(i_keep_day_count IN NUMBER DEFAULT 1);
  
  
 ----------------------------------------------------------------------

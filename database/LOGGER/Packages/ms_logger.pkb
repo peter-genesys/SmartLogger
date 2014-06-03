@@ -85,7 +85,7 @@ g_nodes                 node_stack_typ;
  
 
 
-g_max_nested_units      NUMBER   := 20;   --sx_lookup_pkg.lookup_desc('MAX_DEPTH','MESSAGE_PARAM');
+g_max_nested_units      NUMBER   := 100;   --sx_lookup_pkg.lookup_desc('MAX_DEPTH','MESSAGE_PARAM');
 
 G_MSG_LEVEL_IGNORE      CONSTANT NUMBER(2) := 0;
 G_MSG_LEVEL_COMMENT     CONSTANT NUMBER(2) := 1;
@@ -346,19 +346,69 @@ BEGIN
  
 END get_module;
 
+  --------------------------------------------------------------------
+  -- object_owner
+  --------------------------------------------------------------------
+  FUNCTION object_owner(i_object_name IN VARCHAR2) RETURN VARCHAR2 IS
+    
+    -- find the most appropriate object owner.
+    -- Of DBA OBJECTS  
+    -- Select 1 owner, with preference to the user
+    CURSOR cu_owner IS
+    select owner
+    from   dba_objects
+    where  object_name = UPPER(i_object_name)
+    order by decode(owner,USER,1,2);
+
+    l_result VARCHAR2(30);
+
+  BEGIN
+    OPEN cu_owner;
+    FETCH cu_owner INTO l_result;
+    CLOSE cu_owner;
+
+    RETURN l_result;
+ 
+  END;
+
+
+  --------------------------------------------------------------------
+  -- object_type
+  --------------------------------------------------------------------
+  FUNCTION object_type(i_object_name  IN VARCHAR2
+                      ,i_owner        IN VARCHAR2) RETURN VARCHAR2 IS
+    
+ 
+    CURSOR cu_type IS
+    select object_type
+    from   dba_objects
+    where  object_name = UPPER(i_object_name)
+    and    owner       = i_owner;
+
+    l_result VARCHAR2(30);
+
+  BEGIN
+    OPEN cu_type;
+    FETCH cu_type INTO l_result;
+    CLOSE cu_type;
+
+    RETURN l_result;
+ 
+  END;
 
 
  
 FUNCTION find_module(i_module_name  IN VARCHAR2
-                    ,i_module_type  IN VARCHAR2 DEFAULT 'UNKNOWN'
-                    ,i_revision     IN VARCHAR2 DEFAULT 'UNKNOWN')
+                    ,i_module_type  IN VARCHAR2 DEFAULT NULL
+                    ,i_revision     IN VARCHAR2 DEFAULT NULL
+                    ,i_unit_name    IN VARCHAR2 DEFAULT NULL)
 RETURN ms_module%ROWTYPE
 IS
  
   l_module ms_module%ROWTYPE;
  
   l_module_exists BOOLEAN;
-  
+ 
   PRAGMA AUTONOMOUS_TRANSACTION;
 
 BEGIN 
@@ -372,11 +422,31 @@ BEGIN
 
   IF NOT l_module_exists THEN
 
+    IF i_module_type IS NULL THEN 
+      --Derive module type
+      CASE 
+        WHEN i_unit_name IN ('beforepform'
+                            ,'afterpform'
+                            ,'afterreport') THEN 
+          --These program units are assumed to be reoprts.
+          l_module.owner  := USER;
+          l_module.module_type     := G_MODULE_TYPE_REPORT;
+
+        ELSE 
+          --Look up the module in the data dictionary
+          l_module.owner       :=  object_owner(i_object_name => i_module_name);
+          l_module.module_type :=  object_type(i_object_name  => i_module_name
+                                              ,i_owner        => l_module.owner);
+      END CASE;
+      
+    ELSE
+      l_module.module_type := i_module_type;
+    END IF;  
+
     --create the new module record
     l_module.module_id       := new_module_id;
     l_module.module_name     := i_module_name;
     l_module.revision        := i_revision;
-    l_module.module_type     := i_module_type;
     --l_module.msg_mode        := G_MSG_MODE_DEBUG; 
     --l_module.open_process    := G_OPEN_PROCESS_IF_CLOSED;  
     l_module.msg_mode        := G_MSG_MODE_QUIET; 
@@ -484,7 +554,8 @@ FUNCTION find_unit(i_module_name  IN VARCHAR2
 RETURN ms_unit%ROWTYPE
 IS
 BEGIN
-  RETURN find_unit(i_module_id  => find_module(i_module_name => i_module_name).module_id
+  RETURN find_unit(i_module_id  => find_module(i_module_name => i_module_name
+                                              ,i_unit_name   => i_unit_name).module_id
                   ,i_unit_name  => i_unit_name  
                   ,i_unit_type  => i_unit_type
                   ,i_create     => i_create); 
@@ -1831,7 +1902,7 @@ END create_traversal;
 
 FUNCTION new_node(i_module_name IN VARCHAR2
                  ,i_unit_name   IN VARCHAR2
-				 ,i_unit_type   IN VARCHAR2) RETURN ms_logger.node_typ IS
+			         	 ,i_unit_type   IN VARCHAR2) RETURN ms_logger.node_typ IS
 				 
   --When upgraded to 12C may not need to pass any params				 
 
@@ -1884,7 +1955,8 @@ FUNCTION new_node(i_module_name IN VARCHAR2
 BEGIN
   
   --get a registered module or register this one
-  l_node.module := find_module(i_module_name => i_module_name); 
+  l_node.module := find_module(i_module_name => i_module_name
+                              ,i_unit_name   => i_unit_name); 
 
   --get a registered unit or register this one
   l_node.unit := find_unit(i_module_id   => l_node.module.module_id
@@ -1903,6 +1975,31 @@ END;
 
 ------------------------------------------------------------------------
  
+ PROCEDURE reset_sequence(i_sequence_name IN VARCHAR2
+                         ,i_new_value     IN INTEGER  DEFAULT 0) IS
+   PRAGMA AUTONOMOUS_TRANSACTION;	
+   l_increment      INTEGER;   
+   
+   
+   FUNCTION get_next_seq RETURN INTEGER IS
+     l_next_val       INTEGER;
+   BEGIN
+     execute immediate 'select '||i_sequence_name||'.nextval into :l_next_val from dual' using out l_next_val;
+	 RETURN l_next_val;
+   END;
+   
+   
+ BEGIN						 
+     --RESET sequence back to i_new_value
+    l_increment := i_new_value - get_next_seq - 1;
+    --use increment by to reverse the sequence back to i_new_value
+    execute immediate 'alter sequence '||i_sequence_name||' increment by ' || l_increment ||' minvalue 0';
+    l_increment := get_next_seq; --should now be i_new_value
+    --set increment back to normal
+    execute immediate 'alter sequence '||i_sequence_name||' increment by 1 minvalue 0';    
+ END;
+ 
+ 
   --------------------------------------------------------------------
   --purge_old_processes
   -------------------------------------------------------------------
@@ -1917,9 +2014,20 @@ BEGIN
   delete from ms_process        where created_date < (SYSDATE - i_keep_day_count);
   delete from ms_internal_error where time_now     < (SYSDATE - i_keep_day_count);
   delete from ms_large_message  where time_now     < (SYSDATE - i_keep_day_count);
-
   COMMIT;
-  
+ 
+  /*
+  IF i_keep_day_count = 0 THEN
+    --Processes are all gone, so reset the sequences.
+ 
+    reset_sequence(i_sequence_name => 'ms_message_seq');
+	  reset_sequence(i_sequence_name => 'ms_traversal_seq');
+	  reset_sequence(i_sequence_name => 'ms_process_seq');
+	
+  END IF;
+  */
+ 
+ 
  END;
  
   
@@ -1929,18 +2037,42 @@ BEGIN
   ------------------------------------------------------------------------
   
  
-FUNCTION new_process(i_process_name IN VARCHAR2
-                    ,i_process_type IN VARCHAR2
+FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
+                    ,i_process_type IN VARCHAR2 DEFAULT NULL
                     ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
+                    ,i_module_name  IN VARCHAR2 DEFAULT NULL
+                    ,i_unit_name    IN VARCHAR2 DEFAULT NULL
 					--,i_msg_mode     IN INTEGER  DEFAULT G_MSG_MODE_NORMAL
                     ,i_comments     IN VARCHAR2 DEFAULT NULL       ) RETURN INTEGER IS
  
+  l_origin ms_process.origin%TYPE;
+  l_module ms_module%rowtype;
+  l_unit   ms_unit%rowtype;
+
 BEGIN
-  
-   log_process(i_origin  => i_process_type ||' '||  i_process_name
-   		    --  ,i_msg_mode     => i_msg_mode
-              ,i_ext_ref      => i_ext_ref    
-              ,i_comments     => i_comments);  
+    
+  IF i_process_name IS NOT NULL THEN
+    l_origin  := i_process_type ||' '||  i_process_name;
+  END IF;
+
+
+  IF i_module_name IS NOT NULL THEN
+    l_module := get_module(i_module_name => i_module_name);
+    l_origin := l_module.module_type||' '||i_module_name;
+ 
+    IF i_unit_name IS NOT NULL THEN
+      l_unit := get_unit(i_module_id => l_module.module_id
+                        ,i_unit_name => i_unit_name);
+      l_origin := SUBSTR(l_origin||':'||l_unit.unit_type||' '||i_unit_name,1,100);
+    END IF;
+  END IF;
+
+  l_origin := NVL(TRIM(l_origin),'UNKNOWN ORIGIN');
+ 
+  log_process(i_origin      =>l_origin
+        --  ,i_msg_mode     => i_msg_mode
+            ,i_ext_ref      => i_ext_ref    
+            ,i_comments     => i_comments);  
  
   RETURN g_process_id;
 					
@@ -1954,7 +2086,7 @@ END;
   BEGIN
     
 	RETURN ms_logger.new_node(i_module_name => i_module_name
-                             ,i_unit_name   => i_unit_name
+                           ,i_unit_name   => i_unit_name
 							 ,i_unit_type   => G_UNIT_TYPE_PACKAGE );
  
   END;
@@ -1966,7 +2098,7 @@ END;
   BEGIN
     
 	RETURN ms_logger.new_node(i_module_name => i_module_name
-                             ,i_unit_name   => i_unit_name
+                           ,i_unit_name   => i_unit_name
 							 ,i_unit_type   => G_UNIT_TYPE_PROCEDURE );
  
   END;
@@ -2088,7 +2220,8 @@ BEGIN
 END raise_fatal; 
 */
 
- 
+
   
 end;
 /
+show error;

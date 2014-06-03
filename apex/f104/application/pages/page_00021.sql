@@ -25,7 +25,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140529145909'
+ ,p_last_upd_yyyymmddhh24miss => '20140603132135'
   );
 null;
  
@@ -230,7 +230,7 @@ wwv_flow_api.create_page_item(
   p_new_grid=> false,
   p_begin_on_new_line=> 'YES',
   p_begin_on_new_field=> 'YES',
-  p_colspan=> null,
+  p_colspan=> 2,
   p_rowspan=> null,
   p_grid_column=> null,
   p_label_alignment=> 'ABOVE',
@@ -277,7 +277,7 @@ wwv_flow_api.create_page_item(
   p_cMaxlength=> 4000,
   p_cHeight=> 1,
   p_new_grid=> false,
-  p_begin_on_new_line=> 'YES',
+  p_begin_on_new_line=> 'NO',
   p_begin_on_new_field=> 'YES',
   p_colspan=> null,
   p_rowspan=> null,
@@ -291,6 +291,52 @@ wwv_flow_api.create_page_item(
   p_escape_on_http_output => 'Y',
   p_restricted_characters => 'NO_SPECIAL_CHAR_NL',
   p_help_text=> h,
+  p_attribute_01 => 'N',
+  p_attribute_02 => 'N',
+  p_attribute_04 => 'TEXT',
+  p_show_quick_picks=>'N',
+  p_item_comment => '');
+ 
+ 
+end;
+/
+
+declare
+    h varchar2(32767) := null;
+begin
+wwv_flow_api.create_page_item(
+  p_id=>3490519083394476 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id=> 21,
+  p_name=>'P21_SCHEMA',
+  p_data_type=> 'VARCHAR',
+  p_is_required=> false,
+  p_accept_processing=> 'REPLACE_EXISTING',
+  p_item_sequence=> 5,
+  p_item_plug_id => 2773731843441189+wwv_flow_api.g_id_offset,
+  p_use_cache_before_default=> 'YES',
+  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
+  p_prompt=>'Schema',
+  p_source_type=> 'STATIC',
+  p_display_as=> 'NATIVE_TEXT_FIELD',
+  p_lov_display_null=> 'NO',
+  p_lov_translated=> 'N',
+  p_cSize=> 30,
+  p_cMaxlength=> 4000,
+  p_cHeight=> 1,
+  p_new_grid=> false,
+  p_begin_on_new_line=> 'YES',
+  p_begin_on_new_field=> 'YES',
+  p_colspan=> null,
+  p_rowspan=> null,
+  p_grid_column=> null,
+  p_label_alignment=> 'ABOVE',
+  p_field_alignment=> 'LEFT-CENTER',
+  p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
+  p_is_persistent=> 'Y',
+  p_lov_display_extra=>'YES',
+  p_protection_level => 'N',
+  p_escape_on_http_output => 'Y',
   p_attribute_01 => 'N',
   p_attribute_02 => 'N',
   p_attribute_04 => 'TEXT',
@@ -452,9 +498,14 @@ p:=p||'declare'||unistr('\000a')||
 
 p:=p||'reate_or_truncate_collection(p_collection_name=>''AOP_OUTPUT'');'||unistr('\000a')||
 ' '||unistr('\000a')||
-'  l_woven := aop_processor.weave(l_clob, :P21_PACKAGE_NAME ,TRUE);'||unistr('\000a')||
+'  l_woven := aop_processor.weave( p_code         => l_clob'||unistr('\000a')||
+'                                , p_package_name => :P21_PACKAGE_NAME'||unistr('\000a')||
+'                                , p_for_html     => TRUE'||unistr('\000a')||
+'                                , p_end_user     => :P21_SCHEMA );'||unistr('\000a')||
 ' '||unistr('\000a')||
-'    apex_collection.add_member(p_collection_name => ''AOP_OUTPUT'',p_clob001 => l_clob);'||unistr('\000a')||
+'    apex_collection.add_member(p_collection_name => ''AOP_OUTPUT'',p_clob001 => l_';
+
+p:=p||'clob);'||unistr('\000a')||
 '  if l_woven then'||unistr('\000a')||
 '    apex_application.g_print_success_message := ''AOP Successful.'';'||unistr('\000a')||
 '  else'||unistr('\000a')||
