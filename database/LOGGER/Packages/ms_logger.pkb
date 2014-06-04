@@ -87,20 +87,6 @@ g_nodes                 node_stack_typ;
 
 g_max_nested_units      NUMBER   := 100;   --sx_lookup_pkg.lookup_desc('MAX_DEPTH','MESSAGE_PARAM');
 
-G_MSG_LEVEL_IGNORE      CONSTANT NUMBER(2) := 0;
-G_MSG_LEVEL_COMMENT     CONSTANT NUMBER(2) := 1;
-G_MSG_LEVEL_INFO        CONSTANT NUMBER(2) := 2;
-G_MSG_LEVEL_WARNING     CONSTANT NUMBER(2) := 3;
-G_MSG_LEVEL_FATAL       CONSTANT NUMBER(2) := 4;
-G_MSG_LEVEL_ORACLE      CONSTANT NUMBER(2) := 5;
-G_MSG_LEVEL_INTERNAL    CONSTANT NUMBER(2) := 6;
-
-G_MSG_MODE_DEBUG        CONSTANT NUMBER(2) := G_MSG_LEVEL_COMMENT; 
-G_MSG_MODE_NORMAL       CONSTANT NUMBER(2) := G_MSG_LEVEL_INFO;
-G_MSG_MODE_QUIET        CONSTANT NUMBER(2) := G_MSG_LEVEL_FATAL;
-G_MSG_MODE_DEFAULT      CONSTANT NUMBER(2) := NULL;
- 
- 
  
 --Node Types
 --Root Only  - Will end current process and start a new one.
@@ -111,11 +97,6 @@ G_MSG_MODE_DEFAULT      CONSTANT NUMBER(2) := NULL;
 --Always        Y
 --If Closed     C
 --Never         N 
- 
-G_OPEN_PROCESS_ALWAYS     CONSTANT ms_unit.open_process%TYPE := 'Y'; 
-G_OPEN_PROCESS_IF_CLOSED  CONSTANT ms_unit.open_process%TYPE := 'C';
-G_OPEN_PROCESS_NEVER      CONSTANT ms_unit.open_process%TYPE := 'N';
-G_OPEN_PROCESS_DEFAULT    CONSTANT ms_unit.open_process%TYPE := NULL;
  
 ------------------------------------------------------------------------
 -- UNIT TYPES (Private)

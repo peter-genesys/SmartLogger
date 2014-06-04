@@ -39,6 +39,7 @@ create or replace package body aop_processor is
   x_weave_timeout      EXCEPTION; 
   x_invalid_keyword    EXCEPTION;
   x_string_not_found   EXCEPTION;
+  x_restore_failed     EXCEPTION;
   
   g_aop_module_name    VARCHAR2(30); 
   
@@ -1606,7 +1607,16 @@ exception
  
 END AOP_prog_units;
  
- 
+--------------------------------------------------------------------
+-- trim_clob
+--------------------------------------------------------------------
+FUNCTION trim_clob(i_clob IN CLOB) RETURN CLOB IS
+  G_REGEX_LEADING_TRAILING_WHITE CONSTANT VARCHAR2(20) := '^\s*|\s*$';
+BEGIN
+  RETURN TRIM(REGEXP_REPLACE(i_clob,G_REGEX_LEADING_TRAILING_WHITE,''));
+END;
+
+
 --------------------------------------------------------------------------------- 
 -- weave
 ---------------------------------------------------------------------------------
@@ -1636,34 +1646,26 @@ END AOP_prog_units;
     ms_logger.param(l_node, 'p_package_name'      ,p_package_name);
     ms_logger.param(l_node, 'p_for_html'          ,p_for_html);
   
-  IF p_package_name IS NULL THEN
-    g_aop_module_name := '$$plsql_unit';
-    ELSE
-    g_aop_module_name := ''''||p_package_name||'''';
-  END IF;
- 
-  g_for_aop_html := p_for_html;
-  g_end_user     := p_end_user;
- 
-  --First task will be to remove all comments or 
-  --somehow identify and remember all sections that can be ignored because they are comments
-  
-  g_code := chr(10)||p_code||chr(10); --add a trailing CR to help with searching
-
-    set_weave_timeout;
+    IF p_package_name IS NULL THEN
+      g_aop_module_name := '$$plsql_unit';
+      ELSE
+      g_aop_module_name := ''''||p_package_name||'''';
+    END IF;
+   
+    g_for_aop_html := p_for_html;
+    g_end_user     := p_end_user;
+   
+    --First task will be to remove all comments or 
+    --somehow identify and remember all sections that can be ignored because they are comments
     
-  stash_comments_and_quotes;
- 
-    --LATER WHEN WE WANT TO SUPPORT THE BEGIN SECTION OF A PACKAGE
-  --WE WOULD REPLACE parse_prog_unit below with parse_anon_block
- 
-  --Change any program unit ending of form "end program_unit_name;" to just "end;" for simplicity
-  --Preprocess p_code cleaning up block end statements.
-    --IE Translate "END prog_unit_name;" -> "END;"  
+    g_code := chr(10)||p_code||chr(10); --add a trailing CR to help with searching
+  
+    set_weave_timeout;
+      
+    stash_comments_and_quotes;
  
     --Reset the processing pointer.
-      g_current_pos := 1;
- 
+    g_current_pos := 1;
  
     --Need to determine what sort of code we have - at the top level.
 
@@ -1735,6 +1737,10 @@ END AOP_prog_units;
   restore_comments_and_quotes;
  
   exception 
+    when x_restore_failed then
+    wedge( i_new_code => 'RESTORE FAILED'
+                ,i_colour  => G_COLOUR_ERROR);
+      l_advised := false;
     when x_invalid_keyword then
     wedge( i_new_code => 'INVALID KEYWORD'
                 ,i_colour  => G_COLOUR_ERROR);
@@ -1758,7 +1764,7 @@ END AOP_prog_units;
       g_code := '<PRE>'||g_code||'</PRE>';
   END IF;  
  
-    p_code := g_code;
+    p_code := trim_clob(i_clob => g_code);
  
     return l_advised;
  
@@ -1769,8 +1775,7 @@ END AOP_prog_units;
   
   end weave;
   
-  
-  
+ 
   --------------------------------------------------------------------
   -- get_body
   --------------------------------------------------------------------
@@ -1800,7 +1805,8 @@ END AOP_prog_units;
     , object_type       => 'PACKAGE'
     );
     l_code:= dbms_metadata.get_ddl('PACKAGE', p_object_name, p_object_owner);
-    return l_code;
+ 
+    return trim_clob(i_clob => l_code);
   end get_body;
 
   
@@ -1966,7 +1972,7 @@ END AOP_prog_units;
                             , USER         owner
                from user_objects  --only want to see objects owned by the invoker
              where object_type ='PACKAGE BODY'
-             and   object_name = NVL(i_object_name,object_name)) loop
+             and   object_name = NVL(UPPER(i_object_name),object_name)) loop
           --AOP the package
           advise_package( p_object_name  => l_object.object_name
                         , p_object_type  => l_object.object_type
@@ -1982,18 +1988,44 @@ END AOP_prog_units;
   procedure restore_comments_and_quotes IS
       l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'restore_comments_and_quotes'); 
       l_text CLOB;    
+      l_temp_code CLOB;
   BEGIN
     FOR l_index in 1..g_comment_stack.count loop
-    l_text := f_colour(i_text   => g_comment_stack(l_index)
-                      ,i_colour => G_COLOUR_COMMENT);
-    g_code := REPLACE(g_code,'##comment'||l_index||'##',l_text);
-  END LOOP;
+      ms_logger.note(l_node, 'comment', l_index);
+      l_temp_code := g_code;
+      l_text := f_colour(i_text   => g_comment_stack(l_index)
+                        ,i_colour => G_COLOUR_COMMENT);
+      g_code := REPLACE(g_code,'##comment'||l_index||'##',l_text);
+
+      IF l_temp_code = g_code THEN
+         ms_logger.fatal(l_node, 'Did not find '||'##comment'||l_index||'##');
+         wedge( i_new_code => 'LOOKING FOR '||'##comment'||l_index||'##'
+                ,i_colour  => G_COLOUR_ERROR);
+        RAISE x_restore_failed;
+      END IF; 
+ 
+    END LOOP;
   
     FOR l_index in 1..g_quote_stack.count loop
-    l_text := f_colour(i_text   => g_quote_stack(l_index)
-                      ,i_colour => G_COLOUR_QUOTE);
-    g_code := REPLACE(g_code,'##quote'||l_index||'##',l_text);
+      ms_logger.note(l_node, 'quote', l_index);
+      l_temp_code := g_code;
+      l_text := f_colour(i_text   => g_quote_stack(l_index)
+                        ,i_colour => G_COLOUR_QUOTE);
+      g_code := REPLACE(g_code,'##quote'||l_index||'##',l_text);
+
+      IF l_temp_code = g_code THEN
+         ms_logger.fatal(l_node, 'Did not find '||'##quote'||l_index||'##');
+         wedge( i_new_code => 'LOOKING FOR '||'##quote'||l_index||'##'
+                ,i_colour  => G_COLOUR_ERROR);
+        RAISE x_restore_failed;
+      END IF; 
+
   END LOOP;
+
+
+
+
+
   END;
   
   --------------------------------------------------------------------
