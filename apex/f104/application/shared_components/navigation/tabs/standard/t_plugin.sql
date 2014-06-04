@@ -7,7 +7,7 @@ wwv_flow_api.create_tab (
   p_tab_name=> 'T_PLUGIN',
   p_tab_text => 'Quick AOP',
   p_tab_step => 21,
-  p_tab_also_current_for_pages => '22',
+  p_tab_also_current_for_pages => '22,25',
   p_tab_parent_tabset=>'',
   p_tab_comment  => '');
  

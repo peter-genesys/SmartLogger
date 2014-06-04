@@ -23,7 +23,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140603094911'
+ ,p_last_upd_yyyymmddhh24miss => '20140604120732'
   );
 null;
  
@@ -380,6 +380,23 @@ wwv_flow_api.create_page_button(
   p_required_patch => null + wwv_flow_api.g_id_offset);
  
 wwv_flow_api.create_page_button(
+  p_id             => 3519108083495568 + wwv_flow_api.g_id_offset,
+  p_flow_id        => wwv_flow.g_flow_id,
+  p_flow_step_id   => 10,
+  p_button_sequence=> 40,
+  p_button_plug_id => 17802441101031118+wwv_flow_api.g_id_offset,
+  p_button_name    => 'OVERRIDDEN',
+  p_button_action  => 'SUBMIT',
+  p_button_image   => 'template:'||to_char(17754539557931433+wwv_flow_api.g_id_offset),
+  p_button_is_hot=>'N',
+  p_button_image_alt=> 'Overridden',
+  p_button_position=> 'REGION_TEMPLATE_CHANGE',
+  p_button_alignment=> 'RIGHT',
+  p_button_redirect_url=> '',
+  p_button_execute_validations=>'N',
+  p_required_patch => null + wwv_flow_api.g_id_offset);
+ 
+wwv_flow_api.create_page_button(
   p_id             => 17803650795031118 + wwv_flow_api.g_id_offset,
   p_flow_id        => wwv_flow.g_flow_id,
   p_flow_step_id   => 10,
@@ -488,9 +505,9 @@ wwv_flow_api.create_page_item(
   p_item_sequence=> 30,
   p_item_plug_id => 17802441101031118+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'YES',
-  p_item_default=> '10',
   p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
   p_prompt=>'Rows',
+  p_source=>'20',
   p_source_type=> 'STATIC',
   p_display_as=> 'NATIVE_NUMBER_FIELD',
   p_lov_display_null=> 'NO',
@@ -679,6 +696,44 @@ wwv_flow_api.create_page_process(
   p_process_when=>'MULTI_ROW_DELETE',
   p_process_when_type=>'REQUEST_EQUALS_CONDITION',
   p_process_success_message=> '#MRD_COUNT# row(s) deleted.',
+  p_process_is_stateful_y_n=>'N',
+  p_process_comment=>'');
+end;
+null;
+ 
+end;
+/
+
+ 
+begin
+ 
+declare
+  p varchar2(32767) := null;
+  l_clob clob;
+  l_length number := 1;
+begin
+p:=p||'update ms_unit'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
+'where module_id = :P10_MODULE_ID'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'Commit;';
+
+wwv_flow_api.create_page_process(
+  p_id     => 3518816348469580 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id => 10,
+  p_process_sequence=> 30,
+  p_process_point=> 'AFTER_SUBMIT',
+  p_process_type=> 'PLSQL',
+  p_process_name=> 'SetAllOverridden',
+  p_process_sql_clob => p,
+  p_process_error_message=> 'Failed to set units to Overridden.',
+  p_error_display_location=> 'INLINE_IN_NOTIFICATION',
+  p_process_when_button_id=>3519108083495568 + wwv_flow_api.g_id_offset,
+  p_only_for_changed_rows=> 'Y',
+  p_process_success_message=> 'All units (of this module) are now Overridden, by the module''s settings.',
   p_process_is_stateful_y_n=>'N',
   p_process_comment=>'');
 end;

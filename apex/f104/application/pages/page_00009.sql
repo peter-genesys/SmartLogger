@@ -27,7 +27,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140603094725'
+ ,p_last_upd_yyyymmddhh24miss => '20140604121849'
   );
 null;
  
@@ -159,11 +159,11 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 3,
   p_form_element_id=> null,
   p_column_alias=> 'MODULE_ID_DISPLAY',
-  p_column_display_sequence=> 3,
-  p_column_heading=> 'Module Id',
+  p_column_display_sequence=> 8,
+  p_column_heading=> 'Edit Units',
   p_use_as_row_header=> 'N',
   p_column_link=>'f?p=&APP_ID.:10:&SESSION.::&DEBUG.::P10_MODULE_ID,P10_MODULE_NAME:#MODULE_ID#,#MODULE_NAME#',
-  p_column_linktext=>'<img src="#IMAGE_PREFIX#magnifying_glass_white_bg.gif" alt="">',
+  p_column_linktext=>'<img src="#IMAGE_PREFIX#ed-item.gif" alt="">',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'LEFT',
   p_default_sort_column_sequence=>0,
@@ -193,7 +193,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 4,
   p_form_element_id=> null,
   p_column_alias=> 'MODULE_NAME',
-  p_column_display_sequence=> 4,
+  p_column_display_sequence=> 3,
   p_column_heading=> 'Module Name',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'LEFT',
@@ -222,7 +222,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 5,
   p_form_element_id=> null,
   p_column_alias=> 'REVISION',
-  p_column_display_sequence=> 5,
+  p_column_display_sequence=> 4,
   p_column_heading=> 'Revision',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'LEFT',
@@ -251,19 +251,23 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 6,
   p_form_element_id=> null,
   p_column_alias=> 'MODULE_TYPE',
-  p_column_display_sequence=> 6,
+  p_column_display_sequence=> 5,
   p_column_heading=> 'Module Type',
+  p_use_as_row_header=> 'N',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'LEFT',
   p_default_sort_column_sequence=>0,
   p_disable_sort_column=>'N',
   p_sum_column=> 'N',
   p_hidden_column=> 'N',
-  p_display_as=>'ESCAPE_SC',
+  p_display_as=>'SELECT_LIST',
+  p_inline_lov=> 'Package;PACKAGE,Procedure;PROCEDURE,Function;FUNCTION,Trigger;TRIGGER,Oracle Report;REPORT,Oracle Form;FORM,Oracle Report PLSQL Library;REPORT_LIB,Oracle Form PLSQL Library;FORM_LIB',
+  p_lov_show_nulls=> 'NO',
   p_column_width=> '10',
   p_is_required=> false,
   p_pk_col_source=> s,
-  p_ref_schema=> 'TPDS',
+  p_lov_display_extra=> 'YES',
+  p_include_in_export=> 'Y',
   p_ref_table_name=> 'MS_MODULE',
   p_ref_column_name=> 'MODULE_TYPE',
   p_column_comment=>'');
@@ -280,7 +284,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 7,
   p_form_element_id=> null,
   p_column_alias=> 'MSG_MODE',
-  p_column_display_sequence=> 7,
+  p_column_display_sequence=> 6,
   p_column_heading=> 'Msg Mode',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'LEFT',
@@ -312,7 +316,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 8,
   p_form_element_id=> null,
   p_column_alias=> 'OPEN_PROCESS',
-  p_column_display_sequence=> 8,
+  p_column_display_sequence=> 7,
   p_column_heading=> 'Open Process',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'LEFT',
@@ -403,6 +407,74 @@ wwv_flow_api.create_page_button(
   p_required_patch => null + wwv_flow_api.g_id_offset);
  
 wwv_flow_api.create_page_button(
+  p_id             => 3520316226535807 + wwv_flow_api.g_id_offset,
+  p_flow_id        => wwv_flow.g_flow_id,
+  p_flow_step_id   => 9,
+  p_button_sequence=> 50,
+  p_button_plug_id => 17797158749021547+wwv_flow_api.g_id_offset,
+  p_button_name    => 'ALL_QUIET',
+  p_button_action  => 'SUBMIT',
+  p_button_image   => 'template:'||to_char(17754539557931433+wwv_flow_api.g_id_offset),
+  p_button_is_hot=>'N',
+  p_button_image_alt=> 'All Quiet',
+  p_button_position=> 'REGION_TEMPLATE_CHANGE',
+  p_button_alignment=> 'RIGHT',
+  p_button_redirect_url=> '',
+  p_button_execute_validations=>'N',
+  p_required_patch => null + wwv_flow_api.g_id_offset);
+ 
+wwv_flow_api.create_page_button(
+  p_id             => 3520501466540961 + wwv_flow_api.g_id_offset,
+  p_flow_id        => wwv_flow.g_flow_id,
+  p_flow_step_id   => 9,
+  p_button_sequence=> 60,
+  p_button_plug_id => 17797158749021547+wwv_flow_api.g_id_offset,
+  p_button_name    => 'ALL_NORMAL',
+  p_button_action  => 'SUBMIT',
+  p_button_image   => 'template:'||to_char(17754539557931433+wwv_flow_api.g_id_offset),
+  p_button_is_hot=>'N',
+  p_button_image_alt=> 'All Normal',
+  p_button_position=> 'REGION_TEMPLATE_CHANGE',
+  p_button_alignment=> 'RIGHT',
+  p_button_redirect_url=> '',
+  p_button_execute_validations=>'N',
+  p_required_patch => null + wwv_flow_api.g_id_offset);
+ 
+wwv_flow_api.create_page_button(
+  p_id             => 3520722937547217 + wwv_flow_api.g_id_offset,
+  p_flow_id        => wwv_flow.g_flow_id,
+  p_flow_step_id   => 9,
+  p_button_sequence=> 70,
+  p_button_plug_id => 17797158749021547+wwv_flow_api.g_id_offset,
+  p_button_name    => 'ALL_DEBUG',
+  p_button_action  => 'SUBMIT',
+  p_button_image   => 'template:'||to_char(17754539557931433+wwv_flow_api.g_id_offset),
+  p_button_is_hot=>'N',
+  p_button_image_alt=> 'All Debug',
+  p_button_position=> 'REGION_TEMPLATE_CHANGE',
+  p_button_alignment=> 'RIGHT',
+  p_button_redirect_url=> '',
+  p_button_execute_validations=>'N',
+  p_required_patch => null + wwv_flow_api.g_id_offset);
+ 
+wwv_flow_api.create_page_button(
+  p_id             => 3520932287549855 + wwv_flow_api.g_id_offset,
+  p_flow_id        => wwv_flow.g_flow_id,
+  p_flow_step_id   => 9,
+  p_button_sequence=> 80,
+  p_button_plug_id => 17797158749021547+wwv_flow_api.g_id_offset,
+  p_button_name    => 'REPORT_STD',
+  p_button_action  => 'SUBMIT',
+  p_button_image   => 'template:'||to_char(17754764340931433+wwv_flow_api.g_id_offset),
+  p_button_is_hot=>'N',
+  p_button_image_alt=> 'Report Std',
+  p_button_position=> 'REGION_TEMPLATE_CHANGE',
+  p_button_alignment=> 'RIGHT',
+  p_button_redirect_url=> '',
+  p_button_execute_validations=>'N',
+  p_required_patch => null + wwv_flow_api.g_id_offset);
+ 
+wwv_flow_api.create_page_button(
   p_id             => 17798549235021555 + wwv_flow_api.g_id_offset,
   p_flow_id        => wwv_flow.g_flow_id,
   p_flow_step_id   => 9,
@@ -472,9 +544,9 @@ wwv_flow_api.create_page_item(
   p_item_sequence=> 5,
   p_item_plug_id => 17797158749021547+wwv_flow_api.g_id_offset,
   p_use_cache_before_default=> 'YES',
-  p_item_default=> '10',
   p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
   p_prompt=>'Rows',
+  p_source=>'20',
   p_source_type=> 'STATIC',
   p_display_as=> 'NATIVE_NUMBER_FIELD',
   p_lov_display_null=> 'NO',
@@ -655,6 +727,185 @@ wwv_flow_api.create_page_process(
   p_error_display_location=> 'ON_ERROR_PAGE',
   p_process_when_button_id=>17798346024021555 + wwv_flow_api.g_id_offset,
   p_process_success_message=> 'Purged old messages',
+  p_process_is_stateful_y_n=>'N',
+  p_process_comment=>'');
+end;
+null;
+ 
+end;
+/
+
+ 
+begin
+ 
+declare
+  p varchar2(32767) := null;
+  l_clob clob;
+  l_length number := 1;
+begin
+p:=p||'update ms_module'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DEBUG'||unistr('\000a')||
+'--DONT CHANGE OPEN PROCESS   ,open_process = ms_logger.G_OPEN_PROCESS_IF_CLOSED'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'update ms_unit'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'commit;';
+
+wwv_flow_api.create_page_process(
+  p_id     => 3514018857101307 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id => 9,
+  p_process_sequence=> 40,
+  p_process_point=> 'AFTER_SUBMIT',
+  p_process_type=> 'PLSQL',
+  p_process_name=> 'SetAllDebug',
+  p_process_sql_clob => p,
+  p_process_error_message=> 'Failed to set modules to Debug mode.',
+  p_error_display_location=> 'INLINE_IN_NOTIFICATION',
+  p_process_when_button_id=>3520722937547217 + wwv_flow_api.g_id_offset,
+  p_only_for_changed_rows=> 'Y',
+  p_process_success_message=> 'All Modules are now in Debug mode. Open Process settings are unchanged.',
+  p_process_is_stateful_y_n=>'N',
+  p_process_comment=>'');
+end;
+null;
+ 
+end;
+/
+
+ 
+begin
+ 
+declare
+  p varchar2(32767) := null;
+  l_clob clob;
+  l_length number := 1;
+begin
+p:=p||'update ms_module'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_QUIET '||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_NEVER'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'update ms_unit'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'Commit;';
+
+wwv_flow_api.create_page_process(
+  p_id     => 3515205051125782 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id => 9,
+  p_process_sequence=> 50,
+  p_process_point=> 'AFTER_SUBMIT',
+  p_process_type=> 'PLSQL',
+  p_process_name=> 'SetAllQuiet',
+  p_process_sql_clob => p,
+  p_process_error_message=> 'Failed to set modules to Debug mode.',
+  p_error_display_location=> 'INLINE_IN_NOTIFICATION',
+  p_process_when_button_id=>3520316226535807 + wwv_flow_api.g_id_offset,
+  p_only_for_changed_rows=> 'Y',
+  p_process_success_message=> 'All Modules are now in Quiet mode.  No Processes will start.',
+  p_process_is_stateful_y_n=>'N',
+  p_process_comment=>'');
+end;
+null;
+ 
+end;
+/
+
+ 
+begin
+ 
+declare
+  p varchar2(32767) := null;
+  l_clob clob;
+  l_length number := 1;
+begin
+p:=p||'update ms_module'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_NORMAL'||unistr('\000a')||
+'--DONT CHANGE OPEN_PROCESS   ,open_process = ms_logger.G_OPEN_PROCESS_IF_CLOSED'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'update ms_unit'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'commit;';
+
+wwv_flow_api.create_page_process(
+  p_id     => 3515824360150247 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id => 9,
+  p_process_sequence=> 60,
+  p_process_point=> 'AFTER_SUBMIT',
+  p_process_type=> 'PLSQL',
+  p_process_name=> 'SetAllNormal',
+  p_process_sql_clob => p,
+  p_process_error_message=> 'Failed to set modules to Normal mode.',
+  p_error_display_location=> 'INLINE_IN_NOTIFICATION',
+  p_process_when_button_id=>3520501466540961 + wwv_flow_api.g_id_offset,
+  p_only_for_changed_rows=> 'Y',
+  p_process_success_message=> 'All Modules are now in Normal mode. Open Process settings are unchanged.',
+  p_process_is_stateful_y_n=>'N',
+  p_process_comment=>'');
+end;
+null;
+ 
+end;
+/
+
+ 
+begin
+ 
+declare
+  p varchar2(32767) := null;
+  l_clob clob;
+  l_length number := 1;
+begin
+p:=p||'update ms_module'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_NORMAL'||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_IF_CLOSED'||unistr('\000a')||
+'where module_type = ''REPORT'''||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'update ms_unit'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
+'where module_id in (select module_id from ms_module where module_type = ''REPORT'')'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'--Set Reports Parameter routine to debug.'||unistr('\000a')||
+'update ';
+
+p:=p||'ms_unit'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DEBUG'||unistr('\000a')||
+'where unit_name  = ''get_parameters'''||unistr('\000a')||
+'and module_id in (select module_id from ms_module where module_type = ''REPORT'')'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'commit;';
+
+wwv_flow_api.create_page_process(
+  p_id     => 3517218829224273 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id => 9,
+  p_process_sequence=> 70,
+  p_process_point=> 'AFTER_SUBMIT',
+  p_process_type=> 'PLSQL',
+  p_process_name=> 'SetReportsStd',
+  p_process_sql_clob => p,
+  p_process_error_message=> 'Failed to set Reports to Standard mode.',
+  p_error_display_location=> 'INLINE_IN_NOTIFICATION',
+  p_process_when_button_id=>3520932287549855 + wwv_flow_api.g_id_offset,
+  p_only_for_changed_rows=> 'Y',
+  p_process_success_message=> 'Reports are now in Standard mode. Ie Reports will open processes in Normal mode, and ''get_parameters'' is set to Debug.',
   p_process_is_stateful_y_n=>'N',
   p_process_comment=>'');
 end;

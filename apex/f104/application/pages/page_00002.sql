@@ -479,6 +479,8 @@ wwv_flow_api.create_worksheet_rpt(
   p_is_default              =>'Y',
   p_display_rows            =>15,
   p_report_columns          =>rc1,
+  p_break_on                =>'USING_AOP:0:0:0:0:0',
+  p_break_enabled_on        =>'USING_AOP:0:0:0:0:0',
   p_flashback_enabled       =>'N',
   p_calendar_display_column =>'');
 end;
