@@ -230,9 +230,7 @@ BEGIN
 
 END; 
  
-
-
-
+ 
 PROCEDURE err_create_internal_error(i_message IN VARCHAR2 ) IS
    
    PRAGMA AUTONOMOUS_TRANSACTION;
@@ -263,7 +261,7 @@ PROCEDURE err_warn_oracle_error(i_message IN VARCHAR2 ) IS
 BEGIN 
   $if $$intlog $then intlog_putline(i_message||':');     $end
   err_create_internal_error(SQLERRM);
-  $if $$intlog $then intlog_end(i_message => i_messagntlog_end(i_message => i_message); $end --extra call to intlog_end closes the program unit.
+  $if $$intlog $then intlog_end(i_message => i_message); $end --extra call to intlog_end closes the program unit.
 
 END;
 
@@ -803,6 +801,10 @@ PROCEDURE pop_to_parent_node(i_node IN node_typ) IS
 BEGIN
   $if $$intlog $then intlog_start('pop_to_parent_node');                                $end
   $if $$intlog $then intlog_note('current call_stack_level',i_node.call_stack_level );  $end
+  $if $$intlog $then intlog_note('f_index',f_index );                                   $end
+  $if $$intlog $then intlog_note('g_nodes(f_index).unit.unit_name',g_nodes(f_index).unit.unit_name );   $end
+
+
   --remove from the stack any node with a call_stack_level equal to or greater than the new node.
   --also remove any node that does not have common grandparent
   while f_index > 0 and
@@ -847,6 +849,9 @@ PROCEDURE pop_descendent_nodes(i_node IN node_typ) IS
 BEGIN
   $if $$intlog $then intlog_start('pop_descendent_nodes');                              $end         
   $if $$intlog $then intlog_note('current call_stack_level',i_node.call_stack_level );  $end
+  $if $$intlog $then intlog_note('f_index',f_index );                                   $end
+  $if $$intlog $then intlog_note('g_nodes(f_index).unit.unit_name',g_nodes(f_index).unit.unit_name );   $end
+
   --remove from the stack any node with a call_stack_level equal to or greater than the new node.
   while f_index > 0 and
         g_nodes(f_index).call_stack_level > i_node.call_stack_level  loop
@@ -995,7 +1000,8 @@ END;
 
 ------------------------------------------------------------------------
 
-PROCEDURE log_node(io_node  IN OUT node_typ ) IS
+PROCEDURE log_node(io_node        IN OUT node_typ
+                  ,i_parent_index IN INTEGER) IS
 --Log traversal or update it if already logged.
 --Log any unlogged refs.
 
@@ -1021,6 +1027,15 @@ BEGIN
   --Now that we can re-log a node, need to test if already logged.
   IF io_node.logged THEN
     $if $$intlog $then intlog_debug('Re-logging a Node'); $end
+    $if $$intlog $then intlog_note('module_name        ',io_node.module.module_name );           $end
+    $if $$intlog $then intlog_note('unit_name          ',io_node.unit.unit_name  );              $end
+    $if $$intlog $then intlog_note('traversal_id       ',io_node.traversal.traversal_id       ); $end
+    $if $$intlog $then intlog_note('unit_id            ',io_node.traversal.unit_id);             $end
+    $if $$intlog $then intlog_note('parent_traversal_id',io_node.traversal.parent_traversal_id); $end
+    $if $$intlog $then intlog_note('process_id         ',io_node.traversal.process_id         ); $end
+    $if $$intlog $then intlog_note('msg_mode           ',io_node.traversal.msg_mode);            $end
+
+ 
     UPDATE ms_traversal 
     SET ROW = io_node.traversal
     WHERE traversal_id = io_node.traversal.traversal_id;	
@@ -1029,7 +1044,7 @@ BEGIN
     $if $$intlog $then intlog_debug('Log a node first time'); $end
     --fill in the NULLs
     io_node.traversal.traversal_id        := new_traversal_id; 
-    io_node.traversal.parent_traversal_id := f_current_traversal_id;
+    io_node.traversal.parent_traversal_id := g_nodes(i_parent_index).traversal.traversal_id; 
     io_node.traversal.process_id          := g_process_id;
     
     $if $$intlog $then intlog_note('module_name        ',io_node.module.module_name );           $end
@@ -1102,7 +1117,8 @@ BEGIN
               ,i_msg_mode => i_msg_mode);
   
     g_nodes(i_index).traversal.msg_mode := i_msg_mode;
-    log_node(io_node   => g_nodes(i_index));
+    log_node(io_node        => g_nodes(i_index)
+            ,i_parent_index => g_nodes.PRIOR(i_index));
   END IF;
   $if $$intlog $then intlog_end('dump_nodes'); $end
  
@@ -1850,7 +1866,8 @@ BEGIN
       dump_nodes(i_index    => f_index
                 ,i_msg_mode => G_MSG_MODE_QUIET);
       --log the traversal and push it on the traversal stack
-      log_node(io_node   => io_node);
+      log_node(io_node        => io_node
+              ,i_parent_index => f_index);
  
     END IF;
 	
