@@ -27,7 +27,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140605153023'
+ ,p_last_upd_yyyymmddhh24miss => '20140605175114'
   );
 null;
  
@@ -48,6 +48,7 @@ s:=s||'select '||unistr('\000a')||
 '"MSG_MODE",'||unistr('\000a')||
 '"OPEN_PROCESS"'||unistr('\000a')||
 'from "#OWNER#"."MS_MODULE"'||unistr('\000a')||
+'where owner = :P9_OWNER'||unistr('\000a')||
 '';
 
 wwv_flow_api.create_report_region (
@@ -466,9 +467,26 @@ wwv_flow_api.create_page_button(
   p_button_plug_id => 17797158749021547+wwv_flow_api.g_id_offset,
   p_button_name    => 'REPORT_STD',
   p_button_action  => 'SUBMIT',
-  p_button_image   => 'template:'||to_char(17754764340931433+wwv_flow_api.g_id_offset),
+  p_button_image   => 'template:'||to_char(17754457373931432+wwv_flow_api.g_id_offset),
   p_button_is_hot=>'N',
   p_button_image_alt=> 'Report Std',
+  p_button_position=> 'REGION_TEMPLATE_CHANGE',
+  p_button_alignment=> 'RIGHT',
+  p_button_redirect_url=> '',
+  p_button_execute_validations=>'N',
+  p_required_patch => null + wwv_flow_api.g_id_offset);
+ 
+wwv_flow_api.create_page_button(
+  p_id             => 3592526739274387 + wwv_flow_api.g_id_offset,
+  p_flow_id        => wwv_flow.g_flow_id,
+  p_flow_step_id   => 9,
+  p_button_sequence=> 85,
+  p_button_plug_id => 17797158749021547+wwv_flow_api.g_id_offset,
+  p_button_name    => 'ALL_DISABLED',
+  p_button_action  => 'SUBMIT',
+  p_button_image   => 'template:'||to_char(17754764340931433+wwv_flow_api.g_id_offset),
+  p_button_is_hot=>'N',
+  p_button_image_alt=> 'All Disabled',
   p_button_position=> 'REGION_TEMPLATE_CHANGE',
   p_button_alignment=> 'RIGHT',
   p_button_redirect_url=> '',
@@ -556,7 +574,7 @@ wwv_flow_api.create_page_item(
   p_cMaxlength=> 4000,
   p_cHeight=> 1,
   p_new_grid=> false,
-  p_begin_on_new_line=> 'YES',
+  p_begin_on_new_line=> 'NO',
   p_begin_on_new_field=> 'YES',
   p_colspan=> null,
   p_rowspan=> null,
@@ -611,6 +629,55 @@ wwv_flow_api.create_page_item(
   p_button_execute_validations=>'N',
   p_button_action => 'SUBMIT',
   p_button_is_hot=>'Y',
+  p_item_comment => '');
+ 
+ 
+end;
+/
+
+declare
+    h varchar2(32767) := null;
+begin
+wwv_flow_api.create_page_item(
+  p_id=>3589424059123700 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id=> 9,
+  p_name=>'P9_OWNER',
+  p_data_type=> 'VARCHAR',
+  p_is_required=> false,
+  p_accept_processing=> 'REPLACE_EXISTING',
+  p_item_sequence=> 2,
+  p_item_plug_id => 17797158749021547+wwv_flow_api.g_id_offset,
+  p_use_cache_before_default=> 'YES',
+  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
+  p_prompt=>'Owner',
+  p_source=>'select min(owner) from ms_module where owner <> ''LOGGER''',
+  p_source_type=> 'QUERY',
+  p_display_as=> 'NATIVE_SELECT_LIST',
+  p_lov=> 'select DISTINCT initcap(OWNER) display, OWNER value'||unistr('\000a')||
+'from MS_MODULE'||unistr('\000a')||
+'',
+  p_lov_display_null=> 'NO',
+  p_lov_translated=> 'N',
+  p_cSize=> 30,
+  p_cMaxlength=> 4000,
+  p_cHeight=> 1,
+  p_new_grid=> false,
+  p_begin_on_new_line=> 'YES',
+  p_begin_on_new_field=> 'YES',
+  p_colspan=> null,
+  p_rowspan=> null,
+  p_grid_column=> null,
+  p_label_alignment=> 'RIGHT',
+  p_field_alignment=> 'LEFT-CENTER',
+  p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
+  p_is_persistent=> 'Y',
+  p_lov_display_extra=>'NO',
+  p_protection_level => 'N',
+  p_escape_on_http_output => 'Y',
+  p_attribute_01 => 'SUBMIT',
+  p_attribute_03 => 'N',
+  p_show_quick_picks=>'N',
   p_item_comment => '');
  
  
@@ -747,13 +814,13 @@ begin
 p:=p||'update ms_module'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_DEBUG'||unistr('\000a')||
 '--DONT CHANGE OPEN PROCESS   ,open_process = ms_logger.G_OPEN_PROCESS_IF_CLOSED'||unistr('\000a')||
+'where owner = :P9_OWNER'||unistr('\000a')||
 ';'||unistr('\000a')||
-''||unistr('\000a')||
 'update ms_unit'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
 '   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
+'where module_id in (select module_id from ms_module where owner = :P9_OWNER)'||unistr('\000a')||
 ';'||unistr('\000a')||
-''||unistr('\000a')||
 'commit;';
 
 wwv_flow_api.create_page_process(
@@ -765,11 +832,11 @@ wwv_flow_api.create_page_process(
   p_process_type=> 'PLSQL',
   p_process_name=> 'SetAllDebug',
   p_process_sql_clob => p,
-  p_process_error_message=> 'Failed to set modules to Debug mode.',
+  p_process_error_message=> 'Failed to set &P9_OWNER. modules to Debug mode.',
   p_error_display_location=> 'INLINE_IN_NOTIFICATION',
   p_process_when_button_id=>3520722937547217 + wwv_flow_api.g_id_offset,
   p_only_for_changed_rows=> 'Y',
-  p_process_success_message=> 'All Modules are now in Debug mode. Open Process settings are unchanged.',
+  p_process_success_message=> 'All &P9_OWNER. Modules are now in Debug mode. Open Process settings are unchanged.',
   p_process_is_stateful_y_n=>'N',
   p_process_comment=>'');
 end;
@@ -789,11 +856,13 @@ begin
 p:=p||'update ms_module'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_QUIET '||unistr('\000a')||
 '   ,open_process = ms_logger.G_OPEN_PROCESS_NEVER'||unistr('\000a')||
+'where owner = :P9_OWNER'||unistr('\000a')||
 ';'||unistr('\000a')||
 ''||unistr('\000a')||
 'update ms_unit'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
 '   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
+'where module_id in (select module_id from ms_module where owner = :P9_OWNER)'||unistr('\000a')||
 ';'||unistr('\000a')||
 ''||unistr('\000a')||
 'Commit;';
@@ -807,11 +876,11 @@ wwv_flow_api.create_page_process(
   p_process_type=> 'PLSQL',
   p_process_name=> 'SetAllQuiet',
   p_process_sql_clob => p,
-  p_process_error_message=> 'Failed to set modules to Debug mode.',
+  p_process_error_message=> 'Failed to set &P9_OWNER. modules to Quiet mode.',
   p_error_display_location=> 'INLINE_IN_NOTIFICATION',
   p_process_when_button_id=>3520316226535807 + wwv_flow_api.g_id_offset,
   p_only_for_changed_rows=> 'Y',
-  p_process_success_message=> 'All Modules are now in Quiet mode.  No Processes will start.',
+  p_process_success_message=> 'All &P9_OWNER. Modules are now in Quiet mode.  No Processes will start.',
   p_process_is_stateful_y_n=>'N',
   p_process_comment=>'');
 end;
@@ -831,11 +900,13 @@ begin
 p:=p||'update ms_module'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_NORMAL'||unistr('\000a')||
 '--DONT CHANGE OPEN_PROCESS   ,open_process = ms_logger.G_OPEN_PROCESS_IF_CLOSED'||unistr('\000a')||
+'where owner = :P9_OWNER'||unistr('\000a')||
 ';'||unistr('\000a')||
 ''||unistr('\000a')||
 'update ms_unit'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
 '   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
+'where module_id in (select module_id from ms_module where owner = :P9_OWNER)'||unistr('\000a')||
 ';'||unistr('\000a')||
 ''||unistr('\000a')||
 'commit;';
@@ -849,11 +920,11 @@ wwv_flow_api.create_page_process(
   p_process_type=> 'PLSQL',
   p_process_name=> 'SetAllNormal',
   p_process_sql_clob => p,
-  p_process_error_message=> 'Failed to set modules to Normal mode.',
+  p_process_error_message=> 'Failed to set &P9_OWNER. modules to Normal mode.',
   p_error_display_location=> 'INLINE_IN_NOTIFICATION',
   p_process_when_button_id=>3520501466540961 + wwv_flow_api.g_id_offset,
   p_only_for_changed_rows=> 'Y',
-  p_process_success_message=> 'All Modules are now in Normal mode. Open Process settings are unchanged.',
+  p_process_success_message=> 'All &P9_OWNER. Modules are now in Normal mode. Open Process settings are unchanged.',
   p_process_is_stateful_y_n=>'N',
   p_process_comment=>'');
 end;
@@ -875,47 +946,42 @@ p:=p||'--Set Report Modules to Normal'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_NORMAL'||unistr('\000a')||
 '   ,open_process = ms_logger.G_OPEN_PROCESS_IF_CLOSED'||unistr('\000a')||
 'where module_type = ''REPORT'''||unistr('\000a')||
+'and   owner = :P9_OWNER'||unistr('\000a')||
 ';'||unistr('\000a')||
 ''||unistr('\000a')||
 '--Set Report Units to Overridden'||unistr('\000a')||
 'update ms_unit'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
 '   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
-'where module_id in (select module_id from ms_module where module_type ';
+'where module_id in (select module_id from ms_m';
 
-p:=p||'= ''REPORT'')'||unistr('\000a')||
+p:=p||'odule where module_type = ''REPORT'' and owner = :P9_OWNER)'||unistr('\000a')||
 ';'||unistr('\000a')||
 ''||unistr('\000a')||
 '--Set Reports Parameter routine to debug.'||unistr('\000a')||
 'update ms_unit'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_DEBUG'||unistr('\000a')||
 'where unit_name  = ''get_parameters'''||unistr('\000a')||
-'and module_id in (select module_id from ms_module where module_type = ''REPORT'')'||unistr('\000a')||
+'and module_id in (select module_id from ms_module where module_type = ''REPORT'' and owner = :P9_OWNER)'||unistr('\000a')||
 ';'||unistr('\000a')||
 ''||unistr('\000a')||
 '--Set Report Library Modules to Disabled'||unistr('\000a')||
 'update ms_module'||unistr('\000a')||
-'set msg_mode     = ms_logger.G_MSG_MODE_DISABLED'||unistr('\000a')||
-'   ,open_process = ms_logger.G_OPEN_PROCESS_NEVER'||unistr('\000a')||
-'where ';
+'set msg_mode     = ms_logger.G_MSG_MO';
 
-p:=p||'module_type = ''REPORT_LIB'''||unistr('\000a')||
+p:=p||'DE_DISABLED'||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_NEVER'||unistr('\000a')||
+'where module_type = ''REPORT_LIB'''||unistr('\000a')||
+'and   owner = :P9_OWNER'||unistr('\000a')||
 ';'||unistr('\000a')||
 ''||unistr('\000a')||
 '--Set Report Library Units to Overridden'||unistr('\000a')||
 'update ms_unit'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
 '   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
-'where module_id in (select module_id from ms_module where module_type = ''REPORT_LIB'')'||unistr('\000a')||
+'where module_id in (select module_id from ms_module where module_type = ''REPORT_LIB'' and owner = :P9_OWNER)'||unistr('\000a')||
 ';'||unistr('\000a')||
-''||unistr('\000a')||
-''||unistr('\000a')||
 ' '||unistr('\000a')||
-''||unistr('\000a')||
-''||unistr('\000a')||
-''||unistr('\000a')||
-''||unistr('\000a')||
-''||unistr('\000a')||
 'commit;';
 
 wwv_flow_api.create_page_process(
@@ -927,13 +993,58 @@ wwv_flow_api.create_page_process(
   p_process_type=> 'PLSQL',
   p_process_name=> 'SetReportsStd',
   p_process_sql_clob => p,
-  p_process_error_message=> 'Failed to set Reports to Standard mode.',
+  p_process_error_message=> 'Failed to set &P9_OWNER. Reports to Standard mode.',
   p_error_display_location=> 'INLINE_IN_NOTIFICATION',
   p_process_when_button_id=>3520932287549855 + wwv_flow_api.g_id_offset,
   p_only_for_changed_rows=> 'Y',
-  p_process_success_message=> 'Reports are now in Standard mode. <BR>'||unistr('\000a')||
-'IE Reports will open processes in Normal mode, and ''get_parameters'' is set to Debug.<BR>'||unistr('\000a')||
-'Report Libraries are set to disabled, to keep the tree neater. ',
+  p_process_success_message=> '&P9_OWNER. Reports are now in Standard mode. <BR>'||unistr('\000a')||
+'Reports will open processes in Normal message mode, with ''get_parameters'' unit set to Debug.<BR>'||unistr('\000a')||
+'Report Libraries are set to Disabled, to keep the tree neater. ',
+  p_process_is_stateful_y_n=>'N',
+  p_process_comment=>'');
+end;
+null;
+ 
+end;
+/
+
+ 
+begin
+ 
+declare
+  p varchar2(32767) := null;
+  l_clob clob;
+  l_length number := 1;
+begin
+p:=p||'update ms_module'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DISABLED '||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_NEVER'||unistr('\000a')||
+'where owner = :P9_OWNER'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'update ms_unit'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
+'where module_id in (select module_id from ms_module where owner = :P9_OWNER)'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'Commit;';
+
+wwv_flow_api.create_page_process(
+  p_id     => 3592724849278780 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id => 9,
+  p_process_sequence=> 80,
+  p_process_point=> 'AFTER_SUBMIT',
+  p_process_type=> 'PLSQL',
+  p_process_name=> 'SetAllDisabled',
+  p_process_sql_clob => p,
+  p_process_error_message=> 'Failed to Disable &P9_OWNER. modules.',
+  p_error_display_location=> 'INLINE_IN_NOTIFICATION',
+  p_process_when_button_id=>3592526739274387 + wwv_flow_api.g_id_offset,
+  p_only_for_changed_rows=> 'Y',
+  p_process_success_message=> 'All &P9_OWNER. Modules are Disabled.  No Processes will start.<BR>'||unistr('\000a')||
+'No nodes, messages, or references are recorded for Disabled module/units. ',
   p_process_is_stateful_y_n=>'N',
   p_process_comment=>'');
 end;
