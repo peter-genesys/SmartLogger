@@ -1164,7 +1164,7 @@ IS
 BEGIN
   $if $$intlog $then intlog_start('log_message'); $end
   IF NOT g_internal_error and 
-     NOT i_node.msg_mode = G_MSG_MODE_DISABLED THEN 
+     NOT i_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN 
 
     --intlog_note('i_message        ',i_message        );
 	
@@ -1489,7 +1489,7 @@ IS
 BEGIN
   $if $$intlog $then intlog_start('create_ref'); $end
   IF NOT g_internal_error and 
-     NOT i_node.msg_mode = G_MSG_MODE_DISABLED THEN 
+     NOT i_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN 
 
     IF LENGTH(i_value) > G_REF_DATA_WIDTH THEN
       --create a comment instead

@@ -12,7 +12,6 @@ TYPE node_typ IS RECORD
   (traversal        ms_traversal%ROWTYPE
   ,module           ms_module%ROWTYPE
   ,unit             ms_unit%ROWTYPE
-  ,msg_mode         INTEGER
   ,open_process     ms_unit.open_process%TYPE
   ,node_level       BINARY_INTEGER
   ,logged           BOOLEAN
