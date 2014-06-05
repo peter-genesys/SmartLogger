@@ -27,7 +27,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140604121849'
+ ,p_last_upd_yyyymmddhh24miss => '20140605153023'
   );
 null;
  
@@ -286,6 +286,7 @@ wwv_flow_api.create_report_columns (
   p_column_alias=> 'MSG_MODE',
   p_column_display_sequence=> 6,
   p_column_heading=> 'Msg Mode',
+  p_use_as_row_header=> 'N',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'LEFT',
   p_default_sort_column_sequence=>0,
@@ -293,13 +294,13 @@ wwv_flow_api.create_report_columns (
   p_sum_column=> 'N',
   p_hidden_column=> 'N',
   p_display_as=>'SELECT_LIST',
-  p_inline_lov=> 'Quiet;4,Normal;2,Debug;1',
+  p_inline_lov=> 'Disabled;99,Quiet;4,Normal;2,Debug;1',
   p_lov_show_nulls=> 'NO',
   p_column_width=> '16',
   p_is_required=> false,
   p_pk_col_source=> s,
+  p_lov_display_extra=> 'YES',
   p_include_in_export=> 'Y',
-  p_ref_schema=> 'TPDS',
   p_ref_table_name=> 'MS_MODULE',
   p_ref_column_name=> 'MSG_MODE',
   p_column_comment=>'');
@@ -869,26 +870,51 @@ declare
   l_clob clob;
   l_length number := 1;
 begin
-p:=p||'update ms_module'||unistr('\000a')||
+p:=p||'--Set Report Modules to Normal'||unistr('\000a')||
+'update ms_module'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_NORMAL'||unistr('\000a')||
 '   ,open_process = ms_logger.G_OPEN_PROCESS_IF_CLOSED'||unistr('\000a')||
 'where module_type = ''REPORT'''||unistr('\000a')||
 ';'||unistr('\000a')||
 ''||unistr('\000a')||
+'--Set Report Units to Overridden'||unistr('\000a')||
 'update ms_unit'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
 '   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
-'where module_id in (select module_id from ms_module where module_type = ''REPORT'')'||unistr('\000a')||
+'where module_id in (select module_id from ms_module where module_type ';
+
+p:=p||'= ''REPORT'')'||unistr('\000a')||
 ';'||unistr('\000a')||
 ''||unistr('\000a')||
 '--Set Reports Parameter routine to debug.'||unistr('\000a')||
-'update ';
-
-p:=p||'ms_unit'||unistr('\000a')||
+'update ms_unit'||unistr('\000a')||
 'set msg_mode     = ms_logger.G_MSG_MODE_DEBUG'||unistr('\000a')||
 'where unit_name  = ''get_parameters'''||unistr('\000a')||
 'and module_id in (select module_id from ms_module where module_type = ''REPORT'')'||unistr('\000a')||
 ';'||unistr('\000a')||
+''||unistr('\000a')||
+'--Set Report Library Modules to Disabled'||unistr('\000a')||
+'update ms_module'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DISABLED'||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_NEVER'||unistr('\000a')||
+'where ';
+
+p:=p||'module_type = ''REPORT_LIB'''||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+'--Set Report Library Units to Overridden'||unistr('\000a')||
+'update ms_unit'||unistr('\000a')||
+'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT '||unistr('\000a')||
+'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT'||unistr('\000a')||
+'where module_id in (select module_id from ms_module where module_type = ''REPORT_LIB'')'||unistr('\000a')||
+';'||unistr('\000a')||
+''||unistr('\000a')||
+''||unistr('\000a')||
+' '||unistr('\000a')||
+''||unistr('\000a')||
+''||unistr('\000a')||
+''||unistr('\000a')||
+''||unistr('\000a')||
 ''||unistr('\000a')||
 'commit;';
 
@@ -905,7 +931,9 @@ wwv_flow_api.create_page_process(
   p_error_display_location=> 'INLINE_IN_NOTIFICATION',
   p_process_when_button_id=>3520932287549855 + wwv_flow_api.g_id_offset,
   p_only_for_changed_rows=> 'Y',
-  p_process_success_message=> 'Reports are now in Standard mode. Ie Reports will open processes in Normal mode, and ''get_parameters'' is set to Debug.',
+  p_process_success_message=> 'Reports are now in Standard mode. <BR>'||unistr('\000a')||
+'IE Reports will open processes in Normal mode, and ''get_parameters'' is set to Debug.<BR>'||unistr('\000a')||
+'Report Libraries are set to disabled, to keep the tree neater. ',
   p_process_is_stateful_y_n=>'N',
   p_process_comment=>'');
 end;

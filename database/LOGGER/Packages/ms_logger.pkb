@@ -105,11 +105,11 @@ g_max_nested_units      NUMBER   := 100;   --sx_lookup_pkg.lookup_desc('MAX_DEPT
 G_UNIT_TYPE_PACKAGE       CONSTANT ms_unit.unit_type%TYPE := 'PKG';
 G_UNIT_TYPE_PROCEDURE     CONSTANT ms_unit.unit_type%TYPE := 'PROC';
 G_UNIT_TYPE_FUNCTION      CONSTANT ms_unit.unit_type%TYPE := 'FUNC';
-G_UNIT_TYPE_LOOP          CONSTANT ms_unit.unit_type%TYPE := 'LOOP';
-G_UNIT_TYPE_BLOCK         CONSTANT ms_unit.unit_type%TYPE := 'BLOCK';
+--G_UNIT_TYPE_LOOP          CONSTANT ms_unit.unit_type%TYPE := 'LOOP';
+--G_UNIT_TYPE_BLOCK         CONSTANT ms_unit.unit_type%TYPE := 'BLOCK';
 G_UNIT_TYPE_TRIGGER       CONSTANT ms_unit.unit_type%TYPE := 'TRIGGER';
-G_UNIT_TYPE_SQL           CONSTANT ms_unit.unit_type%TYPE := 'SQL_SCRIPT';
-G_UNIT_TYPE_PASS          CONSTANT ms_unit.unit_type%TYPE := 'PASS';
+G_UNIT_TYPE_SCRIPT        CONSTANT ms_unit.unit_type%TYPE := 'SCRIPT';
+--G_UNIT_TYPE_PASS          CONSTANT ms_unit.unit_type%TYPE := 'PASS';
  
 --FORM TRIGGER UNIT TYPES 
 G_UNIT_TYPE_FORM_TRIGGER   CONSTANT ms_unit.unit_type%TYPE := 'FORM_TRIG'; 
@@ -127,7 +127,7 @@ G_MODULE_TYPE_PROCEDURE   CONSTANT ms_module.module_type%TYPE := 'PROCEDURE';
 G_MODULE_TYPE_FUNCTION    CONSTANT ms_module.module_type%TYPE := 'FUNCTION';
 G_MODULE_TYPE_FORM        CONSTANT ms_module.module_type%TYPE := 'FORM';
 G_MODULE_TYPE_REPORT      CONSTANT ms_module.module_type%TYPE := 'REPORT';
-G_MODULE_TYPE_SQL         CONSTANT ms_module.module_type%TYPE := 'SQL_SCRIPT';
+G_MODULE_TYPE_SCRIPT        CONSTANT ms_module.module_type%TYPE := 'SCRIPT';
 G_MODULE_TYPE_DBTRIGGER   CONSTANT ms_module.module_type%TYPE := 'DB_TRIG';
   
   
@@ -1148,7 +1148,7 @@ PROCEDURE  log_message(
            ,i_fatal           IN BOOLEAN  DEFAULT FALSE
            ,i_oracle          IN BOOLEAN  DEFAULT FALSE   -- find oracle error message and code
            ,i_raise_app_error IN BOOLEAN  DEFAULT FALSE   -- raise an application error
-		   ,i_node            IN ms_logger.node_typ     -- if an initialised node is passed then check its current
+		       ,i_node            IN ms_logger.node_typ       -- if an initialised node is passed then check its current
            )
 
 
@@ -1163,12 +1163,13 @@ IS
 
 BEGIN
   $if $$intlog $then intlog_start('log_message'); $end
-  IF NOT g_internal_error THEN
+  IF NOT g_internal_error and 
+     NOT i_node.msg_mode = G_MSG_MODE_DISABLED THEN 
 
     --intlog_note('i_message        ',i_message        );
 	
-	--ms_logger passes node as origin of message  
-	synch_node_stack( i_node => i_node);
+	  --ms_logger passes node as origin of message  
+	  synch_node_stack( i_node => i_node);
  
     l_message.message      := SUBSTR(i_message,1,G_LARGE_MESSAGE_WIDTH);
  
@@ -1487,7 +1488,8 @@ IS
 
 BEGIN
   $if $$intlog $then intlog_start('create_ref'); $end
-  IF NOT g_internal_error THEN
+  IF NOT g_internal_error and 
+     NOT i_node.msg_mode = G_MSG_MODE_DISABLED THEN 
 
     IF LENGTH(i_value) > G_REF_DATA_WIDTH THEN
       --create a comment instead
@@ -1835,6 +1837,15 @@ BEGIN
                     ,i_msg_mode    => G_MSG_MODE_QUIET);
 END; 
  
+PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
+                            ,i_unit_name   IN VARCHAR2 ) IS
+                             
+BEGIN
+  set_unit_msg_mode(i_module_name  => i_module_name
+                    ,i_unit_name    => i_unit_name  
+                    ,i_msg_mode    => G_MSG_MODE_DISABLED);
+END; 
+
 ------------------------------------------------------------------------
 -- Traversal operations (private)
 ------------------------------------------------------------------------
@@ -1852,33 +1863,39 @@ BEGIN
     io_node.traversal.unit_id             := io_node.unit.unit_id;
     io_node.traversal.parent_traversal_id := NULL;
     io_node.traversal.msg_mode            := NVL(io_node.unit.msg_mode    ,io_node.module.msg_mode);      --unit override module, unless null
-
-	
     io_node.open_process                  := NVL(io_node.unit.open_process,io_node.module.open_process);  --unit override module, unless null
     io_node.logged                        := FALSE;
 
-	--Use the call stack to remove any nodes from the stack that are not ancestors
-    pop_to_parent_node(i_node => io_node);
- 
-    IF io_node.traversal.msg_mode <> G_MSG_MODE_QUIET THEN 
-	  --Log this node, but first log any ancestors that are not yet logged.
-      --dump any unlogged traversals in QUIET MODE
-      dump_nodes(i_index    => f_index
-                ,i_msg_mode => G_MSG_MODE_QUIET);
-      --log the traversal and push it on the traversal stack
-      log_node(io_node        => io_node
-              ,i_parent_index => f_index);
- 
-    END IF;
-	
-	--push the traversal onto the stack
-    push_node(io_node  => io_node);
-    
+    IF io_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN  
+      -- create disabled nodes, but don't log them or stack them
+      $if $$intlog $then intlog_debug('Disabled node'); $end
+      NULL;
 
-    IF NOT g_internal_error THEN
-      io_node.node_level := f_index; --meaningless if g_internal_error is TRUE
+    ELSE  
+
+	    --Use the call stack to remove any nodes from the stack that are not ancestors
+      pop_to_parent_node(i_node => io_node);
+   
+      IF io_node.traversal.msg_mode <> G_MSG_MODE_QUIET THEN 
+	    --Log this node, but first log any ancestors that are not yet logged.
+        --dump any unlogged traversals in QUIET MODE
+        dump_nodes(i_index    => f_index
+                  ,i_msg_mode => G_MSG_MODE_QUIET);
+        --log the traversal and push it on the traversal stack
+        log_node(io_node        => io_node
+                ,i_parent_index => f_index);
+   
+      END IF;
+	  
+	--  push the traversal onto the stack
+      push_node(io_node  => io_node);
+      
+  
+      IF NOT g_internal_error THEN
+        io_node.node_level := f_index; --meaningless if g_internal_error is TRUE
+      END IF;
+
     END IF;
-    
 	
   END IF;
   
@@ -1960,7 +1977,8 @@ BEGIN
   l_node.unit := find_unit(i_module_id   => l_node.module.module_id
                           ,i_unit_name   => i_unit_name  
                           ,i_unit_type   => i_unit_type);
- 
+
+
   l_node.call_stack_level := f_call_stack_level; --simplify after 12C with additional functions
   l_node.call_stack_hist  := f_call_stack_hist;
  
@@ -2085,7 +2103,7 @@ END;
     
 	RETURN ms_logger.new_node(i_module_name => i_module_name
                            ,i_unit_name   => i_unit_name
-							 ,i_unit_type   => G_UNIT_TYPE_PACKAGE );
+						            	 ,i_unit_type   => G_UNIT_TYPE_PACKAGE );
  
   END;
   
@@ -2097,7 +2115,7 @@ END;
     
 	RETURN ms_logger.new_node(i_module_name => i_module_name
                            ,i_unit_name   => i_unit_name
-							 ,i_unit_type   => G_UNIT_TYPE_PROCEDURE );
+							             ,i_unit_type   => G_UNIT_TYPE_PROCEDURE );
  
   END;
   
@@ -2108,8 +2126,8 @@ END;
   BEGIN
     
 	RETURN ms_logger.new_node(i_module_name => i_module_name
-                             ,i_unit_name   => i_unit_name
-							 ,i_unit_type   => G_UNIT_TYPE_FUNCTION );
+                           ,i_unit_name   => i_unit_name
+							             ,i_unit_type   => G_UNIT_TYPE_FUNCTION );
  
   END;
   
@@ -2119,22 +2137,22 @@ END;
   BEGIN
     
 	RETURN ms_logger.new_node(i_module_name => i_module_name
-                             ,i_unit_name   => i_unit_name
-							 ,i_unit_type   => G_UNIT_TYPE_TRIGGER );
+                           ,i_unit_name   => i_unit_name
+							             ,i_unit_type   => G_UNIT_TYPE_TRIGGER );
  
   END;
   
   
- -- FUNCTION new_block(i_module_name IN VARCHAR2
- --                  ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
- --
- -- BEGIN
- --   
---	RETURN ms_logger.new_node(i_module_name => i_module_name
- --                            ,i_unit_name   => i_unit_name
---							 ,i_unit_type   => G_UNIT_TYPE_BLOCK );
- --
- -- END;
+  FUNCTION new_script(i_module_name IN VARCHAR2
+                     ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
+  
+  BEGIN
+    
+   RETURN ms_logger.new_node(i_module_name => i_module_name
+                             ,i_unit_name   => i_unit_name
+                						 ,i_unit_type   => G_UNIT_TYPE_SCRIPT );
+  
+  END;
   
  
   

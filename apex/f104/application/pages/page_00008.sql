@@ -47,7 +47,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140602172929'
+ ,p_last_upd_yyyymmddhh24miss => '20140605160749'
   );
 null;
  
@@ -1779,20 +1779,19 @@ a1:=a1||'select case when connect_by_isleaf = 1 then 0'||unistr('\000a')||
 '            else                           -1'||unistr('\000a')||
 '       end as status, '||unistr('\000a')||
 '       level, '||unistr('\000a')||
-'       unit_name  as title, '||unistr('\000a')||
+'       unit_name||DECODE(:P8_SHOW_MODULE_YN,''Y'','' (''||module_name||'')'')  as title, '||unistr('\000a')||
 '       null as icon, '||unistr('\000a')||
 '       TRAVERSAL_ID as value, '||unistr('\000a')||
 '       null as tooltip, '||unistr('\000a')||
-'	   ''f?p=&APP_ID.:8:&SESSION.::&DEBUG.::P8_PROCESS_ID,P8_TRAVERSAL_ID:&P8_PROCESS_ID.,''||TRAVERSAL_ID  as link, '||unistr('\000a')||
-'    ';
+'	   ''f?p=&APP_ID.:8:&SESSION.::&DEBUG.::P8_PROCESS_ID,P8_TRAVE';
 
-a1:=a1||'   TRAVERSAL_ID,'||unistr('\000a')||
+a1:=a1||'RSAL_ID:&P8_PROCESS_ID.,''||TRAVERSAL_ID  as link, '||unistr('\000a')||
+'       TRAVERSAL_ID,'||unistr('\000a')||
 '       PARENT_TRAVERSAL_ID'||unistr('\000a')||
 'from ms_unit_traversal_vw'||unistr('\000a')||
 'start with PARENT_TRAVERSAL_ID is null and process_id = :P8_PROCESS_ID'||unistr('\000a')||
 'connect by prior TRAVERSAL_ID = PARENT_TRAVERSAL_ID'||unistr('\000a')||
-'order siblings by TRAVERSAL_ID'||unistr('\000a')||
-'';
+'order siblings by TRAVERSAL_ID';
 
 wwv_flow_api.create_jstree(
   p_id => 17790661705976198+wwv_flow_api.g_id_offset,
@@ -2228,6 +2227,53 @@ end;
 begin
  
 null;
+ 
+end;
+/
+
+declare
+    h varchar2(32767) := null;
+begin
+wwv_flow_api.create_page_item(
+  p_id=>3569513469627266 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id=> 8,
+  p_name=>'P8_SHOW_MODULE_YN',
+  p_data_type=> 'VARCHAR',
+  p_is_required=> false,
+  p_accept_processing=> 'REPLACE_EXISTING',
+  p_item_sequence=> 20,
+  p_item_plug_id => 17790450819976198+wwv_flow_api.g_id_offset,
+  p_use_cache_before_default=> 'YES',
+  p_item_default=> 'N',
+  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
+  p_prompt=>'Show Module',
+  p_source_type=> 'STATIC',
+  p_display_as=> 'NATIVE_SELECT_LIST',
+  p_lov=> 'STATIC2:Yes;Y,No;N',
+  p_lov_display_null=> 'NO',
+  p_lov_translated=> 'N',
+  p_cSize=> 30,
+  p_cMaxlength=> 4000,
+  p_cHeight=> 1,
+  p_new_grid=> false,
+  p_begin_on_new_line=> 'YES',
+  p_begin_on_new_field=> 'YES',
+  p_colspan=> null,
+  p_rowspan=> null,
+  p_grid_column=> null,
+  p_label_alignment=> 'RIGHT',
+  p_field_alignment=> 'LEFT-CENTER',
+  p_field_template=> 17759655087931450+wwv_flow_api.g_id_offset,
+  p_is_persistent=> 'Y',
+  p_lov_display_extra=>'YES',
+  p_protection_level => 'N',
+  p_escape_on_http_output => 'Y',
+  p_attribute_01 => 'SUBMIT',
+  p_attribute_03 => 'Y',
+  p_show_quick_picks=>'N',
+  p_item_comment => '');
+ 
  
 end;
 /

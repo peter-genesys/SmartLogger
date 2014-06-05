@@ -31,11 +31,13 @@ G_MSG_LEVEL_WARNING     CONSTANT NUMBER(2) := 3;
 G_MSG_LEVEL_FATAL       CONSTANT NUMBER(2) := 4;
 G_MSG_LEVEL_ORACLE      CONSTANT NUMBER(2) := 5;
 G_MSG_LEVEL_INTERNAL    CONSTANT NUMBER(2) := 6;
-
+ 
 G_MSG_MODE_DEBUG        CONSTANT NUMBER(2) := G_MSG_LEVEL_COMMENT; 
 G_MSG_MODE_NORMAL       CONSTANT NUMBER(2) := G_MSG_LEVEL_INFO;
 G_MSG_MODE_QUIET        CONSTANT NUMBER(2) := G_MSG_LEVEL_FATAL;
+G_MSG_MODE_DISABLED     CONSTANT NUMBER(2) := 99; 
 G_MSG_MODE_DEFAULT      CONSTANT NUMBER(2) := NULL;
+
  
 G_OPEN_PROCESS_ALWAYS     CONSTANT ms_unit.open_process%TYPE := 'Y'; 
 G_OPEN_PROCESS_IF_CLOSED  CONSTANT ms_unit.open_process%TYPE := 'C';
@@ -71,9 +73,8 @@ FUNCTION new_func(i_module_name IN VARCHAR2
 FUNCTION new_trig(i_module_name IN VARCHAR2
                  ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;		 
 
---No longer support block mode				 
---  FUNCTION new_block(i_module_name IN VARCHAR2
---                    ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;	   
+FUNCTION new_script(i_module_name IN VARCHAR2
+                   ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;  
 				   
 ------------------------------------------------------------------------
 -- PASS operations (PUBLIC)
@@ -239,6 +240,10 @@ PROCEDURE  set_unit_normal(i_module_name IN VARCHAR2
 
 PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
                          ,i_unit_name   IN VARCHAR2 );
+
+------------------------------------------------------------------------
+PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
+                            ,i_unit_name   IN VARCHAR2 );
  
 ------------------------------------------------------------------------
 -- Internal debugging routines (public)
