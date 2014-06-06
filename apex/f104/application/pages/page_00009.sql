@@ -27,7 +27,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140605175114'
+ ,p_last_upd_yyyymmddhh24miss => '20140606093512'
   );
 null;
  
@@ -567,7 +567,8 @@ wwv_flow_api.create_page_item(
   p_prompt=>'Rows',
   p_source=>'20',
   p_source_type=> 'STATIC',
-  p_display_as=> 'NATIVE_NUMBER_FIELD',
+  p_display_as=> 'NATIVE_SELECT_LIST',
+  p_lov=> 'STATIC2:1;1,5;5,10;10,15;15,20;20,25;25,30;30,50;50,100;100,200;200,500;500,1000;1000,5000;5000',
   p_lov_display_null=> 'NO',
   p_lov_translated=> 'N',
   p_cSize=> 3,
@@ -586,49 +587,9 @@ wwv_flow_api.create_page_item(
   p_lov_display_extra=>'YES',
   p_protection_level => 'N',
   p_escape_on_http_output => 'Y',
-  p_attribute_03 => 'right',
+  p_attribute_01 => 'SUBMIT',
+  p_attribute_03 => 'N',
   p_show_quick_picks=>'N',
-  p_item_comment => '');
- 
- 
-end;
-/
-
-declare
-    h varchar2(32767) := null;
-begin
-wwv_flow_api.create_page_item(
-  p_id=>3479516811110468 + wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_flow_step_id=> 9,
-  p_name=>'P9_GO',
-  p_data_type=> 'VARCHAR',
-  p_is_required=> false,
-  p_accept_processing=> 'REPLACE_EXISTING',
-  p_item_sequence=> 10,
-  p_item_plug_id => 17797158749021547+wwv_flow_api.g_id_offset,
-  p_use_cache_before_default=> 'NO',
-  p_prompt=>'Go',
-  p_source_type=> 'STATIC',
-  p_display_as=> 'BUTTON',
-  p_lov_display_null=> 'NO',
-  p_lov_translated=> 'N',
-  p_cSize=> null,
-  p_cMaxlength=> 2000,
-  p_cHeight=> null,
-  p_tag_attributes  => 'template:'||to_char(17754457373931432 + wwv_flow_api.g_id_offset),
-  p_new_grid=> false,
-  p_begin_on_new_line=> 'NO',
-  p_begin_on_new_field=> 'YES',
-  p_colspan=> null,
-  p_rowspan=> null,
-  p_grid_column=> null,
-  p_label_alignment=> 'LEFT',
-  p_field_alignment=> 'LEFT',
-  p_is_persistent=> 'N',
-  p_button_execute_validations=>'N',
-  p_button_action => 'SUBMIT',
-  p_button_is_hot=>'Y',
   p_item_comment => '');
  
  

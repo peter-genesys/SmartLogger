@@ -47,7 +47,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140605160749'
+ ,p_last_upd_yyyymmddhh24miss => '20140606093428'
   );
 null;
  
@@ -1847,7 +1847,7 @@ wwv_flow_api.create_report_region (
   p_new_grid_column  => false,
   p_display_column=> 1,
   p_display_point=> 'REGION_POSITION_01',
-  p_item_display_point=> 'BELOW',
+  p_item_display_point=> 'ABOVE',
   p_source=> s,
   p_source_type=> 'SQL_QUERY',
   p_plug_caching=> 'NOT_CACHED',
@@ -1861,6 +1861,7 @@ wwv_flow_api.create_report_region (
   p_query_show_nulls_as=> ' - ',
   p_query_break_cols=> '0',
   p_query_no_data_found=> 'No Processes Found.',
+  p_query_num_rows_item=> 'P8_NUM_ROWS',
   p_query_num_rows_type=> 'NEXT_PREVIOUS_LINKS',
   p_query_row_count_max=> '500',
   p_pagination_display_position=> 'BOTTOM_RIGHT',
@@ -2271,6 +2272,53 @@ wwv_flow_api.create_page_item(
   p_escape_on_http_output => 'Y',
   p_attribute_01 => 'SUBMIT',
   p_attribute_03 => 'Y',
+  p_show_quick_picks=>'N',
+  p_item_comment => '');
+ 
+ 
+end;
+/
+
+declare
+    h varchar2(32767) := null;
+begin
+wwv_flow_api.create_page_item(
+  p_id=>3595507707881333 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_flow_step_id=> 8,
+  p_name=>'P8_NUM_ROWS',
+  p_data_type=> 'VARCHAR',
+  p_is_required=> false,
+  p_accept_processing=> 'REPLACE_EXISTING',
+  p_item_sequence=> 30,
+  p_item_plug_id => 17791439222976199+wwv_flow_api.g_id_offset,
+  p_use_cache_before_default=> 'YES',
+  p_item_default_type=> 'STATIC_TEXT_WITH_SUBSTITUTIONS',
+  p_prompt=>'Rows',
+  p_source=>'5',
+  p_source_type=> 'STATIC',
+  p_display_as=> 'NATIVE_SELECT_LIST',
+  p_lov=> 'STATIC2:1;1,5;5,10;10,15;15,20;20,25;25,30;30,50;50,100;100,200;200,500;500,1000;1000,5000;5000',
+  p_lov_display_null=> 'NO',
+  p_lov_translated=> 'N',
+  p_cSize=> 3,
+  p_cMaxlength=> 4000,
+  p_cHeight=> 1,
+  p_new_grid=> false,
+  p_begin_on_new_line=> 'NO',
+  p_begin_on_new_field=> 'YES',
+  p_colspan=> null,
+  p_rowspan=> null,
+  p_grid_column=> null,
+  p_label_alignment=> 'RIGHT',
+  p_field_alignment=> 'LEFT-CENTER',
+  p_field_template=> 17759556027931449+wwv_flow_api.g_id_offset,
+  p_is_persistent=> 'Y',
+  p_lov_display_extra=>'YES',
+  p_protection_level => 'N',
+  p_escape_on_http_output => 'Y',
+  p_attribute_01 => 'SUBMIT',
+  p_attribute_03 => 'N',
   p_show_quick_picks=>'N',
   p_item_comment => '');
  
