@@ -1,4 +1,4 @@
-alter trigger aop_processor_trg disable;
+--alter trigger aop_processor_trg disable;
 
 create or replace package aop_processor AUTHID CURRENT_USER 
 is
@@ -34,4 +34,4 @@ end aop_processor;
 /
 show error;
 
-alter trigger aop_processor_trg enable;
+--alter trigger aop_processor_trg enable;

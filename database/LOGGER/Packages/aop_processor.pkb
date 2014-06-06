@@ -1,4 +1,4 @@
-alter trigger aop_processor_trg disable;
+--alter trigger aop_processor_trg disable;
 
 --Ensure no inlining so ms_logger can be used
 alter session set plsql_optimize_level = 1;
@@ -2183,4 +2183,4 @@ show error;
 
 set define on;
 
-alter trigger aop_processor_trg enable;
+--alter trigger aop_processor_trg enable;
