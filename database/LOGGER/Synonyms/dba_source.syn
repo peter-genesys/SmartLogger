@@ -1,2 +1,3 @@
- create synonym dba_source for sys.dba_source;
+drop synonym dba_source;
+create synonym dba_source for sys.dba_source;
  

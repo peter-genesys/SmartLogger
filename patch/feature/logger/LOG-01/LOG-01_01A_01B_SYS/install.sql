@@ -24,7 +24,7 @@ select user||'@'||global_name Connection from global_name;
 PROMPT USERS
 
 PROMPT logger.user 
-@feature\logger\LOG-01\LOG-01_01A_01B_SYS\logger.user;
+@feature/logger/LOG-01/LOG-01_01A_01B_SYS/logger.user;
 
 COMMIT;
 COMMIT;

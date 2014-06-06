@@ -37,7 +37,7 @@ G_MSG_MODE_DEFAULT      CONSTANT NUMBER(2) := NULL;
 G_MSG_TYPE_PARAM        CONSTANT VARCHAR2(10) := 'PARAM';
 G_MSG_TYPE_NOTE         CONSTANT VARCHAR2(10) := 'NOTE';
 G_MSG_TYPE_MESSAGE      CONSTANT VARCHAR2(10) := 'MESSAGE';
-
+ 
  
 G_OPEN_PROCESS_ALWAYS     CONSTANT ms_unit.open_process%TYPE := 'Y'; 
 G_OPEN_PROCESS_IF_CLOSED  CONSTANT ms_unit.open_process%TYPE := 'C';
@@ -130,7 +130,7 @@ FUNCTION f_process_is_open RETURN BOOLEAN;
 -- Message ROUTINES (Public)
 ------------------------------------------------------------------------
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------ 
 -- comment 
 ------------------------------------------------------------------------
 PROCEDURE comment( i_node            IN ms_logger.node_typ 
@@ -140,22 +140,22 @@ PROCEDURE comment( i_node            IN ms_logger.node_typ
 -- info 
 ------------------------------------------------------------------------
 PROCEDURE info( i_node            IN ms_logger.node_typ 
-               ,i_message         IN VARCHAR2 DEFAULT NULL );
+               ,i_message         IN     VARCHAR2 DEFAULT NULL );
 
 ------------------------------------------------------------------------
 -- warning  
 ------------------------------------------------------------------------
 
-PROCEDURE warning( i_node         IN ms_logger.node_typ 
-                  ,i_message      IN VARCHAR2 DEFAULT NULL );
+PROCEDURE warning( i_node            IN ms_logger.node_typ 
+                  ,i_message      IN     VARCHAR2 DEFAULT NULL );
 
 ------------------------------------------------------------------------
 -- fatal  
 ------------------------------------------------------------------------
 
-PROCEDURE fatal( i_node            IN     ms_logger.node_typ 
+PROCEDURE fatal( i_node            IN ms_logger.node_typ 
                 ,i_message         IN     VARCHAR2 DEFAULT NULL );
-
+  
 ------------------------------------------------------------------------
 -- oracle_error 
 ------------------------------------------------------------------------
@@ -174,10 +174,10 @@ PROCEDURE warn_error( i_node            IN ms_logger.node_typ
 ------------------------------------------------------------------------
 
 --overloaded name, value | [id, descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ   
+PROCEDURE note    ( i_node      IN ms_logger.node_typ 
                    ,i_name      IN VARCHAR2
                    ,i_value     IN VARCHAR2 );
-
+ 
 ------------------------------------------------------------------------
 
 PROCEDURE param ( i_node      IN ms_logger.node_typ 
@@ -200,7 +200,7 @@ PROCEDURE note    ( i_node      IN ms_logger.node_typ
                    ,i_name       IN VARCHAR2
                    ,i_date_value IN DATE );
 ------------------------------------------------------------------------
-PROCEDURE param ( i_node       IN ms_logger.node_typ 
+PROCEDURE param ( i_node      IN ms_logger.node_typ 
                  ,i_name       IN VARCHAR2
                  ,i_date_value IN DATE   );
 
@@ -208,21 +208,21 @@ PROCEDURE param ( i_node       IN ms_logger.node_typ
 --overloaded name, bool_value 
 PROCEDURE note   (i_node      IN ms_logger.node_typ 
                  ,i_name       IN VARCHAR2
-                 ,i_bool_value IN BOOLEAN  );
+                 ,i_bool_value IN BOOLEAN );
 ------------------------------------------------------------------------
 PROCEDURE param ( i_node      IN ms_logger.node_typ 
-                 ,i_name      IN VARCHAR2
-                 ,i_bool_value IN BOOLEAN );
+                 , i_name      IN VARCHAR2
+                 ,i_bool_value IN BOOLEAN  );
 ------------------------------------------------------------------------
 --overloaded name
 PROCEDURE note   (i_node      IN ms_logger.node_typ 
-                 ,i_name      IN VARCHAR2 );
+                 ,i_name      IN VARCHAR2);
 ------------------------------------------------------------------------
 PROCEDURE note_rowcount( i_node      IN ms_logger.node_typ 
                         ,i_name      IN VARCHAR2 );
 ------------------------------------------------------------------------
 FUNCTION f_note_rowcount( i_node      IN ms_logger.node_typ 
-                         ,i_name      IN VARCHAR2  ) RETURN NUMBER;
+                         ,i_name      IN VARCHAR2 ) RETURN NUMBER;
 
 ------------------------------------------------------------------------
 
@@ -232,8 +232,16 @@ PROCEDURE note_length( i_node  IN ms_logger.node_typ
                       ,i_name  IN VARCHAR2 
                       ,i_value IN CLOB        ) ;
  
-
+ 
 FUNCTION msg_level_string (i_msg_level    IN NUMBER) RETURN VARCHAR2;
+ 
+ 
+FUNCTION unit_message_count(i_unit_id      IN NUMBER
+                           ,i_msg_level    IN NUMBER) RETURN NUMBER;
+
+ 
+FUNCTION unit_traversal_count(i_unit_id IN NUMBER ) RETURN NUMBER;
 
 END;
 /
+show error;

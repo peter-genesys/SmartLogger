@@ -6,7 +6,7 @@ SELECT  message_id
        ,traversal_id
        ,name
        ,value
-       ,message
+       ,message  
        ,msg_type
        ,msg_level  
        ,time_now       
@@ -36,58 +36,7 @@ AND   u.unit_id     = t.unit_id
 AND   p.process_id  = t.process_id
 /
 
-
-CREATE OR REPLACE VIEW ms_unit_vw
-AS 
-SELECT u.* 
-      ,DECODE(unit_type,'PROC' ,'Procedure'
-                       ,'LOOP' ,'Loop'
-                       ,'BLOCK','Block'
-                       ,'METH' ,'Method'
-                       ,'FUNC' ,'Function'
-                       ,'TRIG' ,'Trigger'
-                               ,'Unknown') unit_type_desc 
-    -- ,ms_metacode.unit_traversal_count(unit_id)                      traversal_count
-    -- ,ms_metacode.unit_message_count(unit_id 
-    --                                ,ms_metacode.msg_level_comment)  comment_count
-    -- ,ms_metacode.unit_message_count(unit_id 
-    --                                ,ms_metacode.msg_level_info)     info_count                              
-    -- ,ms_metacode.unit_message_count(unit_id 
-    --                                ,ms_metacode.msg_level_warning)  warning_count  
-    -- ,ms_metacode.unit_message_count(unit_id 
-    --                                ,ms_metacode.msg_level_fatal)    fatal_count                              
-    -- ,ms_metacode.unit_message_count(unit_id 
-    --                                ,ms_metacode.msg_level_oracle)   oracle_count                                 
-FROM ms_unit u
-/
  
-
-CREATE OR REPLACE VIEW ms_module_vw
-AS 
-SELECT  m.module_id      
-       ,m.module_name    
-       ,m.revision       
-       ,m.module_type    
-       ,m.msg_mode
-       ,m.open_process
-      --,SUM(u.traversal_count) traversal_count
-      --,SUM(u.comment_count)   comment_count
-      --,SUM(u.info_count)      info_count 
-      --,SUM(u.warning_count)   warning_count
-      --,SUM(u.fatal_count)     fatal_count 
-      --,SUM(u.oracle_count)    oracle_count                             
-FROM ms_unit_vw  u
-    ,ms_module   m
-where u.module_id (+) = m.module_id
-GROUP BY m.module_id      
-        ,m.module_name    
-        ,m.revision       
-        ,m.module_type    
-        ,m.msg_mode  
-        ,m.open_process
-/
-
-
 
 CREATE OR REPLACE VIEW ms_traversal_message_vw
 AS 
@@ -99,9 +48,9 @@ SELECT t.traversal_id
       ,t.module_name       
       ,t.unit_name         
       ,t.unit_type         
-      ,m.message_id 
+      ,m.message_id       
       ,m.name      
-      ,m.message    
+      ,m.message          
       ,m.msg_type      
       ,m.msg_level   
       ,m.time_now    
@@ -115,11 +64,53 @@ FROM ms_message         m
 WHERE m.traversal_id = t.traversal_id
 /
 
-                                                                                    
+ 
+                                                                                                                           
 
+CREATE OR REPLACE VIEW ms_unit_vw
+AS 
+SELECT u.* 
+      ,DECODE(unit_type,'PROC' ,'Procedure'
+                       ,'LOOP' ,'Loop'
+                       ,'BLOCK','Block'
+                       ,'METH' ,'Method'
+                       ,'FUNC' ,'Function'
+                       ,'TRIG' ,'Trigger'
+                               ,'Unknown') unit_type_desc 
+     ,ms_logger.unit_traversal_count(unit_id)                      traversal_count
+     ,ms_logger.unit_message_count(unit_id,1)  comment_count
+     ,ms_logger.unit_message_count(unit_id,2)     info_count                              
+     ,ms_logger.unit_message_count(unit_id,3)  warning_count  
+     ,ms_logger.unit_message_count(unit_id,4)    fatal_count                              
+     ,ms_logger.unit_message_count(unit_id,5)   oracle_count
+ FROM ms_unit u
+/
+ 
 
-
-
+CREATE OR REPLACE VIEW ms_module_vw
+AS 
+SELECT  m.module_id      
+       ,m.module_name    
+       ,m.revision       
+       ,m.module_type    
+       ,m.msg_mode
+       ,m.open_process
+       ,SUM(u.traversal_count) traversal_count
+       ,SUM(u.comment_count)   comment_count
+       ,SUM(u.info_count)      info_count 
+       ,SUM(u.warning_count)   warning_count
+       ,SUM(u.fatal_count)     fatal_count 
+       ,SUM(u.oracle_count)    oracle_count                             
+FROM ms_unit_vw  u
+    ,ms_module   m
+where u.module_id (+) = m.module_id
+GROUP BY m.module_id      
+        ,m.module_name    
+        ,m.revision       
+        ,m.module_type    
+        ,m.msg_mode  
+        ,m.open_process
+/
 
 
 

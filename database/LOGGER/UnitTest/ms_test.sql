@@ -10,8 +10,8 @@ spool c:\ms_test.log
 alter package ms_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings 
 
 prompt register this script  and the test package (may not need to reg package)
-execute ms_logger.register_sql_script('ms_test.sql','10.0');  
-execute ms_logger.register_package('ms_test','10.0');
+--execute ms_logger.register_sql_script('ms_test.sql','10.0');  
+--execute ms_logger.register_package('ms_test','10.0');
  
 prompt start test of internal debugging
 set serveroutput on;
@@ -64,22 +64,29 @@ execute ms_test.test_exception_propagation(  i_number   => 1234    -
 
 */
 											
-column my_unique_id_var noprint new_val my_unique_id
-undefine my_unique_id
+--column my_unique_id_var noprint new_val my_unique_id
+--undefine my_unique_id
 
-select 'MSTEST.'||ltrim(ms_process_seq.nextval) my_unique_id_var from dual;
+--select 'MSTEST.'||ltrim(ms_process_seq.nextval) my_unique_id_var from dual;
  
 --prompt new_process 
-execute ms_logger.set_internal_debug;
-execute ms_logger.new_process(i_module_name => 'ms_test.sql'  -
-                               ,i_unit_name   => 'ms_test.sql' -
-                               ,i_ext_ref     => '&&my_unique_id' -
-                               ,i_comments    => 'Testing the ms_logger package');
-
+--execute ms_logger.set_internal_debug;
+ 
 set serveroutput on;
  
+DECLARE
+
+ 
+l_process_id number := ms_logger.new_process(i_module_name => 'ms_test.sql'  
+                               ,i_unit_name   => 'ms_test.sql' 
+                               ,i_ext_ref     => '1' 
+                               ,i_comments    => 'Testing the ms_logger package');  
+
  
 BEGIN
+
+  ms_logger.set_internal_debug;
+
   ms_test.test_unit_types;
 
   ms_test.test_call_stack;

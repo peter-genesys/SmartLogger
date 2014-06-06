@@ -182,14 +182,14 @@ FUNCTION f_current_traversal_id RETURN NUMBER;  -- FORWARD DECLARATION
 -- Output is designed for the unit test "ms_test.sql".
 -- These routines are includes in the package only when compiled with intlog:true
 ------------------------------------------------------------------------
-
+ 
 --COMPILER FLAGGED PROCEDURES - START
 $if $$intlog $then 
 
 PROCEDURE intlog_putline(i_line IN VARCHAR2 ) IS
 --Don't call this directly.
 BEGIN 
-  dbms_output.put_line(LPAD('+ ',g_debug_indent*2,'+ ')||i_line);
+    dbms_output.put_line(LPAD('+ ',g_debug_indent*2,'+ ')||i_line);
 END; 
 
  
@@ -205,7 +205,7 @@ BEGIN
   intlog_putline('ENDED: '||i_message);
   
 END; 
- 
+
 PROCEDURE intlog_debug(i_message IN VARCHAR2 ) IS
 BEGIN 
   intlog_putline('!'||i_message);
@@ -261,7 +261,7 @@ BEGIN
   err_set_process_internal_error;
 
   $if $$intlog $then intlog_error(i_message);  $end
-    
+ 
   l_internal_error.name         := 'PROCESS '||g_process_id;
   l_internal_error.message      := i_message;
   l_internal_error.msg_level    := G_MSG_LEVEL_INTERNAL;
@@ -284,7 +284,7 @@ BEGIN
 
 END;
 
- 
+
 ------------------------------------------------------------------------
 -- Get Enitity operations (private)
 ------------------------------------------------------------------------
@@ -323,6 +323,7 @@ END get_module;
     select owner
     from   dba_objects
     where  object_name = UPPER(i_object_name)
+    and    object_type <> 'SYNONYM'
     order by decode(owner,USER,1,2);
 
     l_result VARCHAR2(30);
@@ -348,6 +349,7 @@ END get_module;
     select object_type
     from   dba_objects
     where  object_name = UPPER(i_object_name)
+    and    object_type <> 'SYNONYM'
     and    owner       = i_owner;
 
     l_result VARCHAR2(30);
@@ -396,7 +398,7 @@ BEGIN
                             ,'afterpform'
                             ,'afterreport') THEN 
           --These program units are assumed to be reoprts.
-          l_module.owner           := USER;
+          l_module.owner  := USER;
           l_module.module_type     := G_MODULE_TYPE_REPORT;
 
         ELSE 
@@ -667,7 +669,7 @@ BEGIN
  
     OPEN cu_traversal;
     FETCH cu_traversal INTO l_dummy;
-   	l_result := cu_traversal%FOUND;
+	l_result := cu_traversal%FOUND;
     CLOSE cu_traversal;
     
     RETURN l_result;
@@ -903,7 +905,7 @@ END;
 ------------------------------------------------------------------------
  
 PROCEDURE synch_node_stack( i_node IN ms_logger.node_typ) IS
-BEGIN
+BEGIN 
   --Is the node on the stack??
   IF i_node.node_level is not null then
     --ENSURE traversals point to current node.
@@ -911,14 +913,14 @@ BEGIN
   end if;
 
 END;
- 
+
 ------------------------------------------------------------------------
 -- dump_nodes - forward declaration
 ------------------------------------------------------------------------
 PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
                     ,i_msg_mode IN NUMBER);
 
-
+ 
 ------------------------------------------------------------------------
 -- LOGGING ROUTINES (private)
 -- These routines write to the logging tables
@@ -994,14 +996,14 @@ END;
  
 FUNCTION log_message(i_message  IN ms_message%ROWTYPE
                     ,i_node     IN ms_logger.node_typ) RETURN BOOLEAN IS
-  PRAGMA AUTONOMOUS_TRANSACTION;
+    PRAGMA AUTONOMOUS_TRANSACTION;
 
   l_message ms_message%ROWTYPE := i_message;
   l_logged BOOLEAN := FALSE;
 BEGIN
   $if $$intlog $then intlog_start('log_message'); $end
   l_message.message_id := new_message_id;
-
+  
   $if $$intlog $then intlog_note('l_message.msg_level',l_message.msg_level);  $end
   $if $$intlog $then intlog_note('i_node.traversal.msg_mode'    ,i_node.traversal.msg_mode);      $end
  
@@ -1028,7 +1030,7 @@ BEGIN
   END IF;
  
   COMMIT;
-
+ 
   $if $$intlog $then intlog_end('log_message'); $end
 
   RETURN l_logged;
@@ -1039,12 +1041,12 @@ EXCEPTION
     err_warn_oracle_error('log_message');
     RETURN FALSE;
 END;
- 
+
 
 ------------------------------------------------------------------------
 -- create_message
 ------------------------------------------------------------------------
- 
+
 PROCEDURE create_message ( i_name      IN VARCHAR2 DEFAULT NULL
                           ,i_value     IN VARCHAR2 DEFAULT NULL
                           ,i_message   IN CLOB     DEFAULT NULL
@@ -1175,7 +1177,7 @@ BEGIN
   l_message_index := io_node.unlogged_messages.FIRST;
   WHILE l_message_index IS NOT NULL LOOP
     $if $$intlog $then intlog_note('l_message_index',l_message_index);            $end
-
+    
     IF log_message(i_message => io_node.unlogged_messages(l_message_index)
                   ,i_node    => io_node) THEN
       l_del_message_index := l_message_index;                             --remember message to delete
@@ -1184,10 +1186,10 @@ BEGIN
       io_node.unlogged_messages.DELETE(l_del_message_index);
     ELSE
       l_message_index := io_node.unlogged_messages.NEXT(l_message_index); --next unlogged message
-    END IF;
- 
+  END IF;
+  
   END LOOP;
- 
+  
   $if $$intlog $then intlog_end('log_node'); $end
   
 EXCEPTION
@@ -1207,7 +1209,7 @@ END;
 ------------------------------------------------------------------------
 
 PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
-                    ,i_msg_mode IN NUMBER) IS
+                    ,i_msg_mode IN NUMBER)IS
  
   --Log traversals (using the given msg_mode) that have not yet been logged,
   --or were logged at a higher msg_mode.
@@ -1236,7 +1238,7 @@ EXCEPTION
     err_warn_oracle_error('dump_nodes');
 END;
 
- 
+
 --------------------------------------------------------------------
 --f_user_source
 --returns user_source record from user_source table
@@ -1354,13 +1356,13 @@ BEGIN
   FOR l_line IN l_error_line - i_prev_lines .. l_error_line + i_post_lines LOOP
   
     l_dba_source := f_dba_source(  i_owner => USER
-	                                 ,i_name => l_package_name
+	                               ,i_name => l_package_name
                                    ,i_type => 'PACKAGE BODY'
                                    ,i_line => l_line);
  
     --Write the source line to a message in the format "LINE NO"  X  TEXT
     --Highlight the error line as a WARNING, lines above and below as COMMENT
-
+ 
     create_message ( i_name      => 'LINE NO'
                     ,i_value     => l_line
                     ,i_message   => RTRIM(l_dba_source.text,chr(10))
@@ -1380,7 +1382,7 @@ EXCEPTION
  
 END;
  
- 
+
 ------------------------------------------------------------------------
 -- debug_error - PRIVATE
 ------------------------------------------------------------------------
@@ -1390,24 +1392,24 @@ PROCEDURE debug_error( i_node            IN ms_logger.node_typ
                       ,i_msg_level       IN INTEGER )
 IS
 BEGIN
-
+ 
 
   create_message ( i_message   => LTRIM(i_message ||' '||SQLERRM
                                 ||chr(10)||DBMS_UTILITY.FORMAT_ERROR_BACKTRACE )--show the original error line number
                   ,i_msg_type  => G_MSG_TYPE_MESSAGE
                   ,i_msg_level => i_msg_level
-                  ,i_node      => i_node);
- 
+			  ,i_node     => i_node );
+  
   warn_user_source_error_lines(i_prev_lines => 5
                               ,i_post_lines => 5
-                              ,i_node       => i_node);
+							  ,i_node     => i_node);
 
 
 END debug_error;
 
 
 
-
+ 
 ------------------------------------------------------------------------
 -- ROUTINES (Public)
 ------------------------------------------------------------------------
@@ -1416,24 +1418,24 @@ END debug_error;
 ----------------------------------------------------------------------------
 -- create_ref -  now merely calls create_message
 ----------------------------------------------------------------------------
-
-
+ 
+ 
 PROCEDURE create_ref ( i_name      IN VARCHAR2
                       ,i_value     IN VARCHAR2
                       ,i_msg_type  IN VARCHAR2
                       ,i_node      IN ms_logger.node_typ ) IS
- 
+
 BEGIN
   $if $$intlog $then intlog_start('create_ref'); $end
- 
+
     IF LENGTH(i_value) <= G_REF_VALUE_WIDTH and INSTR(i_value,chr(10))= 0 THEN
       --Short, single line value, so just put it in the value column
       create_message ( i_name      => i_name
                       ,i_value     => i_value
                       ,i_msg_type  => i_msg_type
                       ,i_msg_level => G_MSG_LEVEL_COMMENT
-                      ,i_node      => i_node);
-
+	         ,i_node    => i_node);      
+ 
     ELSE
       --Longer or multi-line value, put it in the message column
       create_message ( i_name      => i_name
@@ -1441,10 +1443,10 @@ BEGIN
                       ,i_msg_type  => i_msg_type
                       ,i_msg_level => G_MSG_LEVEL_COMMENT
                       ,i_node      => i_node);
-    END IF;
- 
+      END IF;   
+
   $if $$intlog $then intlog_end('create_ref'); $end
- 
+
 END create_ref;
 
 
@@ -1455,7 +1457,7 @@ END create_ref;
 -- Message Mode operations (private)
 ------------------------------------------------------------------------
  
-PROCEDURE  set_unit_msg_mode(i_unit_id  IN NUMBER
+PROCEDURE  set_unit_msg_mode(i_unit_id   IN NUMBER
                             ,i_msg_mode IN NUMBER )
 IS
   pragma autonomous_transaction;
@@ -1481,7 +1483,7 @@ END;
   
 PROCEDURE  set_unit_msg_mode(i_module_name IN VARCHAR2
                             ,i_unit_name   IN VARCHAR2
-                            ,i_msg_mode    IN NUMBER ) IS
+                            ,i_msg_mode   IN NUMBER ) IS
                              
 BEGIN
 
@@ -1489,7 +1491,7 @@ BEGIN
   set_unit_msg_mode(i_unit_id  => find_unit(i_module_name => i_module_name
                                            ,i_unit_name   => i_unit_name
                                            ,i_create      => FALSE).unit_id
-                                           ,i_msg_mode    => i_msg_mode);
+                   ,i_msg_mode => i_msg_mode);
  
 END; 
 
@@ -1524,7 +1526,7 @@ PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
                              
 BEGIN
   set_unit_msg_mode(i_module_name  => i_module_name
-                    ,i_unit_name   => i_unit_name  
+                    ,i_unit_name    => i_unit_name  
                     ,i_msg_mode    => G_MSG_MODE_QUIET);
 END; 
  
@@ -1533,7 +1535,7 @@ PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
                              
 BEGIN
   set_unit_msg_mode(i_module_name  => i_module_name
-                    ,i_unit_name   => i_unit_name  
+                    ,i_unit_name    => i_unit_name  
                     ,i_msg_mode    => G_MSG_MODE_DISABLED);
 END; 
 
@@ -1850,7 +1852,7 @@ END;
 -- Message ROUTINES (Public)
 ------------------------------------------------------------------------
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------ 
 -- comment 
 ------------------------------------------------------------------------
 PROCEDURE comment( i_node            IN ms_logger.node_typ 
@@ -1860,7 +1862,7 @@ BEGIN
     create_message ( i_message   => i_message
                     ,i_msg_type  => G_MSG_TYPE_MESSAGE
                     ,i_msg_level => G_MSG_LEVEL_COMMENT
-                    ,i_node      => i_node);
+	  ,i_node     => i_node);
  
 END comment;
 
@@ -1874,7 +1876,7 @@ BEGIN
     create_message ( i_message   => i_message
                     ,i_msg_type  => G_MSG_TYPE_MESSAGE
                     ,i_msg_level => G_MSG_LEVEL_INFO
-                    ,i_node      => i_node);
+   ,i_node     => i_node);
  
 END info;
 
@@ -1889,7 +1891,7 @@ BEGIN
     create_message ( i_message   => i_message
                     ,i_msg_type  => G_MSG_TYPE_MESSAGE
                     ,i_msg_level => G_MSG_LEVEL_WARNING
-                    ,i_node      => i_node);
+   ,i_node     => i_node);
  
 END warning;
 
@@ -1904,11 +1906,11 @@ BEGIN
     create_message ( i_message   => i_message
                     ,i_msg_type  => G_MSG_TYPE_MESSAGE
                     ,i_msg_level => G_MSG_LEVEL_FATAL
-                    ,i_node      => i_node);
+   ,i_node     => i_node);
  
 END fatal;  
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------ 
 -- oracle_error 
 ------------------------------------------------------------------------
 
@@ -1916,7 +1918,7 @@ PROCEDURE oracle_error( i_node            IN ms_logger.node_typ
                        ,i_message         IN VARCHAR2 DEFAULT NULL  )
 IS
 BEGIN
-
+ 
   debug_error( i_node             => i_node     
               ,i_message          => i_message
               ,i_msg_level        => G_MSG_LEVEL_ORACLE );
@@ -1955,12 +1957,11 @@ BEGIN
   create_ref ( i_name       => i_name
               ,i_value      => i_value
               ,i_msg_type   => G_MSG_TYPE_NOTE
-              ,i_node       => i_node);
-
+        ,i_node            => i_node);      
+ 
 END note   ;
- 
- 
 
+ 
 ------------------------------------------------------------------------
 
 PROCEDURE param ( i_node      IN ms_logger.node_typ 
@@ -2137,6 +2138,9 @@ BEGIN
 
 END note_length;
 
+------------------------------------------------------------------------ 
+-- FUNCTIONS USED IN VIEWS
+------------------------------------------------------------------------ 
  
 FUNCTION msg_level_string (i_msg_level    IN NUMBER) RETURN VARCHAR2
 IS
@@ -2160,11 +2164,54 @@ BEGIN
 END msg_level_string;
 
 
+
+
+ 
+FUNCTION unit_message_count(i_unit_id      IN NUMBER
+                           ,i_msg_level    IN NUMBER) RETURN NUMBER IS
+                           
+  CURSOR cu_message_count(c_unit_id      NUMBER                         
+                         ,c_msg_level    NUMBER) IS
+  SELECT count(*)
+  FROM   ms_traversal_message_vw
+  WHERE  unit_id    =  c_unit_id
+  AND    msg_level  =  c_msg_level; 
+  
+  l_result NUMBER;
+  
+BEGIN
+  OPEN cu_message_count(c_unit_id      => i_unit_id
+                       ,c_msg_level    => i_msg_level);
+  FETCH cu_message_count INTO l_result;
+  CLOSE cu_message_count;
+  
+  RETURN l_result;
+  
+END;  
+
+ 
+FUNCTION unit_traversal_count(i_unit_id IN NUMBER ) RETURN NUMBER IS
+                           
+  CURSOR cu_traversal_count(c_unit_id NUMBER ) IS
+  SELECT count(*)
+  FROM  ms_traversal
+  WHERE unit_id =  c_unit_id; 
+  
+  l_result NUMBER;
+  
+BEGIN
+  OPEN cu_traversal_count(c_unit_id => i_unit_id );
+  FETCH cu_traversal_count INTO l_result;
+  CLOSE cu_traversal_count;
+  
+  RETURN l_result;
+  
+END;  
+
 BEGIN
   NULL;
   --Enable DBMS_OUTPUT when compiled for INTLOG
   $if $$intlog $then DBMS_OUTPUT.ENABLE(null); $end
-
 end;
 /
 show error;
