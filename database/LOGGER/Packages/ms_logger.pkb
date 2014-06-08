@@ -41,7 +41,6 @@ create or replace package body ms_logger is
 ------------------------------------------------------------------------
  
  
-  g_debug_mode         BOOLEAN := FALSE;
   g_debug_indent       INTEGER;
  
   G_MODULE_NAME_WIDTH     CONSTANT NUMBER := 50;
@@ -181,14 +180,16 @@ FUNCTION f_current_traversal_id RETURN NUMBER;  -- FORWARD DECLARATION
 -- Internal logging routines (private)
 -- ms_logger cannot be used to log itself, so an alternative internal syntax exists
 -- Output is designed for the unit test "ms_test.sql".
+-- These routines are includes in the package only when compiled with intlog:true
 ------------------------------------------------------------------------
- 
+
+--COMPILER FLAGGED PROCEDURES - START
+$if $$intlog $then 
+
 PROCEDURE intlog_putline(i_line IN VARCHAR2 ) IS
 --Don't call this directly.
 BEGIN 
-  IF g_debug_mode THEN
-    dbms_output.put_line(LPAD('+ ',g_debug_indent*2,'+ ')||i_line);
-  END IF;
+  dbms_output.put_line(LPAD('+ ',g_debug_indent*2,'+ ')||i_line);
 END; 
 
  
@@ -204,6 +205,27 @@ BEGIN
   intlog_putline('ENDED: '||i_message);
   
 END; 
+ 
+PROCEDURE intlog_debug(i_message IN VARCHAR2 ) IS
+BEGIN 
+  intlog_putline('!'||i_message);
+END;
+
+PROCEDURE intlog_note(i_name  IN VARCHAR2
+                       ,i_value IN VARCHAR2) IS
+BEGIN 
+  intlog_putline('.'||i_name||':'||i_value);
+END;
+
+
+PROCEDURE intlog_error(i_message IN VARCHAR2 ) IS
+BEGIN 
+  intlog_putline('##'||i_message);
+END;
+ 
+$end           
+--COMPILER FLAGGED PROCEDURES - FINISH
+
 
 PROCEDURE err_set_process_internal_error IS
   --set internal error
@@ -216,7 +238,7 @@ PROCEDURE err_set_process_internal_error IS
 BEGIN 
  
   g_internal_error := TRUE; 
-  $if $$intlog $then intlog_putline('INTERNAL ERROR'); $end
+  $if $$intlog $then intlog_debug('INTERNAL ERROR'); $end
  
   UPDATE ms_process 
   SET internal_error = 'Y'
@@ -238,7 +260,7 @@ BEGIN
 
   err_set_process_internal_error;
 
-  $if $$intlog $then intlog_putline('* '||i_message);  $end
+  $if $$intlog $then intlog_error(i_message);  $end
     
   l_internal_error.name         := 'PROCESS '||g_process_id;
   l_internal_error.message      := i_message;
@@ -258,44 +280,11 @@ PROCEDURE err_warn_oracle_error(i_message IN VARCHAR2 ) IS
 BEGIN 
   $if $$intlog $then intlog_putline(i_message||':');     $end
   err_create_internal_error(SQLERRM);
-  $if $$intlog $then intlog_end(i_message => i_message); $end --extra call to intlog_end closes the program unit.
+  $if $$intlog $then intlog_end(i_message); $end --extra call to intlog_end closes the program unit.
 
 END;
 
-
-
-
-PROCEDURE intlog_debug(i_message IN VARCHAR2 ) IS
-BEGIN 
-  intlog_putline('!'||i_message);
-END;
-
-PROCEDURE intlog_note(i_name  IN VARCHAR2
-                       ,i_value IN VARCHAR2) IS
-BEGIN 
-  intlog_putline('.'||i_name||':'||i_value);
-END;
-
-------------------------------------------------------------------------
--- Internal debugging routines (public)
-------------------------------------------------------------------------
  
-PROCEDURE set_internal_debug IS
-BEGIN 
-  
-  DBMS_OUTPUT.ENABLE(null);
-  g_debug_mode := TRUE;
-  g_debug_indent := 0;
-  
-END;  
-
-PROCEDURE reset_internal_debug IS
-BEGIN 
-  g_debug_mode := FALSE;
-  DBMS_OUTPUT.DISABLE;
-END;
-
-  
 ------------------------------------------------------------------------
 -- Get Enitity operations (private)
 ------------------------------------------------------------------------
@@ -2148,9 +2137,7 @@ BEGIN
 
 END note_length;
 
-
-  
-
+ 
 FUNCTION msg_level_string (i_msg_level    IN NUMBER) RETURN VARCHAR2
 IS
   v_result VARCHAR2(100) := NULL;
@@ -2172,6 +2159,11 @@ BEGIN
   RETURN v_result;
 END msg_level_string;
 
+
+BEGIN
+  NULL;
+  --Enable DBMS_OUTPUT when compiled for INTLOG
+  $if $$intlog $then DBMS_OUTPUT.ENABLE(null); $end
 
 end;
 /

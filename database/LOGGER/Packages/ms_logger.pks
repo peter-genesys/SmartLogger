@@ -100,14 +100,6 @@ PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
 PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
                             ,i_unit_name   IN VARCHAR2 );
  
-------------------------------------------------------------------------
--- Internal debugging routines (public)
-------------------------------------------------------------------------
- 
-PROCEDURE set_internal_debug;
-
-PROCEDURE reset_internal_debug;
- 
  
 --------------------------------------------------------------------
 --purge_old_processes

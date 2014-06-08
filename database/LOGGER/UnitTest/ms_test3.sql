@@ -18,8 +18,6 @@ BEGIN
   ms_logger.set_unit_quiet(i_module_name => 'ms_test'                 
                           ,i_unit_name   => 'max_nest_test');
 
-							
-  ms_logger.set_internal_debug;
   ms_test.test_unit_msg_mode;
 
   ms_logger.set_unit_debug(i_module_name => 'ms_test'                 
