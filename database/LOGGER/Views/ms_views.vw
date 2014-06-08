@@ -5,16 +5,8 @@ AS
 SELECT  message_id     
        ,traversal_id
        ,name
-       ,CASE 
-          WHEN msg_type IN ('PARAM','NOTE') and LENGTH(message)<=30 and INSTR(message,chr(10))= 0 THEN message
-          ELSE NULL
-        END                                     value
-       ,CASE 
-          WHEN msg_type ='MESSAGE' THEN message
-          WHEN LENGTH(message)>30 THEN message
-          WHEN INSTR(message,chr(10))<>0 THEN message
-          ELSE NULL
-        END                                     message
+       ,value
+       ,message
        ,msg_type
        ,msg_level  
        ,time_now       

@@ -47,10 +47,7 @@ create or replace package body ms_logger is
   G_MODULE_NAME_WIDTH     CONSTANT NUMBER := 50;
   G_UNIT_NAME_WIDTH       CONSTANT NUMBER := 50;
   G_REF_NAME_WIDTH        CONSTANT NUMBER := 100;
-  --G_REF_DATA_WIDTH        CONSTANT NUMBER := 100;
-  --G_MESSAGE_WIDTH         CONSTANT NUMBER := 200;
-  --G_INTERNAL_ERROR_WIDTH  CONSTANT NUMBER := 200;
-  --G_LARGE_MESSAGE_WIDTH   CONSTANT NUMBER := 4000;
+  G_REF_VALUE_WIDTH       CONSTANT NUMBER := 30;
   G_CALL_STACK_WIDTH      CONSTANT NUMBER := 2000;
   
  
@@ -912,21 +909,27 @@ EXCEPTION
     err_warn_oracle_error('push_node');
 END;
 
- 
-/*
 ------------------------------------------------------------------------
--- Independent error handler (private)
--- for when this package errors
+-- synch_node_stack
 ------------------------------------------------------------------------
  
-PROCEDURE app_error(i_message IN VARCHAR2 ) IS
-BEGIN 
-  RAISE_APPLICATION_ERROR(-20000,i_message||':'||chr(10)
-                             ||'* '||SQLERRM);
-END;
-*/
+PROCEDURE synch_node_stack( i_node IN ms_logger.node_typ) IS
+BEGIN
+  --Is the node on the stack??
+  IF i_node.node_level is not null then
+    --ENSURE traversals point to current node.
+    pop_descendent_nodes(i_node => i_node);
+  end if;
 
+END;
  
+------------------------------------------------------------------------
+-- dump_nodes - forward declaration
+------------------------------------------------------------------------
+PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
+                    ,i_msg_mode IN NUMBER);
+
+
 ------------------------------------------------------------------------
 -- LOGGING ROUTINES (private)
 -- These routines write to the logging tables
@@ -975,10 +978,123 @@ END log_process;
 
 
 ------------------------------------------------------------------------
--- log_message - forward declaration
+-- Message operations (private)
+------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------
+-- push_message
+------------------------------------------------------------------------
+PROCEDURE push_message(io_messages  IN OUT message_list
+                      ,i_message    IN     ms_message%ROWTYPE ) IS
+  l_next_index               BINARY_INTEGER;    
+ 
+BEGIN
+ 
+  --Next index is last index + 1
+  l_next_index := NVL(io_messages.LAST,0) + 1;
+
+  --add to the stack             
+  io_messages( l_next_index ) := i_message;
+
+END;
+
+------------------------------------------------------------------------
+-- log_message
 ------------------------------------------------------------------------
  
-PROCEDURE log_message(i_message  IN ms_message%ROWTYPE);
+PROCEDURE log_message(i_message  IN ms_message%ROWTYPE) IS
+    PRAGMA AUTONOMOUS_TRANSACTION;
+  l_message ms_message%ROWTYPE := i_message;
+BEGIN
+  $if $$intlog $then intlog_start('log_message'); $end
+  l_message.message_id := new_message_id;
+  
+  $if $$intlog $then intlog_note('message_id  ',l_message.message_id  ); $end
+  $if $$intlog $then intlog_note('traversal_id',l_message.traversal_id); $end
+  $if $$intlog $then intlog_note('name        ',l_message.name        ); $end
+  $if $$intlog $then intlog_note('message     ',l_message.message     ); $end
+  $if $$intlog $then intlog_note('msg_type    ',l_message.msg_type    ); $end
+  $if $$intlog $then intlog_note('msg_level   ',l_message.msg_level   ); $end
+  $if $$intlog $then intlog_note('time_now    ',l_message.time_now   ); $end
+ 
+  INSERT INTO ms_message VALUES l_message;
+ 
+  COMMIT;
+  $if $$intlog $then intlog_end('log_message'); $end
+ 
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    err_warn_oracle_error('log_message');
+END;
+ 
+
+------------------------------------------------------------------------
+-- create_message
+------------------------------------------------------------------------
+ 
+PROCEDURE create_message ( i_name      IN VARCHAR2 DEFAULT NULL
+                          ,i_value     IN VARCHAR2 DEFAULT NULL
+                          ,i_message   IN CLOB     DEFAULT NULL
+                          ,i_msg_type  IN VARCHAR2
+                          ,i_msg_level IN INTEGER
+                          ,i_node      IN ms_logger.node_typ ) IS
+ 
+  l_message ms_message%ROWTYPE;
+
+BEGIN
+  $if $$intlog $then intlog_start('create_message'); $end
+  IF NOT g_internal_error and 
+     NOT i_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN 
+ 
+      --ms_logger passes node as origin of message  
+      synch_node_stack( i_node => i_node);
+
+      l_message.message_id   := NULL; 
+      l_message.traversal_id := NULL;         
+      l_message.name         := SUBSTR(i_name ,1,G_REF_NAME_WIDTH);
+      l_message.value        := SUBSTR(i_value ,1,G_REF_VALUE_WIDTH);
+      l_message.message      := i_message;
+      l_message.msg_type     := i_msg_type; 
+      l_message.msg_level    := i_msg_level; 
+      l_message.time_now     := SYSTIMESTAMP;
+
+      IF l_message.msg_level >= G_MSG_LEVEL_FATAL THEN -- message is fatal or worse
+         --log all unlogged traversals using debug mode
+         dump_nodes(i_index    => f_index
+                   ,i_msg_mode => G_MSG_MODE_DEBUG);
+      END IF;
+
+      IF g_nodes(f_index).logged AND 
+        l_message.msg_level >= f_current_traversal_msg_mode THEN
+          $if $$intlog $then intlog_debug('Loggable, so log it.' );        $end
+          $if $$intlog $then intlog_note('l_message.msg_level',l_message.msg_level);                   $end
+          $if $$intlog $then intlog_note('f_current_traversal_msg_mode',f_current_traversal_msg_mode); $end
+ 
+        --log it, don't need to push it
+        l_message.message_id   := new_message_id;
+        l_message.traversal_id := f_current_traversal_id;
+        log_message(i_message => l_message ); 
+
+      ELSE
+        $if $$intlog $then intlog_debug('Not yet loggable, so push it.' );        $end
+        --Node is unlogged or not set to low enough message mode, yet..
+        --push onto unlogged messages
+        push_message(io_messages     => g_nodes(f_index).unlogged_messages 
+                    ,i_message       => l_message); 
+ 
+
+      END IF;   
+     
+
+  END IF;   
+  $if $$intlog $then intlog_end('create_message'); $end
+EXCEPTION
+  WHEN OTHERS THEN
+    err_warn_oracle_error('create_message');
+
+END create_message;
 
 
 ------------------------------------------------------------------------
@@ -1082,7 +1198,7 @@ END;
 ------------------------------------------------------------------------
 
 PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
-                    ,i_msg_mode IN NUMBER)IS
+                    ,i_msg_mode IN NUMBER) IS
  
   --Log traversals (using the given msg_mode) that have not yet been logged,
   --or were logged at a higher msg_mode.
@@ -1111,132 +1227,7 @@ EXCEPTION
     err_warn_oracle_error('dump_nodes');
 END;
 
-PROCEDURE synch_node_stack( i_node IN ms_logger.node_typ) IS
-BEGIN
-	--Is the node on the stack??
-	IF i_node.node_level is not null then
-	  --ENSURE traversals point to current node.
-	  pop_descendent_nodes(i_node => i_node);
-	end if;
-
-END;
-
-
-------------------------------------------------------------------------
-/*
-PROCEDURE  log_message(
-            i_message         IN CLOB     DEFAULT NULL    -- message
-           ,i_comment         IN BOOLEAN  DEFAULT FALSE
-           ,i_info            IN BOOLEAN  DEFAULT FALSE   -- BOOLEAN shortcuts to set error level
-           ,i_warning         IN BOOLEAN  DEFAULT FALSE   -- use 1 of these
-           ,i_fatal           IN BOOLEAN  DEFAULT FALSE
-           ,i_oracle          IN BOOLEAN  DEFAULT FALSE   -- find oracle error message and code
-           ,i_raise_app_error IN BOOLEAN  DEFAULT FALSE   -- raise an application error
-		       ,i_node            IN ms_logger.node_typ       -- if an initialised node is passed then check its current
-           )
-
-
-IS
-
-   l_message     ms_large_message%ROWTYPE;
-   l_message_split NUMBER := 0;
-   l_large_message VARCHAR2(32000);
-   l_message_parts NUMBER;
-
-   PRAGMA AUTONOMOUS_TRANSACTION;
-
-BEGIN
-  $if $$intlog $then intlog_start('log_message'); $end
-  IF NOT g_internal_error and 
-     NOT i_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN 
-
-    --intlog_note('i_message        ',i_message        );
-	
-	  --ms_logger passes node as origin of message  
-	  synch_node_stack( i_node => i_node);
  
-    l_message.message      := SUBSTR(i_message,1,G_LARGE_MESSAGE_WIDTH);
- 
-    --encode the message level
-    l_message.msg_level := CASE 
-                             WHEN i_comment THEN G_MSG_LEVEL_COMMENT
-                             WHEN i_info    THEN G_MSG_LEVEL_INFO 
-                             WHEN i_warning THEN G_MSG_LEVEL_WARNING  
-                             WHEN i_fatal   THEN G_MSG_LEVEL_FATAL 
-                             WHEN i_oracle  THEN G_MSG_LEVEL_ORACLE  
-                           END;
-
-    IF l_message.msg_level >= G_MSG_LEVEL_FATAL THEN -- message is fatal or worse
-       --log all unlogged traversals using debug mode
-       dump_nodes(i_index    => f_index
-                 ,i_msg_mode => G_MSG_MODE_DEBUG);
-    END IF;
-
-    --Messsage is NOT logged if unlogged traversals were not dumped
-    --Module and Unit mode are sourced from the DB
-    --By default this is Normal mode, meaning that any message of level info and up is reported.
-    --Even in Quiet mode, Fatal and Oracle errors will be recorded
-    IF g_nodes(f_index).logged AND --NOT f_unlogged_traversals_exist     AND
-        --f_current_traversal_id IS NOT NULL AND
-        l_message.msg_level >= f_current_traversal_msg_mode THEN
-        $if $$intlog $then intlog_note('l_message.msg_level',l_message.msg_level);                   $end
-        $if $$intlog $then intlog_note('f_current_traversal_msg_mode',f_current_traversal_msg_mode); $end
-
-        l_message.message_id   := new_message_id;
-        l_message.traversal_id := f_current_traversal_id;
-        l_message.time_now     := SYSTIMESTAMP;
-
-        IF l_message.message IS NULL THEN
-          $if $$intlog $then intlog_debug('Empty Message'); $end
-		  NULL;
-          
-        ELSIF LENGTH(l_message.message) <= G_MESSAGE_WIDTH THEN
-          $if $$intlog $then intlog_note('l_message.message',l_message.message); $end
-          INSERT INTO ms_message VALUES l_message;
-          
-        ELSE
-          $if $$intlog $then intlog_debug('This is a LARGE message'); $end 
-          l_large_message  := SUBSTR(i_message,1,32000);
-          l_message_parts  := CEIL(LENGTH(l_large_message)/4000);
-          
-          LOOP
-            l_message_split := l_message_split + 1;
-            
-            INSERT INTO ms_large_message VALUES l_message;
-            $if $$intlog $then intlog_debug('Large message inserted'); $end
-            --warning('Message '||l_message_split||'/'||l_message_parts||' Id:'||l_message.message_id);
-            --note('large message_id',l_message.message_id);
-          
-            l_large_message    := SUBSTR(l_large_message,G_LARGE_MESSAGE_WIDTH+1);
-            l_message.message  := SUBSTR(l_large_message,1,G_LARGE_MESSAGE_WIDTH);
- 
-            EXIT WHEN l_message.message IS NULL OR l_message_split > 8;
-            
-            l_message.message_id   := new_message_id;
- 
-          END LOOP;
- 
-        END IF;
-       
-        COMMIT;
-
-    END IF;
-
-    IF i_raise_app_error THEN
-      app_error(i_message => l_message.message);
-    END IF;
-
-  END IF;
-  $if $$intlog $then intlog_end('log_message'); $end
-EXCEPTION
-  WHEN OTHERS THEN
-    ROLLBACK;
-    err_warn_oracle_error('log_message');
- 
-
-END log_message;
-*/
-
 --------------------------------------------------------------------
 --f_user_source
 --returns user_source record from user_source table
@@ -1358,24 +1349,19 @@ BEGIN
                                    ,i_type => 'PACKAGE BODY'
                                    ,i_line => l_line);
  
- 
-    IF l_line_numbersYN = 'Y' THEN
-	l_line_no := l_line||' ';
-    ELSE
-      l_line_no := NULL;
-    END IF;
- 
-	l_message := l_line_no||' '||RTRIM(l_dba_source.text,chr(10));
-	
-	if l_line = l_error_line then
-	  warning(i_node,l_message);
-	else
-	  comment(i_node,l_message);
-	end if;
-	
- 
+    --Write the source line to a message in the format "LINE NO"  X  TEXT
+    --Highlight the error line as a WARNING, lines above and below as COMMENT
 
-
+    create_message ( i_name      => 'LINE NO'
+                    ,i_value     => l_line
+                    ,i_message   => RTRIM(l_dba_source.text,chr(10))
+                    ,i_msg_type  => G_MSG_TYPE_MESSAGE
+                    ,i_msg_level => CASE 
+                                      WHEN l_line = l_error_line THEN G_MSG_LEVEL_WARNING
+                                      ELSE                            G_MSG_LEVEL_COMMENT
+                                    END 
+                    ,i_node      => i_node);
+ 
   END LOOP;
  
  
@@ -1386,131 +1372,6 @@ EXCEPTION
 END;
  
  
-
-
- 
-
-------------------------------------------------------------------------
--- METACODE ROUTINES (Public)
-------------------------------------------------------------------------
- 
- 
-------------------------------------------------------------------------
--- Message operations (private)
-------------------------------------------------------------------------
-
-
-------------------------------------------------------------------------
--- push_message
-------------------------------------------------------------------------
-PROCEDURE push_message(io_messages  IN OUT message_list
-                      ,i_message    IN     ms_message%ROWTYPE ) IS
-  l_next_index               BINARY_INTEGER;    
- 
-BEGIN
- 
-  --Next index is last index + 1
-  l_next_index := NVL(io_messages.LAST,0) + 1;
-
-  --add to the stack             
-  io_messages( l_next_index ) := i_message;
-
-END;
-
-------------------------------------------------------------------------
--- log_message
-------------------------------------------------------------------------
- 
-PROCEDURE log_message(i_message  IN ms_message%ROWTYPE) IS
-    PRAGMA AUTONOMOUS_TRANSACTION;
-  l_message ms_message%ROWTYPE := i_message;
-BEGIN
-  $if $$intlog $then intlog_start('log_message'); $end
-  l_message.message_id := new_message_id;
-  
-  $if $$intlog $then intlog_note('message_id  ',l_message.message_id  ); $end
-  $if $$intlog $then intlog_note('traversal_id',l_message.traversal_id); $end
-  $if $$intlog $then intlog_note('name        ',l_message.name        ); $end
-  $if $$intlog $then intlog_note('message     ',l_message.message     ); $end
-  $if $$intlog $then intlog_note('msg_type    ',l_message.msg_type    ); $end
-  $if $$intlog $then intlog_note('msg_level   ',l_message.msg_level   ); $end
-  $if $$intlog $then intlog_note('time_now    ',l_message.time_now   ); $end
- 
-  INSERT INTO ms_message VALUES l_message;
- 
-  COMMIT;
-  $if $$intlog $then intlog_end('log_message'); $end
- 
-EXCEPTION
-  WHEN OTHERS THEN
-    ROLLBACK;
-    err_warn_oracle_error('log_message');
-END;
- 
-------------------------------------------------------------------------
--- create_message
-------------------------------------------------------------------------
- 
-PROCEDURE create_message ( i_name      IN VARCHAR2 DEFAULT NULL
-                          ,i_message   IN CLOB
-                          ,i_msg_type  IN VARCHAR2
-                          ,i_msg_level IN INTEGER
-                          ,i_node      IN ms_logger.node_typ ) IS
- 
-  l_message ms_message%ROWTYPE;
-
-BEGIN
-  $if $$intlog $then intlog_start('create_message'); $end
-  IF NOT g_internal_error and 
-     NOT i_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN 
- 
-  	  --ms_logger passes node as origin of message  
-	    synch_node_stack( i_node => i_node);
-
-      l_message.message_id   := NULL; 
-      l_message.traversal_id := NULL;         
-      l_message.name         := SUBSTR(i_name ,1,G_REF_NAME_WIDTH);
-      l_message.message      := i_message;
-      l_message.msg_type     := i_msg_type; 
-      l_message.msg_level    := i_msg_level; 
-      l_message.time_now     := SYSTIMESTAMP;
-
-      IF l_message.msg_level >= G_MSG_LEVEL_FATAL THEN -- message is fatal or worse
-         --log all unlogged traversals using debug mode
-         dump_nodes(i_index    => f_index
-                   ,i_msg_mode => G_MSG_MODE_DEBUG);
-      END IF;
-
-      IF g_nodes(f_index).logged AND 
-        l_message.msg_level >= f_current_traversal_msg_mode THEN
-          $if $$intlog $then intlog_debug('Loggable, so log it.' );        $end
-          $if $$intlog $then intlog_note('l_message.msg_level',l_message.msg_level);                   $end
-          $if $$intlog $then intlog_note('f_current_traversal_msg_mode',f_current_traversal_msg_mode); $end
- 
-        --log it, don't need to push it
-        l_message.message_id   := new_message_id;
-        l_message.traversal_id := f_current_traversal_id;
-        log_message(i_message => l_message ); 
-
-      ELSE
-        $if $$intlog $then intlog_debug('Not yet loggable, so push it.' );        $end
-	  	  --Node is unlogged or not set to low enough message mode, yet..
-        --push onto unlogged messages
-        push_message(io_messages     => g_nodes(f_index).unlogged_messages 
-                    ,i_message       => l_message); 
- 
-
-      END IF;   
-     
-
-  END IF;   
-  $if $$intlog $then intlog_end('create_message'); $end
-EXCEPTION
-  WHEN OTHERS THEN
-    err_warn_oracle_error('create_message');
-
-END create_message;
-
 ------------------------------------------------------------------------
 -- debug_error - PRIVATE
 ------------------------------------------------------------------------
@@ -1538,25 +1399,40 @@ END debug_error;
 
 
 
-
+------------------------------------------------------------------------
+-- ROUTINES (Public)
+------------------------------------------------------------------------
+ 
+ 
 ----------------------------------------------------------------------------
 -- create_ref -  now merely calls create_message
 ----------------------------------------------------------------------------
 
 
 PROCEDURE create_ref ( i_name      IN VARCHAR2
-                      ,i_value     IN CLOB
+                      ,i_value     IN VARCHAR2
                       ,i_msg_type  IN VARCHAR2
                       ,i_node      IN ms_logger.node_typ ) IS
  
 BEGIN
   $if $$intlog $then intlog_start('create_ref'); $end
+ 
+    IF LENGTH(i_value) <= G_REF_VALUE_WIDTH and INSTR(i_value,chr(10))= 0 THEN
+      --Short, single line value, so just put it in the value column
+      create_message ( i_name      => i_name
+                      ,i_value     => i_value
+                      ,i_msg_type  => i_msg_type
+                      ,i_msg_level => G_MSG_LEVEL_COMMENT
+                      ,i_node      => i_node);
 
-  create_message ( i_name      => i_name
-                  ,i_message   => i_value
-                  ,i_msg_type  => i_msg_type
-                  ,i_msg_level => G_MSG_LEVEL_COMMENT
-                  ,i_node      => i_node);
+    ELSE
+      --Longer or multi-line value, put it in the message column
+      create_message ( i_name      => i_name
+                      ,i_message   => i_value
+                      ,i_msg_type  => i_msg_type
+                      ,i_msg_level => G_MSG_LEVEL_COMMENT
+                      ,i_node      => i_node);
+    END IF;
  
   $if $$intlog $then intlog_end('create_ref'); $end
  
@@ -2276,7 +2152,7 @@ BEGIN
   RETURN v_result;
 END msg_level_string;
 
-  
+
 end;
 /
 show error;

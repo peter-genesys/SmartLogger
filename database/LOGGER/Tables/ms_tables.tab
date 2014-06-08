@@ -73,6 +73,7 @@ CREATE TABLE MS_MESSAGE
   MESSAGE_ID    NUMBER                          NOT NULL
  ,TRAVERSAL_ID  NUMBER                          NOT NULL
  ,NAME          VARCHAR2(100)                   --variable name
+ ,VALUE         VARCHAR2(30)                    --variable value
  ,MESSAGE       CLOB
  ,MSG_TYPE      VARCHAR2(10)                    --MESSAGE, PARAM, NOTE
  ,MSG_LEVEL     INTEGER
