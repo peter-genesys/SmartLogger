@@ -397,16 +397,18 @@ END f_elapsed_time;
   
     ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
     ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
-	ms_logger.note(l_node,'l_node.call_stack_hist',l_node.call_stack_hist );
-	ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
+	  ms_logger.note(l_node,'l_node.call_stack_hist',l_node.call_stack_hist );
+	  ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
 
-    msg_mode_node(i_node_count => 5); 
+     ms_logger.comment(l_node,'Comment before call to quiet unit');
     max_nest_test(i_node_count => 5);
+    msg_mode_node(i_node_count => 5); 
+
 
     max_nest_test(i_node_count => 25);
-	
 
-
+     ms_logger.comment(l_node,'Comment after - but probably skipped by exception');
+	 
   EXCEPTION
     WHEN OTHERS THEN
       ms_logger.oracle_error(l_node);

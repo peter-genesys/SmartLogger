@@ -1003,30 +1003,52 @@ END;
 -- log_message
 ------------------------------------------------------------------------
  
-PROCEDURE log_message(i_message  IN ms_message%ROWTYPE) IS
-    PRAGMA AUTONOMOUS_TRANSACTION;
+FUNCTION log_message(i_message  IN ms_message%ROWTYPE
+                    ,i_node     IN ms_logger.node_typ) RETURN BOOLEAN IS
+  PRAGMA AUTONOMOUS_TRANSACTION;
+
   l_message ms_message%ROWTYPE := i_message;
+  l_logged BOOLEAN := FALSE;
 BEGIN
   $if $$intlog $then intlog_start('log_message'); $end
   l_message.message_id := new_message_id;
-  
-  $if $$intlog $then intlog_note('message_id  ',l_message.message_id  ); $end
-  $if $$intlog $then intlog_note('traversal_id',l_message.traversal_id); $end
-  $if $$intlog $then intlog_note('name        ',l_message.name        ); $end
-  $if $$intlog $then intlog_note('message     ',l_message.message     ); $end
-  $if $$intlog $then intlog_note('msg_type    ',l_message.msg_type    ); $end
-  $if $$intlog $then intlog_note('msg_level   ',l_message.msg_level   ); $end
-  $if $$intlog $then intlog_note('time_now    ',l_message.time_now   ); $end
+
+  $if $$intlog $then intlog_note('l_message.msg_level',l_message.msg_level);  $end
+  $if $$intlog $then intlog_note('i_node.traversal.msg_mode'    ,i_node.traversal.msg_mode);      $end
  
-  INSERT INTO ms_message VALUES l_message;
+  IF i_node.logged AND 
+     l_message.msg_level >= i_node.traversal.msg_mode THEN
+     --Node is logged and the message's msg_level is at least as great as node's msg_mode
+     $if $$intlog $then intlog_debug('Loggable, so log it.' );        $end
+ 
+     l_message.message_id   := new_message_id;
+     l_message.traversal_id := i_node.traversal.traversal_id;
+ 
+     $if $$intlog $then intlog_note('message_id  ',l_message.message_id  ); $end
+     $if $$intlog $then intlog_note('traversal_id',l_message.traversal_id); $end
+     $if $$intlog $then intlog_note('name        ',l_message.name        ); $end
+     $if $$intlog $then intlog_note('message     ',l_message.message     ); $end
+     $if $$intlog $then intlog_note('msg_type    ',l_message.msg_type    ); $end
+     $if $$intlog $then intlog_note('msg_level   ',l_message.msg_level   ); $end
+     $if $$intlog $then intlog_note('time_now    ',l_message.time_now   ); $end
+    
+     INSERT INTO ms_message VALUES l_message;
+
+     l_logged := TRUE;
+  
+  END IF;
  
   COMMIT;
+
   $if $$intlog $then intlog_end('log_message'); $end
+
+  RETURN l_logged;
  
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
     err_warn_oracle_error('log_message');
+    RETURN FALSE;
 END;
  
 
@@ -1066,18 +1088,12 @@ BEGIN
                    ,i_msg_mode => G_MSG_MODE_DEBUG);
       END IF;
 
-      IF g_nodes(f_index).logged AND 
-        l_message.msg_level >= f_current_traversal_msg_mode THEN
-          $if $$intlog $then intlog_debug('Loggable, so log it.' );        $end
-          $if $$intlog $then intlog_note('l_message.msg_level',l_message.msg_level);                   $end
-          $if $$intlog $then intlog_note('f_current_traversal_msg_mode',f_current_traversal_msg_mode); $end
- 
-        --log it, don't need to push it
-        l_message.message_id   := new_message_id;
-        l_message.traversal_id := f_current_traversal_id;
-        log_message(i_message => l_message ); 
-
+      IF log_message(i_message => l_message
+                    ,i_node    => g_nodes(f_index)) THEN
+        --logged it, don't need to push it
+        NULL;
       ELSE
+        --Not loggable
         $if $$intlog $then intlog_debug('Not yet loggable, so push it.' );        $end
         --Node is unlogged or not set to low enough message mode, yet..
         --push onto unlogged messages
@@ -1106,9 +1122,12 @@ PROCEDURE log_node(io_node        IN OUT node_typ
 --Log traversal or update it if already logged.
 --Log any unlogged refs.
 
-  l_message_index BINARY_INTEGER;
+  l_message_index     BINARY_INTEGER;
+  l_del_message_index BINARY_INTEGER;
+
   x_too_deeply_nested   EXCEPTION;
   PRAGMA AUTONOMOUS_TRANSACTION;
+  l_logged BOOLEAN;
  
 BEGIN
   $if $$intlog $then intlog_start('log_node'); $end
@@ -1118,8 +1137,7 @@ BEGIN
  
   --should we start a new process
   IF  io_node.open_process = G_OPEN_PROCESS_ALWAYS    OR 
-     (io_node.open_process = G_OPEN_PROCESS_IF_CLOSED AND 
-      f_process_is_closed) THEN
+     (io_node.open_process = G_OPEN_PROCESS_IF_CLOSED AND f_process_is_closed) THEN
  
     --if the procedure stack if empty then we'll start a new process
     log_process(i_origin  => io_node.module.module_name||' '||io_node.unit.unit_name  );
@@ -1163,22 +1181,24 @@ BEGIN
   
   COMMIT;  --commit prior to logging refs
  
-  IF io_node.traversal.msg_mode = G_MSG_MODE_DEBUG THEN
-    --incase there are any unlogged messages attached,
-    --log them all.
-    l_message_index := io_node.unlogged_messages.FIRST;
-    WHILE l_message_index IS NOT NULL LOOP
-      io_node.unlogged_messages(l_message_index).traversal_id := io_node.traversal.traversal_id;
-      log_message(i_message => io_node.unlogged_messages(l_message_index));
-    
-      l_message_index := io_node.unlogged_messages.NEXT(l_message_index);
-    END LOOP;
-    --clear unlogged refs
-    io_node.unlogged_messages.DELETE;
+  --Loop thru any unlogged messages, attempting to log each.  
+  --if successful, then remove message from the list.
+  l_message_index := io_node.unlogged_messages.FIRST;
+  WHILE l_message_index IS NOT NULL LOOP
+    $if $$intlog $then intlog_note('l_message_index',l_message_index);            $end
+
+    IF log_message(i_message => io_node.unlogged_messages(l_message_index)
+                  ,i_node    => io_node) THEN
+      l_del_message_index := l_message_index;                             --remember message to delete
+      l_message_index := io_node.unlogged_messages.NEXT(l_message_index); --next unlogged message 
+      --Logged so now we can delete this message from the unlogged list.
+      io_node.unlogged_messages.DELETE(l_del_message_index);
+    ELSE
+      l_message_index := io_node.unlogged_messages.NEXT(l_message_index); --next unlogged message
+    END IF;
  
-  END IF;
-  
-  
+  END LOOP;
+ 
   $if $$intlog $then intlog_end('log_node'); $end
   
 EXCEPTION
