@@ -85,6 +85,8 @@ create or replace package body aop_processor is
   G_REGEX_END_CASE      CONSTANT VARCHAR2(50) := '\sEND\s+?CASE\s*?;';
   G_REGEX_END_CASE_EXPR CONSTANT VARCHAR2(50) := '\sEND\W'; 
   G_REGEX_END_IF        CONSTANT VARCHAR2(50) := '\sEND\s+?IF\s*?;';
+
+  G_REGEX_SEMI_COL      CONSTANT VARCHAR2(50) := ';';
    
   --G_REGEX_ANNOTATION          CONSTANT VARCHAR2(50) := '--';
  
@@ -148,6 +150,7 @@ create or replace package body aop_processor is
   G_COLOUR_BRACKETS         CONSTANT VARCHAR2(10) := '#FF5050'; 
   G_COLOUR_EXCEPTION_BLOCK  CONSTANT VARCHAR2(10) := '#FF9933'; 
   G_COLOUR_JAVA             CONSTANT VARCHAR2(10) := '#33CCCC'; 
+  --G_COLOUR_FORWARD_DECLARE  CONSTANT VARCHAR2(10) := '#FF9999'; 
   G_COLOUR_ANNOTATION       CONSTANT VARCHAR2(10) := '#FFCCFF'; 
   G_COLOUR_BIND_VAR         CONSTANT VARCHAR2(10) := '#FFFF00';
   G_COLOUR_VAR              CONSTANT VARCHAR2(10) := '#99FF66';
@@ -1325,7 +1328,7 @@ BEGIN
       l_bind_var := get_next ( i_search      => G_REGEX_BIND_VAR
                               ,i_lower       => TRUE
                               ,i_colour      => G_COLOUR_BIND_VAR);      
-      go_past(';'); 
+      go_past(G_REGEX_SEMI_COL); 
     
           inject( i_new_code => 'ms_logger.note(l_node,'''||l_bind_var||''','||l_bind_var||');'
                ,i_indent     => i_indent
@@ -1339,7 +1342,7 @@ BEGIN
                          ,i_lower       => TRUE
                          ,i_colour      => G_COLOUR_VAR);
         ms_logger.note(l_node, 'l_var'     ,l_var  );                       
-        go_past(';');
+        go_past(G_REGEX_SEMI_COL);
     
         IF l_var_list.EXISTS(l_var) THEN
           --This variable exists in the list of scoped variables with compatible types    
@@ -1391,7 +1394,7 @@ BEGIN
                           ,i_colour      => G_COLOUR_VAR);
         ms_logger.note(l_node, 'l_var '     ,l_var  );                       
  
-        go_past(';'); 
+        go_past(G_REGEX_SEMI_COL); 
     
         IF l_var_list.EXISTS(l_var) THEN
           --Tab Column rec variable exists 
@@ -1528,12 +1531,14 @@ PROCEDURE AOP_prog_units(i_indent   IN INTEGER
 
   l_keyword         VARCHAR2(50);
   l_language        VARCHAR2(50);
+  l_forward_declare        VARCHAR2(50);
   l_node_type       VARCHAR2(50);
   l_prog_unit_name  VARCHAR2(30);
   
   l_var_list        var_list_typ := i_var_list;
   
   x_language_java_name EXCEPTION;
+  x_forward_declare    EXCEPTION;
  
 BEGIN
 
@@ -1566,20 +1571,35 @@ BEGIN
       RAISE x_invalid_keyword;
       END CASE;  
       ms_logger.note(l_node, 'l_node_type' ,l_node_type);  
-     
-      
+ 
       --Check for LANGUAGE JAVA NAME
       --If this is a JAVA function then we don't want a node and don't need to bother reading spec or parsing body.
       --Will find a LANGUAGE keyword before next ";"
       l_language := get_next(i_search       => G_REGEX_JAVA 
-                           ,i_stop         => ';'
-                           ,i_upper        => TRUE
-                           ,i_colour       => G_COLOUR_JAVA
-                           ,i_raise_error  => TRUE );
+                            ,i_stop         => G_REGEX_SEMI_COL
+                            ,i_upper        => TRUE
+                            ,i_colour       => G_COLOUR_JAVA
+                            ,i_raise_error  => TRUE );
      
       ms_logger.note(l_node, 'l_language' ,l_language); 
       IF l_language LIKE 'LANGUAGE%' THEN
         RAISE x_language_java_name; 
+      END IF;
+    
+      
+      --Check for Forward Declaration
+      --If this is a Forward Declaration 
+      --then we don't want a node and don't need to bother reading spec or parsing body.
+      --Will find a ";" before next IS or AS
+      l_forward_declare := get_next(i_search       => G_REGEX_SEMI_COL 
+                                   ,i_stop         => G_REGEX_IS_AS 
+                                   ,i_upper        => TRUE
+                                   ,i_colour       => G_COLOUR_GO_PAST --G_COLOUR_FORWARD_DECLARE
+                                   ,i_raise_error  => TRUE );
+     
+      ms_logger.note(l_node, 'l_forward_declare' ,l_forward_declare); 
+      IF l_forward_declare = G_REGEX_SEMI_COL THEN
+        RAISE x_forward_declare; 
       END IF;
       
       --Get program unit name
@@ -1600,6 +1620,9 @@ BEGIN
     EXCEPTION 
       WHEN x_language_java_name THEN
         ms_logger.comment(l_node, 'Found LANGUAGE JAVA NAME.');    
+      
+      WHEN x_forward_declare THEN
+        ms_logger.comment(l_node, 'Found FORWARD DECLARATION.');    
     END;
   END LOOP;
  

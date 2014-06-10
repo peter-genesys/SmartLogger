@@ -2,7 +2,7 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
   --@AOP_LOG
 
   g number;
-
+ 
   function test4(i_module ms_module%ROWTYPE
                 ,o_unit      out ms_unit%ROWTYPE) return varchar2 is
     l_var number;
@@ -151,6 +151,14 @@ where max_event_date >= :i_min_qa_date
                  ,i_param13 in varchar2) is
 
     l_test varchar2(100) := test3(i_param31 => 'X');
+
+    procedure test1a(i_param1a1 in varchar2);
+
+    procedure test1b(i_param1b1 in varchar2) is
+    begin
+      test1a(i_param1a1 => i_param1b1);
+    END;
+
 
     procedure test1a(i_param1a1 in varchar2) is
       procedure test1aa(i_param1aa1 in varchar2
