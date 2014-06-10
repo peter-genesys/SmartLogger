@@ -128,6 +128,64 @@ G_MODULE_TYPE_DBTRIGGER   CONSTANT ms_module.module_type%TYPE := 'DB_TRIG';
   
   
 ----------------------------------------------------------------------
+-- Type Conversion functions (private)
+----------------------------------------------------------------------
+
+/*********************************************************************
+* MODULE:       f_boolean
+* PURPOSE:      Converts a Y/N variable to a boolean TRUE/FALSE.
+*               NULL means FALSE.
+* RETURNS:
+* NOTES:
+*********************************************************************/
+FUNCTION f_boolean (i_yn IN VARCHAR2)
+RETURN BOOLEAN IS
+BEGIN
+  RETURN NVL(i_yn,g_no) = g_yes;
+END f_boolean;
+
+
+/*********************************************************************
+* MODULE:       f_yn
+* PURPOSE:      Converts a boolean TRUE/FALSE to a Y/N variable
+*               NULL converts to N.
+* RETURNS:
+* NOTES:
+*********************************************************************/
+FUNCTION f_yn (i_boolean IN BOOLEAN)
+RETURN VARCHAR2 IS
+ 
+BEGIN
+ 
+  IF i_boolean THEN
+    RETURN g_yes;
+  ELSE
+    RETURN g_no;
+  END IF;
+ 
+END f_yn;
+
+/*********************************************************************
+* MODULE:       f_true_false
+* PURPOSE:      Converts a boolean TRUE/FALSE to a TRUE/FALSE sting variable
+* RETURNS:
+* NOTES:
+*********************************************************************/
+FUNCTION f_true_false (i_boolean IN BOOLEAN)
+RETURN VARCHAR2 IS
+BEGIN
+  IF i_boolean THEN
+    RETURN G_TRUE;
+    
+  ELSIF NOT i_boolean THEN
+    RETURN G_FALSE;
+    
+  ELSE 
+    RETURN G_NULL;
+  END IF;
+END f_true_false;  
+  
+----------------------------------------------------------------------
 -- NEW ID's   
 -- Get an ID from a sequence (private)
 ----------------------------------------------------------------------
@@ -212,10 +270,17 @@ BEGIN
 END;
 
 PROCEDURE intlog_note(i_name  IN VARCHAR2
-                       ,i_value IN VARCHAR2) IS
+                     ,i_value IN VARCHAR2) IS
 BEGIN 
   intlog_putline('.'||i_name||':'||i_value);
 END;
+
+PROCEDURE intlog_note(i_name  IN VARCHAR2
+                     ,i_value IN BOOLEAN) IS					 
+BEGIN 
+  intlog_putline('.'||i_name||':'||f_true_false(i_value));
+END;
+ 
 
 
 PROCEDURE intlog_error(i_message IN VARCHAR2 ) IS
@@ -386,12 +451,15 @@ BEGIN
   $if $$intlog $then intlog_note('i_module_name',i_module_name);  $end
   $if $$intlog $then intlog_note('i_module_type',i_module_type);  $end
   $if $$intlog $then intlog_note('i_revision   ',i_revision   );  $end
+  $if $$intlog $then intlog_note('i_unit_name  ',i_unit_name  );  $end
+  $if $$intlog $then intlog_note('i_create  '   ,i_create     );  $end
   
   l_module := get_module(i_module_name => i_module_name  );
   l_module_exists := l_module.module_id IS NOT NULL;
 
   IF NOT l_module_exists AND i_create THEN
-
+    $if $$intlog $then intlog_debug('Create a new module');  $end
+	
     IF i_module_type IS NULL THEN 
       --Derive module type
       CASE 
@@ -482,13 +550,17 @@ IS
  
 BEGIN
   $if $$intlog $then intlog_start('find_unit'); $end
-  
+  $if $$intlog $then intlog_note('i_module_id  ',i_module_id  );  $end
+  $if $$intlog $then intlog_note('i_unit_name  ',i_unit_name  );  $end
+  $if $$intlog $then intlog_note('i_unit_type  ',i_unit_type  );  $end
+  $if $$intlog $then intlog_note('i_create  '   ,i_create     );  $end
+ 
   l_unit := get_unit(i_module_id => i_module_id
                     ,i_unit_name => i_unit_name);
   l_unit_exists := l_unit.unit_id IS NOT NULL;
  
   IF NOT l_unit_exists AND i_create THEN
-
+    $if $$intlog $then intlog_debug('Create a new unit');  $end
     --create the new procedure record
     l_unit.unit_id         := new_unit_id;
     l_unit.module_id       := i_module_id;
@@ -590,64 +662,7 @@ END;
 --
 --                       PRIVATE MODULES
 
-----------------------------------------------------------------------
--- Type Conversion functions (private)
-----------------------------------------------------------------------
 
-/*********************************************************************
-* MODULE:       f_boolean
-* PURPOSE:      Converts a Y/N variable to a boolean TRUE/FALSE.
-*               NULL means FALSE.
-* RETURNS:
-* NOTES:
-*********************************************************************/
-FUNCTION f_boolean (i_yn IN VARCHAR2)
-RETURN BOOLEAN IS
-BEGIN
-  RETURN NVL(i_yn,g_no) = g_yes;
-END f_boolean;
-
-
-/*********************************************************************
-* MODULE:       f_yn
-* PURPOSE:      Converts a boolean TRUE/FALSE to a Y/N variable
-*               NULL converts to N.
-* RETURNS:
-* NOTES:
-*********************************************************************/
-FUNCTION f_yn (i_boolean IN BOOLEAN)
-RETURN VARCHAR2 IS
- 
-BEGIN
- 
-  IF i_boolean THEN
-    RETURN g_yes;
-  ELSE
-    RETURN g_no;
-  END IF;
- 
-END f_yn;
-
-/*********************************************************************
-* MODULE:       f_tf
-* PURPOSE:      Converts a boolean TRUE/FALSE to a T/F sting variable
-*               NULL converts to F.
-* RETURNS:
-* NOTES:
-*********************************************************************/
-FUNCTION f_tf (i_boolean IN BOOLEAN)
-RETURN VARCHAR2 IS
-BEGIN
-  IF i_boolean THEN
-    RETURN G_TRUE;
-    
-  ELSIF NOT i_boolean THEN
-    RETURN G_FALSE;
-    
-  ELSE 
-    RETURN G_NULL;
-  END IF;
-END f_tf;
 
 ----------------------------------------------------------------------
 -- EXPOSED FOR THE MS_API
@@ -790,7 +805,9 @@ END;
 PROCEDURE pop_to_parent_node(i_node IN node_typ) IS
 --Pop any node that is not an ancestor of this node.
 BEGIN
-  $if $$intlog $then intlog_start('pop_to_parent_node');                                $end
+  $if $$intlog $then intlog_start('pop_to_parent_node');                            $end
+  $if $$intlog $then intlog_note('i_node.unit.unit_name',i_node.unit.unit_name );   $end
+  
   $if $$intlog $then intlog_note('current call_stack_level',i_node.call_stack_level );  $end
   $if $$intlog $then intlog_note('f_index',f_index );                                   $end
   $if $$intlog $then intlog_note('g_nodes(f_index).unit.unit_name',g_nodes(f_index).unit.unit_name );   $end
@@ -808,17 +825,7 @@ BEGIN
 		-- i_node.call_stack_hist NOT LIKE      g_nodes(f_index).call_stack_hist||'%' )
  
   loop
-  
-	--comment(i_node,'pop_to_parent_node');
-    --note(i_node,'i_node.unit.unit_name',i_node.unit.unit_name);                         --TESTING ONLY
-    --note(i_node,'i_node.call_stack_level',i_node.call_stack_level);                     --TESTING ONLY
-    --note(i_node,'i_node.call_stack_hist',i_node.call_stack_hist);                       --TESTING ONLY	
-	--note(i_node,'f_index',f_index); 
-    --note(i_node,'g_nodes(f_index).unit.unit_name',g_nodes(f_index).unit.unit_name);     --TESTING ONLY
-	--note(i_node,'g_nodes(f_index).call_stack_level',g_nodes(f_index).call_stack_level); --TESTING ONLY
-	--note(i_node,'g_nodes(f_index).call_stack_hist',g_nodes(f_index).call_stack_hist);   --TESTING ONLY
-  
-  
+ 
 	   $if $$intlog $then intlog_note('last call_stack_level',g_nodes(f_index).call_stack_level ); $end
 	   $if $$intlog $then intlog_note('last call_stack_hist' ,g_nodes(f_index).call_stack_hist ); $end
 	   $if $$intlog $then intlog_debug('pop_to_parent_node: removing top node '||f_index );        $end
@@ -838,7 +845,9 @@ END;
 PROCEDURE pop_descendent_nodes(i_node IN node_typ) IS
 --Pop any node that is not a ancestor of this node.
 BEGIN
-  $if $$intlog $then intlog_start('pop_descendent_nodes');                              $end         
+  $if $$intlog $then intlog_start('pop_descendent_nodes');                              $end     
+  $if $$intlog $then intlog_note('i_node.unit.unit_name',i_node.unit.unit_name );   $end
+  
   $if $$intlog $then intlog_note('current call_stack_level',i_node.call_stack_level );  $end
   $if $$intlog $then intlog_note('f_index',f_index );                                   $end
   $if $$intlog $then intlog_note('g_nodes(f_index).unit.unit_name',g_nodes(f_index).unit.unit_name );   $end
@@ -848,17 +857,7 @@ BEGIN
         g_nodes(f_index).call_stack_level > i_node.call_stack_level  loop
 	   $if $$intlog $then intlog_note('last call_stack_level',g_nodes(f_index).call_stack_level ); $end
 	   $if $$intlog $then intlog_debug('pop_descendent_nodes: removing top node '||f_index );      $end
-	   
-	--comment(i_node,'pop_descendent_nodes');
-    --note(i_node,'i_node.unit.unit_name',i_node.unit.unit_name);                         --TESTING ONLY
-    --note(i_node,'i_node.call_stack_level',i_node.call_stack_level);                     --TESTING ONLY
-    --note(i_node,'i_node.call_stack_hist',i_node.call_stack_hist);                       --TESTING ONLY	
-	--note(i_node,'f_index',f_index); 
-    --note(i_node,'g_nodes(f_index).unit.unit_name',g_nodes(f_index).unit.unit_name);     --TESTING ONLY
-	--note(i_node,'g_nodes(f_index).call_stack_level',g_nodes(f_index).call_stack_level); --TESTING ONLY
-	--note(i_node,'g_nodes(f_index).call_stack_hist',g_nodes(f_index).call_stack_hist);   --TESTING ONLY
-	   
-	   
+ 
        g_nodes.DELETE( f_index );
   end loop;
   $if $$intlog $then intlog_end('pop_descendent_nodes'); $end
@@ -880,6 +879,7 @@ PROCEDURE push_node(io_node  IN OUT node_typ) IS
  
 BEGIN
   $if $$intlog $then intlog_start('push_node'); $end
+  $if $$intlog $then intlog_note('io_node.unit.unit_name',io_node.unit.unit_name );   $end
  
   --Next index is last index + 1
   l_next_index := NVL(f_index,0) + 1;
@@ -939,11 +939,16 @@ IS
 
 BEGIN
     $if $$intlog $then intlog_start('log_process'); $end
+    $if $$intlog $then intlog_note('i_origin  ',i_origin   );   $end
+    $if $$intlog $then intlog_note('i_ext_ref ',i_ext_ref  );   $end
+    $if $$intlog $then intlog_note('i_comments',i_comments );   $end
+	
     --reset internal error for the new process
     g_internal_error := FALSE;
  
-    SELECT ms_process_seq.NEXTVAL INTO g_process_id FROM DUAL;
-    
+    g_process_id := ms_process_seq.NEXTVAL;
+	$if $$intlog $then intlog_note('g_process_id',g_process_id);           $end
+ 
     l_process.process_id     := g_process_id;
     l_process.origin         := i_origin;
     l_process.ext_ref        := i_ext_ref;
@@ -951,6 +956,8 @@ BEGIN
     l_process.created_date   := SYSDATE; 
     l_process.comments       := i_comments;
     l_process.internal_error := 'N';
+ 
+    
  
     --insert a new process
     INSERT INTO ms_process VALUES l_process;
@@ -985,10 +992,13 @@ BEGIN
  
   --Next index is last index + 1
   l_next_index := NVL(io_messages.LAST,0) + 1;
-
+  $if $$intlog $then intlog_note('l_next_index  ',l_next_index   );   $end
+  
   --add to the stack             
   io_messages( l_next_index ) := i_message;
+  
 
+ 
 END;
 
 ------------------------------------------------------------------------
@@ -1019,6 +1029,7 @@ BEGIN
      $if $$intlog $then intlog_note('message_id  ',l_message.message_id  ); $end
      $if $$intlog $then intlog_note('traversal_id',l_message.traversal_id); $end
      $if $$intlog $then intlog_note('name        ',l_message.name        ); $end
+	 $if $$intlog $then intlog_note('value       ',l_message.value        ); $end
      $if $$intlog $then intlog_note('message     ',l_message.message     ); $end
      $if $$intlog $then intlog_note('msg_type    ',l_message.msg_type    ); $end
      $if $$intlog $then intlog_note('msg_level   ',l_message.msg_level   ); $end
@@ -1123,6 +1134,9 @@ PROCEDURE log_node(io_node        IN OUT node_typ
  
 BEGIN
   $if $$intlog $then intlog_start('log_node'); $end
+  $if $$intlog $then intlog_note('unit_name          ',io_node.unit.unit_name  );              $end
+  $if $$intlog $then intlog_note('i_parent_index     ',i_parent_index );              $end
+  
   IF f_index = g_max_nested_units THEN
     RAISE x_too_deeply_nested;
   END IF;
@@ -1221,6 +1235,10 @@ PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
   l_traversal_index BINARY_INTEGER;
 BEGIN
   $if $$intlog $then intlog_start('dump_nodes'); $end
+  $if $$intlog $then intlog_note('i_index           ',i_index);               $end
+  $if $$intlog $then intlog_note('i_msg_mode        ',i_msg_mode);            $end
+  
+  
   IF i_index > 0 AND ( 
           NOT g_nodes(i_index).logged 
 	  OR  g_nodes(i_index).traversal.msg_mode > i_msg_mode)  THEN
@@ -1621,7 +1639,9 @@ IS
 
 BEGIN
   $if $$intlog $then intlog_start('create_traversal'); $end
-  IF NOT g_internal_error THEN
+  $if $$intlog $then intlog_note('io_node.unit.unit_name',io_node.unit.unit_name); $end
+  
+  
  
     --Messages and references, in the SCOPE of this traversal, will be stored.
     io_node.traversal.traversal_id        := NULL;
@@ -1631,8 +1651,13 @@ BEGIN
     io_node.traversal.msg_mode            := NVL(io_node.unit.msg_mode    ,io_node.module.msg_mode);      --unit override module, unless null
     io_node.open_process                  := NVL(io_node.unit.open_process,io_node.module.open_process);  --unit override module, unless null
     io_node.logged                        := FALSE;
-
-    IF io_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN  
+	
+	IF g_internal_error AND io_node.open_process <> G_OPEN_PROCESS_ALWAYS THEN
+      -- internal error state, and not starting a new process yet
+      $if $$intlog $then intlog_debug('SmartLogger inactive'); $end
+      NULL;
+ 
+    ELSIF io_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN  
       -- create disabled nodes, but don't log them or stack them
       $if $$intlog $then intlog_debug('Disabled node'); $end
       NULL;
@@ -1662,8 +1687,7 @@ BEGIN
       END IF;
 
     END IF;
-	
-  END IF;
+ 
   
   io_node.internal_error := g_internal_error;
   
@@ -1683,7 +1707,7 @@ END create_traversal;
 
 FUNCTION new_node(i_module_name IN VARCHAR2
                  ,i_unit_name   IN VARCHAR2
-			         	 ,i_unit_type   IN VARCHAR2) RETURN ms_logger.node_typ IS
+			     ,i_unit_type   IN VARCHAR2) RETURN ms_logger.node_typ IS
 				 
   --When upgraded to 12C may not need to pass any params				 
 
@@ -2134,7 +2158,7 @@ IS
 BEGIN
 
   create_ref ( i_name       => i_name
-              ,i_value      => f_tf(i_bool_value)
+              ,i_value      => f_true_false(i_bool_value)
               ,i_msg_type   => G_MSG_TYPE_NOTE
               ,i_node       => i_node);
 
@@ -2147,7 +2171,7 @@ IS
 
 BEGIN
   create_ref ( i_name        => i_name
-              ,i_value       => f_tf(i_bool_value)
+              ,i_value       => f_true_false(i_bool_value)
               ,i_msg_type    => G_MSG_TYPE_PARAM
               ,i_node        => i_node);
 

@@ -13,6 +13,7 @@ create or replace package body aop_processor is
  
   g_during_advise boolean:= false;
   
+  g_aop_never     CONSTANT VARCHAR2(30) := '@AOP_NEVER';
   g_aop_directive CONSTANT VARCHAR2(30) := '@AOP_LOG'; 
  
   g_for_aop_html      boolean := false;
@@ -294,7 +295,7 @@ create or replace package body aop_processor is
           when others then
           l_aop_source.result   := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
           l_aop_source.valid_yn := 'N';
-            ms_logger.warn_error(l_node);   
+           ms_logger.warn_error(l_node);   
         
         --Output Show Errors info
             FOR l_error IN (select line||' '||text  error_line
@@ -315,8 +316,12 @@ create or replace package body aop_processor is
     COMMIT;
     
     RETURN l_aop_source.valid_yn = 'Y';
-   
-      
+	
+  exception
+      when others then
+         ms_logger.oracle_error(l_node);  
+         RETURN FALSE;	   
+  
   END;
  
  
@@ -1749,8 +1754,8 @@ END;
       l_advised := false;
     when x_weave_timeout then
       ms_logger.fatal(l_node, 'x_weave_timeout');
-    wedge( i_new_code => 'WEAVE TIMED OUT'
-                ,i_colour  => G_COLOUR_ERROR);
+      wedge( i_new_code => 'WEAVE TIMED OUT'
+            ,i_colour  => G_COLOUR_ERROR);
       l_advised := false;
     when x_string_not_found then
       ms_logger.fatal(l_node, 'x_string_not_found');
@@ -1844,9 +1849,13 @@ END;
   -- Conversely it also checks for @AOP_LOG, which must be present or AOP will also exit.
   --This ensure that a routine is not logged unless explicitly requested.
   --Also AOP will remove AOP_LOG in the AOP Source, so that logging cannot be doubled-up.
-    if instr(l_orig_body, '@AOP_NEVER') > 0 or instr(l_orig_body, g_aop_directive) = 0 
-    then
-    g_during_advise:= false; 
+    if instr(l_orig_body, g_aop_never) > 0 THEN
+      g_during_advise:= false; 
+	  ms_logger.info(l_node, '@AOP_NEVER found.  AOP_PROCESSOR skipping this request' );
+      return;
+    elsif instr(l_orig_body, g_aop_directive) = 0 then
+      g_during_advise:= false; 
+	  ms_logger.info(l_node, '@AOP_LOG not found.  AOP_PROCESSOR skipping this request' );
       return;
     end if;
   
@@ -1855,10 +1864,11 @@ END;
                         , i_text  => l_orig_body
                         , i_aop_ver => 'ORIG') THEN
     g_during_advise:= false; 
-    return; -- Don't bother with AOP since the original source is invalid anyway.     
+	ms_logger.info(l_node, 'Original Source is invalid.  AOP_PROCESSOR skipping this request' );
+    return;    
   end if;     
  
-  l_aop_body := l_orig_body;
+    l_aop_body := l_orig_body;
     -- manipulate source by weaving in aspects as required; only weave if the key logging not yet applied.
     l_advised := weave( p_code         => l_aop_body
                       , p_package_name => lower(p_object_name)
@@ -1866,18 +1876,18 @@ END;
  
     -- (re)compile the source if any advises have been applied
     if l_advised then
-  
+    ms_logger.comment(l_node, 'Compile the AOP version.' );
     IF NOT validate_source(i_name  => p_object_name
                          , i_type  => p_object_type
                          , i_text  => l_aop_body
                          , i_aop_ver => 'AOP') THEN
- 
+      ms_logger.info(l_node, 'Recompile the Original version.' );
       --reexecute the original so that we at least end up with a valid package.
       IF NOT  validate_source(i_name  => p_object_name
                             , i_type  => p_object_type
                             , i_text  => l_orig_body
                             , i_aop_ver => 'ORIG') THEN
-      --unlikely that we'd get an error in the original if it worked last time
+      --unlikely that will get an error in the original if it worked last time
       --but trap it incase we do  
           ms_logger.fatal(l_node,'Original Source is invalid on second try.');      
     end if;
@@ -1970,12 +1980,12 @@ END;
   procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL) is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'reapply_aspect'); 
   begin
- 
+    ms_logger.param(l_node, 'i_object_name', i_object_name);
       for l_object in (select object_name 
                             , object_type
                             , USER         owner
                from user_objects  --only want to see objects owned by the invoker
-             where object_type ='PACKAGE BODY'
+             where object_type IN ('PACKAGE BODY','PROCEDURE','FUNCTION','TRIGGER')
              and   object_name = NVL(UPPER(i_object_name),object_name)) loop
           --AOP the package
           advise_package( p_object_name  => l_object.object_name
