@@ -312,8 +312,8 @@ BEGIN
 	FOR l_line IN (SELECT lpad('+ ',(level-1)*2,'+ ')
                          ||module_name||'.'
                          ||unit_name
-                         ||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_reference where traversal_id = t.traversal_id)
-                         ||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id) as text
+                         ||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_message where traversal_id = t.traversal_id and msg_type in ('PARAM','NOTE'))
+                         ||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id and msg_type not in ('PARAM','NOTE')) as text
                    FROM ms_unit_traversal_vw t
                    WHERE process_id = l_process_id
                    START WITH parent_traversal_id IS NULL
@@ -396,7 +396,6 @@ BEGIN
              ,m.MSG_LEVEL_TEXT
              ,m.name
              ,m.value
-             ,m.descr
        from (
        select level
                ,ut.*
@@ -644,3 +643,4 @@ END mail;
   
 end;
 /
+show error;

@@ -1,13 +1,12 @@
---prompt new_process 
 alter package ms_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings;
 set serveroutput on;
-spool c:\ms_test.log;
+spool  ms_test3.log;
 declare
-  l_process_id NUMBER :=  ms_logger.new_process(i_process_name => 'ms_test.sql'  
+  l_process_id NUMBER :=  ms_logger.new_process(i_process_name => 'ms_test3.sql'  
                                                ,i_process_type   => 'SQL SCRIPT' 
                                                ,i_ext_ref     => null
                                                ,i_comments    => 'Testing the ms_logger package'); 
-  l_node ms_logger.node_typ := ms_logger.new_script('ms_test' ,'anon');										   
+  l_node ms_logger.node_typ := ms_logger.new_script('ms_test3' ,'anon');										   
 											   
 BEGIN
   

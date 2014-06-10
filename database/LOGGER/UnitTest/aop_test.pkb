@@ -237,4 +237,4 @@ where max_event_date >= :i_min_qa_date
 end;
 /
 show errors;
---execute logger.aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST');
+execute logger.aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST');

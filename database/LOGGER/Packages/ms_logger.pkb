@@ -370,7 +370,8 @@ END get_module;
 FUNCTION find_module(i_module_name  IN VARCHAR2
                     ,i_module_type  IN VARCHAR2 DEFAULT NULL
                     ,i_revision     IN VARCHAR2 DEFAULT NULL
-                    ,i_unit_name    IN VARCHAR2 DEFAULT NULL)
+                    ,i_unit_name    IN VARCHAR2 DEFAULT NULL
+                    ,i_create       IN BOOLEAN  DEFAULT TRUE)
 RETURN ms_module%ROWTYPE
 IS
  
@@ -389,7 +390,7 @@ BEGIN
   l_module := get_module(i_module_name => i_module_name  );
   l_module_exists := l_module.module_id IS NOT NULL;
 
-  IF NOT l_module_exists THEN
+  IF NOT l_module_exists AND i_create THEN
 
     IF i_module_type IS NULL THEN 
       --Derive module type
@@ -1457,6 +1458,78 @@ END create_ref;
 -- Message Mode operations (private)
 ------------------------------------------------------------------------
  
+PROCEDURE  set_module_msg_mode(i_module_id   IN NUMBER
+                              ,i_msg_mode IN NUMBER )
+IS
+  pragma autonomous_transaction;
+BEGIN
+  $if $$intlog $then intlog_start('set_module_msg_mode');    $end
+  $if $$intlog $then intlog_note('i_module_id',i_module_id);   $end
+  $if $$intlog $then intlog_note('i_msg_mode',i_msg_mode); $end
+
+  UPDATE ms_module
+  SET    msg_mode  = i_msg_mode
+  WHERE  module_id = i_module_id;
+
+  COMMIT;
+  $if $$intlog $then intlog_end('set_module_msg_mode'); $end
+  EXCEPTION
+    WHEN OTHERS THEN
+      ROLLBACK;
+      err_warn_oracle_error('set_module_msg_mode');
+END;
+ 
+
+------------------------------------------------------------------------
+  
+PROCEDURE  set_module_msg_mode(i_module_name IN VARCHAR2
+                              ,i_msg_mode   IN NUMBER ) IS
+                             
+BEGIN
+
+
+  set_module_msg_mode(i_module_id  => find_module(i_module_name => i_module_name
+                                                 ,i_create      => FALSE).module_id
+                     ,i_msg_mode => i_msg_mode);
+ 
+END; 
+
+------------------------------------------------------------------------
+-- Message Mode operations (PUBLIC)
+------------------------------------------------------------------------
+ 
+PROCEDURE  set_module_debug(i_module_name IN VARCHAR2 ) IS
+                             
+BEGIN
+  set_module_msg_mode(i_module_name  => i_module_name
+                     ,i_msg_mode    => G_MSG_MODE_DEBUG);
+END; 
+
+------------------------------------------------------------------------
+
+PROCEDURE  set_module_normal(i_module_name IN VARCHAR2 ) IS
+                             
+BEGIN
+  set_module_msg_mode(i_module_name  => i_module_name
+                     ,i_msg_mode    => G_MSG_MODE_NORMAL);
+END; 
+
+------------------------------------------------------------------------
+
+PROCEDURE  set_module_quiet(i_module_name IN VARCHAR2 ) IS
+                             
+BEGIN
+  set_module_msg_mode(i_module_name  => i_module_name
+                     ,i_msg_mode    => G_MSG_MODE_QUIET);
+END; 
+ 
+PROCEDURE  set_module_disabled(i_module_name IN VARCHAR2 ) IS
+                             
+BEGIN
+  set_module_msg_mode(i_module_name  => i_module_name
+                     ,i_msg_mode    => G_MSG_MODE_DISABLED);
+END; 
+
 PROCEDURE  set_unit_msg_mode(i_unit_id   IN NUMBER
                             ,i_msg_mode IN NUMBER )
 IS
@@ -1491,7 +1564,7 @@ BEGIN
   set_unit_msg_mode(i_unit_id  => find_unit(i_module_name => i_module_name
                                            ,i_unit_name   => i_unit_name
                                            ,i_create      => FALSE).unit_id
-                   ,i_msg_mode => i_msg_mode);
+                                           ,i_msg_mode => i_msg_mode);
  
 END; 
 

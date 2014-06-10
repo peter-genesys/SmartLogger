@@ -1,30 +1,23 @@
-prompt aop_test.sql
+alter package ms_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings;
+set serveroutput on;
 
 spool aop_test.log
 
-prompt register this script  and the test package (may not need to reg package)
---execute ms_logger.register_script('aop_test.sql','10.0');  
---execute ms_logger.register_package('aop_test','10.0');
-
-column my_unique_id_var noprint new_val my_unique_id
-undefine my_unique_id
-
-select 'AOP_TEST.'||ltrim(ms_process_seq.nextval) my_unique_id_var from dual;
- 
---prompt new_process 
-set serveroutput on;
 declare
 
-l_process_id number :=  ms_logger.new_process(i_module_name => 'aop_test.sql'  
-                               ,i_unit_name   => 'aop_test.sql' 
-                               ,i_ext_ref     => '&&my_unique_id' 
-                               ,i_comments    => 'Testing the results of the aop_processor package');
+l_process_id number :=  ms_logger.new_process(i_process_name => 'aop_test.sql'  
+                                             ,i_process_type   => 'SQL SCRIPT' 
+                                             ,i_ext_ref     => 1 
+                                             ,i_comments    => 'Testing the results of the aop_processor package');
+
+ l_node ms_logger.node_typ := ms_logger.new_script('aop_test' ,'anon');			
+
  l_test varchar2(2000);	
  l_test2 varchar2(2000);	
 begin 
- ms_logger.set_internal_debug;
 
-
+ ms_logger.set_module_debug(i_module_name => 'aop_test');
+ 
  aop_test.test1('A','B','C');
 					  
 					  
@@ -32,5 +25,7 @@ begin
  
    l_test := aop_test.test3(i_param31 => 'A');
 end;	
-/				  
+/	
+spool off;
+alter package ms_logger compile PLSQL_CCFlags = 'intlog:false' reuse settings;			  
 					  

@@ -83,6 +83,18 @@ FUNCTION new_script(i_module_name IN VARCHAR2
 -- Message Mode operations (PUBLIC)
 ------------------------------------------------------------------------
  
+PROCEDURE  set_module_debug(i_module_name IN VARCHAR2 );
+
+------------------------------------------------------------------------
+
+PROCEDURE  set_module_normal(i_module_name IN VARCHAR2 );
+
+------------------------------------------------------------------------
+
+PROCEDURE  set_module_quiet(i_module_name IN VARCHAR2 );
+ 
+PROCEDURE  set_module_disabled(i_module_name IN VARCHAR2 );
+ 
 PROCEDURE  set_unit_debug(i_module_name IN VARCHAR2
                          ,i_unit_name   IN VARCHAR2 );
 
