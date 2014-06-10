@@ -1,0 +1,10 @@
+drop table aop_source;
+create table aop_source (
+ name          VARCHAR2(30)
+,type          VARCHAR2(12)
+,aop_ver       VARCHAR2(10)
+,valid_yn      VARCHAR2(1)
+,text          CLOB
+,result        CLOB
+,load_datetime DATE
+);
