@@ -5,7 +5,8 @@ create or replace package ms_logger is
 ------------------------------------------------------------------------
 
  
-TYPE message_list     IS TABLE OF ms_message%ROWTYPE INDEX BY BINARY_INTEGER;  
+TYPE ref_list     IS TABLE OF ms_reference%ROWTYPE INDEX BY BINARY_INTEGER;  
+--TYPE message_list IS TABLE OF CLOB INDEX BY BINARY_INTEGER;  
   
 TYPE node_typ IS RECORD
   (traversal        ms_traversal%ROWTYPE
@@ -14,8 +15,10 @@ TYPE node_typ IS RECORD
   ,open_process     ms_unit.open_process%TYPE
   ,node_level       BINARY_INTEGER
   ,logged           BOOLEAN
-  ,unlogged_messages message_list
+  ,unlogged_refs    ref_list
+  --,unlogged_messages message_list
   ,internal_error   BOOLEAN DEFAULT NULL --start undefined, set to false by an ENTER routine.
+  ,pass_count       INTEGER  DEFAULT 0    --initialised at 0 
   ,call_stack_level BINARY_INTEGER
   ,call_stack_hist  VARCHAR2(32000));  
 
@@ -34,10 +37,6 @@ G_MSG_MODE_QUIET        CONSTANT NUMBER(2) := G_MSG_LEVEL_FATAL;
 G_MSG_MODE_DISABLED     CONSTANT NUMBER(2) := 99; 
 G_MSG_MODE_DEFAULT      CONSTANT NUMBER(2) := NULL;
 
-G_MSG_TYPE_PARAM        CONSTANT VARCHAR2(10) := 'PARAM';
-G_MSG_TYPE_NOTE         CONSTANT VARCHAR2(10) := 'NOTE';
-G_MSG_TYPE_MESSAGE      CONSTANT VARCHAR2(10) := 'MESSAGE';
- 
  
 G_OPEN_PROCESS_ALWAYS     CONSTANT ms_unit.open_process%TYPE := 'Y'; 
 G_OPEN_PROCESS_IF_CLOSED  CONSTANT ms_unit.open_process%TYPE := 'C';
@@ -76,8 +75,153 @@ FUNCTION new_trig(i_module_name IN VARCHAR2
 FUNCTION new_script(i_module_name IN VARCHAR2
                    ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;  
 				   
+------------------------------------------------------------------------
+-- PASS operations (PUBLIC)
+-- Pass is a metacoding shortcut.  
+-- Creates and uses nodes that don't really exist, by adding 1 to the node_level
+------------------------------------------------------------------------
+--PROCEDURE do_pass(io_node     IN OUT  ms_logger.node_typ
+--                 ,i_pass_name IN VARCHAR2 DEFAULT NULL);
+------------------------------------------------------------------------
+-- Message ROUTINES (Public)
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------ 
+PROCEDURE comment( i_node            IN ms_logger.node_typ 
+                  ,i_message         IN VARCHAR2 DEFAULT NULL
+                  ,i_raise_app_error IN BOOLEAN  DEFAULT FALSE);
+
+------------------------------------------------------------------------
+PROCEDURE info( i_node            IN ms_logger.node_typ 
+               ,i_message         IN     VARCHAR2 DEFAULT NULL );
+
+------------------------------------------------------------------------
+
+PROCEDURE warning( i_node            IN ms_logger.node_typ 
+                  ,i_message      IN     VARCHAR2 DEFAULT NULL );
+
+------------------------------------------------------------------------
+
+PROCEDURE fatal( i_node            IN ms_logger.node_typ 
+                ,i_message         IN     VARCHAR2 DEFAULT NULL
+                ,i_raise_app_error IN     BOOLEAN  DEFAULT FALSE);
+  
+------------------------------------------------------------------------
+-- Reference operations (PUBLIC)
+------------------------------------------------------------------------
+
+--overloaded name, value | [id, descr] 
+PROCEDURE note    ( i_node      IN ms_logger.node_typ 
+                   ,i_name      IN VARCHAR2
+                   ,i_value     IN VARCHAR2
+                   ,i_descr     IN VARCHAR2 DEFAULT NULL );
+ 
+------------------------------------------------------------------------
+
+PROCEDURE param ( i_node      IN ms_logger.node_typ 
+                 ,i_name      IN VARCHAR2
+                 ,i_value     IN VARCHAR2
+                 ,i_descr     IN VARCHAR2 DEFAULT NULL );
+------------------------------------------------------------------------
+--overloaded name, num_value | [id, descr] 
+PROCEDURE note    ( i_node      IN ms_logger.node_typ 
+                   ,i_name      IN VARCHAR2
+                   ,i_num_value IN NUMBER
+                   ,i_descr     IN VARCHAR2 DEFAULT NULL );
+
+------------------------------------------------------------------------ 
+PROCEDURE param ( i_node      IN ms_logger.node_typ 
+                 ,i_name      IN VARCHAR2
+                 ,i_num_value IN NUMBER
+                 ,i_descr     IN VARCHAR2 DEFAULT NULL );
+------------------------------------------------------------------------
+--overloaded name, date_value , descr] 
+PROCEDURE note    ( i_node      IN ms_logger.node_typ 
+                   ,i_name       IN VARCHAR2
+                   ,i_date_value IN DATE
+                   ,i_descr      IN VARCHAR2 DEFAULT NULL );
+------------------------------------------------------------------------
+PROCEDURE param ( i_node      IN ms_logger.node_typ 
+                 ,i_name       IN VARCHAR2
+                 ,i_date_value IN DATE
+                 ,i_descr      IN VARCHAR2 DEFAULT NULL );
+
+------------------------------------------------------------------------
+--overloaded name, bool_value 
+PROCEDURE note   (i_node      IN ms_logger.node_typ 
+                 ,i_name       IN VARCHAR2
+                 ,i_bool_value IN BOOLEAN );
+------------------------------------------------------------------------
+PROCEDURE param ( i_node      IN ms_logger.node_typ 
+                 , i_name      IN VARCHAR2
+                 ,i_bool_value IN BOOLEAN  );
+------------------------------------------------------------------------
+--overloaded name
+PROCEDURE note   (i_node      IN ms_logger.node_typ 
+                 ,i_name      IN VARCHAR2);
+------------------------------------------------------------------------
+PROCEDURE note_rowcount( i_node      IN ms_logger.node_typ 
+                        ,i_name      IN VARCHAR2 );
+
+------------------------------------------------------------------------
+FUNCTION f_note_rowcount( i_node      IN ms_logger.node_typ 
+                         ,i_name      IN VARCHAR2 ) RETURN NUMBER;
+
+------------------------------------------------------------------------
+
+PROCEDURE note_error(i_node      IN ms_logger.node_typ );
+
+------------------------------------------------------------------------
+PROCEDURE note_length( i_node  IN ms_logger.node_typ 
+                      ,i_name  IN VARCHAR2 
+                      ,i_value IN VARCHAR2 			  );
  
  
+ 
+------------------------------------------------------------------------
+-- EXCEPTION HANDLERS  (PUBLIC)
+------------------------------------------------------------------------
+ 
+PROCEDURE oracle_error( i_node            IN ms_logger.node_typ 
+                       ,i_message         IN VARCHAR2 DEFAULT NULL  );
+ 
+PROCEDURE warn_error( i_node            IN ms_logger.node_typ 
+                     ,i_message         IN VARCHAR2 DEFAULT NULL  );
+/* 				   
+------------------------------------------------------------------------
+-- Log Register operations (PUBLIC) Overloaded on private routine register_module
+-- 
+--   register_package
+--   register_form
+--   register_report
+--   register_standalone_procedure
+--   register_standalone_function
+------------------------------------------------------------------------
+
+ 
+PROCEDURE  register_package(i_name      IN VARCHAR2
+                           ,i_revision  IN VARCHAR2  DEFAULT NULL);
+------------------------------------------------------------------------
+ 
+PROCEDURE  register_form(i_name     IN VARCHAR2
+                        ,i_revision IN VARCHAR2);
+
+------------------------------------------------------------------------ 
+PROCEDURE  register_report(i_name     IN VARCHAR2
+                          ,i_revision IN VARCHAR2);
+
+------------------------------------------------------------------------ 
+PROCEDURE  register_standalone_procedure(i_name     IN VARCHAR2
+                                        ,i_revision IN VARCHAR2);
+
+------------------------------------------------------------------------ 
+PROCEDURE  register_standalone_function(i_name     IN VARCHAR2
+                                       ,i_revision IN VARCHAR2);
+------------------------------------------------------------------------
+PROCEDURE  register_SQL_script(i_name     IN VARCHAR2
+                              ,i_revision IN VARCHAR2);
+
+*/
 
 ------------------------------------------------------------------------
 -- Message Mode operations (PUBLIC)
@@ -99,6 +243,14 @@ PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
 ------------------------------------------------------------------------
 PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
                             ,i_unit_name   IN VARCHAR2 );
+ 
+------------------------------------------------------------------------
+-- Internal debugging routines (public)
+------------------------------------------------------------------------
+ 
+PROCEDURE set_internal_debug;
+
+PROCEDURE reset_internal_debug;
  
  
 --------------------------------------------------------------------
@@ -124,124 +276,6 @@ FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
 FUNCTION f_process_is_closed RETURN BOOLEAN;
 
 FUNCTION f_process_is_open RETURN BOOLEAN;
-
-
-------------------------------------------------------------------------
--- Message ROUTINES (Public)
-------------------------------------------------------------------------
-
------------------------------------------------------------------------- 
--- comment 
-------------------------------------------------------------------------
-PROCEDURE comment( i_node            IN ms_logger.node_typ 
-                  ,i_message         IN VARCHAR2 DEFAULT NULL );
-
-------------------------------------------------------------------------
--- info 
-------------------------------------------------------------------------
-PROCEDURE info( i_node            IN ms_logger.node_typ 
-               ,i_message         IN     VARCHAR2 DEFAULT NULL );
-
-------------------------------------------------------------------------
--- warning  
-------------------------------------------------------------------------
-
-PROCEDURE warning( i_node            IN ms_logger.node_typ 
-                  ,i_message      IN     VARCHAR2 DEFAULT NULL );
-
-------------------------------------------------------------------------
--- fatal  
-------------------------------------------------------------------------
-
-PROCEDURE fatal( i_node            IN ms_logger.node_typ 
-                ,i_message         IN     VARCHAR2 DEFAULT NULL );
-  
-------------------------------------------------------------------------
--- oracle_error 
-------------------------------------------------------------------------
-
-PROCEDURE oracle_error( i_node            IN ms_logger.node_typ 
-                       ,i_message         IN VARCHAR2 DEFAULT NULL  );
-------------------------------------------------------------------------
--- warn_error  
-------------------------------------------------------------------------
-
-PROCEDURE warn_error( i_node            IN ms_logger.node_typ 
-                     ,i_message         IN VARCHAR2 DEFAULT NULL  );
-
-------------------------------------------------------------------------
--- Reference operations (PUBLIC)
-------------------------------------------------------------------------
-
---overloaded name, value | [id, descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 
-                   ,i_name      IN VARCHAR2
-                   ,i_value     IN VARCHAR2 );
  
-------------------------------------------------------------------------
-
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
-                 ,i_name      IN VARCHAR2
-                 ,i_value     IN VARCHAR2  );
-
-------------------------------------------------------------------------
---overloaded name, num_value | [id, descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 
-                   ,i_name      IN VARCHAR2
-                   ,i_num_value IN NUMBER );
-
------------------------------------------------------------------------- 
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
-                 ,i_name      IN VARCHAR2
-                 ,i_num_value IN NUMBER    );
-------------------------------------------------------------------------
---overloaded name, date_value , descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 
-                   ,i_name       IN VARCHAR2
-                   ,i_date_value IN DATE );
-------------------------------------------------------------------------
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
-                 ,i_name       IN VARCHAR2
-                 ,i_date_value IN DATE   );
-
-------------------------------------------------------------------------
---overloaded name, bool_value 
-PROCEDURE note   (i_node      IN ms_logger.node_typ 
-                 ,i_name       IN VARCHAR2
-                 ,i_bool_value IN BOOLEAN );
-------------------------------------------------------------------------
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
-                 , i_name      IN VARCHAR2
-                 ,i_bool_value IN BOOLEAN  );
-------------------------------------------------------------------------
---overloaded name
-PROCEDURE note   (i_node      IN ms_logger.node_typ 
-                 ,i_name      IN VARCHAR2);
-------------------------------------------------------------------------
-PROCEDURE note_rowcount( i_node      IN ms_logger.node_typ 
-                        ,i_name      IN VARCHAR2 );
-------------------------------------------------------------------------
-FUNCTION f_note_rowcount( i_node      IN ms_logger.node_typ 
-                         ,i_name      IN VARCHAR2 ) RETURN NUMBER;
-
-------------------------------------------------------------------------
-
-PROCEDURE note_error(i_node      IN ms_logger.node_typ );
-------------------------------------------------------------------------
-PROCEDURE note_length( i_node  IN ms_logger.node_typ 
-                      ,i_name  IN VARCHAR2 
-                      ,i_value IN CLOB        ) ;
- 
- 
-FUNCTION msg_level_string (i_msg_level    IN NUMBER) RETURN VARCHAR2;
- 
- 
-FUNCTION unit_message_count(i_unit_id      IN NUMBER
-                           ,i_msg_level    IN NUMBER) RETURN NUMBER;
-
- 
-FUNCTION unit_traversal_count(i_unit_id IN NUMBER ) RETURN NUMBER;
-
 END;
 /
-show error;

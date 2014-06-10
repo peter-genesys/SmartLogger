@@ -19,7 +19,7 @@ create or replace package body aop_processor is
  
   g_weave_start_time  date;
   
-  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 60; 
+  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 30; 
   g_weave_timeout_secs NUMBER;   
   
   g_initial_indent     constant integer := 0;
@@ -1738,22 +1738,18 @@ END;
  
   exception 
     when x_restore_failed then
-      ms_logger.fatal(l_node, 'x_restore_failed');
-      wedge( i_new_code => 'RESTORE FAILED'
-            ,i_colour  => G_COLOUR_ERROR);
+    wedge( i_new_code => 'RESTORE FAILED'
+                ,i_colour  => G_COLOUR_ERROR);
       l_advised := false;
     when x_invalid_keyword then
-      ms_logger.fatal(l_node, 'x_invalid_keyword');
-      wedge( i_new_code => 'INVALID KEYWORD'
-            ,i_colour  => G_COLOUR_ERROR);
+    wedge( i_new_code => 'INVALID KEYWORD'
+                ,i_colour  => G_COLOUR_ERROR);
       l_advised := false;
     when x_weave_timeout then
-      ms_logger.fatal(l_node, 'x_weave_timeout');
     wedge( i_new_code => 'WEAVE TIMED OUT'
                 ,i_colour  => G_COLOUR_ERROR);
       l_advised := false;
     when x_string_not_found then
-      ms_logger.fatal(l_node, 'x_string_not_found');
       l_advised := false;
    
   end;
@@ -1825,9 +1821,9 @@ END;
   ) is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'advise_package');
   
-    l_orig_body clob;
-    l_aop_body clob;
-    l_html_body clob;
+  l_orig_body clob;
+  l_aop_body clob;
+  l_html_body clob;
     l_advised boolean := false;
   begin 
   begin
@@ -1905,7 +1901,7 @@ END;
   exception 
     when others then
       ms_logger.oracle_error(l_node); 
-      g_during_advise:= false; 
+    g_during_advise:= false; 
   end;    
   exception 
     when others then
@@ -2002,7 +1998,7 @@ END;
       g_code := REPLACE(g_code,'##comment'||l_index||'##',l_text);
 
       IF l_temp_code = g_code THEN
-         ms_logger.warning(l_node, 'Did not find '||'##comment'||l_index||'##');
+         ms_logger.fatal(l_node, 'Did not find '||'##comment'||l_index||'##');
          wedge( i_new_code => 'LOOKING FOR '||'##comment'||l_index||'##'
                 ,i_colour  => G_COLOUR_ERROR);
         RAISE x_restore_failed;
@@ -2018,7 +2014,7 @@ END;
       g_code := REPLACE(g_code,'##quote'||l_index||'##',l_text);
 
       IF l_temp_code = g_code THEN
-         ms_logger.warning(l_node, 'Did not find '||'##quote'||l_index||'##');
+         ms_logger.fatal(l_node, 'Did not find '||'##quote'||l_index||'##');
          wedge( i_new_code => 'LOOKING FOR '||'##quote'||l_index||'##'
                 ,i_colour  => G_COLOUR_ERROR);
         RAISE x_restore_failed;

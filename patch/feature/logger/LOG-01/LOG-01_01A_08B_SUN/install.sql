@@ -1,4 +1,4 @@
-PROMPT LOG TO LOG-01_01A_01B_SYS.log
+PROMPT LOG TO LOG-01_01A_08B_SUN.log
 PROMPT .
 SET AUTOCOMMIT OFF
 SET AUTOPRINT ON
@@ -15,16 +15,16 @@ SET verify off echo off define on
 WHENEVER OSERROR EXIT FAILURE ROLLBACK
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
-SPOOL LOG-01_01A_01B_SYS.log
-CONNECT SYS/&&SYS_password@&&database as sysdba
+SPOOL LOG-01_01A_08B_SUN.log
+CONNECT SUN/&&SUN_password@&&database
 set serveroutput on;
 select user||'@'||global_name Connection from global_name;
 
 
-PROMPT USERS
+PROMPT SYNONYMS
 
-PROMPT logger.user 
-@feature/logger/LOG-01/LOG-01_01A_01B_SYS/logger.user;
+PROMPT logger.syn 
+@feature/logger/LOG-01/LOG-01_01A_08B_SUN/logger.syn;
 
 COMMIT;
 COMMIT;
