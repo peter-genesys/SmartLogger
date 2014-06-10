@@ -16,7 +16,7 @@ WHENEVER OSERROR EXIT FAILURE ROLLBACK
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 SPOOL LOG-01_01A_10B_SYS.log
-CONNECT APEX_SYS/&&APEX_SYS_password@&&database as sysdba
+CONNECT SYS/&&SYS_password@&&database as sysdba
 set serveroutput on;
 select user||'@'||global_name Connection from global_name;
 

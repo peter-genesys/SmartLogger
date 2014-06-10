@@ -24,6 +24,11 @@ select user||'@'||global_name Connection from global_name;
 PROMPT TABLES
 
 WHENEVER SQLERROR CONTINUE
+ 
+PROMPT dba_source.syn 
+@feature\logger\LOG-01\LOG-01_01A_10B_LOGGER\dba_source.syn;
+
+
 PROMPT aop_source.tab 
 @feature\logger\LOG-01\LOG-01_01A_10B_LOGGER\aop_source.tab;
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
@@ -78,14 +83,9 @@ Show error;
 
 PROMPT GRANTS
 
-PROMPT sun.grt 
-@feature\logger\LOG-01\LOG-01_01A_10B_LOGGER\sun.grt;
-
-PROMPT SYNONYMS
-
-PROMPT dba_source.syn 
-@feature\logger\LOG-01\LOG-01_01A_10B_LOGGER\dba_source.syn;
-
+--PROMPT sun.grt 
+--@feature\logger\LOG-01\LOG-01_01A_10B_LOGGER\sun.grt;
+ 
 PROMPT PACKAGE BODIES
 
 PROMPT aop_processor.pkb 
