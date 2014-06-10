@@ -5,10 +5,7 @@ ALTER USER logger
 DEFAULT TABLESPACE "USERS"
 TEMPORARY TABLESPACE "TEMP"
 ACCOUNT UNLOCK ;
- 
---grant select on dba_objects to logger;
---grant select on sys.dependency$ to logger;
- 
+
 -- ROLES
 grant connect to logger;
 ALTER USER logger DEFAULT ROLE "CONNECT";
@@ -20,11 +17,13 @@ grant create trigger to logger;
 grant create synonym to logger;
 grant create sequence to logger;
 grant create view to logger;
+grant select any table to logger;
 
+--OBJECT PRIVILEGES 
 grant select on DBA_TAB_COLUMNS to logger;
 grant select on DBA_SOURCE to logger; 
 grant select on DBA_OBJECTS to logger; 
-grant select any table to logger;
+
  
 -- QUOTAS
 ALTER USER logger QUOTA UNLIMITED ON USERS;
