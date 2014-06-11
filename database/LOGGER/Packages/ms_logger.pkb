@@ -2193,19 +2193,25 @@ PROCEDURE note_rowcount( i_node      IN ms_logger.node_typ
                         ,i_name      IN VARCHAR2 ) IS
 BEGIN
 
-  note ( i_node       => i_node  
-        ,i_name       => i_name
-        ,i_num_value  => SQL%ROWCOUNT );
-
+      create_message ( i_name      => 'SQL%ROWCOUNT'
+                      ,i_value     => SQL%ROWCOUNT
+                      ,i_message   => i_name
+                      ,i_msg_type  => G_MSG_TYPE_NOTE
+                      ,i_msg_level => G_MSG_LEVEL_COMMENT
+                      ,i_node      => i_node);
+ 
 END note_rowcount;
 ------------------------------------------------------------------------
 FUNCTION f_note_rowcount( i_node      IN ms_logger.node_typ 
                          ,i_name      IN VARCHAR2  ) RETURN NUMBER IS
   l_rowcount NUMBER := SQL%ROWCOUNT;
 BEGIN
-  note ( i_node       => i_node  
-        ,i_name       => i_name
-        ,i_num_value  => l_rowcount );
+      create_message ( i_name      => 'SQL%ROWCOUNT'
+                      ,i_value     => l_rowcount
+                      ,i_message   => i_name
+                      ,i_msg_type  => G_MSG_TYPE_NOTE
+                      ,i_msg_level => G_MSG_LEVEL_COMMENT
+                      ,i_node      => i_node);
  
   RETURN l_rowcount;
 

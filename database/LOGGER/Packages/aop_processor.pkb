@@ -127,12 +127,13 @@ create or replace package body aop_processor is
  
   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
   
-  G_REGEX_STASHED_COMMENT    VARCHAR2(50) := '##comment\d+##';
-  G_REGEX_COMMENT    VARCHAR2(50) := '--""';
-  G_REGEX_INFO       VARCHAR2(50) := '--\?\?';
-  G_REGEX_WARNING    VARCHAR2(50) := '--!!';
-  G_REGEX_FATAL      VARCHAR2(50) := '--##';  
-  
+  G_REGEX_STASHED_COMMENT    CONSTANT VARCHAR2(50) := '##comment\d+##';
+  G_REGEX_COMMENT            CONSTANT VARCHAR2(50) := '--""';
+  G_REGEX_INFO               CONSTANT VARCHAR2(50) := '--\?\?';
+  G_REGEX_WARNING            CONSTANT VARCHAR2(50) := '--!!';
+  G_REGEX_FATAL              CONSTANT VARCHAR2(50) := '--##';  
+
+ 
  
   ----------------------------------------------------------------------------
   -- COLOUR CODES
@@ -147,6 +148,7 @@ create or replace package body aop_processor is
   G_COLOUR_ERROR            CONSTANT VARCHAR2(10) := '#FF6600';
   G_COLOUR_SPLICE           CONSTANT VARCHAR2(10) := '#FFCC66';
   G_COLOUR_PU_NAME          CONSTANT VARCHAR2(10) := '#99FF99';
+  G_COLOUR_OBJECT_NAME      CONSTANT VARCHAR2(10) := '#FFCC00';
   G_COLOUR_PKG_BEGIN        CONSTANT VARCHAR2(10) := '#CCCC00'; 
   G_COLOUR_GO_PAST          CONSTANT VARCHAR2(10) := '#FF9999'; 
   G_COLOUR_BRACKETS         CONSTANT VARCHAR2(10) := '#FF5050'; 
@@ -266,6 +268,7 @@ create or replace package body aop_processor is
                          , i_type        IN VARCHAR2
                          , i_text        IN CLOB
                          , i_aop_ver     IN VARCHAR2
+                         , i_compile     IN BOOLEAN  
             ) RETURN boolean IS
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'validate_source');              
                       
@@ -278,6 +281,7 @@ create or replace package body aop_processor is
     ms_logger.param(l_node, 'i_type      '          ,i_type      );
     --ms_logger.param(l_node, 'i_text    '          ,i_text          ); --too big.
     ms_logger.param(l_node, 'i_aop_ver   '           ,i_aop_ver      );
+    ms_logger.param(l_node, 'i_compile   '           ,i_compile      );
 
     --Prepare record.
     l_aop_source.name          := i_name;
@@ -285,28 +289,26 @@ create or replace package body aop_processor is
     l_aop_source.aop_ver       := i_aop_ver;
     l_aop_source.text          := i_text;
     l_aop_source.load_datetime := sysdate;
-    l_aop_source.valid_yn      := 'Y';
+    l_aop_source.valid_yn      := 'N';
     l_aop_source.result        := 'Success.';
   
-    if i_aop_ver like '%HTML' then
-      l_aop_source.valid_yn := NULL;
-    else
-    
+    IF i_compile THEN 
+ 
       begin
         execute immediate 'alter session set plsql_optimize_level = 1';
       
           execute immediate i_text;  --11G CLOB OK
+          l_aop_source.valid_yn := 'Y';
       exception
           when others then
           l_aop_source.result   := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
-          l_aop_source.valid_yn := 'N';
            ms_logger.warn_error(l_node);   
         
         --Output Show Errors info
             FOR l_error IN (select line||' '||text  error_line
                         from USER_ERRORS 
                         where NAME = i_name 
-                    AND   type = i_type)
+                        AND   type = i_type)
             LOOP
               DBMS_OUTPUT.PUT_LINE(l_error.error_line);
               ms_logger.warning(l_node,l_error.error_line); 
@@ -314,14 +316,15 @@ create or replace package body aop_processor is
             END LOOP;
     
       end;
+ 
     end if;
  
     logger.ins_upd_aop_source(i_aop_source => l_aop_source);
        
     COMMIT;
     
-    RETURN l_aop_source.valid_yn = 'Y';
-	
+    RETURN NOT i_compile OR l_aop_source.valid_yn = 'Y';
+ 
   exception
       when others then
          ms_logger.oracle_error(l_node);  
@@ -467,6 +470,29 @@ BEGIN
 END;
 
 
+FUNCTION REGEXP_INSTR_NOT0(i_string           IN CLOB  
+                          ,i_pattern          IN VARCHAR2
+                          ,i_position         IN INTEGER  DEFAULT NULL
+                          ,i_occurrence       IN INTEGER  DEFAULT NULL
+                          ,i_return_position  IN INTEGER  DEFAULT NULL
+                          ,i_regexp_modifier  IN VARCHAR2 DEFAULT NULL) RETURN INTEGER IS
+--Overload the std oracle built-in, but this version does not return 0
+--REGEXP_INSTR(string, pattern [, position [, occurrence [, return_position [, regexp_modifier]]]])
+
+  l_result INTEGER;
+ 
+BEGIN
+  l_result := REGEXP_INSTR(i_string, i_pattern, i_position , i_occurrence , i_return_position , i_regexp_modifier );
+
+  IF l_result = 0 THEN
+    RETURN 10000000;
+  ELSE  
+    RETURN l_result;
+  END IF;
+ 
+END;  
+ 
+
 --------------------------------------------------------------------------------- 
 -- get_next - return first matching string
 ---------------------------------------------------------------------------------
@@ -484,6 +510,7 @@ END;
 ---------------------------------------------------------------------------------
 
 FUNCTION get_next(i_search             IN VARCHAR2 DEFAULT NULL
+                 ,i_search2            IN VARCHAR2 DEFAULT NULL 
                  ,i_stop               IN VARCHAR2 DEFAULT NULL
                  ,i_modifier           IN VARCHAR2 DEFAULT 'i'
                  ,i_upper              IN BOOLEAN  DEFAULT FALSE
@@ -500,15 +527,44 @@ FUNCTION get_next(i_search             IN VARCHAR2 DEFAULT NULL
   l_search_match          VARCHAR2(32000);
   l_result                VARCHAR2(32000);
   l_either                VARCHAR2(32000);
+  l_search                VARCHAR2(32000);
+
   l_trim_upto_pos         INTEGER;
+
+  l_search_pos            INTEGER;
+  l_search_pos2           INTEGER;
 
 BEGIN
   check_timeout; --GET_NEXT
   ms_logger.param(l_node, 'i_search',i_search);
+  ms_logger.param(l_node, 'i_search2',i_search2);
   ms_logger.param(l_node, 'i_stop',i_stop);
   ms_logger.param(l_node, 'g_current_pos',g_current_pos);
-  
-  l_either := TRIM('|' FROM i_search ||'|'||i_stop); 
+
+  l_search := i_search;
+
+  --Workaround - when i_search gets too long -> ORA-03113: end-of-file on communication channel
+  --So split into 2 searches.
+  if i_search2 is not null then
+    ms_logger.comment(l_node, 'Choosing search param');
+ 
+    l_search_pos  := REGEXP_INSTR_NOT0(g_code,i_search,g_current_pos,1,0,i_modifier);
+    l_search_pos2 := REGEXP_INSTR_NOT0(g_code,i_search2,g_current_pos,1,0,i_modifier);
+
+    ms_logger.note(l_node, 'l_search_pos',l_search_pos);
+    ms_logger.note(l_node, 'l_search_pos2',l_search_pos2);
+ 
+    If l_search_pos < l_search_pos2 THEN
+      ms_logger.info(l_node, 'Using i_search1');
+    else
+      ms_logger.info(l_node, 'Using i_search2');
+      l_search := i_search2;
+    end if;
+ 
+  end if;
+
+ 
+  l_either := TRIM('|' FROM l_search ||'|'||i_stop); 
  
   --Keep the original "either" match
   l_either_match := REGEXP_SUBSTR(g_code,l_either,g_current_pos,1,i_modifier);
@@ -551,7 +607,7 @@ BEGIN
  
  
   
-  IF  REGEXP_LIKE(l_either_match,i_search,i_modifier) THEN
+  IF  REGEXP_LIKE(l_either_match,l_search,i_modifier) THEN
     --Matched on the search componant, so we will consume it.
     l_colour_either_match := f_colour(i_text   => l_trimmed_either_match  
                                      ,i_colour => i_colour);
@@ -638,6 +694,31 @@ BEGIN
  
  
 END;
+
+--------------------------------------------------------------------------------- 
+-- get_next_object_name
+---------------------------------------------------------------------------------
+FUNCTION get_next_object_name RETURN VARCHAR2 IS
+  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next_object_name'); 
+  l_object_name VARCHAR2(100);
+
+BEGIN
+  l_object_name := get_next(i_search  => G_REGEX_2_QUOTED_WORDS
+                                  ||'|'||G_REGEX_WORD
+                           ,i_lower   => TRUE        
+                           ,i_colour  => G_COLOUR_OBJECT_NAME
+                           ,i_raise_error  => TRUE);
+  --Check for double-word
+  IF REGEXP_LIKE(l_object_name , G_REGEX_2_QUOTED_WORDS) THEN
+    ms_logger.comment(l_node, 'Double word name - get 2nd word'); 
+    l_object_name := REGEXP_SUBSTR(l_object_name,G_REGEX_WORD,1,2,'i');
+ 
+  END IF;
+
+  RETURN l_object_name;
+
+END;  
+
 
 --------------------------------------------------------------------------------- 
 -- FORWARD DECLARATIONS
@@ -1203,6 +1284,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_var_list              var_list_typ := i_var_list;
 
   l_table_owner           VARCHAR2(30);
+  l_table_name            VARCHAR2(30);
   
   G_REGEX_ASSIGN_TO_REC_COL   CONSTANT VARCHAR2(50) :=  '\W\w+?\.\w+?\s*?:=';
   G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  '\W\w+?\s*?:='; --matches on both G_REGEX_ASSIGN_TO_VAR and G_REGEX_ASSIGN_TO_BIND_VAR 
@@ -1213,8 +1295,22 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 
   G_REGEX_BIND_VAR            CONSTANT VARCHAR2(50) := ':'||G_REGEX_WORD;
   G_REGEX_SHOW_ME_LINE        CONSTANT VARCHAR2(50) :=  '.+--(\@\@)';
+  G_REGEX_ROW_COUNT_LINE      CONSTANT VARCHAR2(50) :=  '.+--(RC)';
+
+
+
  
-  
+  G_REGEX_DELETE_FROM         CONSTANT VARCHAR2(50) := '\sDELETE\s+?FROM\s';
+  G_REGEX_DELETE              CONSTANT VARCHAR2(50) := '\sDELETE\s'        ;
+  G_REGEX_INSERT_INTO         CONSTANT VARCHAR2(50) := '\sINSERT\s+?INTO\s';
+  G_REGEX_UPDATE              CONSTANT VARCHAR2(50) := '\sUPDATE\s';
+ 
+ 
+  G_REGEX_DML                 CONSTANT VARCHAR2(200) :=   G_REGEX_DELETE_FROM 
+                                                  ||'|'|| G_REGEX_DELETE
+                                                  ||'|'|| G_REGEX_INSERT_INTO
+                                                  ||'|'|| G_REGEX_UPDATE;
+ 
 BEGIN
 
   ms_logger.param(l_node, 'i_indent    '      ,i_indent     );
@@ -1223,12 +1319,14 @@ BEGIN
  
   loop
  
-  l_keyword := get_next(  i_search       => G_REGEX_OPEN
+  l_keyword := get_next(  i_search       =>   G_REGEX_OPEN
                                        ||'|'||G_REGEX_NEUTRAL
                                        ||'|'||G_REGEX_CLOSE
-                                       ||'|'||G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
-                                       ||'|'||G_REGEX_SHOW_ME_LINE      
-                          , i_stop         => G_REGEX_START_ANNOTATION --don't colour it
+                          ,i_search2       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
+                                       ||'|'||G_REGEX_SHOW_ME_LINE 
+                                       ||'|'||G_REGEX_ROW_COUNT_LINE
+                                       ||'|'||G_REGEX_DML              --workaround
+                          ,i_stop          => G_REGEX_START_ANNOTATION --don't colour it
                                        ||'|'||G_REGEX_ASSIGN_TO_REC_COL
                                        ||'|'||G_REGEX_ASSIGN_TO_VARS
                           ,i_upper        => TRUE
@@ -1322,7 +1420,17 @@ BEGIN
               ||''');'
                ,i_indent   => i_indent
                ,i_colour   => G_COLOUR_COMMENT);
-    
+ 
+      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ROW_COUNT_LINE) THEN
+      ms_logger.info(l_node, 'Rowcount');
+      --expose this line of code as a note with rowcount 
+        inject( i_new_code => 'ms_logger.note_rowcount(l_node,'''
+                        ||SUBSTR(l_keyword,1,LENGTH(l_keyword)-4)  
+              ||''');'
+               ,i_indent   => i_indent
+               ,i_colour   => G_COLOUR_NOTE);
+
+ 
       WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ASSIGN_TO_BIND_VAR) THEN  
       ms_logger.info(l_node, 'Assign Bind Var');
         -- find assignment of bind variable and inject a note
@@ -1405,9 +1513,7 @@ BEGIN
                  ,i_indent   => i_indent
                  ,i_colour   => G_COLOUR_NOTE);         
         END IF;
- 
-        --NEED TO DO TABLE.COLUMN%TYPE TOO.      
-    
+  
       WHEN REGEXP_LIKE(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
         ms_logger.info(l_node, 'WHEN OTHERS THEN');   
         --warn of error after WHEN OTHERS THEN  
@@ -1420,7 +1526,17 @@ BEGIN
         --comment the exception after WHEN exception THEN 
         inject( i_new_code => 'ms_logger.comment(l_node,'''||flatten(trim_whitespace(l_keyword))||''');'
                ,i_indent   => i_indent
-               ,i_colour   => G_COLOUR_COMMENT);         
+               ,i_colour   => G_COLOUR_COMMENT);       
+
+      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_DML) THEN 
+        ms_logger.info(l_node, 'DML');
+        l_table_name := get_next_object_name;
+ 
+        go_past(G_REGEX_SEMI_COL); 
+        inject( i_new_code => 'ms_logger.note_rowcount(l_node,'''||flatten(trim_whitespace(l_keyword))||' '||l_table_name||''');'
+               ,i_indent   => i_indent
+               ,i_colour   => G_COLOUR_NOTE); 
+
  
       ELSE 
           ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
@@ -1604,18 +1720,10 @@ BEGIN
         RAISE x_forward_declare; 
       END IF;
       
-      --Get program unit name
+      
       IF l_prog_unit_name IS NULL THEN
-        l_prog_unit_name := get_next(i_search  => G_REGEX_2_QUOTED_WORDS
-                                           ||'|'||G_REGEX_WORD
-                                    ,i_lower   => TRUE        
-                                    ,i_colour  => G_COLOUR_PU_NAME);
-        --Check for double-word
-        IF REGEXP_LIKE(l_prog_unit_name , G_REGEX_2_QUOTED_WORDS) THEN
-          ms_logger.comment(l_node, 'Double word name - get 2nd word'); 
-          l_prog_unit_name := REGEXP_SUBSTR(l_prog_unit_name,G_REGEX_WORD,1,2,'i');
- 
-        END IF;
+        --Get program unit name
+        l_prog_unit_name := get_next_object_name;
  
       END IF;
       ms_logger.note(l_node, 'l_prog_unit_name' ,l_prog_unit_name);
@@ -1882,7 +1990,9 @@ END;
   IF NOT  validate_source(i_name  => i_object_name
                         , i_type  => i_object_type
                         , i_text  => l_orig_body
-                        , i_aop_ver => 'ORIG') THEN
+                        , i_aop_ver => 'ORIG'
+                        , i_compile => TRUE
+                        ) THEN
     g_during_advise:= false; 
 	ms_logger.info(l_node, 'Original Source is invalid.  AOP_PROCESSOR skipping this request' );
     return;    
@@ -1894,26 +2004,29 @@ END;
                       , p_package_name => lower(i_object_name)
                       , p_end_user     => i_object_owner        );
  
-    -- (re)compile the source if any advises have been applied
-    if l_advised then
-    ms_logger.comment(l_node, 'Compile the AOP version.' );
+    -- (re)compile the source 
+    ms_logger.comment(l_node, 'Validate the AOP version.' );
     IF NOT validate_source(i_name  => i_object_name
-                         , i_type  => i_object_type
-                         , i_text  => l_aop_body
-                         , i_aop_ver => 'AOP') THEN
+                       , i_type  => i_object_type
+                       , i_text  => l_aop_body
+                       , i_aop_ver => 'AOP'
+                       , i_compile => l_advised  ) THEN
       ms_logger.info(l_node, 'Recompile the Original version.' );
       --reexecute the original so that we at least end up with a valid package.
       IF NOT  validate_source(i_name  => i_object_name
                             , i_type  => i_object_type
                             , i_text  => l_orig_body
-                            , i_aop_ver => 'ORIG') THEN
+                            , i_aop_ver => 'ORIG'
+                            , i_compile => TRUE) THEN
       --unlikely that will get an error in the original if it worked last time
       --but trap it incase we do  
           ms_logger.fatal(l_node,'Original Source is invalid on second try.');      
+      end if;
     end if;
-    end if;
- 
-    --Reweave with html
+  
+
+    --Reweave with html - even if the AOP failed.
+    --We want to see what happened.
     ms_logger.comment(l_node,'Reweave with html');  
     l_html_body := l_orig_body;
       l_advised := weave( p_code         => l_html_body
@@ -1924,12 +2037,13 @@ END;
     IF NOT validate_source(i_name  => i_object_name
                          , i_type  => i_object_type
                          , i_text  => l_html_body
-                         , i_aop_ver => 'AOP_HTML') THEN
-      ms_logger.fatal(l_node,'Oops problem with AOP_HTML on second try.');             
+                         , i_aop_ver => 'AOP_HTML'
+                         , i_compile => FALSE) THEN
+      ms_logger.fatal(l_node,'Oops problem committing AOP_HTML.');             
    
     END IF;
  
-    end if;
+    
     g_during_advise:= false; 
 
   exception 
@@ -2072,11 +2186,14 @@ BEGIN
    DECLARE
   
    G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
-   G_REGEX_SHOW_ME               CONSTANT VARCHAR2(50) :=  '--(\@\@)';
+
    G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--..'    ;
    G_REGEX_START_MULTI_COMMENT   CONSTANT VARCHAR2(50) :=  '/\*'    ;
    G_REGEX_START_QUOTE           CONSTANT VARCHAR2(50) :=  '\'''    ;
-   G_REGEX_START_ADV_QUOTE       CONSTANT VARCHAR2(50) :=  'q\''\S' ;
+   G_REGEX_START_ADV_QUOTE       CONSTANT VARCHAR2(50) :=  'Q\''\S' ;
+
+   G_REGEX_SHOW_ME               CONSTANT VARCHAR2(50) :=  '--(\@\@)';
+   G_REGEX_ROW_COUNT             CONSTANT VARCHAR2(50) :=  '--(RC)';
  
    G_REGEX_START_COMMENT_OR_QUOTE CONSTANT VARCHAR2(200) := G_REGEX_START_SINGLE_COMMENT  
                                                      ||'|'||G_REGEX_START_MULTI_COMMENT
@@ -2087,19 +2204,22 @@ BEGIN
    G_REGEX_SINGLE_LINE_COMMENT      CONSTANT VARCHAR2(50)  :=    '--.*';
    G_REGEX_MULTI_LINE_COMMENT       CONSTANT VARCHAR2(50)  :=    '/\*.*?\*/';
    G_REGEX_MULTI_LINE_QUOTE         CONSTANT VARCHAR2(50)  :=    '\''.*?\''';
-   G_REGEX_MULTI_LINE_ADV_QUOTE     CONSTANT VARCHAR2(100) :=    'q\''\[.*?\]\''|q\''\{.*?\}\''|q\''\(.*?\)\''|q\''\<.*?\>\''|q\''(\S).*?\1\''';
+   G_REGEX_MULTI_LINE_ADV_QUOTE     CONSTANT VARCHAR2(100) :=    'Q\''\[.*?\]\''|Q\''\{.*?\}\''|Q\''\(.*?\)\''|Q\''\<.*?\>\''|Q\''(\S).*?\1\''';
  
     BEGIN
  
       --Searching for the start of a comment or quote
       l_keyword :=  get_next(i_stop       => G_REGEX_START_COMMENT_OR_QUOTE
-                            ,i_lower      => TRUE   );
+                            ,i_upper      => TRUE   );
  
       ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
     
       CASE 
 
       WHEN REGEXP_LIKE(l_keyword , G_REGEX_START_SINGLE_COMMENT)  THEN 
+
+
+  
           --Check for an annotation                         
           IF REGEXP_LIKE(l_keyword , G_REGEX_START_ANNOTATION) THEN                           
             ms_logger.info(l_node, 'Annotation');         
@@ -2112,8 +2232,16 @@ BEGIN
             ms_logger.info(l_node, 'Show Me');         
             --SHOW ME
             --Just ignore this till later.      
-            go_past;          
-     
+            go_past;  
+
+          ELSIF REGEXP_LIKE(l_keyword , G_REGEX_ROW_COUNT) THEN                           
+            ms_logger.info(l_node, 'Rowcount');         
+            --ROWCOUNT
+            --Just ignore this till later.      
+            go_past;  
+
+
+ 
           ELSE
  
             --Just a comment
