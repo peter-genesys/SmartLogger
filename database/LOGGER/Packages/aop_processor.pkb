@@ -55,7 +55,9 @@ create or replace package body aop_processor is
   ----------------------------------------------------------------------------
   -- REGULAR EXPRESSIONS
   ----------------------------------------------------------------------------
-  G_REGEX_WORD          VARCHAR2(10) := '\w+';  
+  G_REGEX_WORD           CONSTANT VARCHAR2(10) := '\w+';
+  G_REGEX_2WORDS         CONSTANT VARCHAR2(10) := '\w+\.\w+';
+  G_REGEX_2_QUOTED_WORDS CONSTANT VARCHAR2(50) := '"*\w+"*\."*\w+"*'; --quotes are optional    
  
   G_REGEX_PKG_BODY       CONSTANT VARCHAR2(50) := '\s *PACKAGE\s+?BODY\s';
   G_REGEX_PROCEDURE      CONSTANT VARCHAR2(50) := '\s *PROCEDURE\s';
@@ -1604,10 +1606,17 @@ BEGIN
       
       --Get program unit name
       IF l_prog_unit_name IS NULL THEN
-        l_prog_unit_name := get_next(i_search  => G_REGEX_WORD  
+        l_prog_unit_name := get_next(i_search  => G_REGEX_2_QUOTED_WORDS
+                                           ||'|'||G_REGEX_WORD
                                     ,i_lower   => TRUE        
                                     ,i_colour  => G_COLOUR_PU_NAME);
-     
+        --Check for double-word
+        IF REGEXP_LIKE(l_prog_unit_name , G_REGEX_2_QUOTED_WORDS) THEN
+          ms_logger.comment(l_node, 'Double word name - get 2nd word'); 
+          l_prog_unit_name := REGEXP_SUBSTR(l_prog_unit_name,G_REGEX_WORD,1,2,'i');
+ 
+        END IF;
+ 
       END IF;
       ms_logger.note(l_node, 'l_prog_unit_name' ,l_prog_unit_name);
       
@@ -1809,49 +1818,35 @@ END;
   
  
   --------------------------------------------------------------------
-  -- get_body
+  -- get_plsql
   --------------------------------------------------------------------
-  function get_body
-  ( p_object_name   in varchar2
-  , p_object_owner  in varchar2
-  ) return clob
-  is
+  function get_plsql ( i_object_name   in varchar2
+                     , i_object_type   in varchar2
+                     , i_object_owner  in varchar2 )  return clob is
   
-    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_body');     
+    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_plsql');     
     l_code clob;
   begin
-    ms_logger.param(l_node, 'p_object_name  '          ,p_object_name   );
-    ms_logger.param(l_node, 'p_object_owner '          ,p_object_owner  );
-    -- make sure that dbms_metadata does return the package body 
-    DBMS_METADATA.SET_TRANSFORM_PARAM 
-    ( transform_handle  => dbms_metadata.SESSION_TRANSFORM
-    , name              => 'BODY'
-    , value             => true
-    , object_type       => 'PACKAGE'
-    );
-    -- make sure that dbms_metadata does not return the package specification as well
-    DBMS_METADATA.SET_TRANSFORM_PARAM 
-    ( transform_handle  => dbms_metadata.SESSION_TRANSFORM
-    , name              => 'SPECIFICATION'
-    , value             => false
-    , object_type       => 'PACKAGE'
-    );
-    l_code:= dbms_metadata.get_ddl('PACKAGE', p_object_name, p_object_owner);
+    ms_logger.param(l_node, 'i_object_name  '          ,i_object_name   );
+    ms_logger.param(l_node, 'i_object_type  '          ,i_object_type   );
+    ms_logger.param(l_node, 'i_object_owner '          ,i_object_owner  );
+ 
+    l_code:= dbms_metadata.get_ddl(REPLACE(i_object_type,' ','_'), i_object_name, i_object_owner);
  
     return trim_clob(i_clob => l_code);
-  end get_body;
+  end get_plsql;
 
   
   
   --------------------------------------------------------------------
-  -- advise_package
+  -- instrument_plsql
   --------------------------------------------------------------------  
-  procedure advise_package
-  ( p_object_name   in varchar2
-  , p_object_type   in varchar2
-  , p_object_owner  in varchar2
+  procedure instrument_plsql
+  ( i_object_name   in varchar2
+  , i_object_type   in varchar2
+  , i_object_owner  in varchar2
   ) is
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'advise_package');
+    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'instrument_plsql');
   
     l_orig_body clob;
     l_aop_body clob;
@@ -1859,14 +1854,16 @@ END;
     l_advised boolean := false;
   begin 
   begin
-    ms_logger.param(l_node, 'p_object_name'  ,p_object_name  );
-    ms_logger.param(l_node, 'p_object_type'  ,p_object_type  );
-    ms_logger.param(l_node, 'p_object_owner' ,p_object_owner );
+    ms_logger.param(l_node, 'i_object_name'  ,i_object_name  );
+    ms_logger.param(l_node, 'i_object_type'  ,i_object_type  );
+    ms_logger.param(l_node, 'i_object_owner' ,i_object_owner );
     g_during_advise:= true;
     -- test for state of package; no sense in trying to post-process an invalid package
     
     -- if valid then retrieve source
-    l_orig_body:= get_body( p_object_name, p_object_owner);
+    l_orig_body:= get_plsql( i_object_name    => i_object_name
+                           , i_object_owner   => i_object_owner
+                           , i_object_type    => i_object_type   );
     -- check if perhaps the AOP_NEVER string is included that indicates that no AOP should be applied to a program unit
     -- (this bail-out is primarily used for this package itself, riddled as it is with AOP instructions)
   -- Conversely it also checks for @AOP_LOG, which must be present or AOP will also exit.
@@ -1882,8 +1879,8 @@ END;
       return;
     end if;
   
-  IF NOT  validate_source(i_name  => p_object_name
-                        , i_type  => p_object_type
+  IF NOT  validate_source(i_name  => i_object_name
+                        , i_type  => i_object_type
                         , i_text  => l_orig_body
                         , i_aop_ver => 'ORIG') THEN
     g_during_advise:= false; 
@@ -1894,20 +1891,20 @@ END;
     l_aop_body := l_orig_body;
     -- manipulate source by weaving in aspects as required; only weave if the key logging not yet applied.
     l_advised := weave( p_code         => l_aop_body
-                      , p_package_name => lower(p_object_name)
-                      , p_end_user     => p_object_owner        );
+                      , p_package_name => lower(i_object_name)
+                      , p_end_user     => i_object_owner        );
  
     -- (re)compile the source if any advises have been applied
     if l_advised then
     ms_logger.comment(l_node, 'Compile the AOP version.' );
-    IF NOT validate_source(i_name  => p_object_name
-                         , i_type  => p_object_type
+    IF NOT validate_source(i_name  => i_object_name
+                         , i_type  => i_object_type
                          , i_text  => l_aop_body
                          , i_aop_ver => 'AOP') THEN
       ms_logger.info(l_node, 'Recompile the Original version.' );
       --reexecute the original so that we at least end up with a valid package.
-      IF NOT  validate_source(i_name  => p_object_name
-                            , i_type  => p_object_type
+      IF NOT  validate_source(i_name  => i_object_name
+                            , i_type  => i_object_type
                             , i_text  => l_orig_body
                             , i_aop_ver => 'ORIG') THEN
       --unlikely that will get an error in the original if it worked last time
@@ -1920,12 +1917,12 @@ END;
     ms_logger.comment(l_node,'Reweave with html');  
     l_html_body := l_orig_body;
       l_advised := weave( p_code         => l_html_body
-                        , p_package_name => lower(p_object_name)
+                        , p_package_name => lower(i_object_name)
                         , p_for_html     => true
-                        , p_end_user     => p_object_owner);
+                        , p_end_user     => i_object_owner);
  
-    IF NOT validate_source(i_name  => p_object_name
-                         , i_type  => p_object_type
+    IF NOT validate_source(i_name  => i_object_name
+                         , i_type  => i_object_type
                          , i_text  => l_html_body
                          , i_aop_ver => 'AOP_HTML') THEN
       ms_logger.fatal(l_node,'Oops problem with AOP_HTML on second try.');             
@@ -1944,59 +1941,9 @@ END;
     when others then
     --I think we need to ensure the routine does not fail, or it will re-submit job.
       g_during_advise:= false; 
-  end advise_package;
+  end instrument_plsql;
 
-/*
-  --------------------------------------------------------------------
-  -- reapply_aspect
-  --------------------------------------------------------------------  
-  procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL) is
-  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'reapply_aspect'); 
-    PRAGMA AUTONOMOUS_TRANSACTION;
-    l_job number;
-  begin
-    ms_logger.param(l_node, 'i_object_name'  ,i_object_name  );
-    ms_logger.note(l_node, 'during_advise'  ,during_advise  );
-    dbms_output.enable(1000000);
-    IF during_advise then 
-      ms_logger.info(l_node, 'AOP Processor is already running' );
-      dbms_output.put_line('aop_processor.reapply_aspect: AOP Processor is already running'); 
-    ELSE
-   
-      dbms_output.put_line('aop_processor.reapply_aspect: for '|| i_object_name); 
-  
-      for l_object in (select object_name 
-                          , object_type
-                , owner 
-               from all_objects 
-             where object_type ='PACKAGE BODY'
-             and   object_name = NVL(i_object_name,object_name)) loop
-  
-      
-        ms_logger.info(l_node,'About to create a job to weave '||l_object.object_type||' '||l_object.owner||'.'||l_object.object_name); 
-        dbms_output.put_line('aop_processor.reapply_aspect: Creating AOP_PROCESSOR Job for '||l_object.object_type||' '||l_object.owner||'.'||l_object.object_name); 
-    
-        -- submit a job to weave new aspects and recompile the package 
-        -- as direct compilation is not a legal operation from a system event trigger 
-        dbms_job.submit
-          ( JOB  => l_job
-          , WHAT => 'begin     
-                       logger.aop_processor.advise_package
-                       ( p_object_name   => '''||l_object.object_name ||''' 
-                       , p_object_type   => '''||l_object.object_type ||'''
-                       , p_object_owner  => '''||l_object.owner||'''
-                       );
-                     end;'
-          );
-        commit;
-        dbms_output.put_line('aop_processor.reapply_aspect: Successfully created Job.'); 
  
-      end loop;
-
-    END IF;
-  end reapply_aspect;
-*/ 
-
   --------------------------------------------------------------------
   -- reapply_aspect
   --------------------------------------------------------------------  
@@ -2007,13 +1954,18 @@ END;
       for l_object in (select object_name 
                             , object_type
                             , USER         owner
-               from user_objects  --only want to see objects owned by the invoker
-             where object_type IN ('PACKAGE BODY','PROCEDURE','FUNCTION','TRIGGER')
-             and   object_name = NVL(UPPER(i_object_name),object_name)) loop
-          --AOP the package
-          advise_package( p_object_name  => l_object.object_name
-                        , p_object_type  => l_object.object_type
-                        , p_object_owner => l_object.owner);
+                       from user_objects  --only want to see objects owned by the invoker
+                       where object_type IN ('FUNCTION'
+                                            ,'PACKAGE BODY'
+                                            ,'PROCEDURE'
+                                            ,'TRIGGER'
+                                            ,'TYPE BODY')
+                       and   object_name = NVL(UPPER(i_object_name),object_name)) loop
+
+          --AOP the code
+          instrument_plsql( i_object_name  => l_object.object_name
+                          , i_object_type  => l_object.object_type
+                          , i_object_owner => l_object.owner);
   
       end loop;
   end reapply_aspect;
