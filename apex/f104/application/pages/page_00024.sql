@@ -46,7 +46,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140529091012'
+ ,p_last_upd_yyyymmddhh24miss => '20140611105154'
   );
 null;
  
@@ -67,15 +67,14 @@ s:=s||'select a.* '||unistr('\000a')||
 '      ,m.MSG_LEVEL_TEXT'||unistr('\000a')||
 '      ,m.name'||unistr('\000a')||
 '      ,m.value'||unistr('\000a')||
-'      ,m.descr'||unistr('\000a')||
 'from ('||unistr('\000a')||
 'select level'||unistr('\000a')||
 '        ,ut.*'||unistr('\000a')||
 '      ,''<span style="padding-left:''||LEVEL*10||''px;">''||ut.unit_name||''</span>'' level_unit_name'||unistr('\000a')||
-'  from ms_unit_travers';
+'  from ms_unit_traversal_vw ut'||unistr('\000a')||
+'  WHER';
 
-s:=s||'al_vw ut'||unistr('\000a')||
-'  WHERE process_id = :P24_process_id '||unistr('\000a')||
+s:=s||'E process_id = :P24_process_id '||unistr('\000a')||
 '  start with ut.PARENT_TRAVERSAL_ID IS NULL'||unistr('\000a')||
 '  connect by prior ut.TRAVERSAL_ID = ut.PARENT_TRAVERSAL_ID'||unistr('\000a')||
 '  order siblings by ut.TRAVERSAL_ID) a'||unistr('\000a')||
@@ -94,7 +93,7 @@ wwv_flow_api.create_page_plug (
   p_plug_new_grid         => false,
   p_plug_new_grid_row     => false,
   p_plug_new_grid_column  => false,
-  p_plug_display_column=> 3,
+  p_plug_display_column=> null,
   p_plug_display_point=> 'BODY_3',
   p_plug_item_display_point=> 'ABOVE',
   p_plug_source=> s,
@@ -121,15 +120,14 @@ a1:=a1||'select a.* '||unistr('\000a')||
 '      ,m.MSG_LEVEL_TEXT'||unistr('\000a')||
 '      ,m.name'||unistr('\000a')||
 '      ,m.value'||unistr('\000a')||
-'      ,m.descr'||unistr('\000a')||
 'from ('||unistr('\000a')||
 'select level'||unistr('\000a')||
 '        ,ut.*'||unistr('\000a')||
 '      ,''<span style="padding-left:''||LEVEL*10||''px;">''||ut.unit_name||''</span>'' level_unit_name'||unistr('\000a')||
-'  from ms_unit_travers';
+'  from ms_unit_traversal_vw ut'||unistr('\000a')||
+'  WHER';
 
-a1:=a1||'al_vw ut'||unistr('\000a')||
-'  WHERE process_id = :P24_process_id '||unistr('\000a')||
+a1:=a1||'E process_id = :P24_process_id '||unistr('\000a')||
 '  start with ut.PARENT_TRAVERSAL_ID IS NULL'||unistr('\000a')||
 '  connect by prior ut.TRAVERSAL_ID = ut.PARENT_TRAVERSAL_ID'||unistr('\000a')||
 '  order siblings by ut.TRAVERSAL_ID) a'||unistr('\000a')||
@@ -523,43 +521,6 @@ wwv_flow_api.create_worksheet_column(
   p_display_text_as        =>'ESCAPE_SC',
   p_heading_alignment      =>'CENTER',
   p_column_alignment       =>'RIGHT',
-  p_tz_dependent           =>'N',
-  p_rpt_distinct_lov       =>'Y',
-  p_rpt_show_filter_lov    =>'D',
-  p_rpt_filter_date_ranges =>'ALL',
-  p_help_text              =>'');
-end;
-/
-begin
-wwv_flow_api.create_worksheet_column(
-  p_id => 3324529392771242+wwv_flow_api.g_id_offset,
-  p_flow_id=> wwv_flow.g_flow_id,
-  p_page_id=> 24,
-  p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
-  p_db_column_name         =>'MESSAGE',
-  p_display_order          =>10,
-  p_column_identifier      =>'J',
-  p_column_label           =>'Message',
-  p_report_label           =>'Message',
-  p_sync_form_label        =>'Y',
-  p_display_in_default_rpt =>'Y',
-  p_is_sortable            =>'Y',
-  p_allow_sorting          =>'Y',
-  p_allow_filtering        =>'Y',
-  p_allow_highlighting     =>'Y',
-  p_allow_ctrl_breaks      =>'Y',
-  p_allow_aggregations     =>'Y',
-  p_allow_computations     =>'Y',
-  p_allow_charting         =>'Y',
-  p_allow_group_by         =>'Y',
-  p_allow_hide             =>'Y',
-  p_others_may_edit        =>'Y',
-  p_others_may_view        =>'Y',
-  p_column_type            =>'STRING',
-  p_display_as             =>'TEXT',
-  p_display_text_as        =>'WITHOUT_MODIFICATION',
-  p_heading_alignment      =>'CENTER',
-  p_column_alignment       =>'LEFT',
   p_tz_dependent           =>'N',
   p_rpt_distinct_lov       =>'Y',
   p_rpt_show_filter_lov    =>'D',
@@ -979,37 +940,37 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_column(
-  p_id => 3325726396771243+wwv_flow_api.g_id_offset,
+  p_id => 3633506052626262+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
-  p_db_column_name         =>'DESCR',
+  p_db_column_name         =>'MESSAGE',
   p_display_order          =>23,
   p_column_identifier      =>'W',
-  p_column_label           =>'Descr',
-  p_report_label           =>'Descr',
+  p_column_label           =>'Message',
+  p_report_label           =>'Message',
   p_sync_form_label        =>'Y',
   p_display_in_default_rpt =>'Y',
   p_is_sortable            =>'Y',
-  p_allow_sorting          =>'Y',
+  p_allow_sorting          =>'N',
   p_allow_filtering        =>'Y',
   p_allow_highlighting     =>'Y',
-  p_allow_ctrl_breaks      =>'Y',
-  p_allow_aggregations     =>'Y',
-  p_allow_computations     =>'Y',
-  p_allow_charting         =>'Y',
-  p_allow_group_by         =>'Y',
+  p_allow_ctrl_breaks      =>'N',
+  p_allow_aggregations     =>'N',
+  p_allow_computations     =>'N',
+  p_allow_charting         =>'N',
+  p_allow_group_by         =>'N',
   p_allow_hide             =>'Y',
   p_others_may_edit        =>'Y',
   p_others_may_view        =>'Y',
-  p_column_type            =>'STRING',
+  p_column_type            =>'CLOB',
   p_display_as             =>'TEXT',
-  p_display_text_as        =>'ESCAPE_SC',
+  p_display_text_as        =>'WITHOUT_MODIFICATION',
   p_heading_alignment      =>'CENTER',
   p_column_alignment       =>'LEFT',
   p_tz_dependent           =>'N',
   p_rpt_distinct_lov       =>'Y',
-  p_rpt_show_filter_lov    =>'D',
+  p_rpt_show_filter_lov    =>'N',
   p_rpt_filter_date_ranges =>'ALL',
   p_help_text              =>'');
 end;
@@ -1017,7 +978,7 @@ end;
 declare
     rc1 varchar2(32767) := null;
 begin
-rc1:=rc1||'LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:TIME_NOW:MESSAGE_ID';
+rc1:=rc1||'LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE';
 
 wwv_flow_api.create_worksheet_rpt(
   p_id => 3325822136771244+wwv_flow_api.g_id_offset,
@@ -1220,7 +1181,7 @@ end;
 declare
     rc1 varchar2(32767) := null;
 begin
-rc1:=rc1||'MESSAGE:TIME_NOW:';
+rc1:=rc1||'TIME_NOW:MESSAGE';
 
 wwv_flow_api.create_worksheet_rpt(
   p_id => 3326806431771245+wwv_flow_api.g_id_offset,
@@ -1258,7 +1219,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3332222378798221+wwv_flow_api.g_id_offset,
+  p_id => 3635118763635596+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1278,7 +1239,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3332326577798221+wwv_flow_api.g_id_offset,
+  p_id => 3635229790635596+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1299,7 +1260,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3332400670798221+wwv_flow_api.g_id_offset,
+  p_id => 3635302939635596+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1320,7 +1281,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3332519986798221+wwv_flow_api.g_id_offset,
+  p_id => 3635401582635596+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1341,7 +1302,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3332603504798221+wwv_flow_api.g_id_offset,
+  p_id => 3635528286635597+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1362,7 +1323,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3332731574798221+wwv_flow_api.g_id_offset,
+  p_id => 3635607222635597+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1383,7 +1344,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3332824132798221+wwv_flow_api.g_id_offset,
+  p_id => 3635728579635597+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1404,7 +1365,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3332111773798221+wwv_flow_api.g_id_offset,
+  p_id => 3635006953635596+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1413,9 +1374,9 @@ wwv_flow_api.create_worksheet_condition(
   p_allow_delete            =>'Y',
   p_column_name             =>'MSG_TYPE',
   p_operator                =>'=',
-  p_expr                    =>'Normal',
+  p_expr                    =>'Message',
   p_condition_sql           =>'"MSG_TYPE" = #APXWS_EXPR#',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Normal''  ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Message''  ',
   p_enabled                 =>'Y',
   p_column_format           =>'');
 end;
@@ -1423,7 +1384,7 @@ end;
 declare
     rc1 varchar2(32767) := null;
 begin
-rc1:=rc1||'LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:TIME_NOW:MESSAGE_ID';
+rc1:=rc1||'LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE';
 
 wwv_flow_api.create_worksheet_rpt(
   p_id => 3327801164771246+wwv_flow_api.g_id_offset,
@@ -1607,7 +1568,7 @@ end;
 declare
     rc1 varchar2(32767) := null;
 begin
-rc1:=rc1||'LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:MESSAGE:TIME_NOW';
+rc1:=rc1||'LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:TIME_NOW:MESSAGE';
 
 wwv_flow_api.create_worksheet_rpt(
   p_id => 3328714246771246+wwv_flow_api.g_id_offset,
@@ -1726,7 +1687,7 @@ end;
 declare
     rc1 varchar2(32767) := null;
 begin
-rc1:=rc1||'MESSAGE:TIME_NOW:';
+rc1:=rc1||'TIME_NOW:MESSAGE';
 
 wwv_flow_api.create_worksheet_rpt(
   p_id => 3511709067041734+wwv_flow_api.g_id_offset,
@@ -1764,7 +1725,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3512120660041734+wwv_flow_api.g_id_offset,
+  p_id => 3637027454638897+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1784,7 +1745,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3512228848041734+wwv_flow_api.g_id_offset,
+  p_id => 3637104191638897+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1805,7 +1766,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3512315304041734+wwv_flow_api.g_id_offset,
+  p_id => 3637222574638897+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1826,7 +1787,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3512413856041734+wwv_flow_api.g_id_offset,
+  p_id => 3637309570638897+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1847,7 +1808,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3512523078041734+wwv_flow_api.g_id_offset,
+  p_id => 3637425314638897+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1868,7 +1829,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3512608504041734+wwv_flow_api.g_id_offset,
+  p_id => 3637520080638897+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1889,7 +1850,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3512715805041734+wwv_flow_api.g_id_offset,
+  p_id => 3637631473638897+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1910,7 +1871,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3511922968041734+wwv_flow_api.g_id_offset,
+  p_id => 3636818381638897+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1928,7 +1889,7 @@ end;
 /
 begin
 wwv_flow_api.create_worksheet_condition(
-  p_id => 3512029095041734+wwv_flow_api.g_id_offset,
+  p_id => 3636911646638897+wwv_flow_api.g_id_offset,
   p_flow_id=> wwv_flow.g_flow_id,
   p_page_id=> 24,
   p_worksheet_id => 3323512923771237+wwv_flow_api.g_id_offset,
@@ -1937,9 +1898,9 @@ wwv_flow_api.create_worksheet_condition(
   p_allow_delete            =>'Y',
   p_column_name             =>'MSG_TYPE',
   p_operator                =>'=',
-  p_expr                    =>'Normal',
+  p_expr                    =>'Message',
   p_condition_sql           =>'"MSG_TYPE" = #APXWS_EXPR#',
-  p_condition_display       =>'#APXWS_COL_NAME# = ''Normal''  ',
+  p_condition_display       =>'#APXWS_COL_NAME# = ''Message''  ',
   p_enabled                 =>'Y',
   p_column_format           =>'');
 end;

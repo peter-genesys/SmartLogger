@@ -56,7 +56,7 @@ SELECT t.traversal_id
       ,m.time_now    
       ,ms_logger.msg_level_string(msg_level)  msg_level_text  
       ,CASE msg_type 
-        WHEN 'MESSAGE' THEN message
+        WHEN 'Message' THEN message
         ELSE RPAD(msg_type,6)||m.name||'=['||m.message||']'
       END                                       message_output
 FROM ms_message         m
