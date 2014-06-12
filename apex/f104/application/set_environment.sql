@@ -1,9 +1,9 @@
 --application/set_environment
-prompt  APPLICATION 104 - Logger
+prompt  APPLICATION 104 - SmartLogger
 --
 -- Application Export:
 --   Application:     104
---   Name:            Logger
+--   Name:            SmartLogger
 --   Exported By:     LOGGER
 --   Flashback:       0
 --   Export Type:     Application Export
@@ -17,11 +17,11 @@ prompt  APPLICATION 104 - Logger
  
 -- Application Statistics:
 --   Pages:                     26
---     Items:                   61
+--     Items:                   62
 --     Validations:              3
---     Processes:               26
---     Regions:                 71
---     Buttons:                 65
+--     Processes:               27
+--     Regions:                 74
+--     Buttons:                 66
 --     Dynamic Actions:         19
 --   Shared Components:
 --     Logic:

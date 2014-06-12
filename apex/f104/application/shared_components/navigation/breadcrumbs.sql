@@ -154,9 +154,9 @@ wwv_flow_api.create_menu_option (
   p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
   p_parent_id=>0,
   p_option_sequence=>10,
-  p_short_name=>'Page 1',
+  p_short_name=>'Dashboard',
   p_long_name=>'',
-  p_link=>'f?p=&APP_ID.:1:&SESSION.',
+  p_link=>'f?p=&APP_ID.:1:&SESSION.::&DEBUG.:::',
   p_page_id=>1,
   p_also_current_for_pages=> '');
  
