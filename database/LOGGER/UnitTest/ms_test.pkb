@@ -299,7 +299,7 @@ END f_elapsed_time;
 
     l_start_time := SYSDATE;
 
-    test_node(i_node_count => 30);
+    test_node(i_node_count => 120);
 
     l_stop_time := SYSDATE;
 

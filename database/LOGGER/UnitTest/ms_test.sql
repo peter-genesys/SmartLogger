@@ -27,6 +27,7 @@ l_process_id number :=  ms_logger.new_process(i_process_name   => 'ms_test.sql'
    l_node ms_logger.node_typ := ms_logger.new_script('ms_test' ,'anon');      
 BEGIN
 
+  ms_logger.set_module_debug(i_module_name => 'ms_test');  
 
   ms_test.test_unit_types;
 

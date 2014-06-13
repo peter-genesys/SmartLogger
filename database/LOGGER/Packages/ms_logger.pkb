@@ -64,24 +64,14 @@ G_TRUE                  CONSTANT VARCHAR2(20) := 'TRUE';
 G_FALSE                 CONSTANT VARCHAR2(20) := 'FALSE';
 G_NULL                  CONSTANT VARCHAR2(20) := 'NULL';
 G_NL                    CONSTANT VARCHAR2(2)  := CHR(10);
+G_MAX_NESTED_NODES      CONSTANT NUMBER       := 30;  
+
 
 --NEW CONTROLS
-g_process_id            NUMBER;
+g_process_id                     NUMBER;
+g_internal_error                 BOOLEAN := FALSE;
+g_nodes                          node_stack_typ;
 
---g_dumping               BOOLEAN := FALSE;
-g_internal_error        BOOLEAN := FALSE;
-
-
---extra controls
-g_time                  DATE    := NULL;
---g_unit_stack            unit_stack_type;
---g_unit_index            NUMBER  := 0;
-
-g_nodes                 node_stack_typ;
- 
-
-
-g_max_nested_units      NUMBER   := 100;   --sx_lookup_pkg.lookup_desc('MAX_DEPTH','MESSAGE_PARAM');
 
  
 --Node Types
@@ -292,7 +282,7 @@ $end
 --COMPILER FLAGGED PROCEDURES - FINISH
 
 
-PROCEDURE err_set_process_internal_error IS
+PROCEDURE err_set_process_internal_error(i_error_message IN VARCHAR2) IS
   --set internal error
   --create_ref, create_traversal, log_message will not start 
   --while this flag is set.  
@@ -302,11 +292,18 @@ PROCEDURE err_set_process_internal_error IS
  
 BEGIN 
  
-  g_internal_error := TRUE; 
   $if $$intlog $then intlog_debug('INTERNAL ERROR'); $end
+  $if $$intlog $then intlog_error(i_error_message);  $end
+
+  --fatal(g_nodes(f_index)  ,'ms_logger Internal Error');
+  --warning(g_nodes(f_index),'log_node: exceeded ' ||G_MAX_NESTED_NODES||' nested procs.');
+
+  g_internal_error := TRUE; 
  
   UPDATE ms_process 
   SET internal_error = 'Y'
+     ,error_message  = i_error_message
+     ,updated_date   = SYSDATE
   WHERE process_id   = g_process_id
   AND internal_error = 'N';
   
@@ -315,37 +312,22 @@ BEGIN
 END; 
  
  
-PROCEDURE err_create_internal_error(i_message IN CLOB ) IS
-   
-   PRAGMA AUTONOMOUS_TRANSACTION;
-
-   l_internal_error     ms_message%ROWTYPE;
-
-BEGIN 
-
-  err_set_process_internal_error;
-
-  $if $$intlog $then intlog_error(i_message);  $end
+PROCEDURE err_raise_internal_error(i_prog_unit IN VARCHAR2 
+                                  ,i_message   IN CLOB ) IS
  
-  l_internal_error.name         := 'PROCESS '||g_process_id;
-  l_internal_error.message      := i_message;
-  l_internal_error.msg_level    := G_MSG_LEVEL_INTERNAL;
-  l_internal_error.message_id   := new_message_id;
-  l_internal_error.traversal_id := NVL(f_current_traversal_id,0); -- dummy traversal_id if none current
-  l_internal_error.time_now     := SYSTIMESTAMP;
-
-  INSERT INTO ms_message VALUES l_internal_error;
-  
-  COMMIT;
-
+BEGIN 
+ 
+  err_set_process_internal_error(i_error_message => i_prog_unit||': '||i_message) ;
+ 
 END; 
 
  
-PROCEDURE err_warn_oracle_error(i_message IN VARCHAR2 ) IS
+PROCEDURE err_warn_oracle_error(i_prog_unit IN VARCHAR2 ) IS
 BEGIN 
-  $if $$intlog $then intlog_putline(i_message||':');     $end
-  err_create_internal_error(SQLERRM);
-  $if $$intlog $then intlog_end(i_message); $end --extra call to intlog_end closes the program unit.
+  $if $$intlog $then intlog_putline(i_prog_unit||':');     $end
+  err_raise_internal_error(i_prog_unit => i_prog_unit
+                           ,i_message   => SQLERRM);
+  $if $$intlog $then intlog_end(i_prog_unit); $end --extra call to intlog_end closes the program unit.
 
 END;
 
@@ -869,14 +851,10 @@ EXCEPTION
 END; 
 
  
-
-
- 
 ------------------------------------------------------------------------
 PROCEDURE push_node(io_node  IN OUT node_typ) IS
   l_next_index          BINARY_INTEGER;    
-  x_too_deeply_nested   EXCEPTION;
- 
+
 BEGIN
   $if $$intlog $then intlog_start('push_node'); $end
   $if $$intlog $then intlog_note('io_node.unit.unit_name',io_node.unit.unit_name );   $end
@@ -884,19 +862,12 @@ BEGIN
   --Next index is last index + 1
   l_next_index := NVL(f_index,0) + 1;
   $if $$intlog $then intlog_note('l_next_index',l_next_index ); $end
-  IF l_next_index > g_max_nested_units THEN
-    RAISE x_too_deeply_nested;
-  END IF;
+
   --add to the top of the stack             
   g_nodes(l_next_index ) := io_node;
   $if $$intlog $then intlog_end('push_node'); $end
 
 EXCEPTION
-  WHEN x_too_deeply_nested THEN
-    warning(g_nodes(f_index),'ms_logger Internal Error');
-    warning(g_nodes(f_index),'push_node: exceeded ' ||g_max_nested_units||' nested procs.');
-    err_create_internal_error('push_node: exceeded ' ||g_max_nested_units||' nested procs.');
-    $if $$intlog $then intlog_end('push_node'); $end
   WHEN OTHERS THEN
     err_warn_oracle_error('push_node');
 END;
@@ -947,7 +918,7 @@ BEGIN
     g_internal_error := FALSE;
  
     g_process_id := ms_process_seq.NEXTVAL;
-	$if $$intlog $then intlog_note('g_process_id',g_process_id);           $end
+	  $if $$intlog $then intlog_note('g_process_id',g_process_id);           $end
  
     l_process.process_id     := g_process_id;
     l_process.origin         := i_origin;
@@ -966,7 +937,7 @@ BEGIN
     
     init_node_stack;
 	
-	$if $$intlog $then intlog_end('log_process'); $end
+  	$if $$intlog $then intlog_end('log_process'); $end
 
 EXCEPTION
   WHEN OTHERS THEN
@@ -1137,7 +1108,7 @@ BEGIN
   $if $$intlog $then intlog_note('unit_name          ',io_node.unit.unit_name  );              $end
   $if $$intlog $then intlog_note('i_parent_index     ',i_parent_index );              $end
   
-  IF f_index = g_max_nested_units THEN
+  IF f_index > G_MAX_NESTED_NODES THEN
     RAISE x_too_deeply_nested;
   END IF;
  
@@ -1210,16 +1181,15 @@ BEGIN
 EXCEPTION
   WHEN x_too_deeply_nested THEN
     ROLLBACK;
-    warning(g_nodes(f_index),'ms_logger Internal Error');
-    warning(g_nodes(f_index),'log_node: exceeded ' ||g_max_nested_units||' nested procs.');
-    err_create_internal_error('log_node: exceeded ' ||g_max_nested_units||' nested procs.');
-	$if $$intlog $then intlog_end('log_node');  $end                   
+    err_raise_internal_error(i_prog_unit => 'log_node'
+                            ,i_message   => 'exceeded ' ||G_MAX_NESTED_NODES||' nested nodes.');
+	  $if $$intlog $then intlog_end('log_node');  $end                   
   WHEN OTHERS THEN
     ROLLBACK;
     err_warn_oracle_error('log_node');
  
  
-END; 
+END log_node; 
 
 ------------------------------------------------------------------------
 
@@ -1652,7 +1622,7 @@ BEGIN
     io_node.open_process                  := NVL(io_node.unit.open_process,io_node.module.open_process);  --unit override module, unless null
     io_node.logged                        := FALSE;
 	
-	IF g_internal_error AND io_node.open_process <> G_OPEN_PROCESS_ALWAYS THEN
+	IF g_internal_error AND (io_node.open_process <> G_OPEN_PROCESS_ALWAYS) THEN
       -- internal error state, and not starting a new process yet
       $if $$intlog $then intlog_debug('SmartLogger inactive'); $end
       NULL;
@@ -1707,7 +1677,7 @@ END create_traversal;
 
 FUNCTION new_node(i_module_name IN VARCHAR2
                  ,i_unit_name   IN VARCHAR2
-			     ,i_unit_type   IN VARCHAR2) RETURN ms_logger.node_typ IS
+			           ,i_unit_type   IN VARCHAR2) RETURN ms_logger.node_typ IS
 				 
   --When upgraded to 12C may not need to pass any params				 
 
@@ -1730,7 +1700,7 @@ FUNCTION new_node(i_module_name IN VARCHAR2
   
   FUNCTION f_call_stack_hist RETURN CLOB IS
     l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
-	l_call_stack_hist CLOB;
+	  l_call_stack_hist CLOB;
   BEGIN
     --Indicative only. Absolute value doesn't matter so much, used for comparison only.
     l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));

@@ -17,7 +17,7 @@ TYPE node_typ IS RECORD
   ,unlogged_messages message_list
   ,internal_error   BOOLEAN DEFAULT NULL --start undefined, set to false by an ENTER routine.
   ,call_stack_level BINARY_INTEGER
-  ,call_stack_hist  VARCHAR2(32000));  
+  ,call_stack_hist  CLOB);  
 
   
 G_MSG_LEVEL_IGNORE      CONSTANT NUMBER(2) := 0;
