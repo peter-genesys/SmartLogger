@@ -64,7 +64,11 @@ G_TRUE                  CONSTANT VARCHAR2(20) := 'TRUE';
 G_FALSE                 CONSTANT VARCHAR2(20) := 'FALSE';
 G_NULL                  CONSTANT VARCHAR2(20) := 'NULL';
 G_NL                    CONSTANT VARCHAR2(2)  := CHR(10);
-G_MAX_NESTED_NODES      CONSTANT NUMBER       := 30;  
+
+--Practical limit of 1900 chars from dbms_utility.format_call_stack is reached at 30 nested nodes.
+--The result is that the logger will not nest nodes greater than 30 levels.
+--This limit, is not expected to be encountered unless the logger is broken by some future bug. 
+G_MAX_NESTED_NODES      CONSTANT NUMBER       := 1000;  
 
 
 --NEW CONTROLS
@@ -1229,6 +1233,159 @@ EXCEPTION
 END;
 
 
+
+
+------------------------------------------------------------------------
+-- Traversal operations (private)
+------------------------------------------------------------------------
+
+PROCEDURE create_traversal(io_node     IN OUT ms_logger.node_typ )
+IS
+
+BEGIN
+  $if $$intlog $then intlog_start('create_traversal'); $end
+  $if $$intlog $then intlog_note('io_node.unit.unit_name',io_node.unit.unit_name); $end
+  
+  
+ 
+    --Messages and references, in the SCOPE of this traversal, will be stored.
+    io_node.traversal.traversal_id        := NULL;
+    io_node.traversal.process_id          := NULL;
+    io_node.traversal.unit_id             := io_node.unit.unit_id;
+    io_node.traversal.parent_traversal_id := NULL;
+    io_node.traversal.msg_mode            := NVL(io_node.unit.msg_mode    ,io_node.module.msg_mode);      --unit override module, unless null
+    io_node.open_process                  := NVL(io_node.unit.open_process,io_node.module.open_process);  --unit override module, unless null
+    io_node.logged                        := FALSE;
+  
+  IF g_internal_error AND (io_node.open_process <> G_OPEN_PROCESS_ALWAYS) THEN
+      -- internal error state, and not starting a new process yet
+      $if $$intlog $then intlog_debug('SmartLogger inactive'); $end
+      NULL;
+ 
+    ELSIF io_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN  
+      -- create disabled nodes, but don't log them or stack them
+      $if $$intlog $then intlog_debug('Disabled node'); $end
+      NULL;
+
+    ELSE  
+
+      --Use the call stack to remove any nodes from the stack that are not ancestors
+      pop_to_parent_node(i_node => io_node);
+   
+      IF io_node.traversal.msg_mode <> G_MSG_MODE_QUIET THEN 
+      --Log this node, but first log any ancestors that are not yet logged.
+        --dump any unlogged traversals in QUIET MODE
+        dump_nodes(i_index    => f_index
+                  ,i_msg_mode => G_MSG_MODE_QUIET);
+        --log the traversal and push it on the traversal stack
+        log_node(io_node        => io_node
+                ,i_parent_index => f_index);
+   
+      END IF;
+    
+  --  push the traversal onto the stack
+      push_node(io_node  => io_node);
+      
+  
+      IF NOT g_internal_error THEN
+        io_node.node_level := f_index; --meaningless if g_internal_error is TRUE
+      END IF;
+
+    END IF;
+ 
+  
+  io_node.internal_error := g_internal_error;
+  
+  $if $$intlog $then intlog_end('create_traversal'); $end
+  
+EXCEPTION
+  WHEN OTHERS THEN
+    err_warn_oracle_error('create_traversal');
+ 
+END create_traversal;
+
+
+
+------------------------------------------------------------------------
+-- Node Typ API functions (Private)
+------------------------------------------------------------------------
+
+FUNCTION new_node(i_module_name IN VARCHAR2
+                 ,i_unit_name   IN VARCHAR2
+                 ,i_unit_type   IN VARCHAR2) RETURN ms_logger.node_typ IS
+         
+  --When upgraded to 12C may not need to pass any params         
+
+  --must work in SILENT MODE, incase somebody write logic on the app side that depends
+  --on l_node                
+  l_node ms_logger.node_typ;  
+  
+  l_module_name ms_module.module_name%TYPE := LTRIM(RTRIM(SUBSTR(i_module_name,1,G_MODULE_NAME_WIDTH)));
+  l_unit_name   ms_unit.unit_name%TYPE     := LTRIM(RTRIM(SUBSTR(i_unit_name  ,1,G_UNIT_NAME_WIDTH)));  
+  
+  FUNCTION f_call_stack_level RETURN NUMBER IS
+    l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
+  BEGIN
+    --Indicative only. Absolute value doesn't matter so much, used for comparison only.
+    l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
+   
+    return l_lines.count;
+     
+  END;   
+  
+  FUNCTION f_call_stack_hist RETURN CLOB IS
+    l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
+    l_call_stack_hist CLOB;
+  BEGIN
+    --Indicative only. Absolute value doesn't matter so much, used for comparison only.
+    l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
+  
+    --Of these lines ignore the first 4 which are just headings, and
+    --the next 2 which are the logger itself.
+  --the next line is also not useful as it represents the line number in the current node
+  --and unfortunately the next is not so useful either since it is the calling line number from the parent prog_unit, 
+  --will differ in other calls from the same prog_unit
+    --But whatever is left may be useful...  
+  --Next line is the calling line number from the grand-parent prog_unit which is somewhat useful in determining parentage.
+  
+  FOR l_index IN 9..l_lines.count LOOP 
+    --UNFORMATTED
+    --l_call_stack_hist := ltrim(l_call_stack_hist || chr(10) || l_lines(l_index), chr(10));
+    
+    --FORMATTED
+    --Remove description and format unit id and line number for the history.
+    l_call_stack_hist := ltrim(l_call_stack_hist || chr(10) || REGEXP_REPLACE(SUBSTR(l_lines(l_index),1,20),'(\w+)\s+?(\w+)','\1:\2'), chr(10));
+    END LOOP;
+   
+    return l_call_stack_hist;
+     
+  END;  
+ 
+ 
+BEGIN
+  
+  --get a registered module or register this one
+  l_node.module := find_module(i_module_name => i_module_name
+                              ,i_unit_name   => i_unit_name); 
+
+  --get a registered unit or register this one
+  l_node.unit := find_unit(i_module_id   => l_node.module.module_id
+                          ,i_unit_name   => i_unit_name  
+                          ,i_unit_type   => i_unit_type);
+
+
+  l_node.call_stack_level := f_call_stack_level; --simplify after 12C with additional functions
+  l_node.call_stack_hist  := f_call_stack_hist;
+ 
+  create_traversal(io_node => l_node);
+ 
+  RETURN l_node;
+  
+END;
+
+
+
+
 --------------------------------------------------------------------
 --f_user_source
 --returns user_source record from user_source table
@@ -1601,153 +1758,23 @@ BEGIN
                     ,i_msg_mode    => G_MSG_MODE_DISABLED);
 END; 
 
-------------------------------------------------------------------------
--- Traversal operations (private)
-------------------------------------------------------------------------
 
-PROCEDURE create_traversal(io_node     IN OUT ms_logger.node_typ )
-IS
-
+------------------------------------------------------------------------
+PROCEDURE test_internal_error(i_node IN node_typ) IS
+--Facilitates testing of the internal error handling
 BEGIN
-  $if $$intlog $then intlog_start('create_traversal'); $end
-  $if $$intlog $then intlog_note('io_node.unit.unit_name',io_node.unit.unit_name); $end
-  
-  
+  $if $$intlog $then intlog_start('test_internal_error');           $end
+  $if $$intlog $then intlog_debug('About to raise an error to test handling');           $end
+  raise no_data_found;
  
-    --Messages and references, in the SCOPE of this traversal, will be stored.
-    io_node.traversal.traversal_id        := NULL;
-    io_node.traversal.process_id          := NULL;
-    io_node.traversal.unit_id             := io_node.unit.unit_id;
-    io_node.traversal.parent_traversal_id := NULL;
-    io_node.traversal.msg_mode            := NVL(io_node.unit.msg_mode    ,io_node.module.msg_mode);      --unit override module, unless null
-    io_node.open_process                  := NVL(io_node.unit.open_process,io_node.module.open_process);  --unit override module, unless null
-    io_node.logged                        := FALSE;
-	
-	IF g_internal_error AND (io_node.open_process <> G_OPEN_PROCESS_ALWAYS) THEN
-      -- internal error state, and not starting a new process yet
-      $if $$intlog $then intlog_debug('SmartLogger inactive'); $end
-      NULL;
+  $if $$intlog $then intlog_end('test_internal_error'); $end
  
-    ELSIF io_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN  
-      -- create disabled nodes, but don't log them or stack them
-      $if $$intlog $then intlog_debug('Disabled node'); $end
-      NULL;
-
-    ELSE  
-
-	    --Use the call stack to remove any nodes from the stack that are not ancestors
-      pop_to_parent_node(i_node => io_node);
-   
-      IF io_node.traversal.msg_mode <> G_MSG_MODE_QUIET THEN 
-	    --Log this node, but first log any ancestors that are not yet logged.
-        --dump any unlogged traversals in QUIET MODE
-        dump_nodes(i_index    => f_index
-                  ,i_msg_mode => G_MSG_MODE_QUIET);
-        --log the traversal and push it on the traversal stack
-        log_node(io_node        => io_node
-                ,i_parent_index => f_index);
-   
-      END IF;
-	  
-	--  push the traversal onto the stack
-      push_node(io_node  => io_node);
-      
-  
-      IF NOT g_internal_error THEN
-        io_node.node_level := f_index; --meaningless if g_internal_error is TRUE
-      END IF;
-
-    END IF;
- 
-  
-  io_node.internal_error := g_internal_error;
-  
-  $if $$intlog $then intlog_end('create_traversal'); $end
-  
 EXCEPTION
+
   WHEN OTHERS THEN
-    err_warn_oracle_error('create_traversal');
- 
-END create_traversal;
+    err_warn_oracle_error('test_internal_error');
+END; 
 
-
-
-------------------------------------------------------------------------
--- Node Typ API functions (Private)
-------------------------------------------------------------------------
-
-FUNCTION new_node(i_module_name IN VARCHAR2
-                 ,i_unit_name   IN VARCHAR2
-			           ,i_unit_type   IN VARCHAR2) RETURN ms_logger.node_typ IS
-				 
-  --When upgraded to 12C may not need to pass any params				 
-
-  --must work in SILENT MODE, incase somebody write logic on the app side that depends
-  --on l_node                
-  l_node ms_logger.node_typ;  
-  
-  l_module_name ms_module.module_name%TYPE := LTRIM(RTRIM(SUBSTR(i_module_name,1,G_MODULE_NAME_WIDTH)));
-  l_unit_name   ms_unit.unit_name%TYPE     := LTRIM(RTRIM(SUBSTR(i_unit_name  ,1,G_UNIT_NAME_WIDTH)));  
- 	
-  FUNCTION f_call_stack_level RETURN NUMBER IS
-    l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
-  BEGIN
-    --Indicative only. Absolute value doesn't matter so much, used for comparison only.
-    l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
-   
-    return l_lines.count;
-     
-  END;	 
-  
-  FUNCTION f_call_stack_hist RETURN CLOB IS
-    l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
-	  l_call_stack_hist CLOB;
-  BEGIN
-    --Indicative only. Absolute value doesn't matter so much, used for comparison only.
-    l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
-	
-    --Of these lines ignore the first 4 which are just headings, and
-    --the next 2 which are the logger itself.
-	--the next line is also not useful as it represents the line number in the current node
-	--and unfortunately the next is not so useful either since it is the calling line number from the parent prog_unit, 
-	--will differ in other calls from the same prog_unit
-    --But whatever is left may be useful...  
-	--Next line is the calling line number from the grand-parent prog_unit which is somewhat useful in determining parentage.
-	
-	FOR l_index IN 9..l_lines.count LOOP 
-	  --UNFORMATTED
-	  --l_call_stack_hist := ltrim(l_call_stack_hist || chr(10) || l_lines(l_index), chr(10));
-	  
-	  --FORMATTED
-	  --Remove description and format unit id and line number for the history.
-	  l_call_stack_hist := ltrim(l_call_stack_hist || chr(10) || REGEXP_REPLACE(SUBSTR(l_lines(l_index),1,20),'(\w+)\s+?(\w+)','\1:\2'), chr(10));
-    END LOOP;
-   
-    return l_call_stack_hist;
-     
-  END;	
- 
- 
-BEGIN
-  
-  --get a registered module or register this one
-  l_node.module := find_module(i_module_name => i_module_name
-                              ,i_unit_name   => i_unit_name); 
-
-  --get a registered unit or register this one
-  l_node.unit := find_unit(i_module_id   => l_node.module.module_id
-                          ,i_unit_name   => i_unit_name  
-                          ,i_unit_type   => i_unit_type);
-
-
-  l_node.call_stack_level := f_call_stack_level; --simplify after 12C with additional functions
-  l_node.call_stack_hist  := f_call_stack_hist;
- 
-  create_traversal(io_node => l_node);
- 
-  RETURN l_node;
-  
-END;
 
 
 ------------------------------------------------------------------------
@@ -1808,10 +1835,10 @@ BEGIN
  
   
 
-  ------------------------------------------------------------------------
-  -- Node Typ API functions (Public)
-  ------------------------------------------------------------------------
-  
+------------------------------------------------------------------------
+-- Node ROUTINES (Public)
+------------------------------------------------------------------------
+
  
 FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
                     ,i_process_type IN VARCHAR2 DEFAULT NULL
@@ -2011,8 +2038,9 @@ END warn_error;
 
 
 ------------------------------------------------------------------------
--- Reference operations (PUBLIC)
+-- Reference ROUTINES (Public)
 ------------------------------------------------------------------------
+
 
 --overloaded name, value | [id, descr] 
 PROCEDURE note    ( i_node      IN ms_logger.node_typ   
