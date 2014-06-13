@@ -17,7 +17,7 @@ TYPE node_typ IS RECORD
   ,unlogged_messages message_list
   ,internal_error   BOOLEAN DEFAULT NULL --start undefined, set to false by an ENTER routine.
   ,call_stack_level BINARY_INTEGER
-  ,call_stack_hist  CLOB);  
+  ,call_stack_hist  VARCHAR2(2000));  --limit of 2000 chars returned by dbms_utility.format_call_stack in 11g
 
   
 G_MSG_LEVEL_IGNORE      CONSTANT NUMBER(2) := 0;
@@ -196,6 +196,20 @@ PROCEDURE param ( i_node      IN ms_logger.node_typ
                  ,i_name      IN VARCHAR2
                  ,i_value     IN VARCHAR2  );
 
+/*
+--overloaded name, value | [id, descr] FOR CLOB
+PROCEDURE note_clob( i_node      IN ms_logger.node_typ   
+                    ,i_name      IN VARCHAR2
+                    ,i_value     IN CLOB );
+
+ 
+------------------------------------------------------------------------
+
+PROCEDURE param_clob( i_node      IN ms_logger.node_typ 
+                     ,i_name      IN VARCHAR2
+                     ,i_value     IN CLOB  );
+
+*/
 ------------------------------------------------------------------------
 --overloaded name, num_value | [id, descr] 
 PROCEDURE note    ( i_node      IN ms_logger.node_typ 

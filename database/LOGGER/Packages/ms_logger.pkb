@@ -300,6 +300,7 @@ BEGIN
 
   g_internal_error := TRUE; 
  
+  --NB if g_process_id is NULL,this will do nothing and raise no error, but that is ok.
   UPDATE ms_process 
   SET internal_error = 'Y'
      ,error_message  = i_error_message
@@ -1410,7 +1411,7 @@ END debug_error;
  
  
 PROCEDURE create_ref ( i_name      IN VARCHAR2
-                      ,i_value     IN VARCHAR2
+                      ,i_value     IN CLOB
                       ,i_msg_type  IN VARCHAR2
                       ,i_node      IN ms_logger.node_typ ) IS
 
@@ -2043,6 +2044,39 @@ BEGIN
           );
 
 END param;
+
+
+--overloaded name, value | [id, descr] FOR CLOB
+PROCEDURE note_clob( i_node      IN ms_logger.node_typ   
+                    ,i_name      IN VARCHAR2
+                    ,i_value     IN CLOB )
+IS
+
+BEGIN
+
+  create_ref ( i_name       => i_name
+              ,i_value      => i_value
+              ,i_msg_type   => G_MSG_TYPE_NOTE
+        ,i_node            => i_node);      
+ 
+END note_clob   ;
+
+ 
+------------------------------------------------------------------------
+
+PROCEDURE param_clob( i_node      IN ms_logger.node_typ 
+                     ,i_name      IN VARCHAR2
+                     ,i_value     IN CLOB  )
+IS
+BEGIN
+  create_ref ( i_name      => i_name
+              ,i_value     => i_value
+              ,i_msg_type  => G_MSG_TYPE_PARAM
+              ,i_node      => i_node
+          );
+
+END param_clob;
+
 ------------------------------------------------------------------------
 --overloaded name, num_value | [id, descr] 
 PROCEDURE note    ( i_node      IN ms_logger.node_typ 
@@ -2072,6 +2106,10 @@ BEGIN
            ,i_node          => i_node);
 
 END param;
+
+
+
+
 ------------------------------------------------------------------------
 --overloaded name, date_value , descr] 
 PROCEDURE note    ( i_node      IN ms_logger.node_typ 

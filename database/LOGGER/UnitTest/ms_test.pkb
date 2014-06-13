@@ -142,6 +142,9 @@ END f_elapsed_time;
 
     
     ms_logger.param(l_node, 'i_node_count'      ,i_node_count   );
+    ms_logger.note(l_node,'l_node.node_level',l_node.node_level );
+    ms_logger.note(l_node,'l_node.call_stack_level',l_node.call_stack_level );
+    ms_logger.note(l_node,'dbms_utility.format_call_stack',dbms_utility.format_call_stack);
 
 
     IF i_node_count > 0 THEN
