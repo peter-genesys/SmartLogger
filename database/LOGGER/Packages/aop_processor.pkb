@@ -20,7 +20,7 @@ create or replace package body aop_processor is
  
   g_weave_start_time  date;
   
-  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 60; 
+  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 180; 
   g_weave_timeout_secs NUMBER;   
   
   g_initial_indent     constant integer := 0;
@@ -1278,9 +1278,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_keyword               CLOB;
   l_stashed_comment       VARCHAR2(50);
   l_function              VARCHAR2(30);
-  l_bind_var              VARCHAR2(30);
-  l_var                   VARCHAR2(30);
-
+ 
   l_var_list              var_list_typ := i_var_list;
 
   l_table_owner           VARCHAR2(30);
@@ -1290,10 +1288,11 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  '\W\w+?\s*?:='; --matches on both G_REGEX_ASSIGN_TO_VAR and G_REGEX_ASSIGN_TO_BIND_VAR 
   G_REGEX_ASSIGN_TO_VAR       CONSTANT VARCHAR2(50) :=  '\s\w+?\s*?:=';
   G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) :=  ':\w+?\s*?:=';
+  
   G_REGEX_VAR                 CONSTANT VARCHAR2(50) := G_REGEX_WORD;
   G_REGEX_REC_COL             CONSTANT VARCHAR2(50) := G_REGEX_WORD||'.'||G_REGEX_WORD;
-
   G_REGEX_BIND_VAR            CONSTANT VARCHAR2(50) := ':'||G_REGEX_WORD;
+
   G_REGEX_SHOW_ME_LINE        CONSTANT VARCHAR2(50) :=  '.+--(\@\@)';
   G_REGEX_ROW_COUNT_LINE      CONSTANT VARCHAR2(50) :=  '.+--(RC)';
 
@@ -1304,12 +1303,115 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   G_REGEX_DELETE              CONSTANT VARCHAR2(50) := '\sDELETE\s'        ;
   G_REGEX_INSERT_INTO         CONSTANT VARCHAR2(50) := '\sINSERT\s+?INTO\s';
   G_REGEX_UPDATE              CONSTANT VARCHAR2(50) := '\sUPDATE\s';
+  
+  G_REGEX_FETCH_INTO         CONSTANT VARCHAR2(50) := '\sFETCH\s+?.+?\s+?INTO\s';
  
  
+
+
+
+
   G_REGEX_DML                 CONSTANT VARCHAR2(200) :=   G_REGEX_DELETE_FROM 
                                                   ||'|'|| G_REGEX_DELETE
                                                   ||'|'|| G_REGEX_INSERT_INTO
                                                   ||'|'|| G_REGEX_UPDATE;
+
+
+
+  PROCEDURE find_bind_var IS   
+    -- find assignment of bind variable and inject a note    
+    l_var                   VARCHAR2(30);
+  BEGIN
+    go_upto; 
+    l_var := get_next ( i_search      => G_REGEX_BIND_VAR
+                       ,i_lower       => TRUE
+                       ,i_colour      => G_COLOUR_BIND_VAR);      
+    go_past(G_REGEX_SEMI_COL); 
+    
+    inject( i_new_code   => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
+           ,i_indent     => i_indent
+           ,i_colour     => G_COLOUR_NOTE);
+  END;
+
+ 
+
+  PROCEDURE find_non_bind_var IS
+    -- find assignment of non-bind variable and inject a note
+    l_var                   VARCHAR2(30);
+  BEGIN
+      go_upto;    
+      l_var := get_next ( i_search      => G_REGEX_VAR
+                         ,i_lower       => TRUE
+                         ,i_colour      => G_COLOUR_VAR);
+        ms_logger.note(l_node, 'l_var'     ,l_var  );                       
+        go_past(G_REGEX_SEMI_COL);
+    
+        IF l_var_list.EXISTS(l_var) THEN
+          --This variable exists in the list of scoped variables with compatible types    
+          ms_logger.comment(l_node, 'Scoped Var');
+          ms_logger.note(l_node,'l_var_list(l_var)',l_var_list(l_var));
+          IF  REGEXP_LIKE(l_var_list(l_var) , G_REGEX_SUPPORTED_TYPES) THEN
+            --Data type is supported.
+            ms_logger.comment(l_node, 'Data type is supported');
+            --So we can write a note for it.
+            inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
+                 ,i_indent   => i_indent
+                 ,i_colour   => G_COLOUR_NOTE); 
+          ELSE
+            ms_logger.comment(l_node, 'Data type is TABLE_NAME');
+            --Data type is unsupported so it is the name of a table instead.
+            --Now write a note for each supported column.
+            ms_logger.comment(l_node, 'Data type is supported');
+            --Also need to add 1 var def for each valid componant of the record type.
+            l_table_owner := table_owner(i_table_name => l_var_list(l_var));
+            FOR l_column IN 
+              (select lower(column_name) column_name
+                     ,data_type
+               from all_tab_columns
+               where table_name = l_var_list(l_var) 
+               and   owner      = l_table_owner  ) LOOP
+
+               IF  REGEXP_LIKE(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
+               
+                 ms_logger.note(l_node,'l_var.l_column.column_name',l_var||'.'||l_column.column_name);
+             
+                   inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||'.'||l_column.column_name||''','||l_var||'.'||l_column.column_name||');'
+                          ,i_indent   => i_indent
+                          ,i_colour   => G_COLOUR_NOTE); 
+               END IF;
+
+            END LOOP;  
+ 
+          END IF;
+
+         
+        END IF;
+  END;
+
+  PROCEDURE find_rec_col_var IS
+  -- find assignment of rec.column variable and inject a note
+    l_var                   VARCHAR2(30);
+  BEGIN
+ 
+        go_upto;    
+        l_var := get_next( i_search      => G_REGEX_REC_COL
+                          ,i_lower       => TRUE
+                          ,i_colour      => G_COLOUR_VAR);
+        ms_logger.note(l_node, 'l_var '     ,l_var  );                       
+ 
+        go_past(G_REGEX_SEMI_COL); 
+    
+        IF l_var_list.EXISTS(l_var) THEN
+          --Tab Column rec variable exists 
+          ms_logger.note(l_node,'l_var',l_var);
+          inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
+                 ,i_indent   => i_indent
+                 ,i_colour   => G_COLOUR_NOTE);         
+        END IF;
+   END;
+
+ 
+
  
 BEGIN
 
@@ -1325,13 +1427,15 @@ BEGIN
                           ,i_search2       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
                                        ||'|'||G_REGEX_SHOW_ME_LINE 
                                        ||'|'||G_REGEX_ROW_COUNT_LINE
-                                       ||'|'||G_REGEX_DML              --workaround
+                                       ||'|'||G_REGEX_DML               
+                                       ||'|'||G_REGEX_FETCH_INTO
                           ,i_stop          => G_REGEX_START_ANNOTATION --don't colour it
                                        ||'|'||G_REGEX_ASSIGN_TO_REC_COL
                                        ||'|'||G_REGEX_ASSIGN_TO_VARS
                           ,i_upper        => TRUE
                           ,i_colour       => G_COLOUR_BLOCK
-                          ,i_raise_error  => TRUE);
+                          ,i_raise_error  => TRUE
+                          ,i_modifier     => 'in');
  
   ms_logger.note(l_node, 'l_keyword',l_keyword);
  
@@ -1432,87 +1536,33 @@ BEGIN
 
  
       WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ASSIGN_TO_BIND_VAR) THEN  
-      ms_logger.info(l_node, 'Assign Bind Var');
-        -- find assignment of bind variable and inject a note
-        go_upto;    
-      l_bind_var := get_next ( i_search      => G_REGEX_BIND_VAR
-                              ,i_lower       => TRUE
-                              ,i_colour      => G_COLOUR_BIND_VAR);      
-      go_past(G_REGEX_SEMI_COL); 
-    
-          inject( i_new_code => 'ms_logger.note(l_node,'''||l_bind_var||''','||l_bind_var||');'
-               ,i_indent     => i_indent
-               ,i_colour     => G_COLOUR_NOTE);
-               
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN  
-        ms_logger.info(l_node, 'Assign Var');   
-        -- find assignment of bind variable and inject a note
-        go_upto;    
-      l_var := get_next ( i_search      => G_REGEX_VAR
-                         ,i_lower       => TRUE
-                         ,i_colour      => G_COLOUR_VAR);
-        ms_logger.note(l_node, 'l_var'     ,l_var  );                       
-        go_past(G_REGEX_SEMI_COL);
-    
-        IF l_var_list.EXISTS(l_var) THEN
-          --This variable exists in the list of scoped variables with compatible types    
-          ms_logger.comment(l_node, 'Scoped Var');
-          ms_logger.note(l_node,'l_var_list(l_var)',l_var_list(l_var));
-          IF  REGEXP_LIKE(l_var_list(l_var) , G_REGEX_SUPPORTED_TYPES) THEN
-            --Data type is supported.
-            ms_logger.comment(l_node, 'Data type is supported');
-            --So we can write a note for it.
-            inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
-                 ,i_indent   => i_indent
-                 ,i_colour   => G_COLOUR_NOTE); 
-          ELSE
-            ms_logger.comment(l_node, 'Data type is TABLE_NAME');
-            --Data type is unsupported so it is the name of a table instead.
-            --Now write a note for each supported column.
-            ms_logger.comment(l_node, 'Data type is supported');
-            --Also need to add 1 var def for each valid componant of the record type.
-            l_table_owner := table_owner(i_table_name => l_var_list(l_var));
-            FOR l_column IN 
-              (select lower(column_name) column_name
-                     ,data_type
-               from all_tab_columns
-               where table_name = l_var_list(l_var) 
-               and   owner      = l_table_owner  ) LOOP
-
-               IF  REGEXP_LIKE(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
-               
-                 ms_logger.note(l_node,'l_var.l_column.column_name',l_var||'.'||l_column.column_name);
-             
-                   inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||'.'||l_column.column_name||''','||l_var||'.'||l_column.column_name||');'
-                          ,i_indent   => i_indent
-                          ,i_colour   => G_COLOUR_NOTE); 
-               END IF;
-
-            END LOOP;  
- 
-          END IF;
-
-         
-        END IF;
+        ms_logger.info(l_node, 'Assign Bind Var');
+        find_bind_var;
      
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
-        -- find assignment of rec.column variable and inject a note
-        ms_logger.info(l_node, 'Assign Record.Column');
-        go_upto;    
-        l_var := get_next( i_search      => G_REGEX_REC_COL
-                          ,i_lower       => TRUE
-                          ,i_colour      => G_COLOUR_VAR);
-        ms_logger.note(l_node, 'l_var '     ,l_var  );                       
+      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN  
+        ms_logger.info(l_node, 'Assign Var');  
+        find_non_bind_var; 
  
-        go_past(G_REGEX_SEMI_COL); 
-    
-        IF l_var_list.EXISTS(l_var) THEN
-          --Tab Column rec variable exists 
-          ms_logger.note(l_node,'l_var',l_var);
-          inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
-                 ,i_indent   => i_indent
-                 ,i_colour   => G_COLOUR_NOTE);         
-        END IF;
+      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
+        ms_logger.info(l_node, 'Assign Record.Column');
+        find_rec_col_var; 
+ 
+      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_FETCH_INTO) THEN   
+        ms_logger.info(l_node, 'Fetch Into');
+        l_keyword := get_next( i_stop      => G_REGEX_VAR        
+                                       ||'|'||G_REGEX_REC_COL    
+                                       ||'|'||G_REGEX_BIND_VAR  
+                              ,i_lower       => TRUE
+                              ,i_colour      => G_COLOUR_VAR);
+        CASE 
+          WHEN REGEXP_LIKE(l_keyword ,G_REGEX_BIND_VAR) THEN find_bind_var;
+          WHEN REGEXP_LIKE(l_keyword ,G_REGEX_VAR)      THEN find_non_bind_var;
+          WHEN REGEXP_LIKE(l_keyword ,G_REGEX_REC_COL)  THEN find_rec_col_var;
+          ELSE 
+            ms_logger.fatal(l_node, 'AOP G_REGEX_FETCH_INTO BUG - REGEX Mismatch');
+            RAISE x_invalid_keyword;
+        END CASE;
+ 
   
       WHEN REGEXP_LIKE(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
         ms_logger.info(l_node, 'WHEN OTHERS THEN');   
