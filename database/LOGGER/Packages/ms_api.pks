@@ -20,7 +20,61 @@ create or replace package ms_api is
 -- This package is not to be instrumented by the AOP_PROCESSOR
 ------------------------------------------------------------------------
  
+------------------------------------------------------------------------ 
+-- FUNCTIONS USED IN VIEWS
+------------------------------------------------------------------------ 
+
+FUNCTION msg_level_string (i_msg_level    IN NUMBER) RETURN VARCHAR2;
  
+ 
+FUNCTION unit_message_count(i_unit_id      IN NUMBER
+                           ,i_msg_level    IN NUMBER) RETURN NUMBER;
+
+ 
+FUNCTION unit_traversal_count(i_unit_id IN NUMBER ) RETURN NUMBER;
+
+
+
+------------------------------------------------------------------------
+-- Message Mode operations (PUBLIC)
+------------------------------------------------------------------------
+ 
+PROCEDURE  set_module_debug(i_module_name IN VARCHAR2 );
+
+------------------------------------------------------------------------
+
+PROCEDURE  set_module_normal(i_module_name IN VARCHAR2 );
+
+------------------------------------------------------------------------
+
+PROCEDURE  set_module_quiet(i_module_name IN VARCHAR2 );
+ 
+PROCEDURE  set_module_disabled(i_module_name IN VARCHAR2 );
+ 
+PROCEDURE  set_unit_debug(i_module_name IN VARCHAR2
+                         ,i_unit_name   IN VARCHAR2 );
+
+------------------------------------------------------------------------
+
+PROCEDURE  set_unit_normal(i_module_name IN VARCHAR2
+                         ,i_unit_name   IN VARCHAR2 );
+
+------------------------------------------------------------------------
+
+PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
+                         ,i_unit_name   IN VARCHAR2 );
+
+------------------------------------------------------------------------
+PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
+                            ,i_unit_name   IN VARCHAR2 ); 
+ 
+--------------------------------------------------------------------
+--purge_old_processes
+-------------------------------------------------------------------
+
+
+PROCEDURE purge_old_processes(i_keep_day_count IN NUMBER DEFAULT 1);
+
 ------------------------------------------------------------------------
 -- get_plain_text_process_report
 ------------------------------------------------------------------------

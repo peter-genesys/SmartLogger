@@ -27,7 +27,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140606093512'
+ ,p_last_upd_yyyymmddhh24miss => '20140618101725'
   );
 null;
  
@@ -741,7 +741,7 @@ declare
   l_clob clob;
   l_length number := 1;
 begin
-p:=p||'ms_metacode.purge_old_processes(i_keep_day_count => 1);';
+p:=p||'ms_api.purge_old_processes(i_keep_day_count => 1);';
 
 wwv_flow_api.create_page_process(
   p_id     => 17799549173021559 + wwv_flow_api.g_id_offset,

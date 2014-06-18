@@ -1469,56 +1469,6 @@ BEGIN
 END;
  
 
-------------------------------------------------------------------------
-  
-PROCEDURE  set_module_msg_mode(i_module_name IN VARCHAR2
-                              ,i_msg_mode   IN NUMBER ) IS
-                             
-BEGIN
-
-
-  set_module_msg_mode(i_module_id  => find_module(i_module_name => i_module_name
-                                                 ,i_create      => FALSE).module_id
-                     ,i_msg_mode => i_msg_mode);
- 
-END; 
-
-------------------------------------------------------------------------
--- Message Mode operations (PUBLIC)
-------------------------------------------------------------------------
- 
-PROCEDURE  set_module_debug(i_module_name IN VARCHAR2 ) IS
-                             
-BEGIN
-  set_module_msg_mode(i_module_name  => i_module_name
-                     ,i_msg_mode    => G_MSG_MODE_DEBUG);
-END; 
-
-------------------------------------------------------------------------
-
-PROCEDURE  set_module_normal(i_module_name IN VARCHAR2 ) IS
-                             
-BEGIN
-  set_module_msg_mode(i_module_name  => i_module_name
-                     ,i_msg_mode    => G_MSG_MODE_NORMAL);
-END; 
-
-------------------------------------------------------------------------
-
-PROCEDURE  set_module_quiet(i_module_name IN VARCHAR2 ) IS
-                             
-BEGIN
-  set_module_msg_mode(i_module_name  => i_module_name
-                     ,i_msg_mode    => G_MSG_MODE_QUIET);
-END; 
- 
-PROCEDURE  set_module_disabled(i_module_name IN VARCHAR2 ) IS
-                             
-BEGIN
-  set_module_msg_mode(i_module_name  => i_module_name
-                     ,i_msg_mode    => G_MSG_MODE_DISABLED);
-END; 
-
 PROCEDURE  set_unit_msg_mode(i_unit_id   IN NUMBER
                             ,i_msg_mode IN NUMBER )
 IS
@@ -1539,7 +1489,27 @@ BEGIN
       ROLLBACK;
       err_warn_oracle_error('set_unit_msg_mode');
 END;
+
+------------------------------------------------------------------------
+-- Message Mode operations (exposed for ms_api only)
+------------------------------------------------------------------------
  
+  
+PROCEDURE  set_module_msg_mode(i_module_name IN VARCHAR2
+                              ,i_msg_mode   IN NUMBER ) IS
+                             
+BEGIN
+
+
+  set_module_msg_mode(i_module_id  => find_module(i_module_name => i_module_name
+                                                 ,i_create      => FALSE).module_id
+                     ,i_msg_mode => i_msg_mode);
+ 
+END; 
+
+
+
+
 
 ------------------------------------------------------------------------
   
@@ -1557,49 +1527,7 @@ BEGIN
  
 END; 
 
-------------------------------------------------------------------------
--- Message Mode operations (PUBLIC)
-------------------------------------------------------------------------
- 
-PROCEDURE  set_unit_debug(i_module_name IN VARCHAR2
-                         ,i_unit_name   IN VARCHAR2 ) IS
-                             
-BEGIN
-  set_unit_msg_mode(i_module_name  => i_module_name
-                    ,i_unit_name   => i_unit_name  
-                    ,i_msg_mode    => G_MSG_MODE_DEBUG);
-END; 
 
-------------------------------------------------------------------------
-
-PROCEDURE  set_unit_normal(i_module_name IN VARCHAR2
-                         ,i_unit_name   IN VARCHAR2 ) IS
-                             
-BEGIN
-  set_unit_msg_mode(i_module_name  => i_module_name
-                    ,i_unit_name   => i_unit_name  
-                    ,i_msg_mode    => G_MSG_MODE_NORMAL);
-END; 
-
-------------------------------------------------------------------------
-
-PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
-                         ,i_unit_name   IN VARCHAR2 ) IS
-                             
-BEGIN
-  set_unit_msg_mode(i_module_name  => i_module_name
-                    ,i_unit_name    => i_unit_name  
-                    ,i_msg_mode    => G_MSG_MODE_QUIET);
-END; 
- 
-PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
-                            ,i_unit_name   IN VARCHAR2 ) IS
-                             
-BEGIN
-  set_unit_msg_mode(i_module_name  => i_module_name
-                    ,i_unit_name    => i_unit_name  
-                    ,i_msg_mode    => G_MSG_MODE_DISABLED);
-END; 
 
 ------------------------------------------------------------------------
 -- Traversal operations (private)
@@ -1777,36 +1705,6 @@ END;
  END;
  
  
-  --------------------------------------------------------------------
-  --purge_old_processes
-  -------------------------------------------------------------------
-
-
-PROCEDURE purge_old_processes(i_keep_day_count IN NUMBER DEFAULT 1) IS
-
- PRAGMA AUTONOMOUS_TRANSACTION;
- 
-BEGIN 
-
-  delete from ms_process        where created_date < (SYSDATE - i_keep_day_count);
-
-  COMMIT;
- 
-  /*
-  IF i_keep_day_count = 0 THEN
-    --Processes are all gone, so reset the sequences.
- 
-    reset_sequence(i_sequence_name => 'ms_message_seq');
-	  reset_sequence(i_sequence_name => 'ms_traversal_seq');
-	  reset_sequence(i_sequence_name => 'ms_process_seq');
-	
-  END IF;
-  */
- 
- 
- END;
- 
-  
 
   ------------------------------------------------------------------------
   -- Node Typ API functions (Public)
@@ -2249,75 +2147,7 @@ BEGIN
 
 END note_length;
 
------------------------------------------------------------------------- 
--- FUNCTIONS USED IN VIEWS
------------------------------------------------------------------------- 
- 
-FUNCTION msg_level_string (i_msg_level    IN NUMBER) RETURN VARCHAR2
-IS
-  v_result VARCHAR2(100) := NULL;
-BEGIN
-    IF i_msg_level = G_MSG_LEVEL_INFO THEN
-      v_result  := 'Info ?';
-    ELSIF i_msg_level = G_MSG_LEVEL_COMMENT THEN
-      v_result  := 'Comment';
-    ELSIF i_msg_level = G_MSG_LEVEL_WARNING THEN
-      v_result  := 'Warning !';
-    ELSIF i_msg_level = G_MSG_LEVEL_FATAL THEN
-      v_result  := 'Fatal !';
-    ELSIF i_msg_level = G_MSG_LEVEL_ORACLE THEN
-      v_result  := 'Oracle Error';
-    ELSIF i_msg_level = G_MSG_LEVEL_INTERNAL THEN
-      v_result  := 'Internal Error';
-    END IF;
 
-  RETURN v_result;
-END msg_level_string;
-
-
-
-
- 
-FUNCTION unit_message_count(i_unit_id      IN NUMBER
-                           ,i_msg_level    IN NUMBER) RETURN NUMBER IS
-                           
-  CURSOR cu_message_count(c_unit_id      NUMBER                         
-                         ,c_msg_level    NUMBER) IS
-  SELECT count(*)
-  FROM   ms_traversal_message_vw
-  WHERE  unit_id    =  c_unit_id
-  AND    msg_level  =  c_msg_level; 
-  
-  l_result NUMBER;
-  
-BEGIN
-  OPEN cu_message_count(c_unit_id      => i_unit_id
-                       ,c_msg_level    => i_msg_level);
-  FETCH cu_message_count INTO l_result;
-  CLOSE cu_message_count;
-  
-  RETURN l_result;
-  
-END;  
-
- 
-FUNCTION unit_traversal_count(i_unit_id IN NUMBER ) RETURN NUMBER IS
-                           
-  CURSOR cu_traversal_count(c_unit_id NUMBER ) IS
-  SELECT count(*)
-  FROM  ms_traversal
-  WHERE unit_id =  c_unit_id; 
-  
-  l_result NUMBER;
-  
-BEGIN
-  OPEN cu_traversal_count(c_unit_id => i_unit_id );
-  FETCH cu_traversal_count INTO l_result;
-  CLOSE cu_traversal_count;
-  
-  RETURN l_result;
-  
-END;  
 
 BEGIN
   NULL;

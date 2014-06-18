@@ -124,120 +124,115 @@ BEGIN
 END;
  
 
-------------------------------------------------------------------------
--- Internal debugging routines (public)
-------------------------------------------------------------------------
+ */
  
-PROCEDURE set_internal_debug IS
-BEGIN 
+ 
+
+------------------------------------------------------------------------ 
+-- FUNCTIONS USED IN VIEWS
+------------------------------------------------------------------------ 
+ 
+FUNCTION msg_level_string (i_msg_level    IN NUMBER) RETURN VARCHAR2
+IS
+  v_result VARCHAR2(100) := NULL;
+BEGIN
+    IF i_msg_level = ms_logger.G_MSG_LEVEL_INFO THEN
+      v_result  := 'Info ?';
+    ELSIF i_msg_level =  ms_logger.G_MSG_LEVEL_COMMENT THEN
+      v_result  := 'Comment';
+    ELSIF i_msg_level =  ms_logger.G_MSG_LEVEL_WARNING THEN
+      v_result  := 'Warning !';
+    ELSIF i_msg_level =  ms_logger.G_MSG_LEVEL_FATAL THEN
+      v_result  := 'Fatal !';
+    ELSIF i_msg_level =  ms_logger.G_MSG_LEVEL_ORACLE THEN
+      v_result  := 'Oracle Error';
+    ELSIF i_msg_level =  ms_logger.G_MSG_LEVEL_INTERNAL THEN
+      v_result  := 'Internal Error';
+    END IF;
+
+  RETURN v_result;
+END msg_level_string;
+
+
+
+
+ 
+FUNCTION unit_message_count(i_unit_id      IN NUMBER
+                           ,i_msg_level    IN NUMBER) RETURN NUMBER IS
+                           
+  CURSOR cu_message_count(c_unit_id      NUMBER                         
+                         ,c_msg_level    NUMBER) IS
+  SELECT count(*)
+  FROM   ms_traversal_message_vw
+  WHERE  unit_id    =  c_unit_id
+  AND    msg_level  =  c_msg_level; 
   
-  DBMS_OUTPUT.ENABLE(null);
-  g_debug_mode := TRUE;
-  g_debug_indent := 0;
+  l_result NUMBER;
   
-  ms_logger.set_internal_debug;
+BEGIN
+  OPEN cu_message_count(c_unit_id      => i_unit_id
+                       ,c_msg_level    => i_msg_level);
+  FETCH cu_message_count INTO l_result;
+  CLOSE cu_message_count;
+  
+  RETURN l_result;
   
 END;  
 
-PROCEDURE reset_internal_debug IS
-BEGIN 
-  g_debug_mode := FALSE;
-  DBMS_OUTPUT.DISABLE;
+ 
+FUNCTION unit_traversal_count(i_unit_id IN NUMBER ) RETURN NUMBER IS
+                           
+  CURSOR cu_traversal_count(c_unit_id NUMBER ) IS
+  SELECT count(*)
+  FROM  ms_traversal
+  WHERE unit_id =  c_unit_id; 
   
-  ms_logger.reset_internal_debug;
+  l_result NUMBER;
   
-END;
-*/
- 
-/* 
- 
-----------------------------------------------------------------------
--- DERIVATION RULES (public)
-----------------------------------------------------------------------
-FUNCTION f_process_is_closed RETURN BOOLEAN IS
 BEGIN
-  RETURN ms_logger.f_process_is_closed;
-END f_process_is_closed;
-
-FUNCTION f_process_is_open RETURN BOOLEAN IS
-BEGIN
-  RETURN NOT f_process_is_closed;
-END f_process_is_open;
-
- 
- 
-------------------------------------------------------------------------
--- Process operations (private)
------------------------------------------------------------------------- 
-PROCEDURE close_process  
-IS
-BEGIN
-
-    g_process_id := NULL;
-    --Reset the internal error flag.  This will reactivate the package.
-    g_internal_error := FALSE;
- 
-END close_process;
- 
-
-------------------------------------------------------------------------
--- METACODE ROUTINES (Public)
-------------------------------------------------------------------------
-
-PROCEDURE new_process(i_module_name  IN VARCHAR2 DEFAULT NULL
-                     ,i_unit_name    IN VARCHAR2 DEFAULT NULL
-                     ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
-                     ,i_comments     IN VARCHAR2 DEFAULT NULL) IS
-BEGIN
-  log_process(i_module_name  => i_module_name
-             ,i_unit_name    => i_unit_name  
-             ,i_ext_ref      => i_ext_ref    
-             ,i_comments     => i_comments);   
-END;
-*/
-
-/*
-   
-------------------------------------------------------------------------
--- Message Mode operations (private)
-------------------------------------------------------------------------
- 
-PROCEDURE  set_unit_msg_mode(i_unit_id   IN NUMBER
-                            ,i_msg_mode IN NUMBER )
-IS
-  pragma autonomous_transaction;
-BEGIN
-  $if $$intlog $then intlog_start('set_unit_msg_mode');    $end
-  $if $$intlog $then intlog_note('i_unit_id',i_unit_id);   $end
-  $if $$intlog $then intlog_note('i_msg_mode',i_msg_mode); $end
-
-  UPDATE ms_unit
-  SET    msg_mode  = i_msg_mode
-  WHERE  unit_id   = i_unit_id;
-
-  COMMIT;
-  $if $$intlog $then intlog_end('set_unit_msg_mode'); $end
-  EXCEPTION
-    WHEN OTHERS THEN
-      ROLLBACK;
-      err_warn_oracle_error('set_unit_msg_mode');
-END;
- 
-
-------------------------------------------------------------------------
+  OPEN cu_traversal_count(c_unit_id => i_unit_id );
+  FETCH cu_traversal_count INTO l_result;
+  CLOSE cu_traversal_count;
   
-PROCEDURE  set_unit_msg_mode(i_module_name IN VARCHAR2
-                            ,i_unit_name   IN VARCHAR2
-                            ,i_msg_mode   IN NUMBER ) IS
+  RETURN l_result;
+  
+END;  
+
+
+------------------------------------------------------------------------
+-- Message Mode operations (PUBLIC)
+------------------------------------------------------------------------
+ 
+PROCEDURE  set_module_debug(i_module_name IN VARCHAR2 ) IS
                              
 BEGIN
+  ms_logger.set_module_msg_mode(i_module_name  => i_module_name
+                               ,i_msg_mode    => ms_logger.G_MSG_MODE_DEBUG);
+END; 
 
+------------------------------------------------------------------------
 
-  set_unit_msg_mode(i_unit_id  => find_unit(i_module_name => i_module_name
-                                           ,i_unit_name   => i_unit_name
-                                           ,i_create      => FALSE).unit_id
-                   ,i_msg_mode => i_msg_mode);
+PROCEDURE  set_module_normal(i_module_name IN VARCHAR2 ) IS
+                             
+BEGIN
+ ms_logger. set_module_msg_mode(i_module_name  => i_module_name
+                               ,i_msg_mode    => ms_logger.G_MSG_MODE_NORMAL);
+END; 
+
+------------------------------------------------------------------------
+
+PROCEDURE  set_module_quiet(i_module_name IN VARCHAR2 ) IS
+                             
+BEGIN
+  ms_logger.set_module_msg_mode(i_module_name  => i_module_name
+                               ,i_msg_mode    => ms_logger.G_MSG_MODE_QUIET);
+END; 
  
+PROCEDURE  set_module_disabled(i_module_name IN VARCHAR2 ) IS
+                             
+BEGIN
+  ms_logger.set_module_msg_mode(i_module_name  => i_module_name
+                               ,i_msg_mode    => ms_logger.G_MSG_MODE_DISABLED);
 END; 
 
 ------------------------------------------------------------------------
@@ -248,9 +243,9 @@ PROCEDURE  set_unit_debug(i_module_name IN VARCHAR2
                          ,i_unit_name   IN VARCHAR2 ) IS
                              
 BEGIN
-  set_unit_msg_mode(i_module_name  => i_module_name
-                    ,i_unit_name   => i_unit_name  
-                    ,i_msg_mode    => G_MSG_MODE_DEBUG);
+  ms_logger.set_unit_msg_mode(i_module_name  => i_module_name
+                             ,i_unit_name    => i_unit_name  
+                             ,i_msg_mode     => ms_logger.G_MSG_MODE_DEBUG);
 END; 
 
 ------------------------------------------------------------------------
@@ -259,9 +254,9 @@ PROCEDURE  set_unit_normal(i_module_name IN VARCHAR2
                          ,i_unit_name   IN VARCHAR2 ) IS
                              
 BEGIN
-  set_unit_msg_mode(i_module_name  => i_module_name
-                    ,i_unit_name   => i_unit_name  
-                    ,i_msg_mode    => G_MSG_MODE_NORMAL);
+  ms_logger.set_unit_msg_mode(i_module_name  => i_module_name
+                             ,i_unit_name    => i_unit_name  
+                             ,i_msg_mode     => ms_logger.G_MSG_MODE_NORMAL);
 END; 
 
 ------------------------------------------------------------------------
@@ -270,18 +265,24 @@ PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
                          ,i_unit_name   IN VARCHAR2 ) IS
                              
 BEGIN
-  set_unit_msg_mode(i_module_name  => i_module_name
-                    ,i_unit_name    => i_unit_name  
-                    ,i_msg_mode    => G_MSG_MODE_QUIET);
+  ms_logger.set_unit_msg_mode(i_module_name  => i_module_name
+                             ,i_unit_name    => i_unit_name  
+                             ,i_msg_mode    => ms_logger.G_MSG_MODE_QUIET);
+END; 
+ 
+PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
+                            ,i_unit_name   IN VARCHAR2 ) IS
+                             
+BEGIN
+  ms_logger.set_unit_msg_mode(i_module_name  => i_module_name
+                             ,i_unit_name    => i_unit_name  
+                             ,i_msg_mode     => ms_logger.G_MSG_MODE_DISABLED);
 END; 
 
-*/ 
- 
-------------------------------------------------------------------------
-/*
-  --------------------------------------------------------------------
-  --purge_old_processes
-  -------------------------------------------------------------------
+
+--------------------------------------------------------------------
+--purge_old_processes
+-------------------------------------------------------------------
 
 
 PROCEDURE purge_old_processes(i_keep_day_count IN NUMBER DEFAULT 1) IS
@@ -291,13 +292,11 @@ PROCEDURE purge_old_processes(i_keep_day_count IN NUMBER DEFAULT 1) IS
 BEGIN 
 
   delete from ms_process        where created_date < (SYSDATE - i_keep_day_count);
-  delete from ms_internal_error where time_now     < (SYSDATE - i_keep_day_count);
-  delete from ms_large_message  where time_now     < (SYSDATE - i_keep_day_count);
-
+ 
   COMMIT;
   
  END;
-*/
+ 
   
  
 ------------------------------------------------------------------------

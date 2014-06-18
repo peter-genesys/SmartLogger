@@ -21,83 +21,6 @@ wwv_flow_api.create_menu_option (
   p_also_current_for_pages=> '');
  
 wwv_flow_api.create_menu_option (
-  p_id=>2634616333027161 + wwv_flow_api.g_id_offset,
-  p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
-  p_parent_id=>2634224359024772 + wwv_flow_api.g_id_offset,
-  p_option_sequence=>10,
-  p_short_name=>'View Source',
-  p_long_name=>'',
-  p_link=>'f?p=&FLOW_ID.:4:&SESSION.',
-  p_page_id=>4,
-  p_also_current_for_pages=> '');
- 
-wwv_flow_api.create_menu_option (
-  p_id=>2725416979064911 + wwv_flow_api.g_id_offset,
-  p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
-  p_parent_id=>2727227583087388 + wwv_flow_api.g_id_offset,
-  p_option_sequence=>10,
-  p_short_name=>'Step 3',
-  p_long_name=>'',
-  p_link=>'f?p=&APP_ID.:3:&SESSION.::&DEBUG.:::',
-  p_page_id=>3,
-  p_also_current_for_pages=> '');
- 
-wwv_flow_api.create_menu_option (
-  p_id=>2726812733084856 + wwv_flow_api.g_id_offset,
-  p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
-  p_parent_id=>null,
-  p_option_sequence=>10,
-  p_short_name=>'Step 1',
-  p_long_name=>'',
-  p_link=>'f?p=&FLOW_ID.:6:&SESSION.',
-  p_page_id=>6,
-  p_also_current_for_pages=> '');
- 
-wwv_flow_api.create_menu_option (
-  p_id=>2727227583087388 + wwv_flow_api.g_id_offset,
-  p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
-  p_parent_id=>2726812733084856 + wwv_flow_api.g_id_offset,
-  p_option_sequence=>10,
-  p_short_name=>'Step 2',
-  p_long_name=>'',
-  p_link=>'f?p=&FLOW_ID.:7:&SESSION.',
-  p_page_id=>7,
-  p_also_current_for_pages=> '');
- 
-wwv_flow_api.create_menu_option (
-  p_id=>2727712137909173 + wwv_flow_api.g_id_offset,
-  p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
-  p_parent_id=>2726812733084856 + wwv_flow_api.g_id_offset,
-  p_option_sequence=>10,
-  p_short_name=>'Step 1.5',
-  p_long_name=>'',
-  p_link=>'f?p=&APP_ID.:13:&SESSION.',
-  p_page_id=>13,
-  p_also_current_for_pages=> '');
- 
-wwv_flow_api.create_menu_option (
-  p_id=>2730328507093461 + wwv_flow_api.g_id_offset,
-  p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
-  p_parent_id=>2725416979064911 + wwv_flow_api.g_id_offset,
-  p_option_sequence=>10,
-  p_short_name=>'Step 4',
-  p_long_name=>'',
-  p_link=>'f?p=&APP_ID.:5:&SESSION.',
-  p_page_id=>5,
-  p_also_current_for_pages=> '');
- 
-wwv_flow_api.create_menu_option (
-  p_id=>2765212044066214 + wwv_flow_api.g_id_offset,
-  p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
-  p_parent_id=>null,
-  p_option_sequence=>10,
-  p_short_name=>'AOP Step 2',
-  p_long_name=>'',
-  p_link=>'f?p=&APP_ID.:20:&SESSION.',
-  p_page_id=>20,
-  p_also_current_for_pages=> '');
- 
-wwv_flow_api.create_menu_option (
   p_id=>2775004066441191 + wwv_flow_api.g_id_offset,
   p_menu_id=>17762344465931475 + wwv_flow_api.g_id_offset,
   p_parent_id=>0,
@@ -129,14 +52,6 @@ wwv_flow_api.create_menu_option (
   p_link=>'f?p=&APP_ID.:25:&SESSION.',
   p_page_id=>25,
   p_also_current_for_pages=> '');
- 
-null;
- 
-end;
-/
-
- 
-begin
  
 wwv_flow_api.create_menu_option (
   p_id=>3713310736027874 + wwv_flow_api.g_id_offset,
