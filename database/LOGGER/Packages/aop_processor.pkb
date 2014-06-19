@@ -505,21 +505,22 @@ END;
 --------------------------------------------------------------------------------- 
 -- get_next - return first matching string
 ---------------------------------------------------------------------------------
--- l_either_match is the match from both i_search and i_stop
+-- Search is split into i_srch_before, i_stop, i_srch_after in that order of priority.
+-- l_any_match is the match from any of the componants
 -- i_modifier is applied to the std REGEXP_SUBSTR search
 -- g_upto_pos is the start of the match
 -- g_past_pos is the end of the match
 -- IF i_trim_result    THEN stripped of upto 1 leading and trailing whitespace
 -- IF i_trim_pointers  THEN g_upto_pos and g_past_pos will point to the start and stop of the trimmed match
--- IF match FROM i_search THEN g_current_pos will advance to g_past_pos, otherwise g_current_pos does not change.
+-- IF match FROM i_srch_before/after THEN g_current_pos will advance to g_past_pos, otherwise g_current_pos does not change.
 -- IF i_upper    THEN  result is in UPPER
 -- IF i_lower    THEN  result is in LOWER
 -- IN HTML mode i_colour determines the highlighting used when the match is consumed (g_current_pos set to g_past_pos)
 -- IF i_raise_error and NO MATCH, and exception is raises, and the search string written out.
 ---------------------------------------------------------------------------------
 
-FUNCTION get_next(i_search             IN VARCHAR2 DEFAULT NULL
-                 ,i_search2            IN VARCHAR2 DEFAULT NULL 
+FUNCTION get_next(i_srch_before        IN VARCHAR2 DEFAULT NULL
+                 ,i_srch_after         IN VARCHAR2 DEFAULT NULL 
                  ,i_stop               IN VARCHAR2 DEFAULT NULL
                  ,i_modifier           IN VARCHAR2 DEFAULT 'i'
                  ,i_upper              IN BOOLEAN  DEFAULT FALSE
@@ -530,97 +531,27 @@ FUNCTION get_next(i_search             IN VARCHAR2 DEFAULT NULL
                  ,i_trim_result        IN BOOLEAN  DEFAULT FALSE ) return CLOB IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next'); 
   
-  l_either_match          VARCHAR2(32000);
-  l_trimmed_either_match  VARCHAR2(32000);
+  l_any_match             VARCHAR2(32000);
+  l_trimmed_any_match  VARCHAR2(32000);
   l_colour_either_match   VARCHAR2(32000);
   l_search_match          VARCHAR2(32000);
   l_result                VARCHAR2(32000);
-  l_either                VARCHAR2(32000);
+  l_any_search            VARCHAR2(32000);
   l_search                VARCHAR2(32000);
 
   l_trim_upto_pos         INTEGER;
 
-  l_search_pos            INTEGER;
-  l_search_pos2           INTEGER;
+  l_srch_before_pos       INTEGER;
+  l_srch_after_pos        INTEGER;
 
-BEGIN
-  check_timeout; --GET_NEXT
-  ms_logger.param(l_node, 'i_search'     ,i_search);
-  ms_logger.param(l_node, 'i_search2'    ,i_search2);
-  ms_logger.param(l_node, 'i_stop'       ,i_stop);
-  ms_logger.param(l_node, 'g_current_pos',g_current_pos);
 
-  l_search := i_search;
+  l_use_srch_before          BOOLEAN := TRUE;
 
-  --Workaround - when i_search gets too long -> ORA-03113: end-of-file on communication channel
-  --So split into 2 searches.
-  if i_search2 is not null then
-    ms_logger.comment(l_node, 'Choosing search param');
- 
-    l_search_pos  := REGEXP_INSTR_NOT0(g_code,i_search,g_current_pos,1,0,i_modifier);
-    l_search_pos2 := REGEXP_INSTR_NOT0(g_code,i_search2,g_current_pos,1,0,i_modifier);
 
-    ms_logger.note(l_node, 'l_search_pos',l_search_pos);
-    ms_logger.note(l_node, 'l_search_pos2',l_search_pos2);
- 
-    If l_search_pos < l_search_pos2 THEN
-      ms_logger.info(l_node, 'Using i_search1');
-    else
-      ms_logger.info(l_node, 'Using i_search2');
-      l_search := i_search2;
-    end if;
- 
-  end if;
-
- 
-  l_either := TRIM('|' FROM l_search ||'|'||i_stop); 
-  ms_logger.note(l_node, 'l_either',l_either  );
-  ms_logger.note_length(l_node, 'l_either',l_either  );
- 
-  --Keep the original "either" match
-  l_either_match := REGEXP_SUBSTR(g_code,l_either,g_current_pos,1,i_modifier);
-  ms_logger.note(l_node, 'l_either_match',l_either_match  );
- 
-  --Should we raise an error?
-  IF l_either_match IS NULL AND i_raise_error THEN
-    ms_logger.fatal(l_node, 'String missing '||l_either);
-    wedge( i_new_code => 'STRING NOT FOUND '||l_either
-          ,i_colour   => G_COLOUR_ERROR);
-    RAISE x_string_not_found;
-  
-  END IF; 
-  
-  --Calculate the new positions.  
-  g_upto_pos := REGEXP_INSTR(g_code,l_either,g_current_pos,1,0,i_modifier);
-  g_past_pos := REGEXP_INSTR(g_code,l_either,g_current_pos,1,1,i_modifier);     
-  ms_logger.note(l_node, 'g_upto_pos',g_upto_pos  );
- 
-  
-  l_trimmed_either_match := trim_whitespace(l_either_match);
-  
-  IF i_trim_result THEN
-    l_result := l_trimmed_either_match; 
-  ELSE
-   l_result := l_either_match;
-  END IF; 
- 
-  if l_trimmed_either_match IS NOT NULL AND i_trim_pointers THEN
-  
-    --Now that we've trimmed the match, lets change the pointers to suit.
-    --Not a regex search, since just searching for the known string.
-    ms_logger.info(l_node, 'Shifting pointers to trimmed match.');
-    g_upto_pos := INSTR(g_code,l_trimmed_either_match,g_upto_pos);
-    g_past_pos := g_upto_pos + LENGTH(l_trimmed_either_match);
-    ms_logger.note(l_node, 'g_upto_pos',g_upto_pos  );
-    ms_logger.note(l_node, 'g_past_pos',g_past_pos  );   
-  
-  END IF;
- 
- 
-  
-  IF  regex_match(l_either_match,l_search,i_modifier) THEN
-    --Matched on the search componant, so we will consume it.
-    l_colour_either_match := f_colour(i_text   => l_trimmed_either_match  
+  PROCEDURE consume_search IS
+  BEGIN
+    ms_logger.comment(l_node, 'Consume search componant');
+    l_colour_either_match := f_colour(i_text   => l_trimmed_any_match  
                                      ,i_colour => i_colour);
  
     g_code := SUBSTR(g_code,1,g_upto_pos-1)
@@ -631,11 +562,114 @@ BEGIN
     g_past_pos := g_upto_pos + LENGTH(l_colour_either_match);
     --Current pos is now the past_pos
     g_current_pos := g_past_pos;
+  END;
+
  
+
+
+
+BEGIN
+  check_timeout; --GET_NEXT
+  ms_logger.param(l_node, 'i_srch_before'     ,i_srch_before);
+  ms_logger.param(l_node, 'i_srch_after'    ,i_srch_after);
+  ms_logger.param(l_node, 'i_stop'       ,i_stop);
+  ms_logger.param(l_node, 'g_current_pos',g_current_pos);
+
+  
+
+  --Workaround - when i_srch_before gets too long -> ORA-03113: end-of-file on communication channel
+  --So split into 2 searches.
+  --Now i_srch_after will search after i_stop
+  IF i_srch_before IS NOT NULL AND i_srch_after IS NULL THEN
+    l_use_srch_before := TRUE;
+
+  ELSIF i_srch_before IS NULL AND i_srch_after IS NOT NULL THEN  
+    l_use_srch_before := FALSE;
+
+  ELSIF i_srch_before IS NOT NULL AND i_srch_after IS NOT NULL THEN 
+
+    ms_logger.comment(l_node, 'Choosing search param');
+ 
+    l_srch_before_pos  := REGEXP_INSTR_NOT0(g_code,i_srch_before,g_current_pos,1,0,i_modifier);
+    l_srch_after_pos := REGEXP_INSTR_NOT0(g_code,i_srch_after,g_current_pos,1,0,i_modifier);
+
+    ms_logger.note(l_node, 'l_srch_before_pos',l_srch_before_pos);
+    ms_logger.note(l_node, 'l_srch_after_pos',l_srch_after_pos);
+ 
+    l_use_srch_before := l_srch_before_pos < l_srch_after_pos;
+ 
+  end if;
+ 
+  If l_use_srch_before THEN
+      ms_logger.info(l_node, 'Using i_srch_before');
+      l_search := i_srch_before;
+      l_any_search := TRIM('|' FROM i_srch_before ||'|'||i_stop);
+    else
+      ms_logger.info(l_node, 'Using i_srch_after');
+      l_search := i_srch_after;
+      l_any_search := TRIM('|' FROM i_stop ||'|'||i_srch_after);
+  end if;
+
+ 
+  ms_logger.note(l_node, 'l_any_search',l_any_search  );
+  ms_logger.note_length(l_node, 'l_any_search',l_any_search  );
+ 
+  --Keep the original "either" match
+  l_any_match := REGEXP_SUBSTR(g_code,l_any_search,g_current_pos,1,i_modifier);
+  ms_logger.note(l_node, 'l_any_match',l_any_match  );
+ 
+  --Should we raise an error?
+  IF l_any_match IS NULL AND i_raise_error THEN
+    ms_logger.fatal(l_node, 'String missing '||l_any_search);
+    wedge( i_new_code => 'STRING NOT FOUND '||l_any_search
+          ,i_colour   => G_COLOUR_ERROR);
+    RAISE x_string_not_found;
+  
+  END IF; 
+  
+  --Calculate the new positions.  
+  g_upto_pos := REGEXP_INSTR(g_code,l_any_search,g_current_pos,1,0,i_modifier);
+  g_past_pos := REGEXP_INSTR(g_code,l_any_search,g_current_pos,1,1,i_modifier);     
+  ms_logger.note(l_node, 'g_upto_pos',g_upto_pos  );
+ 
+  
+  l_trimmed_any_match := trim_whitespace(l_any_match);
+  
+  IF i_trim_result THEN
+    l_result := l_trimmed_any_match; 
   ELSE
+   l_result := l_any_match;
+  END IF; 
+ 
+  if l_trimmed_any_match IS NOT NULL AND i_trim_pointers THEN
+  
+    --Now that we've trimmed the match, lets change the pointers to suit.
+    --Not a regex search, since just searching for the known string.
+    ms_logger.info(l_node, 'Shifting pointers to trimmed match.');
+    g_upto_pos := INSTR(g_code,l_trimmed_any_match,g_upto_pos);
+    g_past_pos := g_upto_pos + LENGTH(l_trimmed_any_match);
+    ms_logger.note(l_node, 'g_upto_pos',g_upto_pos  );
+    ms_logger.note(l_node, 'g_past_pos',g_past_pos  );   
+  
+  END IF;
+ 
+ 
+  
+  IF  l_use_srch_before AND regex_match(l_any_match,l_search,i_modifier) THEN
+    ms_logger.info(l_node, 'Matched on the search componant1');
+    consume_search;
+ 
+  ELSIF regex_match(l_any_match,i_stop,i_modifier) THEN
+    ms_logger.info(l_node, 'Matched on the stop componant');
     --Matched on the stop componant, don't consume - ie don't advance the pointer.
     NULL;
+  ELSIF NOT l_use_srch_before AND regex_match(l_any_match,l_search,i_modifier) THEN
+    ms_logger.info(l_node, 'Matched on the search componant2');
+    consume_search;  
   END IF;
+ 
+
+
  
   --ms_logger.param(l_node, 'g_current_pos',g_current_pos);
   --ms_logger.note(l_node, 'char @ g_current_pos -2     '   ,substr(g_code, g_current_pos-2, 1)||ascii(substr(g_code, g_current_pos-2, 1)));
@@ -675,7 +709,7 @@ BEGIN
     g_current_pos := g_past_pos;
   ELSE
  
-     l_dummy := get_next(i_search      => i_search     
+     l_dummy := get_next(i_srch_before      => i_search     
                         ,i_stop        => NULL       
                         ,i_modifier    => i_modifier   
                         ,i_colour      => i_colour     
@@ -699,8 +733,7 @@ BEGIN
     --just goto the position found during last get_next
     g_current_pos := g_upto_pos;
   ELSE
-     l_dummy := get_next(i_search         => NULL     
-                        ,i_stop           => i_stop       
+     l_dummy := get_next(i_stop           => i_stop       
                         ,i_modifier       => i_modifier   
                         ,i_trim_pointers  => i_trim_pointers     
                         ,i_raise_error    => TRUE );
@@ -720,7 +753,7 @@ FUNCTION get_next_object_name RETURN VARCHAR2 IS
   l_object_name VARCHAR2(100);
 
 BEGIN
-  l_object_name := get_next(i_search  => G_REGEX_2_QUOTED_WORDS
+  l_object_name := get_next(i_srch_before  => G_REGEX_2_QUOTED_WORDS
                                   ||'|'||G_REGEX_WORD
                            ,i_lower   => TRUE        
                            ,i_colour  => G_COLOUR_OBJECT_NAME
@@ -853,7 +886,7 @@ BEGIN
     BEGIN
 
       --Find first: "(" "," "DEFAULT" ":=" "AS" "IS"
-      l_keyword := get_next( i_search       => G_REGEX_OPEN_BRACKET
+      l_keyword := get_next( i_srch_before       => G_REGEX_OPEN_BRACKET
                                         ||'|'||G_REGEX_COMMA
                                         ||'|'||G_REGEX_IS_AS
                                         --||'|'||G_REGEX_CLOSE_BRACKET
@@ -875,7 +908,7 @@ BEGIN
              --  varname IN OUT vartype ,
              --  varname IN vartype)
              
-            l_var_def := get_next( i_search       =>  G_REGEX_REC_VAR_DEF_LINE  
+            l_var_def := get_next( i_srch_before       =>  G_REGEX_REC_VAR_DEF_LINE  
                                                ||'|'||G_REGEX_TAB_COL_VAR_DEF_LINE
                                                ||'|'||G_REGEX_VAR_DEF_LINE 
                                                ||'|'||G_REGEX_PARAM_LINE
@@ -1065,7 +1098,7 @@ BEGIN
  
   loop
  
-  l_var_def := get_next( i_search      => G_REGEX_VAR_DEF_LINE 
+  l_var_def := get_next( i_srch_before      => G_REGEX_VAR_DEF_LINE 
                                     ||'|'||G_REGEX_REC_VAR_DEF_LINE  
                                     ||'|'||G_REGEX_TAB_COL_VAR_DEF_LINE
                          ,i_stop        => G_REGEX_BEGIN  
@@ -1192,7 +1225,7 @@ BEGIN
                 ,i_var_list => l_var_list);
   
   --calc indent and consume BEGIN
-  AOP_block(i_indent    => calc_indent(i_indent, get_next(i_search => G_REGEX_BEGIN
+  AOP_block(i_indent    => calc_indent(i_indent, get_next(i_srch_before => G_REGEX_BEGIN
                                                          ,i_colour => G_COLOUR_GO_PAST))
            ,i_regex_end => G_REGEX_END_BEGIN
            ,i_var_list  => l_var_list);
@@ -1340,7 +1373,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
     l_result varchar2(100);
   BEGIN
         go_upto; 
-        l_result := get_next ( i_search      => i_search
+        l_result := get_next ( i_srch_before      => i_search
                               ,i_lower       => TRUE
                               ,i_colour      => G_COLOUR_VAR);      
         go_past(G_REGEX_SEMI_COL); 
@@ -1425,10 +1458,10 @@ BEGIN
  
   loop
  
-  l_keyword := get_next(  i_search       =>   G_REGEX_OPEN
+  l_keyword := get_next(  i_srch_before       =>   G_REGEX_OPEN
                                        ||'|'||G_REGEX_NEUTRAL
                                        ||'|'||G_REGEX_CLOSE
-                          ,i_search2       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
+                          ,i_srch_after       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
                                        ||'|'||G_REGEX_SHOW_ME_LINE 
                                        ||'|'||G_REGEX_ROW_COUNT_LINE
                                        ||'|'||G_REGEX_DML               
@@ -1566,7 +1599,7 @@ BEGIN
         --Find each variable until a ";" is reached.
         l_into_var_list.DELETE;
         LOOP
-            l_var := get_next( i_search      => G_REGEX_VAR        
+            l_var := get_next( i_srch_after     => G_REGEX_VAR        
                                          ||'|'||G_REGEX_REC_COL    
                                          ||'|'||G_REGEX_BIND_VAR  
                               ,i_stop        => G_REGEX_SEMI_COL    
@@ -1693,7 +1726,7 @@ BEGIN
  
   --First Block is BEGIN 
   --calc indent and consume BEGIN
-  AOP_block(i_indent    => calc_indent(i_indent, get_next(i_search => G_REGEX_BEGIN
+  AOP_block(i_indent    => calc_indent(i_indent, get_next(i_srch_before => G_REGEX_BEGIN
                                                          ,i_colour => G_COLOUR_GO_PAST))
            ,i_regex_end  => G_REGEX_END_BEGIN
            ,i_var_list   => l_var_list  );
@@ -1757,7 +1790,7 @@ BEGIN
     BEGIN
  
         --Find node type
-        l_keyword := get_next( i_search      => G_REGEX_PROG_UNIT
+        l_keyword := get_next( i_srch_before      => G_REGEX_PROG_UNIT
                               ,i_stop        => G_REGEX_BEGIN
                               ,i_upper       => TRUE
                               ,i_colour      => G_COLOUR_PROG_UNIT );
@@ -1784,7 +1817,7 @@ BEGIN
       --Check for LANGUAGE JAVA NAME
       --If this is a JAVA function then we don't want a node and don't need to bother reading spec or parsing body.
       --Will find a LANGUAGE keyword before next ";"
-      l_language := get_next(i_search       => G_REGEX_JAVA 
+      l_language := get_next(i_srch_before       => G_REGEX_JAVA 
                             ,i_stop         => G_REGEX_SEMI_COL
                             ,i_upper        => TRUE
                             ,i_colour       => G_COLOUR_JAVA
@@ -1800,7 +1833,7 @@ BEGIN
       --If this is a Forward Declaration 
       --then we don't want a node and don't need to bother reading spec or parsing body.
       --Will find a ";" before next IS or AS
-      l_forward_declare := get_next(i_search       => G_REGEX_SEMI_COL 
+      l_forward_declare := get_next(i_srch_before       => G_REGEX_SEMI_COL 
                                    ,i_stop         => G_REGEX_IS_AS 
                                    ,i_upper        => TRUE
                                    ,i_colour       => G_COLOUR_GO_PAST --G_COLOUR_FORWARD_DECLARE
@@ -1935,13 +1968,13 @@ END;
     CASE 
       WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN
         --calc indent and consume DECLARE
-        AOP_declare(i_indent    => calc_indent(g_initial_indent, get_next(i_search => G_REGEX_DECLARE
+        AOP_declare(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_DECLARE
                                                                          ,i_colour => G_COLOUR_GO_PAST))
                    ,i_var_list => l_var_list);
           
       WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN
         --calc indent and consume BEGIN
-        AOP_block(i_indent    => calc_indent(g_initial_indent, get_next(i_search => G_REGEX_BEGIN
+        AOP_block(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_BEGIN
                                                                        ,i_colour => G_COLOUR_GO_PAST))
                  ,i_regex_end  => G_REGEX_END_BEGIN
                  ,i_var_list   => l_var_list);
@@ -2184,6 +2217,9 @@ END;
       l_text CLOB;    
       l_temp_code CLOB;
   BEGIN
+    --Reset the processing pointer.
+    g_current_pos := 1;
+ 
     FOR l_index in 1..g_comment_stack.count loop
       ms_logger.note(l_node, 'comment', l_index);
       l_temp_code := g_code;
