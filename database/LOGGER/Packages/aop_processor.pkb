@@ -1472,7 +1472,6 @@ BEGIN
                           ,i_upper        => TRUE
                           ,i_colour       => G_COLOUR_BLOCK
                           ,i_raise_error  => TRUE
-                       --   ,i_modifier     => 'in' --THIS CAUSED A VALUE ERROR - NEED A WORKAROUND
 );
  
   ms_logger.note(l_node, 'l_keyword',l_keyword);
