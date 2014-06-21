@@ -16,13 +16,13 @@ prompt  APPLICATION 104 - SmartLogger
 --   Using SQL*Plus as the Oracle user APEX_040200 or as the owner (parsing schema) of the application
  
 -- Application Statistics:
---   Pages:                     26
---     Items:                   62
+--   Pages:                     11
+--     Items:                   29
 --     Validations:              3
---     Processes:               27
---     Regions:                 74
---     Buttons:                 66
---     Dynamic Actions:         19
+--     Processes:               22
+--     Regions:                 30
+--     Buttons:                 28
+--     Dynamic Actions:         14
 --   Shared Components:
 --     Logic:
 --       Items:                  1
@@ -30,7 +30,7 @@ prompt  APPLICATION 104 - SmartLogger
 --       Tab Sets:               1
 --         Tabs:                 5
 --       Breadcrumbs:            1
---         Entries:             15
+--         Entries:              8
 --       NavBar Entries:         1
 --     Security:
 --       Authentication:         3

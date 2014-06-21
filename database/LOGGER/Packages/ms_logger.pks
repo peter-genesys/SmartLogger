@@ -44,11 +44,7 @@ G_OPEN_PROCESS_IF_CLOSED  CONSTANT ms_unit.open_process%TYPE := 'C';
 G_OPEN_PROCESS_NEVER      CONSTANT ms_unit.open_process%TYPE := 'N';
 G_OPEN_PROCESS_DEFAULT    CONSTANT ms_unit.open_process%TYPE := NULL;
 
---FUNCTION new_process(i_module_name IN VARCHAR2
---                    ,i_unit_name   IN VARCHAR2
---                    ,i_ext_ref     IN VARCHAR2 DEFAULT NULL
---                    ,i_comments    IN VARCHAR2 DEFAULT NULL       ) RETURN ms_logger.node_typ;
- 
+
  
 FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
                     ,i_process_type IN VARCHAR2 DEFAULT NULL
@@ -78,52 +74,23 @@ FUNCTION new_script(i_module_name IN VARCHAR2
 				   
  
  
-
-------------------------------------------------------------------------
--- Message Mode operations (PUBLIC)
-------------------------------------------------------------------------
- 
-PROCEDURE  set_module_debug(i_module_name IN VARCHAR2 );
-
-------------------------------------------------------------------------
-
-PROCEDURE  set_module_normal(i_module_name IN VARCHAR2 );
-
-------------------------------------------------------------------------
-
-PROCEDURE  set_module_quiet(i_module_name IN VARCHAR2 );
- 
-PROCEDURE  set_module_disabled(i_module_name IN VARCHAR2 );
- 
-PROCEDURE  set_unit_debug(i_module_name IN VARCHAR2
-                         ,i_unit_name   IN VARCHAR2 );
-
-------------------------------------------------------------------------
-
-PROCEDURE  set_unit_normal(i_module_name IN VARCHAR2
-                         ,i_unit_name   IN VARCHAR2 );
-
-------------------------------------------------------------------------
-
-PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
-                         ,i_unit_name   IN VARCHAR2 );
-
-------------------------------------------------------------------------
-PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
-                            ,i_unit_name   IN VARCHAR2 );
- 
- 
---------------------------------------------------------------------
---purge_old_processes
--------------------------------------------------------------------
-
-
-PROCEDURE purge_old_processes(i_keep_day_count IN NUMBER DEFAULT 1);
- 
  
 ----------------------------------------------------------------------
 -- EXPOSED FOR THE MS_API
 ----------------------------------------------------------------------
+------------------------------------------------------------------------
+-- Message Mode operations 
+------------------------------------------------------------------------
+ 
+  
+PROCEDURE  set_module_msg_mode(i_module_name IN VARCHAR2
+                              ,i_msg_mode   IN NUMBER );
+
+------------------------------------------------------------------------
+  
+PROCEDURE  set_unit_msg_mode(i_module_name IN VARCHAR2
+                            ,i_unit_name   IN VARCHAR2
+                            ,i_msg_mode   IN NUMBER );
 
 ----------------------------------------------------------------------
 -- f_process_traced
@@ -138,6 +105,9 @@ FUNCTION f_process_is_closed RETURN BOOLEAN;
 FUNCTION f_process_is_open RETURN BOOLEAN;
 
 
+----------------------------------------------------------------------
+-- USED IN INSTRUMENTATION BY AOP_PROCESSOR 
+----------------------------------------------------------------------
 ------------------------------------------------------------------------
 -- Message ROUTINES (Public)
 ------------------------------------------------------------------------
@@ -259,15 +229,6 @@ PROCEDURE note_length( i_node  IN ms_logger.node_typ
                       ,i_value IN CLOB        ) ;
  
  
-FUNCTION msg_level_string (i_msg_level    IN NUMBER) RETURN VARCHAR2;
- 
- 
-FUNCTION unit_message_count(i_unit_id      IN NUMBER
-                           ,i_msg_level    IN NUMBER) RETURN NUMBER;
-
- 
-FUNCTION unit_traversal_count(i_unit_id IN NUMBER ) RETURN NUMBER;
-
 END;
 /
 show error;

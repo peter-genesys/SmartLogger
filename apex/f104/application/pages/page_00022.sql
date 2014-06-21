@@ -17,26 +17,6 @@ wwv_flow_api.create_page (
  ,p_first_item => 'NO_FIRST_ITEM'
  ,p_include_apex_css_js_yn => 'Y'
  ,p_autocomplete_on_off => 'ON'
- ,p_javascript_code => 
-'function clob_get(){ '||unistr('\000a')||
-'  //alert(''clob_get'');'||unistr('\000a')||
-'        var clob_ob = new apex.ajax.clob( '||unistr('\000a')||
-'            function(){ '||unistr('\000a')||
-'                var rs = p.readyState '||unistr('\000a')||
-'                if(rs == 1||rs == 2||rs == 3){ '||unistr('\000a')||
-'                    $x_Show(''AjaxLoading''); '||unistr('\000a')||
-'                }else if(rs == 4){ '||unistr('\000a')||
-'                    $s(''P18_AOP_HTML_TEXT'',p.responseText); '||unistr('\000a')||
-'                    //$s(''P13_RESULT2'',p.responseText);'||unistr('\000a')||
-'  '||
-'                  $x_Hide(''AjaxLoading''); '||unistr('\000a')||
-'                }else{return false;} '||unistr('\000a')||
-'            } '||unistr('\000a')||
-'        ); '||unistr('\000a')||
-'        clob_ob._get(); '||unistr('\000a')||
-'    };'
- ,p_javascript_code_onload => 
-'//clob_get();'
  ,p_page_is_public_y_n => 'N'
  ,p_protection_level => 'N'
  ,p_cache_page_yn => 'N'
@@ -45,7 +25,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140604134450'
+ ,p_last_upd_yyyymmddhh24miss => '20140617104313'
   );
 null;
  

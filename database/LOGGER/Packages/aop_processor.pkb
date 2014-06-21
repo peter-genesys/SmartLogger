@@ -20,7 +20,7 @@ create or replace package body aop_processor is
  
   g_weave_start_time  date;
   
-  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 60; 
+  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 180; 
   g_weave_timeout_secs NUMBER;   
   
   g_initial_indent     constant integer := 0;
@@ -162,7 +162,16 @@ create or replace package body aop_processor is
   G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
  
 
-  
+  --------------------------------------------------------------------
+  -- regex_match
+  --------------------------------------------------------------------
+  FUNCTION regex_match(i_source_string   IN CLOB
+                      ,i_pattern         IN VARCHAR2
+                      ,i_match_parameter IN VARCHAR2 DEFAULT 'i') RETURN BOOLEAN IS
+  BEGIN
+    RETURN REGEXP_LIKE(i_source_string,i_pattern,i_match_parameter);
+  END;
+ 
   --------------------------------------------------------------------
   -- table_owner
   --------------------------------------------------------------------
@@ -496,21 +505,22 @@ END;
 --------------------------------------------------------------------------------- 
 -- get_next - return first matching string
 ---------------------------------------------------------------------------------
--- l_either_match is the match from both i_search and i_stop
+-- Search is split into i_srch_before, i_stop, i_srch_after in that order of priority.
+-- l_any_match is the match from any of the componants
 -- i_modifier is applied to the std REGEXP_SUBSTR search
 -- g_upto_pos is the start of the match
 -- g_past_pos is the end of the match
 -- IF i_trim_result    THEN stripped of upto 1 leading and trailing whitespace
 -- IF i_trim_pointers  THEN g_upto_pos and g_past_pos will point to the start and stop of the trimmed match
--- IF match FROM i_search THEN g_current_pos will advance to g_past_pos, otherwise g_current_pos does not change.
+-- IF match FROM i_srch_before/after THEN g_current_pos will advance to g_past_pos, otherwise g_current_pos does not change.
 -- IF i_upper    THEN  result is in UPPER
 -- IF i_lower    THEN  result is in LOWER
 -- IN HTML mode i_colour determines the highlighting used when the match is consumed (g_current_pos set to g_past_pos)
 -- IF i_raise_error and NO MATCH, and exception is raises, and the search string written out.
 ---------------------------------------------------------------------------------
 
-FUNCTION get_next(i_search             IN VARCHAR2 DEFAULT NULL
-                 ,i_search2            IN VARCHAR2 DEFAULT NULL 
+FUNCTION get_next(i_srch_before        IN VARCHAR2 DEFAULT NULL
+                 ,i_srch_after         IN VARCHAR2 DEFAULT NULL 
                  ,i_stop               IN VARCHAR2 DEFAULT NULL
                  ,i_modifier           IN VARCHAR2 DEFAULT 'i'
                  ,i_upper              IN BOOLEAN  DEFAULT FALSE
@@ -521,95 +531,27 @@ FUNCTION get_next(i_search             IN VARCHAR2 DEFAULT NULL
                  ,i_trim_result        IN BOOLEAN  DEFAULT FALSE ) return CLOB IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next'); 
   
-  l_either_match          VARCHAR2(32000);
-  l_trimmed_either_match  VARCHAR2(32000);
+  l_any_match             VARCHAR2(32000);
+  l_trimmed_any_match  VARCHAR2(32000);
   l_colour_either_match   VARCHAR2(32000);
   l_search_match          VARCHAR2(32000);
   l_result                VARCHAR2(32000);
-  l_either                VARCHAR2(32000);
+  l_any_search            VARCHAR2(32000);
   l_search                VARCHAR2(32000);
 
   l_trim_upto_pos         INTEGER;
 
-  l_search_pos            INTEGER;
-  l_search_pos2           INTEGER;
+  l_srch_before_pos       INTEGER;
+  l_srch_after_pos        INTEGER;
 
-BEGIN
-  check_timeout; --GET_NEXT
-  ms_logger.param(l_node, 'i_search',i_search);
-  ms_logger.param(l_node, 'i_search2',i_search2);
-  ms_logger.param(l_node, 'i_stop',i_stop);
-  ms_logger.param(l_node, 'g_current_pos',g_current_pos);
 
-  l_search := i_search;
+  l_use_srch_before          BOOLEAN := TRUE;
 
-  --Workaround - when i_search gets too long -> ORA-03113: end-of-file on communication channel
-  --So split into 2 searches.
-  if i_search2 is not null then
-    ms_logger.comment(l_node, 'Choosing search param');
- 
-    l_search_pos  := REGEXP_INSTR_NOT0(g_code,i_search,g_current_pos,1,0,i_modifier);
-    l_search_pos2 := REGEXP_INSTR_NOT0(g_code,i_search2,g_current_pos,1,0,i_modifier);
 
-    ms_logger.note(l_node, 'l_search_pos',l_search_pos);
-    ms_logger.note(l_node, 'l_search_pos2',l_search_pos2);
- 
-    If l_search_pos < l_search_pos2 THEN
-      ms_logger.info(l_node, 'Using i_search1');
-    else
-      ms_logger.info(l_node, 'Using i_search2');
-      l_search := i_search2;
-    end if;
- 
-  end if;
-
- 
-  l_either := TRIM('|' FROM l_search ||'|'||i_stop); 
- 
-  --Keep the original "either" match
-  l_either_match := REGEXP_SUBSTR(g_code,l_either,g_current_pos,1,i_modifier);
-  ms_logger.note(l_node, 'l_either_match',l_either_match  );
- 
-  --Should we raise an error?
-  IF l_either_match IS NULL AND i_raise_error THEN
-    ms_logger.fatal(l_node, 'String missing '||l_either);
-    wedge( i_new_code => 'STRING NOT FOUND '||l_either
-          ,i_colour   => G_COLOUR_ERROR);
-    RAISE x_string_not_found;
-  
-  END IF; 
-  
-  --Calculate the new positions.  
-  g_upto_pos := REGEXP_INSTR(g_code,l_either,g_current_pos,1,0,i_modifier);
-  g_past_pos := REGEXP_INSTR(g_code,l_either,g_current_pos,1,1,i_modifier);     
-  ms_logger.note(l_node, 'g_upto_pos',g_upto_pos  );
- 
-  
-  l_trimmed_either_match := trim_whitespace(l_either_match);
-  
-  IF i_trim_result THEN
-    l_result := l_trimmed_either_match; 
-  ELSE
-   l_result := l_either_match;
-  END IF; 
- 
-  if l_trimmed_either_match IS NOT NULL AND i_trim_pointers THEN
-  
-    --Now that we've trimmed the match, lets change the pointers to suit.
-    --Not a regex search, since just searching for the known string.
-    ms_logger.info(l_node, 'Shifting pointers to trimmed match.');
-    g_upto_pos := INSTR(g_code,l_trimmed_either_match,g_upto_pos);
-    g_past_pos := g_upto_pos + LENGTH(l_trimmed_either_match);
-    ms_logger.note(l_node, 'g_upto_pos',g_upto_pos  );
-    ms_logger.note(l_node, 'g_past_pos',g_past_pos  );   
-  
-  END IF;
- 
- 
-  
-  IF  REGEXP_LIKE(l_either_match,l_search,i_modifier) THEN
-    --Matched on the search componant, so we will consume it.
-    l_colour_either_match := f_colour(i_text   => l_trimmed_either_match  
+  PROCEDURE consume_search IS
+  BEGIN
+    ms_logger.comment(l_node, 'Consume search componant');
+    l_colour_either_match := f_colour(i_text   => l_trimmed_any_match  
                                      ,i_colour => i_colour);
  
     g_code := SUBSTR(g_code,1,g_upto_pos-1)
@@ -620,11 +562,114 @@ BEGIN
     g_past_pos := g_upto_pos + LENGTH(l_colour_either_match);
     --Current pos is now the past_pos
     g_current_pos := g_past_pos;
+  END;
+
  
+
+
+
+BEGIN
+  check_timeout; --GET_NEXT
+  ms_logger.param(l_node, 'i_srch_before'     ,i_srch_before);
+  ms_logger.param(l_node, 'i_srch_after'    ,i_srch_after);
+  ms_logger.param(l_node, 'i_stop'       ,i_stop);
+  ms_logger.param(l_node, 'g_current_pos',g_current_pos);
+
+  
+
+  --Workaround - when i_srch_before gets too long -> ORA-03113: end-of-file on communication channel
+  --So split into 2 searches.
+  --Now i_srch_after will search after i_stop
+  IF i_srch_before IS NOT NULL AND i_srch_after IS NULL THEN
+    l_use_srch_before := TRUE;
+
+  ELSIF i_srch_before IS NULL AND i_srch_after IS NOT NULL THEN  
+    l_use_srch_before := FALSE;
+
+  ELSIF i_srch_before IS NOT NULL AND i_srch_after IS NOT NULL THEN 
+
+    ms_logger.comment(l_node, 'Choosing search param');
+ 
+    l_srch_before_pos  := REGEXP_INSTR_NOT0(g_code,i_srch_before,g_current_pos,1,0,i_modifier);
+    l_srch_after_pos := REGEXP_INSTR_NOT0(g_code,i_srch_after,g_current_pos,1,0,i_modifier);
+
+    ms_logger.note(l_node, 'l_srch_before_pos',l_srch_before_pos);
+    ms_logger.note(l_node, 'l_srch_after_pos',l_srch_after_pos);
+ 
+    l_use_srch_before := l_srch_before_pos < l_srch_after_pos;
+ 
+  end if;
+ 
+  If l_use_srch_before THEN
+      ms_logger.info(l_node, 'Using i_srch_before');
+      l_search := i_srch_before;
+      l_any_search := TRIM('|' FROM i_srch_before ||'|'||i_stop);
+    else
+      ms_logger.info(l_node, 'Using i_srch_after');
+      l_search := i_srch_after;
+      l_any_search := TRIM('|' FROM i_stop ||'|'||i_srch_after);
+  end if;
+
+ 
+  ms_logger.note(l_node, 'l_any_search',l_any_search  );
+  ms_logger.note_length(l_node, 'l_any_search',l_any_search  );
+ 
+  --Keep the original "either" match
+  l_any_match := REGEXP_SUBSTR(g_code,l_any_search,g_current_pos,1,i_modifier);
+  ms_logger.note(l_node, 'l_any_match',l_any_match  );
+ 
+  --Should we raise an error?
+  IF l_any_match IS NULL AND i_raise_error THEN
+    ms_logger.fatal(l_node, 'String missing '||l_any_search);
+    wedge( i_new_code => 'STRING NOT FOUND '||l_any_search
+          ,i_colour   => G_COLOUR_ERROR);
+    RAISE x_string_not_found;
+  
+  END IF; 
+  
+  --Calculate the new positions.  
+  g_upto_pos := REGEXP_INSTR(g_code,l_any_search,g_current_pos,1,0,i_modifier);
+  g_past_pos := REGEXP_INSTR(g_code,l_any_search,g_current_pos,1,1,i_modifier);     
+  ms_logger.note(l_node, 'g_upto_pos',g_upto_pos  );
+ 
+  
+  l_trimmed_any_match := trim_whitespace(l_any_match);
+  
+  IF i_trim_result THEN
+    l_result := l_trimmed_any_match; 
   ELSE
+   l_result := l_any_match;
+  END IF; 
+ 
+  if l_trimmed_any_match IS NOT NULL AND i_trim_pointers THEN
+  
+    --Now that we've trimmed the match, lets change the pointers to suit.
+    --Not a regex search, since just searching for the known string.
+    ms_logger.info(l_node, 'Shifting pointers to trimmed match.');
+    g_upto_pos := INSTR(g_code,l_trimmed_any_match,g_upto_pos);
+    g_past_pos := g_upto_pos + LENGTH(l_trimmed_any_match);
+    ms_logger.note(l_node, 'g_upto_pos',g_upto_pos  );
+    ms_logger.note(l_node, 'g_past_pos',g_past_pos  );   
+  
+  END IF;
+ 
+ 
+  
+  IF  l_use_srch_before AND regex_match(l_any_match,l_search,i_modifier) THEN
+    ms_logger.info(l_node, 'Matched on the search componant1');
+    consume_search;
+ 
+  ELSIF regex_match(l_any_match,i_stop,i_modifier) THEN
+    ms_logger.info(l_node, 'Matched on the stop componant');
     --Matched on the stop componant, don't consume - ie don't advance the pointer.
     NULL;
+  ELSIF NOT l_use_srch_before AND regex_match(l_any_match,l_search,i_modifier) THEN
+    ms_logger.info(l_node, 'Matched on the search componant2');
+    consume_search;  
   END IF;
+ 
+
+
  
   --ms_logger.param(l_node, 'g_current_pos',g_current_pos);
   --ms_logger.note(l_node, 'char @ g_current_pos -2     '   ,substr(g_code, g_current_pos-2, 1)||ascii(substr(g_code, g_current_pos-2, 1)));
@@ -640,6 +685,12 @@ BEGIN
   ELSE
     RETURN l_result;
   END IF; 
+
+exception
+  when others then
+    ms_logger.warn_error(l_node);
+    raise;
+
 END get_next;
  
  
@@ -658,7 +709,7 @@ BEGIN
     g_current_pos := g_past_pos;
   ELSE
  
-     l_dummy := get_next(i_search      => i_search     
+     l_dummy := get_next(i_srch_before      => i_search     
                         ,i_stop        => NULL       
                         ,i_modifier    => i_modifier   
                         ,i_colour      => i_colour     
@@ -682,8 +733,7 @@ BEGIN
     --just goto the position found during last get_next
     g_current_pos := g_upto_pos;
   ELSE
-     l_dummy := get_next(i_search         => NULL     
-                        ,i_stop           => i_stop       
+     l_dummy := get_next(i_stop           => i_stop       
                         ,i_modifier       => i_modifier   
                         ,i_trim_pointers  => i_trim_pointers     
                         ,i_raise_error    => TRUE );
@@ -703,13 +753,13 @@ FUNCTION get_next_object_name RETURN VARCHAR2 IS
   l_object_name VARCHAR2(100);
 
 BEGIN
-  l_object_name := get_next(i_search  => G_REGEX_2_QUOTED_WORDS
+  l_object_name := get_next(i_srch_before  => G_REGEX_2_QUOTED_WORDS
                                   ||'|'||G_REGEX_WORD
                            ,i_lower   => TRUE        
                            ,i_colour  => G_COLOUR_OBJECT_NAME
                            ,i_raise_error  => TRUE);
   --Check for double-word
-  IF REGEXP_LIKE(l_object_name , G_REGEX_2_QUOTED_WORDS) THEN
+  IF regex_match(l_object_name , G_REGEX_2_QUOTED_WORDS) THEN
     ms_logger.comment(l_node, 'Double word name - get 2nd word'); 
     l_object_name := REGEXP_SUBSTR(l_object_name,G_REGEX_WORD,1,2,'i');
  
@@ -813,7 +863,7 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
     ms_logger.param(l_node, 'i_in_var    ' ,i_in_var    ); 
     ms_logger.param(l_node, 'i_out_var   ' ,i_out_var   ); 
  
-    IF REGEXP_LIKE(i_param_type,G_REGEX_SUPPORTED_TYPES,'i') THEN
+    IF regex_match(i_param_type,G_REGEX_SUPPORTED_TYPES,'i') THEN
  
     IF i_in_var OR NOT l_out_var THEN
         --IN and IN OUT and (implicit IN) included in the param input list.
@@ -836,7 +886,7 @@ BEGIN
     BEGIN
 
       --Find first: "(" "," "DEFAULT" ":=" "AS" "IS"
-      l_keyword := get_next( i_search       => G_REGEX_OPEN_BRACKET
+      l_keyword := get_next( i_srch_before       => G_REGEX_OPEN_BRACKET
                                         ||'|'||G_REGEX_COMMA
                                         ||'|'||G_REGEX_IS_AS
                                         --||'|'||G_REGEX_CLOSE_BRACKET
@@ -851,14 +901,14 @@ BEGIN
       CASE 
  
     --NEW PARAMETER LINE
-    WHEN REGEXP_LIKE(l_keyword , G_REGEX_OPEN_BRACKET
+    WHEN regex_match(l_keyword , G_REGEX_OPEN_BRACKET
                                ||'|'||G_REGEX_COMMA)        THEN
            ms_logger.comment(l_node, 'Found new parameter');
          --find the parameter - Search for Eg
              --  varname IN OUT vartype ,
              --  varname IN vartype)
              
-            l_var_def := get_next( i_search       =>  G_REGEX_REC_VAR_DEF_LINE  
+            l_var_def := get_next( i_srch_before       =>  G_REGEX_REC_VAR_DEF_LINE  
                                                ||'|'||G_REGEX_TAB_COL_VAR_DEF_LINE
                                                ||'|'||G_REGEX_VAR_DEF_LINE 
                                                ||'|'||G_REGEX_PARAM_LINE
@@ -875,7 +925,7 @@ BEGIN
      
              CASE 
 
-            WHEN REGEXP_LIKE(l_var_def , G_REGEX_REC_VAR_DEF_LINE) THEN 
+            WHEN regex_match(l_var_def , G_REGEX_REC_VAR_DEF_LINE) THEN 
               ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
               --Looking for ROWTYPE VARS
                  l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_DEF_LINE,1,1,'i',1));
@@ -904,7 +954,7 @@ BEGIN
  
             END LOOP;   
             
-            WHEN REGEXP_LIKE(l_var_def , G_REGEX_TAB_COL_VAR_DEF_LINE) THEN 
+            WHEN regex_match(l_var_def , G_REGEX_TAB_COL_VAR_DEF_LINE) THEN 
               ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
                  l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',1));
                  l_table_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',4));
@@ -931,7 +981,7 @@ BEGIN
   
             END LOOP; 
 
-            WHEN REGEXP_LIKE(l_var_def , G_REGEX_VAR_DEF_LINE) THEN 
+            WHEN regex_match(l_var_def , G_REGEX_VAR_DEF_LINE) THEN 
               ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
               --LOOKING FOR ATOMIC VARS
                 l_param_name := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_DEF_LINE,1,1,'i',1));
@@ -956,7 +1006,7 @@ BEGIN
   
  
        --DEFAULT or :=
-    WHEN REGEXP_LIKE(l_keyword , G_REGEX_DEFAULT) THEN 
+    WHEN regex_match(l_keyword , G_REGEX_DEFAULT) THEN 
       ms_logger.comment(l_node, 'Found DEFAULT, searching for complex value');
  
       l_bracket_count := 0;
@@ -968,13 +1018,13 @@ BEGIN
  
             ms_logger.note(l_node, 'l_bracket' ,l_bracket); 
             CASE 
-        WHEN REGEXP_LIKE(l_bracket , G_REGEX_COMMA) THEN
+        WHEN regex_match(l_bracket , G_REGEX_COMMA) THEN
           EXIT WHEN l_bracket_count = 0;
 
-            WHEN REGEXP_LIKE(l_bracket , G_REGEX_OPEN_BRACKET) THEN
+            WHEN regex_match(l_bracket , G_REGEX_OPEN_BRACKET) THEN
           l_bracket_count := l_bracket_count + 1;
 
-            WHEN REGEXP_LIKE(l_bracket , G_REGEX_CLOSE_BRACKET) THEN
+            WHEN regex_match(l_bracket , G_REGEX_CLOSE_BRACKET) THEN
                 l_bracket_count := l_bracket_count - 1;
         EXIT WHEN l_bracket_count = -1;
 
@@ -987,7 +1037,7 @@ BEGIN
       END LOOP; 
  
     --  --NO MORE PARAMS
-    WHEN REGEXP_LIKE(l_keyword , G_REGEX_IS_AS) THEN
+    WHEN regex_match(l_keyword , G_REGEX_IS_AS) THEN
           ms_logger.comment(l_node, 'No more parameters');
           EXIT;
           
@@ -1048,7 +1098,7 @@ BEGIN
  
   loop
  
-  l_var_def := get_next( i_search      => G_REGEX_VAR_DEF_LINE 
+  l_var_def := get_next( i_srch_before      => G_REGEX_VAR_DEF_LINE 
                                     ||'|'||G_REGEX_REC_VAR_DEF_LINE  
                                     ||'|'||G_REGEX_TAB_COL_VAR_DEF_LINE
                          ,i_stop        => G_REGEX_BEGIN  
@@ -1059,7 +1109,7 @@ BEGIN
   ms_logger.note(l_node, 'l_var_def',l_var_def);
  
     CASE 
-    WHEN REGEXP_LIKE(l_var_def , G_REGEX_VAR_DEF_LINE) THEN 
+    WHEN regex_match(l_var_def , G_REGEX_VAR_DEF_LINE) THEN 
       ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
       --LOOKING FOR ATOMIC VARS
         l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',1));
@@ -1068,7 +1118,7 @@ BEGIN
         ms_logger.note(l_node, 'l_param_name',l_param_name); 
         ms_logger.note(l_node, 'l_param_type',l_param_type); 
     
-      IF  REGEXP_LIKE(l_param_type , G_REGEX_SUPPORTED_TYPES) THEN
+      IF  regex_match(l_param_type , G_REGEX_SUPPORTED_TYPES) THEN
           
       --Supported data type so store in the var list.
           l_var_list(l_param_name) := l_param_type;  
@@ -1076,7 +1126,7 @@ BEGIN
  
         END IF; 
  
-    WHEN REGEXP_LIKE(l_var_def , G_REGEX_REC_VAR_DEF_LINE) THEN 
+    WHEN regex_match(l_var_def , G_REGEX_REC_VAR_DEF_LINE) THEN 
       ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
       --Looking for ROWTYPE VARS
         l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_NAME_TYPE,1,1,'i',1));
@@ -1098,7 +1148,7 @@ BEGIN
        where table_name = l_table_name 
        and   owner      = l_table_owner  ) LOOP
 
-         IF  REGEXP_LIKE(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
+         IF  regex_match(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
        
            l_var_list(l_param_name||'.'||l_column.column_name) := l_column.data_type;  
            ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);       
@@ -1106,7 +1156,7 @@ BEGIN
        
     END LOOP;   
     
-    WHEN REGEXP_LIKE(l_var_def , G_REGEX_TAB_COL_VAR_DEF_LINE) THEN 
+    WHEN regex_match(l_var_def , G_REGEX_TAB_COL_VAR_DEF_LINE) THEN 
         ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
         l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',1));
         l_table_name    :=       REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',2);
@@ -1126,7 +1176,7 @@ BEGIN
        and   column_name = l_column_name 
        and   owner       = l_table_owner  ) LOOP
 
-         IF  REGEXP_LIKE(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
+         IF  regex_match(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
        
           l_var_list(l_param_name) := l_column.data_type;  
           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
@@ -1175,7 +1225,7 @@ BEGIN
                 ,i_var_list => l_var_list);
   
   --calc indent and consume BEGIN
-  AOP_block(i_indent    => calc_indent(i_indent, get_next(i_search => G_REGEX_BEGIN
+  AOP_block(i_indent    => calc_indent(i_indent, get_next(i_srch_before => G_REGEX_BEGIN
                                                          ,i_colour => G_COLOUR_GO_PAST))
            ,i_regex_end => G_REGEX_END_BEGIN
            ,i_var_list  => l_var_list);
@@ -1237,7 +1287,7 @@ BEGIN
                         ,i_upper       => TRUE
                         ,i_raise_error => TRUE                              );
  
-  IF REGEXP_LIKE(l_keyword , G_REGEX_END_BEGIN) and i_node_type = 'new_pkg' THEN
+  IF regex_match(l_keyword , G_REGEX_END_BEGIN) and i_node_type = 'new_pkg' THEN
     --Packages don't need to have BEGIN. 
     --Reached the final END.  Highlight it.
     go_past(i_search => G_REGEX_END_BEGIN
@@ -1278,38 +1328,127 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_keyword               CLOB;
   l_stashed_comment       VARCHAR2(50);
   l_function              VARCHAR2(30);
-  l_bind_var              VARCHAR2(30);
-  l_var                   VARCHAR2(30);
-
+ 
   l_var_list              var_list_typ := i_var_list;
 
   l_table_owner           VARCHAR2(30);
   l_table_name            VARCHAR2(30);
+
+
+  l_into_var_list         var_list_typ;
+  l_index                 binary_integer;
+  l_var                   VARCHAR2(100);
+
   
   G_REGEX_ASSIGN_TO_REC_COL   CONSTANT VARCHAR2(50) :=  '\W\w+?\.\w+?\s*?:=';
   G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  '\W\w+?\s*?:='; --matches on both G_REGEX_ASSIGN_TO_VAR and G_REGEX_ASSIGN_TO_BIND_VAR 
   G_REGEX_ASSIGN_TO_VAR       CONSTANT VARCHAR2(50) :=  '\s\w+?\s*?:=';
   G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) :=  ':\w+?\s*?:=';
+  
   G_REGEX_VAR                 CONSTANT VARCHAR2(50) := G_REGEX_WORD;
   G_REGEX_REC_COL             CONSTANT VARCHAR2(50) := G_REGEX_WORD||'.'||G_REGEX_WORD;
-
   G_REGEX_BIND_VAR            CONSTANT VARCHAR2(50) := ':'||G_REGEX_WORD;
+
   G_REGEX_SHOW_ME_LINE        CONSTANT VARCHAR2(50) :=  '.+--(\@\@)';
   G_REGEX_ROW_COUNT_LINE      CONSTANT VARCHAR2(50) :=  '.+--(RC)';
-
-
-
+ 
  
   G_REGEX_DELETE_FROM         CONSTANT VARCHAR2(50) := '\sDELETE\s+?FROM\s';
   G_REGEX_DELETE              CONSTANT VARCHAR2(50) := '\sDELETE\s'        ;
   G_REGEX_INSERT_INTO         CONSTANT VARCHAR2(50) := '\sINSERT\s+?INTO\s';
   G_REGEX_UPDATE              CONSTANT VARCHAR2(50) := '\sUPDATE\s';
+
+  G_REGEX_FROM                CONSTANT VARCHAR2(50) := '\sFROM\s';
  
- 
+  
+  G_REGEX_SELECT_FETCH_INTO   CONSTANT VARCHAR2(50) := '\s(SELECT|FETCH)\s+?(\s|\S)+?\s+?INTO\s';
+
   G_REGEX_DML                 CONSTANT VARCHAR2(200) :=   G_REGEX_DELETE_FROM 
                                                   ||'|'|| G_REGEX_DELETE
                                                   ||'|'|| G_REGEX_INSERT_INTO
                                                   ||'|'|| G_REGEX_UPDATE;
+ 
+  FUNCTION find_var(i_search in varchar2) RETURN VARCHAR2 IS   
+    -- Note a variable (type not important)   
+    l_result varchar2(100);
+  BEGIN
+        go_upto; 
+        l_result := get_next ( i_srch_before      => i_search
+                              ,i_lower       => TRUE
+                              ,i_colour      => G_COLOUR_VAR);      
+        go_past(G_REGEX_SEMI_COL); 
+
+        RETURN l_result;
+  END;
+ 
+
+  PROCEDURE note_var(i_var in varchar2) IS   
+    -- Note a variable (type not important)   
+  BEGIN
+    ms_logger.note(l_node,'i_var',i_var);
+    inject( i_new_code   => 'ms_logger.note(l_node,'''||i_var||''','||i_var||');'
+           ,i_indent     => i_indent
+           ,i_colour     => G_COLOUR_NOTE);
+  END;
+ 
+ 
+
+
+
+  PROCEDURE note_non_bind_var(i_var in varchar2) IS
+    -- find assignment of non-bind variable and inject a note
+   
+  BEGIN
+ 
+        IF l_var_list.EXISTS(i_var) THEN
+          --This variable exists in the list of scoped variables with compatible types    
+          ms_logger.comment(l_node, 'Scoped Var');
+          ms_logger.note(l_node,'l_var_list(i_var)',l_var_list(i_var));
+          IF  regex_match(l_var_list(i_var) , G_REGEX_SUPPORTED_TYPES) THEN
+            --Data type is supported.
+            ms_logger.comment(l_node, 'Data type is supported');
+            --So we can write a note for it.
+            note_var(i_var => i_var);
+          ELSE
+            ms_logger.comment(l_node, 'Data type is TABLE_NAME');
+            --Data type is unsupported so it is the name of a table instead.
+            --Now write a note for each supported column.
+            ms_logger.comment(l_node, 'Data type is supported');
+            --Also need to add 1 var def for each valid componant of the record type.
+            l_table_owner := table_owner(i_table_name => l_var_list(i_var));
+            FOR l_column IN 
+              (select lower(column_name) column_name
+                     ,data_type
+               from all_tab_columns
+               where table_name = l_var_list(i_var) 
+               and   owner      = l_table_owner  ) LOOP
+
+               IF  regex_match(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
+                 note_var(i_var => i_var||'.'||l_column.column_name);
+               END IF;
+
+            END LOOP;  
+ 
+          END IF;
+
+         
+        END IF;
+  END;
+
+  PROCEDURE note_rec_col_var(i_var in varchar2) IS
+  -- find assignment of rec.column variable and inject a note
+ 
+  BEGIN
+ 
+    IF l_var_list.EXISTS(i_var) THEN
+      --Tab Column rec variable exists 
+      note_var(i_var => i_var);
+       
+    END IF;
+  END;
+
+ 
+
  
 BEGIN
 
@@ -1319,54 +1458,56 @@ BEGIN
  
   loop
  
-  l_keyword := get_next(  i_search       =>   G_REGEX_OPEN
+  l_keyword := get_next(  i_srch_before       =>   G_REGEX_OPEN
                                        ||'|'||G_REGEX_NEUTRAL
                                        ||'|'||G_REGEX_CLOSE
-                          ,i_search2       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
+                          ,i_srch_after       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
                                        ||'|'||G_REGEX_SHOW_ME_LINE 
                                        ||'|'||G_REGEX_ROW_COUNT_LINE
-                                       ||'|'||G_REGEX_DML              --workaround
+                                       ||'|'||G_REGEX_DML               
+                                       ||'|'||G_REGEX_SELECT_FETCH_INTO          
                           ,i_stop          => G_REGEX_START_ANNOTATION --don't colour it
                                        ||'|'||G_REGEX_ASSIGN_TO_REC_COL
                                        ||'|'||G_REGEX_ASSIGN_TO_VARS
                           ,i_upper        => TRUE
                           ,i_colour       => G_COLOUR_BLOCK
-                          ,i_raise_error  => TRUE);
+                          ,i_raise_error  => TRUE
+);
  
   ms_logger.note(l_node, 'l_keyword',l_keyword);
  
     CASE 
-    WHEN REGEXP_LIKE(l_keyword , G_REGEX_DECLARE) THEN     
+    WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN     
         ms_logger.info(l_node, 'Declare');    
         AOP_declare(i_indent    => calc_indent(i_indent + g_indent_spaces,l_keyword)
                    ,i_var_list  => l_var_list);    
         
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_BEGIN) THEN    
+      WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN    
         ms_logger.info(l_node, 'Begin');      
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_BEGIN
                  ,i_var_list   => l_var_list);     
                  
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_LOOP) THEN   
+      WHEN regex_match(l_keyword , G_REGEX_LOOP) THEN   
         ms_logger.info(l_node, 'Loop'); 
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_LOOP
                  ,i_var_list   => l_var_list );                                
              
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_CASE) THEN   
+      WHEN regex_match(l_keyword , G_REGEX_CASE) THEN   
         ms_logger.info(l_node, 'Case'); 
     --inc level +2 due to implied WHEN or ELSE
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword) +  g_indent_spaces
                  ,i_regex_end  => G_REGEX_END_CASE||'|'||G_REGEX_END_CASE_EXPR
                  ,i_var_list   => l_var_list );      
    
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_IF) THEN    
+      WHEN regex_match(l_keyword , G_REGEX_IF) THEN    
         ms_logger.info(l_node, 'If'); 
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_IF
                  ,i_var_list   => l_var_list );
 
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_NEUTRAL) THEN
+      WHEN regex_match(l_keyword , G_REGEX_NEUTRAL) THEN
         ms_logger.info(l_node, 'Neutral');  
         --Just let it keep going around the loop.
         NULL;
@@ -1374,28 +1515,28 @@ BEGIN
       --END_BEGIN will also match END_LOOP, END_CASE and END IF
       --So we need to make sure it hasn't matched on them.      
     WHEN i_regex_end = G_REGEX_END_BEGIN              AND
-           REGEXP_LIKE(l_keyword , i_regex_end)        AND 
-           (  REGEXP_LIKE(l_keyword ,G_REGEX_END_LOOP) OR
-              REGEXP_LIKE(l_keyword ,G_REGEX_END_CASE) OR 
-              REGEXP_LIKE(l_keyword ,G_REGEX_END_IF)) THEN
+           regex_match(l_keyword , i_regex_end)        AND 
+           (  regex_match(l_keyword ,G_REGEX_END_LOOP) OR
+              regex_match(l_keyword ,G_REGEX_END_CASE) OR 
+              regex_match(l_keyword ,G_REGEX_END_IF)) THEN
       ms_logger.fatal(l_node, 'Mis-matched Expected END; Got '||l_keyword);
     RAISE X_INVALID_KEYWORD;
  
-    WHEN REGEXP_LIKE(l_keyword ,i_regex_end) THEN
+    WHEN regex_match(l_keyword ,i_regex_end) THEN
        ms_logger.info(l_node, 'Block End Found!');
        EXIT;
         
-    WHEN REGEXP_LIKE(l_keyword ,G_REGEX_CLOSE) THEN
+    WHEN regex_match(l_keyword ,G_REGEX_CLOSE) THEN
       ms_logger.fatal(l_node, 'Mis-matched END Expecting :'||i_regex_end||' Got: '||l_keyword);
     RAISE X_INVALID_KEYWORD;
         
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_START_ANNOTATION) THEN
+      WHEN regex_match(l_keyword ,G_REGEX_START_ANNOTATION) THEN
         --What sort of annotation is it?
          CASE 
-           WHEN REGEXP_LIKE(l_keyword ,G_REGEX_COMMENT) THEN l_function := 'comment';
-           WHEN REGEXP_LIKE(l_keyword ,G_REGEX_INFO   ) THEN l_function := 'info';
-           WHEN REGEXP_LIKE(l_keyword ,G_REGEX_WARNING) THEN l_function := 'warning';
-           WHEN REGEXP_LIKE(l_keyword ,G_REGEX_FATAL  ) THEN l_function := 'fatal';
+           WHEN regex_match(l_keyword ,G_REGEX_COMMENT) THEN l_function := 'comment';
+           WHEN regex_match(l_keyword ,G_REGEX_INFO   ) THEN l_function := 'info';
+           WHEN regex_match(l_keyword ,G_REGEX_WARNING) THEN l_function := 'warning';
+           WHEN regex_match(l_keyword ,G_REGEX_FATAL  ) THEN l_function := 'fatal';
          END CASE;
          
          ms_logger.note(l_node, 'l_function',l_function);
@@ -1412,7 +1553,7 @@ BEGIN
                          , i_colour => G_COLOUR_ANNOTATION)
              ||l_stashed_comment||''');');
  
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_SHOW_ME_LINE) THEN
+      WHEN regex_match(l_keyword ,G_REGEX_SHOW_ME_LINE) THEN
       ms_logger.info(l_node, 'Show Me');
       --expose this line of code as a comment 
         inject( i_new_code => 'ms_logger.comment(l_node,'''
@@ -1421,7 +1562,7 @@ BEGIN
                ,i_indent   => i_indent
                ,i_colour   => G_COLOUR_COMMENT);
  
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ROW_COUNT_LINE) THEN
+      WHEN regex_match(l_keyword ,G_REGEX_ROW_COUNT_LINE) THEN
       ms_logger.info(l_node, 'Rowcount');
       --expose this line of code as a note with rowcount 
         inject( i_new_code => 'ms_logger.note_rowcount(l_node,'''
@@ -1431,104 +1572,86 @@ BEGIN
                ,i_colour   => G_COLOUR_NOTE);
 
  
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ASSIGN_TO_BIND_VAR) THEN  
-      ms_logger.info(l_node, 'Assign Bind Var');
-        -- find assignment of bind variable and inject a note
-        go_upto;    
-      l_bind_var := get_next ( i_search      => G_REGEX_BIND_VAR
-                              ,i_lower       => TRUE
-                              ,i_colour      => G_COLOUR_BIND_VAR);      
-      go_past(G_REGEX_SEMI_COL); 
-    
-          inject( i_new_code => 'ms_logger.note(l_node,'''||l_bind_var||''','||l_bind_var||');'
-               ,i_indent     => i_indent
-               ,i_colour     => G_COLOUR_NOTE);
-               
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN  
-        ms_logger.info(l_node, 'Assign Var');   
-        -- find assignment of bind variable and inject a note
-        go_upto;    
-      l_var := get_next ( i_search      => G_REGEX_VAR
-                         ,i_lower       => TRUE
-                         ,i_colour      => G_COLOUR_VAR);
-        ms_logger.note(l_node, 'l_var'     ,l_var  );                       
-        go_past(G_REGEX_SEMI_COL);
-    
-        IF l_var_list.EXISTS(l_var) THEN
-          --This variable exists in the list of scoped variables with compatible types    
-          ms_logger.comment(l_node, 'Scoped Var');
-          ms_logger.note(l_node,'l_var_list(l_var)',l_var_list(l_var));
-          IF  REGEXP_LIKE(l_var_list(l_var) , G_REGEX_SUPPORTED_TYPES) THEN
-            --Data type is supported.
-            ms_logger.comment(l_node, 'Data type is supported');
-            --So we can write a note for it.
-            inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
-                 ,i_indent   => i_indent
-                 ,i_colour   => G_COLOUR_NOTE); 
-          ELSE
-            ms_logger.comment(l_node, 'Data type is TABLE_NAME');
-            --Data type is unsupported so it is the name of a table instead.
-            --Now write a note for each supported column.
-            ms_logger.comment(l_node, 'Data type is supported');
-            --Also need to add 1 var def for each valid componant of the record type.
-            l_table_owner := table_owner(i_table_name => l_var_list(l_var));
-            FOR l_column IN 
-              (select lower(column_name) column_name
-                     ,data_type
-               from all_tab_columns
-               where table_name = l_var_list(l_var) 
-               and   owner      = l_table_owner  ) LOOP
+      WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_BIND_VAR) THEN  
+        ms_logger.info(l_node, 'Assign Bind Var');
 
-               IF  REGEXP_LIKE(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
-               
-                 ms_logger.note(l_node,'l_var.l_column.column_name',l_var||'.'||l_column.column_name);
-             
-                   inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||'.'||l_column.column_name||''','||l_var||'.'||l_column.column_name||');'
-                          ,i_indent   => i_indent
-                          ,i_colour   => G_COLOUR_NOTE); 
-               END IF;
-
-            END LOOP;  
+        l_var := find_var(i_search => G_REGEX_BIND_VAR);
+        note_var(i_var => l_var);
  
-          END IF;
-
-         
-        END IF;
      
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
-        -- find assignment of rec.column variable and inject a note
-        ms_logger.info(l_node, 'Assign Record.Column');
-        go_upto;    
-        l_var := get_next( i_search      => G_REGEX_REC_COL
-                          ,i_lower       => TRUE
-                          ,i_colour      => G_COLOUR_VAR);
-        ms_logger.note(l_node, 'l_var '     ,l_var  );                       
+      WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN  
+        ms_logger.info(l_node, 'Assign Var');  
+
+        l_var := find_var(i_search => G_REGEX_VAR);
+        note_non_bind_var(i_var => l_var);
+
  
-        go_past(G_REGEX_SEMI_COL); 
-    
-        IF l_var_list.EXISTS(l_var) THEN
-          --Tab Column rec variable exists 
-          ms_logger.note(l_node,'l_var',l_var);
-          inject( i_new_code => 'ms_logger.note(l_node,'''||l_var||''','||l_var||');'
-                 ,i_indent   => i_indent
-                 ,i_colour   => G_COLOUR_NOTE);         
-        END IF;
+      WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
+        ms_logger.info(l_node, 'Assign Record.Column');
+
+        l_var := find_var(i_search => G_REGEX_REC_COL);
+        note_rec_col_var(i_var => l_var);
+ 
+      WHEN regex_match(l_keyword ,G_REGEX_SELECT_FETCH_INTO  ) THEN   
+        ms_logger.info(l_node, 'Select/Fetch Into');
+
+        --Find each variable until a ";" is reached.
+        l_into_var_list.DELETE;
+        LOOP
+            l_var := get_next( i_srch_after     => G_REGEX_VAR        
+                                         ||'|'||G_REGEX_REC_COL    
+                                         ||'|'||G_REGEX_BIND_VAR  
+                              ,i_stop        => G_REGEX_SEMI_COL    
+                                         ||'|'||G_REGEX_FROM
+                              ,i_lower       => TRUE
+                              ,i_colour      => G_COLOUR_VAR
+                              ,i_raise_error => TRUE);
+          ms_logger.note(l_node, 'l_var',l_var);
+           IF regex_match(l_var ,G_REGEX_SEMI_COL    
+                          ||'|'||G_REGEX_FROM)  THEN 
+             go_past(G_REGEX_SEMI_COL);
+             EXIT;
+           END IF;
+           ms_logger.info(l_node, 'Adding a variable');
+           l_into_var_list (l_into_var_list.COUNT+1) := l_var;  
+ 
+        END LOOP; 
+ 
+        --Loop thru the variables after all have been found.
+        l_index := l_into_var_list.FIRST;
+        WHILE l_index IS NOT NULL LOOP
+          l_var := l_into_var_list(l_index);
+          --Note the variable
+          CASE 
+            WHEN regex_match(l_var ,G_REGEX_BIND_VAR) THEN note_var(i_var => l_var);
+            WHEN regex_match(l_var ,G_REGEX_VAR)      THEN note_non_bind_var(i_var => l_var);
+            WHEN regex_match(l_var ,G_REGEX_REC_COL)  THEN note_rec_col_var(i_var => l_var);
+            ELSE 
+              ms_logger.fatal(l_node, 'AOP G_REGEX_FETCH_INTO BUG - REGEX Mismatch');
+              RAISE x_invalid_keyword;
+          END CASE;
+ 
+          --Next variable
+          l_index := l_into_var_list.NEXT(l_index);
+        END LOOP;
+ 
+
   
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
+      WHEN regex_match(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
         ms_logger.info(l_node, 'WHEN OTHERS THEN');   
         --warn of error after WHEN OTHERS THEN  
         inject( i_new_code => 'ms_logger.warn_error(l_node);'
                ,i_indent   => i_indent
                ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
                
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_WHEN_EXCEPT_THEN) THEN 
+      WHEN regex_match(l_keyword ,G_REGEX_WHEN_EXCEPT_THEN) THEN 
         ms_logger.info(l_node, 'WHEN_EXCEPT_THEN');       
         --comment the exception after WHEN exception THEN 
         inject( i_new_code => 'ms_logger.comment(l_node,'''||flatten(trim_whitespace(l_keyword))||''');'
                ,i_indent   => i_indent
                ,i_colour   => G_COLOUR_COMMENT);       
 
-      WHEN REGEXP_LIKE(l_keyword ,G_REGEX_DML) THEN 
+      WHEN regex_match(l_keyword ,G_REGEX_DML) THEN 
         ms_logger.info(l_node, 'DML');
         l_table_name := get_next_object_name;
  
@@ -1602,7 +1725,7 @@ BEGIN
  
   --First Block is BEGIN 
   --calc indent and consume BEGIN
-  AOP_block(i_indent    => calc_indent(i_indent, get_next(i_search => G_REGEX_BEGIN
+  AOP_block(i_indent    => calc_indent(i_indent, get_next(i_srch_before => G_REGEX_BEGIN
                                                          ,i_colour => G_COLOUR_GO_PAST))
            ,i_regex_end  => G_REGEX_END_BEGIN
            ,i_var_list   => l_var_list  );
@@ -1666,23 +1789,23 @@ BEGIN
     BEGIN
  
         --Find node type
-        l_keyword := get_next( i_search      => G_REGEX_PROG_UNIT
+        l_keyword := get_next( i_srch_before      => G_REGEX_PROG_UNIT
                               ,i_stop        => G_REGEX_BEGIN
                               ,i_upper       => TRUE
                               ,i_colour      => G_COLOUR_PROG_UNIT );
      
       ms_logger.note(l_node, 'l_keyword' ,l_keyword);   
       CASE 
-        WHEN REGEXP_LIKE(l_keyword,G_REGEX_PKG_BODY) THEN
+        WHEN regex_match(l_keyword,G_REGEX_PKG_BODY) THEN
           l_node_type := 'new_pkg';
           l_prog_unit_name := 'Initialise';
-        WHEN REGEXP_LIKE(l_keyword,G_REGEX_PROCEDURE) THEN
+        WHEN regex_match(l_keyword,G_REGEX_PROCEDURE) THEN
           l_node_type := 'new_proc';
           l_prog_unit_name := NULL;
-        WHEN REGEXP_LIKE(l_keyword,G_REGEX_FUNCTION) THEN
+        WHEN regex_match(l_keyword,G_REGEX_FUNCTION) THEN
           l_node_type := 'new_func';
           l_prog_unit_name := NULL;
-      WHEN REGEXP_LIKE(l_keyword,G_REGEX_BEGIN) OR l_keyword IS NULL THEN
+      WHEN regex_match(l_keyword,G_REGEX_BEGIN) OR l_keyword IS NULL THEN
         EXIT;
         ELSE
       ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
@@ -1693,7 +1816,7 @@ BEGIN
       --Check for LANGUAGE JAVA NAME
       --If this is a JAVA function then we don't want a node and don't need to bother reading spec or parsing body.
       --Will find a LANGUAGE keyword before next ";"
-      l_language := get_next(i_search       => G_REGEX_JAVA 
+      l_language := get_next(i_srch_before       => G_REGEX_JAVA 
                             ,i_stop         => G_REGEX_SEMI_COL
                             ,i_upper        => TRUE
                             ,i_colour       => G_COLOUR_JAVA
@@ -1709,7 +1832,7 @@ BEGIN
       --If this is a Forward Declaration 
       --then we don't want a node and don't need to bother reading spec or parsing body.
       --Will find a ";" before next IS or AS
-      l_forward_declare := get_next(i_search       => G_REGEX_SEMI_COL 
+      l_forward_declare := get_next(i_srch_before       => G_REGEX_SEMI_COL 
                                    ,i_stop         => G_REGEX_IS_AS 
                                    ,i_upper        => TRUE
                                    ,i_colour       => G_COLOUR_GO_PAST --G_COLOUR_FORWARD_DECLARE
@@ -1842,20 +1965,20 @@ END;
     ms_logger.note(l_node, 'l_keyword' ,l_keyword);
 
     CASE 
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_DECLARE) THEN
+      WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN
         --calc indent and consume DECLARE
-        AOP_declare(i_indent    => calc_indent(g_initial_indent, get_next(i_search => G_REGEX_DECLARE
+        AOP_declare(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_DECLARE
                                                                          ,i_colour => G_COLOUR_GO_PAST))
                    ,i_var_list => l_var_list);
           
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_BEGIN) THEN
+      WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN
         --calc indent and consume BEGIN
-        AOP_block(i_indent    => calc_indent(g_initial_indent, get_next(i_search => G_REGEX_BEGIN
+        AOP_block(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_BEGIN
                                                                        ,i_colour => G_COLOUR_GO_PAST))
                  ,i_regex_end  => G_REGEX_END_BEGIN
                  ,i_var_list   => l_var_list);
     
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_PROCEDURE
+      WHEN regex_match(l_keyword , G_REGEX_PROCEDURE
                             ||'|'||G_REGEX_FUNCTION 
                             ||'|'||G_REGEX_PKG_BODY
                             ||'|'||G_REGEX_CREATE) THEN
@@ -2093,6 +2216,9 @@ END;
       l_text CLOB;    
       l_temp_code CLOB;
   BEGIN
+    --Reset the processing pointer.
+    g_current_pos := 1;
+ 
     FOR l_index in 1..g_comment_stack.count loop
       ms_logger.note(l_node, 'comment', l_index);
       l_temp_code := g_code;
@@ -2216,25 +2342,25 @@ BEGIN
     
       CASE 
 
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_START_SINGLE_COMMENT)  THEN 
+      WHEN regex_match(l_keyword , G_REGEX_START_SINGLE_COMMENT)  THEN 
 
 
   
           --Check for an annotation                         
-          IF REGEXP_LIKE(l_keyword , G_REGEX_START_ANNOTATION) THEN                           
+          IF regex_match(l_keyword , G_REGEX_START_ANNOTATION) THEN                           
             ms_logger.info(l_node, 'Annotation');         
             --ANNOTATION          
             go_past;          
             extract_comment(i_mask     => G_REGEX_SINGLE_LINE_ANNOTATION          
                            ,i_modifier => 'i');   
 
-          ELSIF REGEXP_LIKE(l_keyword , G_REGEX_SHOW_ME) THEN                           
+          ELSIF regex_match(l_keyword , G_REGEX_SHOW_ME) THEN                           
             ms_logger.info(l_node, 'Show Me');         
             --SHOW ME
             --Just ignore this till later.      
             go_past;  
 
-          ELSIF REGEXP_LIKE(l_keyword , G_REGEX_ROW_COUNT) THEN                           
+          ELSIF regex_match(l_keyword , G_REGEX_ROW_COUNT) THEN                           
             ms_logger.info(l_node, 'Rowcount');         
             --ROWCOUNT
             --Just ignore this till later.      
@@ -2254,19 +2380,19 @@ BEGIN
           END IF;
   
  
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_START_MULTI_COMMENT)  THEN  
+      WHEN regex_match(l_keyword , G_REGEX_START_MULTI_COMMENT)  THEN  
            ms_logger.info(l_node, 'Multi Line Comment');  
         --REMOVE MULTI-LINE COMMENTS 
         --Find "/*" and remove upto "*/" 
       extract_comment(i_mask => G_REGEX_MULTI_LINE_COMMENT);
  
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_START_ADV_QUOTE)  THEN  
+      WHEN regex_match(l_keyword , G_REGEX_START_ADV_QUOTE)  THEN  
            ms_logger.info(l_node, 'Multi Line Adv Quote');  
       --REMOVE ADVANCED QUOTES - MULTI_LINE
       --Find "q'[" and remove to next "]'", variations in clude [] {} <> () and any single printable char.
       extract_quote(i_mask => G_REGEX_MULTI_LINE_ADV_QUOTE);
           
-      WHEN REGEXP_LIKE(l_keyword , G_REGEX_START_QUOTE)  THEN  
+      WHEN regex_match(l_keyword , G_REGEX_START_QUOTE)  THEN  
            ms_logger.info(l_node, 'Multi Line Simple Quote');
       --REMOVE SIMPLE QUOTES - MULTI_LINE
           --Find "'" and remove to next "'"     

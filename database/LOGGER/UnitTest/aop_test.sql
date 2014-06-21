@@ -16,7 +16,7 @@ l_process_id number :=  ms_logger.new_process(i_process_name => 'aop_test.sql'
  l_test2 varchar2(2000);	
 begin 
 
- ms_logger.set_module_debug(i_module_name => 'aop_test');
+ ms_api.set_module_debug(i_module_name => 'aop_test');
  
  aop_test.test1('A','B','C');
 					  

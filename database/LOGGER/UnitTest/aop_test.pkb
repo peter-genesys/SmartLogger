@@ -6,9 +6,32 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
   function test4(i_module ms_module%ROWTYPE
                 ,o_unit      out ms_unit%ROWTYPE) return varchar2 is
     l_var number;
+
+    cursor cu_user_tables is
+    select table_name, tablespace_name
+    from user_tables 
+    where table_name = 'X';
+
+    l_table_name VARCHAR2(30);
+    l_tablespace_name VARCHAR2(30);
+
+
+    l_var2 number;
+    l_var3 number;
+
+
   begin
     null;
 
+    open cu_user_tables;
+    fetch cu_user_tables into l_table_name, l_tablespace_name;
+    close cu_user_tables;
+ 
+  
+    select count(*), count(*) 
+    into l_var2, l_var3 
+    from dual;
+ 
     --i_module.module_name := 'X';
 
     FOR l_record IN (select 1 from dual) LOOP

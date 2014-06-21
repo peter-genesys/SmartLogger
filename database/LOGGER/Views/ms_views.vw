@@ -10,7 +10,7 @@ SELECT  message_id
        ,msg_type
        ,msg_level  
        ,time_now       
-       ,ms_logger.msg_level_string(msg_level)  msg_level_text  
+       ,ms_api.msg_level_string(msg_level)  msg_level_text  
 FROM ms_message m
 /
 
@@ -54,7 +54,7 @@ SELECT t.traversal_id
       ,m.msg_type      
       ,m.msg_level   
       ,m.time_now    
-      ,ms_logger.msg_level_string(msg_level)  msg_level_text  
+      ,ms_api.msg_level_string(msg_level)  msg_level_text  
       ,CASE msg_type 
         WHEN 'Message' THEN message
         ELSE RPAD(msg_type,6)||m.name||'=['||m.message||']'
@@ -77,12 +77,12 @@ SELECT u.*
                        ,'FUNC' ,'Function'
                        ,'TRIG' ,'Trigger'
                                ,'Unknown') unit_type_desc 
-     ,ms_logger.unit_traversal_count(unit_id)                      traversal_count
-     ,ms_logger.unit_message_count(unit_id,1)  comment_count
-     ,ms_logger.unit_message_count(unit_id,2)     info_count                              
-     ,ms_logger.unit_message_count(unit_id,3)  warning_count  
-     ,ms_logger.unit_message_count(unit_id,4)    fatal_count                              
-     ,ms_logger.unit_message_count(unit_id,5)   oracle_count
+     ,ms_api.unit_traversal_count(unit_id)                      traversal_count
+     ,ms_api.unit_message_count(unit_id,1)  comment_count
+     ,ms_api.unit_message_count(unit_id,2)     info_count                              
+     ,ms_api.unit_message_count(unit_id,3)  warning_count  
+     ,ms_api.unit_message_count(unit_id,4)    fatal_count                              
+     ,ms_api.unit_message_count(unit_id,5)   oracle_count
  FROM ms_unit u
 /
  
