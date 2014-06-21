@@ -55,9 +55,12 @@ create or replace package body aop_processor is
   ----------------------------------------------------------------------------
   -- REGULAR EXPRESSIONS
   ----------------------------------------------------------------------------
-  G_REGEX_WORD           CONSTANT VARCHAR2(10) := '\w+';
-  G_REGEX_2WORDS         CONSTANT VARCHAR2(10) := '\w+\.\w+';
-  G_REGEX_2_QUOTED_WORDS CONSTANT VARCHAR2(50) := '"*\w+"*\."*\w+"*'; --quotes are optional    
+  --Word Char  = non-quoted Oracle identifier chars include "A-Z,_,#,$"
+  G_REGEX_WORD_CHAR      CONSTANT VARCHAR2(50) := '(\w|\#|\$)'; 
+  --Word is at least 1 Word Char
+  G_REGEX_WORD           CONSTANT VARCHAR2(50) := G_REGEX_WORD_CHAR||'+';  
+  G_REGEX_2WORDS         CONSTANT VARCHAR2(50) := G_REGEX_WORD||'\.'||G_REGEX_WORD;
+  G_REGEX_2_QUOTED_WORDS CONSTANT VARCHAR2(50) := '"*'||G_REGEX_WORD||'"*\."*'||G_REGEX_WORD||'"*'; --quotes are optional    
  
   G_REGEX_PKG_BODY       CONSTANT VARCHAR2(50) := '\s *PACKAGE\s+?BODY\s';
   G_REGEX_PROCEDURE      CONSTANT VARCHAR2(50) := '\s *PROCEDURE\s';
@@ -82,7 +85,7 @@ create or replace package body aop_processor is
   G_REGEX_THEN          CONSTANT VARCHAR2(50) := '\sTHEN\s';
   G_REGEX_EXCEPTION     CONSTANT VARCHAR2(50) := '\sEXCEPTION\s';
   --Closing Blocks
-  G_REGEX_END_BEGIN     CONSTANT VARCHAR2(50) := '\sEND\s*?\w*?\s*?;';    --END(any whitespace)(any wordschars)(any whitespace)SEMI-COLON
+  G_REGEX_END_BEGIN     CONSTANT VARCHAR2(50) := '\sEND\s*?'||G_REGEX_WORD_CHAR||'*?\s*?;';    --END(any whitespace)(any wordschars)(any whitespace)SEMI-COLON
   G_REGEX_END_LOOP      CONSTANT VARCHAR2(50) := '\sEND\s+?LOOP\s*?;';
   G_REGEX_END_CASE      CONSTANT VARCHAR2(50) := '\sEND\s+?CASE\s*?;';
   G_REGEX_END_CASE_EXPR CONSTANT VARCHAR2(50) := '\sEND\W'; 
@@ -105,7 +108,7 @@ create or replace package body aop_processor is
                                             ||'|'||G_REGEX_EXCEPTION                                            
                                             ;      
   G_REGEX_WHEN_OTHERS_THEN          CONSTANT VARCHAR2(50) := '\sWHEN\s+?OTHERS\s+?THEN\s';
-  G_REGEX_WHEN_EXCEPT_THEN          CONSTANT VARCHAR2(50) := '\sWHEN\s+?(\w+?\s+?)+?THEN\s';
+  G_REGEX_WHEN_EXCEPT_THEN          CONSTANT VARCHAR2(50) := '\sWHEN\s+?('||G_REGEX_WORD||'\s+?)+?THEN\s';
  
   G_REGEX_CLOSE        CONSTANT VARCHAR2(200) :=  G_REGEX_END_BEGIN    
                                            ||'|'||G_REGEX_END_LOOP     
@@ -127,7 +130,7 @@ create or replace package body aop_processor is
  
   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
   
-  G_REGEX_STASHED_COMMENT    CONSTANT VARCHAR2(50) := '##comment\d+##';
+  G_REGEX_STASHED_COMMENT    CONSTANT VARCHAR2(50) := '<<comment\d+>>';
   G_REGEX_COMMENT            CONSTANT VARCHAR2(50) := '--""';
   G_REGEX_INFO               CONSTANT VARCHAR2(50) := '--\?\?';
   G_REGEX_WARNING            CONSTANT VARCHAR2(50) := '--!!';
@@ -399,7 +402,7 @@ create or replace package body aop_processor is
       --l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',(p_indent-1)*g_indent_spaces+g_indent_spaces,' '));
       l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',p_indent+g_indent_spaces,' '));
  
-      IF REGEXP_INSTR(p_code,'\w',p_pos) < INSTR(p_code,chr(10),p_pos) THEN
+      IF REGEXP_INSTR(p_code,G_REGEX_WORD_CHAR,p_pos) < INSTR(p_code,chr(10),p_pos) THEN
         --Add a trailing newline, because there is a word-char before the next NL.
         ms_logger.comment(l_node, 'Add a trailing newline');
         l_new_code := l_new_code||chr(10);
@@ -563,10 +566,7 @@ FUNCTION get_next(i_srch_before        IN VARCHAR2 DEFAULT NULL
     --Current pos is now the past_pos
     g_current_pos := g_past_pos;
   END;
-
  
-
-
 
 BEGIN
   check_timeout; --GET_NEXT
@@ -668,8 +668,6 @@ BEGIN
     consume_search;  
   END IF;
  
-
-
  
   --ms_logger.param(l_node, 'g_current_pos',g_current_pos);
   --ms_logger.note(l_node, 'char @ g_current_pos -2     '   ,substr(g_code, g_current_pos-2, 1)||ascii(substr(g_code, g_current_pos-2, 1)));
@@ -678,7 +676,9 @@ BEGIN
   --ms_logger.note(l_node, 'char @ g_current_pos +1     '   ,substr(g_code, g_current_pos+1, 1)||ascii(substr(g_code, g_current_pos+1, 1)));
   --ms_logger.note(l_node, 'char @ g_current_pos +2     '   ,substr(g_code, g_current_pos+2, 1)||ascii(substr(g_code, g_current_pos+2, 1)));
  
-  IF i_upper THEN     
+  ms_logger.note(l_node, 'l_result',l_result); 
+
+  IF i_upper THEN   
     RETURN UPPER(l_result);
   ELSIF i_lower THEN
     RETURN LOWER(l_result);
@@ -837,15 +837,15 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
   l_in_var               BOOLEAN;
   l_out_var              BOOLEAN;
   
-  G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '(\w+)\s+(IN\s+)?(OUT\s+)?(\w+)';
-  G_REGEX_NAME_IN_OUT     CONSTANT VARCHAR2(200) := '(\w+)\s+(IN\s+)?(OUT\s+)?';
+  G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?('||G_REGEX_WORD||')';
+  G_REGEX_NAME_IN_OUT     CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?';
 
  
     
   l_var_def                     CLOB;
   G_REGEX_VAR_DEF_LINE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_SUPPORTED_TYPES;
-  G_REGEX_REC_VAR_DEF_LINE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'(\w+?)%ROWTYPE';
-  G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'(\w+?)\.(\w+?)%TYPE';
+  G_REGEX_REC_VAR_DEF_LINE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||'?)%ROWTYPE';
+  G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||'?)\.('||G_REGEX_WORD||'?)%TYPE';
   
    
     
@@ -895,7 +895,11 @@ BEGIN
                             ,i_colour       => G_COLOUR_PROG_UNIT
                             ,i_raise_error  => TRUE);
      
-      ms_logger.note(l_node, 'l_keyword' ,REPLACE(l_keyword,chr(10),'#')); 
+      ms_logger.note(l_node, 'l_keyword with LF,CR,SP' ,REPLACE(
+                                                        REPLACE(
+                                                        REPLACE(l_keyword,chr(10),'LF')
+                                                                         ,chr(13),'CR')
+                                                                         ,chr(32),'SP') ); 
     --ms_logger.note_length(l_node, 'l_keyword' ,l_keyword); 
     
       CASE 
@@ -917,9 +921,22 @@ BEGIN
                                     ,i_raise_error  => TRUE);
              
             ms_logger.note(l_node, 'l_var_def',l_var_def);
+
+
+            --temp debugging only
+            -- ms_logger.note(l_node, 'l_var_def p1', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',1));
+            -- ms_logger.note(l_node, 'l_var_def p2', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',2));
+            -- ms_logger.note(l_node, 'l_var_def p3', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',3));
+            -- ms_logger.note(l_node, 'l_var_def p4', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',4));
+            -- ms_logger.note(l_node, 'l_var_def p5', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',5));
+            -- ms_logger.note(l_node, 'l_var_def p6', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',6));
+            -- ms_logger.note(l_node, 'l_var_def p7', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',7));
+            -- ms_logger.note(l_node, 'l_var_def p8', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',8));
+
+
              
-             l_in_var  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',2)) LIKE 'IN%';
-             l_out_var := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',3)) LIKE 'OUT%';
+             l_in_var  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',3)) LIKE 'IN%';
+             l_out_var := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',4)) LIKE 'OUT%';
              ms_logger.note(l_node, 'l_in_var',l_in_var);
              ms_logger.note(l_node, 'l_out_var',l_out_var);
      
@@ -929,7 +946,7 @@ BEGIN
               ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
               --Looking for ROWTYPE VARS
                  l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_DEF_LINE,1,1,'i',1));
-                 l_table_name  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_DEF_LINE,1,1,'i',4));
+                 l_table_name  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_DEF_LINE,1,1,'i',5));
           
                  ms_logger.note(l_node, 'l_param_name',l_param_name); 
                  ms_logger.note(l_node, 'l_table_name',l_table_name); 
@@ -957,8 +974,8 @@ BEGIN
             WHEN regex_match(l_var_def , G_REGEX_TAB_COL_VAR_DEF_LINE) THEN 
               ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
                  l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',1));
-                 l_table_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',4));
-                 l_column_name   := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',5));
+                 l_table_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',5));
+                 l_column_name   := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',7));
             
                  ms_logger.note(l_node, 'l_param_name' ,l_param_name); 
                  ms_logger.note(l_node, 'l_table_name' ,l_table_name); 
@@ -985,7 +1002,7 @@ BEGIN
               ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
               --LOOKING FOR ATOMIC VARS
                 l_param_name := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_DEF_LINE,1,1,'i',1));
-                l_param_type := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_DEF_LINE,1,1,'i',4));
+                l_param_type := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_DEF_LINE,1,1,'i',5));
                 ms_logger.note(l_node, 'l_param_name',l_param_name);
                 ms_logger.note(l_node, 'l_param_type',l_param_type);
                 
@@ -1074,17 +1091,14 @@ FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
   
   l_var_list              var_list_typ := i_var_list;
   l_var_def               CLOB;
-  G_REGEX_VAR_DEF_LINE    CONSTANT VARCHAR2(200) := 
-    '\s(\w+?)\s+?'||G_REGEX_SUPPORTED_TYPES;
-  G_REGEX_REC_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := 
-    '\s\w+?\s+?\w+?%ROWTYPE';
-  G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := 
-    '\s\w+?\s+?\w+?\.\w+?%TYPE';
+  G_REGEX_VAR_DEF_LINE         CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?'||G_REGEX_SUPPORTED_TYPES;
+  G_REGEX_REC_VAR_DEF_LINE     CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?%ROWTYPE';
+  G_REGEX_TAB_COL_VAR_DEF_LINE CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?\.'||G_REGEX_WORD||'?%TYPE';
   
   
-  G_REGEX_VAR_NAME_TYPE       CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)';
-  G_REGEX_REC_VAR_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)%ROWTYPE';
-  G_REGEX_TAB_COL_NAME_TYPE   CONSTANT VARCHAR2(200) := '(\w+)\s+(\w+)\.(\w+)%TYPE';
+  G_REGEX_VAR_NAME_TYPE       CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+('||G_REGEX_WORD||')';
+  G_REGEX_REC_VAR_NAME_TYPE   CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+('||G_REGEX_WORD||')%ROWTYPE';
+  G_REGEX_TAB_COL_NAME_TYPE   CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+('||G_REGEX_WORD||')\.('||G_REGEX_WORD||')%TYPE';
 
   
   l_param_name  VARCHAR2(30);
@@ -1113,7 +1127,11 @@ BEGIN
       ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
       --LOOKING FOR ATOMIC VARS
         l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',1));
-        l_param_type  := REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',2);
+        l_param_type  := REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',3);
+
+        --l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_WORD,1,1,'i'));
+        --l_param_type  := REGEXP_SUBSTR(l_var_def,G_REGEX_WORD,1,2,'i');
+
    
         ms_logger.note(l_node, 'l_param_name',l_param_name); 
         ms_logger.note(l_node, 'l_param_type',l_param_type); 
@@ -1130,7 +1148,7 @@ BEGIN
       ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
       --Looking for ROWTYPE VARS
         l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_NAME_TYPE,1,1,'i',1));
-        l_table_name  := REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_NAME_TYPE,1,1,'i',2);
+        l_table_name  := REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_NAME_TYPE,1,1,'i',3);
  
         ms_logger.note(l_node, 'l_param_name',l_param_name); 
         ms_logger.note(l_node, 'l_table_name',l_table_name); 
@@ -1159,8 +1177,8 @@ BEGIN
     WHEN regex_match(l_var_def , G_REGEX_TAB_COL_VAR_DEF_LINE) THEN 
         ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
         l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',1));
-        l_table_name    :=       REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',2);
-        l_column_name   :=       REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',3);
+        l_table_name    :=       REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',3);
+        l_column_name   :=       REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',5);
     
         ms_logger.note(l_node, 'l_param_name' ,l_param_name); 
         ms_logger.note(l_node, 'l_table_name' ,l_table_name); 
@@ -1340,10 +1358,13 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_var                   VARCHAR2(100);
 
   
-  G_REGEX_ASSIGN_TO_REC_COL   CONSTANT VARCHAR2(50) :=  '\W\w+?\.\w+?\s*?:=';
-  G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  '\W\w+?\s*?:='; --matches on both G_REGEX_ASSIGN_TO_VAR and G_REGEX_ASSIGN_TO_BIND_VAR 
-  G_REGEX_ASSIGN_TO_VAR       CONSTANT VARCHAR2(50) :=  '\s\w+?\s*?:=';
-  G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) :=  ':\w+?\s*?:=';
+  G_REGEX_ASSIGN_TO_REC_COL   CONSTANT VARCHAR2(50) :=  G_REGEX_2WORDS||'\s*?:=';
+
+  --matches on both G_REGEX_ASSIGN_TO_VAR and G_REGEX_ASSIGN_TO_BIND_VAR 
+  G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  ':*?'||G_REGEX_WORD||'?\s*?:='; 
+
+  G_REGEX_ASSIGN_TO_VAR       CONSTANT VARCHAR2(50) :=  G_REGEX_WORD||'\s*?:=';  
+  G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) :=  ':'||G_REGEX_WORD||'\s*?:=';
   
   G_REGEX_VAR                 CONSTANT VARCHAR2(50) := G_REGEX_WORD;
   G_REGEX_REC_COL             CONSTANT VARCHAR2(50) := G_REGEX_WORD||'.'||G_REGEX_WORD;
@@ -1578,19 +1599,18 @@ BEGIN
         l_var := find_var(i_search => G_REGEX_BIND_VAR);
         note_var(i_var => l_var);
  
-     
+      WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
+        ms_logger.info(l_node, 'Assign Record.Column');
+
+        l_var := find_var(i_search => G_REGEX_REC_COL);
+        note_rec_col_var(i_var => l_var);
+
       WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN  
         ms_logger.info(l_node, 'Assign Var');  
 
         l_var := find_var(i_search => G_REGEX_VAR);
         note_non_bind_var(i_var => l_var);
 
- 
-      WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
-        ms_logger.info(l_node, 'Assign Record.Column');
-
-        l_var := find_var(i_search => G_REGEX_REC_COL);
-        note_rec_col_var(i_var => l_var);
  
       WHEN regex_match(l_keyword ,G_REGEX_SELECT_FETCH_INTO  ) THEN   
         ms_logger.info(l_node, 'Select/Fetch Into');
@@ -2224,11 +2244,11 @@ END;
       l_temp_code := g_code;
       l_text := f_colour(i_text   => g_comment_stack(l_index)
                         ,i_colour => G_COLOUR_COMMENT);
-      g_code := REPLACE(g_code,'##comment'||l_index||'##',l_text);
+      g_code := REPLACE(g_code,'<<comment'||l_index||'>>',l_text);
 
       IF l_temp_code = g_code THEN
-         ms_logger.warning(l_node, 'Did not find '||'##comment'||l_index||'##');
-         wedge( i_new_code => 'LOOKING FOR '||'##comment'||l_index||'##'
+         ms_logger.warning(l_node, 'Did not find '||'<<comment'||l_index||'>>');
+         wedge( i_new_code => 'LOOKING FOR '||'<<comment'||l_index||'>>'
                 ,i_colour  => G_COLOUR_ERROR);
         RAISE x_restore_failed;
       END IF; 
@@ -2240,11 +2260,11 @@ END;
       l_temp_code := g_code;
       l_text := f_colour(i_text   => g_quote_stack(l_index)
                         ,i_colour => G_COLOUR_QUOTE);
-      g_code := REPLACE(g_code,'##quote'||l_index||'##',l_text);
+      g_code := REPLACE(g_code,'<<quote'||l_index||'>>',l_text);
 
       IF l_temp_code = g_code THEN
-         ms_logger.warning(l_node, 'Did not find '||'##quote'||l_index||'##');
-         wedge( i_new_code => 'LOOKING FOR '||'##quote'||l_index||'##'
+         ms_logger.warning(l_node, 'Did not find '||'<<quote'||l_index||'>>');
+         wedge( i_new_code => 'LOOKING FOR '||'<<quote'||l_index||'>>'
                 ,i_colour  => G_COLOUR_ERROR);
         RAISE x_restore_failed;
       END IF; 
@@ -2277,8 +2297,8 @@ END;
     ms_logger.note(l_node, 'l_comment', l_comment);
     g_comment_stack(g_comment_stack.count+1) := l_comment; --Put another comment on the stack
     ms_logger.note(l_node, 'g_comment_stack.count', g_comment_stack.count);
-    g_code := REGEXP_REPLACE(g_code, i_mask, '##comment'||g_comment_stack.count||'##',g_current_pos, 1, i_modifier);
-    go_past(i_search => '##comment'||g_comment_stack.count||'##'
+    g_code := REGEXP_REPLACE(g_code, i_mask, '<<comment'||g_comment_stack.count||'>>',g_current_pos, 1, i_modifier);
+    go_past(i_search => '<<comment'||g_comment_stack.count||'>>'
            ,i_colour => NULL);
       
   END;
@@ -2292,8 +2312,8 @@ END;
     ms_logger.note(l_node, 'l_quote', l_quote);
     g_quote_stack(g_quote_stack.count+1) := l_quote; --Put another quote on the stack
     ms_logger.note(l_node, 'g_quote_stack.count', g_quote_stack.count);
-    g_code := REGEXP_REPLACE(g_code, i_mask, '##quote'||g_quote_stack.count||'##',g_current_pos, 1, i_modifier);
-    go_past(i_search => '##quote'||g_quote_stack.count||'##'
+    g_code := REGEXP_REPLACE(g_code, i_mask, '<<quote'||g_quote_stack.count||'>>',g_current_pos, 1, i_modifier);
+    go_past(i_search => '<<quote'||g_quote_stack.count||'>>'
            ,i_colour => NULL);
   END;
  

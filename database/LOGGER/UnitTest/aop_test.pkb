@@ -1,9 +1,12 @@
+truncate table aop_source;
+
+
 CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
   --@AOP_LOG
 
-  g number;
+  g$ number;
  
-  function test4(i_module ms_module%ROWTYPE
+  function test4$(i_module ms_module%ROWTYPE
                 ,o_unit      out ms_unit%ROWTYPE) return varchar2 is
     l_var number;
 
@@ -51,20 +54,20 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
     end if;
  
     o_unit.unit_name := 'X';
-  end;
+  end test4$;
 
 
   function test3(i_param31 in varchar2 ) return varchar2 is
   begin
     null;
-    --ms_feedback.comment('Eg of debugging message added by a developer');
+    --""Eg of debugging message added by a developer
 
 
     <<anon1>>
     declare
       l_temp varchar2(1) := trim(' X ');
       x number;
-      f integer;
+      f# integer;
       l_unit ms_unit%ROWTYPE;
       l_unit_name ms_unit.unit_name%TYPE;
 
@@ -73,7 +76,7 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
       l_unit.unit_name := 'X';
       l_unit := l_unit;
       null;
-      --ms_feedback.comment('anon block1');
+      --""anon block1
       --:x:= 1;
       --:x := 1;
       --:x  := 1;
@@ -81,8 +84,8 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
       x := 2;
       x  := 2;
       --hello:= 23;
-      f:=3;
-      g:= 4 ;
+      f#:=3;
+      g$:= 4 ;
 
     end anon1;
 
@@ -147,12 +150,12 @@ where max_event_date >= :i_min_qa_date
 ]';
 
         null;
-        --ms_feedback.comment('testz is nested in anon block2');
+        --""testz is nested in anon block2
       end testz;
 
     begin
       null;
-      --ms_feedback.comment('anon block2');
+      --""anon block2
 
       testz(i_paramz => 'Z');
 
@@ -160,7 +163,7 @@ where max_event_date >= :i_min_qa_date
         l_temp varchar2(1);
       begin
         null;
-        --ms_feedback.comment('nested anon block3');
+        --""nested anon block3
       end;
 
     end;
@@ -189,7 +192,7 @@ where max_event_date >= :i_min_qa_date
       begin
 
         null;
-        --ms_feedback.comment('Should see this comment a 3 times');
+        --""Should see this comment a 3 times
       end test1aa;
 
     begin
@@ -201,7 +204,7 @@ where max_event_date >= :i_min_qa_date
         l_temp varchar2(1);
       begin
         null;
-        --ms_feedback.comment('anon block');
+        --""anon block
       end;
       --This is a single comment with an active multi-line comment close */
 
@@ -236,9 +239,9 @@ where max_event_date >= :i_min_qa_date
 
   begin
     null;
-    --ms_feedback.comment('About to raise an error');
+    --""About to raise an error
     raise no_data_found;
-    --ms_feedback.warning('Should not have reached here.');
+    --##Should not have reached here.
 
 
     --""This is a special comment
