@@ -166,7 +166,7 @@ PROCEDURE param ( i_node      IN ms_logger.node_typ
                  ,i_name      IN VARCHAR2
                  ,i_value     IN VARCHAR2  );
 
-/*
+
 --overloaded name, value | [id, descr] FOR CLOB
 PROCEDURE note_clob( i_node      IN ms_logger.node_typ   
                     ,i_name      IN VARCHAR2
@@ -179,7 +179,7 @@ PROCEDURE param_clob( i_node      IN ms_logger.node_typ
                      ,i_name      IN VARCHAR2
                      ,i_value     IN CLOB  );
 
-*/
+
 ------------------------------------------------------------------------
 --overloaded name, num_value | [id, descr] 
 PROCEDURE note    ( i_node      IN ms_logger.node_typ 

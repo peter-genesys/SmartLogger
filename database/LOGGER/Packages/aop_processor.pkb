@@ -469,7 +469,7 @@ create or replace package body aop_processor is
 -- ATOMIC
 --------------------------------------------------------------------------------- 
  
-FUNCTION trim_whitespace(i_words IN VARCHAR2) RETURN VARCHAR2 IS
+FUNCTION trim_whitespace(i_words IN CLOB) RETURN CLOB IS
   G_REGEX_LEADING_TRAILING_WHITE CONSTANT VARCHAR2(20) := '^\s|\s$';
 BEGIN
   RETURN TRIM(REGEXP_REPLACE(i_words,G_REGEX_LEADING_TRAILING_WHITE,''));
@@ -534,13 +534,13 @@ FUNCTION get_next(i_srch_before        IN VARCHAR2 DEFAULT NULL
                  ,i_trim_result        IN BOOLEAN  DEFAULT FALSE ) return CLOB IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next'); 
   
-  l_any_match             VARCHAR2(32000);
-  l_trimmed_any_match  VARCHAR2(32000);
-  l_colour_either_match   VARCHAR2(32000);
-  l_search_match          VARCHAR2(32000);
-  l_result                VARCHAR2(32000);
-  l_any_search            VARCHAR2(32000);
-  l_search                VARCHAR2(32000);
+  l_any_match             CLOB;
+  l_trimmed_any_match     CLOB;
+  l_colour_either_match   CLOB;
+  l_search_match          CLOB;
+  l_result                CLOB;
+  l_any_search            CLOB;
+  l_search                CLOB;
 
   l_trim_upto_pos         INTEGER;
 
@@ -616,7 +616,7 @@ BEGIN
  
   --Keep the original "either" match
   l_any_match := REGEXP_SUBSTR(g_code,l_any_search,g_current_pos,1,i_modifier);
-  ms_logger.note(l_node, 'l_any_match',l_any_match  );
+  ms_logger.note_clob(l_node, 'l_any_match',l_any_match  );
  
   --Should we raise an error?
   IF l_any_match IS NULL AND i_raise_error THEN
@@ -676,7 +676,7 @@ BEGIN
   --ms_logger.note(l_node, 'char @ g_current_pos +1     '   ,substr(g_code, g_current_pos+1, 1)||ascii(substr(g_code, g_current_pos+1, 1)));
   --ms_logger.note(l_node, 'char @ g_current_pos +2     '   ,substr(g_code, g_current_pos+2, 1)||ascii(substr(g_code, g_current_pos+2, 1)));
  
-  ms_logger.note(l_node, 'l_result',l_result); 
+  ms_logger.note_clob(l_node, 'l_result',l_result); 
 
   IF i_upper THEN   
     RETURN UPPER(l_result);
@@ -843,7 +843,7 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
  
     
   l_var_def                     CLOB;
-  G_REGEX_VAR_DEF_LINE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_SUPPORTED_TYPES;
+  G_REGEX_VAR_DEF_LINE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_SUPPORTED_TYPES||'\W';
   G_REGEX_REC_VAR_DEF_LINE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||'?)%ROWTYPE';
   G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||'?)\.('||G_REGEX_WORD||'?)%TYPE';
   
@@ -1091,7 +1091,7 @@ FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
   
   l_var_list              var_list_typ := i_var_list;
   l_var_def               CLOB;
-  G_REGEX_VAR_DEF_LINE         CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?'||G_REGEX_SUPPORTED_TYPES;
+  G_REGEX_VAR_DEF_LINE         CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?'||G_REGEX_SUPPORTED_TYPES||'\W';
   G_REGEX_REC_VAR_DEF_LINE     CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?%ROWTYPE';
   G_REGEX_TAB_COL_VAR_DEF_LINE CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?\.'||G_REGEX_WORD||'?%TYPE';
   
@@ -2294,7 +2294,7 @@ END;
   BEGIN
     l_comment := get_next(i_stop     => i_mask
                            ,i_modifier => i_modifier ); --multi-line, lazy
-    ms_logger.note(l_node, 'l_comment', l_comment);
+    ms_logger.note_clob(l_node, 'l_comment', l_comment);
     g_comment_stack(g_comment_stack.count+1) := l_comment; --Put another comment on the stack
     ms_logger.note(l_node, 'g_comment_stack.count', g_comment_stack.count);
     g_code := REGEXP_REPLACE(g_code, i_mask, '<<comment'||g_comment_stack.count||'>>',g_current_pos, 1, i_modifier);
@@ -2348,7 +2348,7 @@ BEGIN
  
    G_REGEX_SINGLE_LINE_ANNOTATION   CONSTANT VARCHAR2(50)  :=    '.*';
    G_REGEX_SINGLE_LINE_COMMENT      CONSTANT VARCHAR2(50)  :=    '--.*';
-   G_REGEX_MULTI_LINE_COMMENT       CONSTANT VARCHAR2(50)  :=    '/\*.*?\*/';
+   G_REGEX_MULTI_LINE_COMMENT       CONSTANT VARCHAR2(50)  :=    '/\*.*?\*/'; --'/\*(\s|\S)*?\*/';
    G_REGEX_MULTI_LINE_QUOTE         CONSTANT VARCHAR2(50)  :=    '\''.*?\''';
    G_REGEX_MULTI_LINE_ADV_QUOTE     CONSTANT VARCHAR2(100) :=    'Q\''\[.*?\]\''|Q\''\{.*?\}\''|Q\''\(.*?\)\''|Q\''\<.*?\>\''|Q\''(\S).*?\1\''';
  
@@ -2405,6 +2405,7 @@ BEGIN
         --REMOVE MULTI-LINE COMMENTS 
         --Find "/*" and remove upto "*/" 
       extract_comment(i_mask => G_REGEX_MULTI_LINE_COMMENT);
+                        -- ,i_modifier => 'i');
  
       WHEN regex_match(l_keyword , G_REGEX_START_ADV_QUOTE)  THEN  
            ms_logger.info(l_node, 'Multi Line Adv Quote');  
