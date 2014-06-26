@@ -5,6 +5,10 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
   --@AOP_LOG
 
   g$ number;
+
+  type date_typ_rec is record (adate date);
+  l_date_rec1 date_typ_rec;
+  l_date_rec2 date_typ_rec;
  
   function test4$(i_module ms_module%ROWTYPE
                 ,o_unit      out ms_unit%ROWTYPE) return varchar2 is
@@ -24,6 +28,10 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
 
 
   begin
+
+    l_date_rec1.adate := SYSDATE;
+    l_date_rec2 := l_date_rec1;
+
     null;
 
     open cu_user_tables;

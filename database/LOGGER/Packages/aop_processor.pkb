@@ -678,6 +678,13 @@ BEGIN
  
   ms_logger.note_clob(l_node, 'l_result',l_result); 
 
+  ms_logger.note_clob(l_node, 'l_result with LF,CR,SP' ,REPLACE(
+                                                        REPLACE(
+                                                        REPLACE(l_result,chr(10),'LF')
+                                                                        ,chr(13),'CR')
+                                                                        ,chr(32),'SP') ); 
+ 
+
   IF i_upper THEN   
     RETURN UPPER(l_result);
   ELSIF i_lower THEN
@@ -837,13 +844,12 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
   l_in_var               BOOLEAN;
   l_out_var              BOOLEAN;
   
-  G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?('||G_REGEX_WORD||')';
   G_REGEX_NAME_IN_OUT     CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?';
 
  
     
   l_var_def                     CLOB;
-  G_REGEX_VAR_DEF_LINE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_SUPPORTED_TYPES||'\W';
+  G_REGEX_VAR_DEF_LINE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_SUPPORTED_TYPES;
   G_REGEX_REC_VAR_DEF_LINE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||'?)%ROWTYPE';
   G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||'?)\.('||G_REGEX_WORD||'?)%TYPE';
   
@@ -894,14 +900,7 @@ BEGIN
                             ,i_upper        => TRUE
                             ,i_colour       => G_COLOUR_PROG_UNIT
                             ,i_raise_error  => TRUE);
-     
-      ms_logger.note(l_node, 'l_keyword with LF,CR,SP' ,REPLACE(
-                                                        REPLACE(
-                                                        REPLACE(l_keyword,chr(10),'LF')
-                                                                         ,chr(13),'CR')
-                                                                         ,chr(32),'SP') ); 
-    --ms_logger.note_length(l_node, 'l_keyword' ,l_keyword); 
-    
+ 
       CASE 
  
     --NEW PARAMETER LINE
@@ -912,12 +911,11 @@ BEGIN
              --  varname IN OUT vartype ,
              --  varname IN vartype)
              
-            l_var_def := get_next( i_srch_before       =>  G_REGEX_REC_VAR_DEF_LINE  
+            l_var_def := get_next( i_srch_before    =>  G_REGEX_REC_VAR_DEF_LINE  
                                                ||'|'||G_REGEX_TAB_COL_VAR_DEF_LINE
-                                               ||'|'||G_REGEX_VAR_DEF_LINE 
-                                               ||'|'||G_REGEX_PARAM_LINE
-                                    ,i_upper      => TRUE
-                                    ,i_colour      => G_COLOUR_PARAM
+                                    ,i_stop         => G_REGEX_VAR_DEF_LINE||'\W'            
+                                    ,i_upper        => TRUE
+                                    ,i_colour       => G_COLOUR_PARAM
                                     ,i_raise_error  => TRUE);
              
             ms_logger.note(l_node, 'l_var_def',l_var_def);
@@ -1011,7 +1009,8 @@ BEGIN
                              ,i_in_var      => l_in_var
                              ,i_out_var     => l_out_var );
  
-
+                go_past(i_search => G_REGEX_VAR_DEF_LINE
+                       ,i_colour => G_COLOUR_GO_PAST);
           
                --UNSUPPORTED
                ELSE
