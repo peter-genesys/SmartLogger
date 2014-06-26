@@ -44,7 +44,7 @@ create or replace package body aop_processor is
   
   g_aop_module_name    VARCHAR2(30); 
   
-  TYPE var_list_typ IS TABLE OF VARCHAR2(106) INDEX BY VARCHAR2(30);  
+  TYPE var_list_typ IS TABLE OF VARCHAR2(30) INDEX BY VARCHAR2(106);  
   
   TYPE param_list_typ IS TABLE OF VARCHAR2(30) INDEX BY BINARY_INTEGER;  
   
