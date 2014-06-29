@@ -1,6 +1,3 @@
-truncate table aop_source;
-
-
 CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
   --@AOP_LOG
 
@@ -11,6 +8,7 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
   l_date_rec2 date_typ_rec;
  
   function test4$(i_module ms_module%ROWTYPE
+                ,i_name_array  in OWA.vc_arr
                 ,o_unit      out ms_unit%ROWTYPE) return varchar2 is
     l_var number;
 
@@ -22,6 +20,7 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
     l_table_name VARCHAR2(30);
     l_tablespace_name VARCHAR2(30);
 
+    l_value_array  OWA.vc_arr;
 
     l_var2 number;
     l_var3 number;

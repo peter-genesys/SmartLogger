@@ -157,7 +157,7 @@ create or replace package body aop_processor is
   G_COLOUR_BRACKETS         CONSTANT VARCHAR2(10) := '#FF5050'; 
   G_COLOUR_EXCEPTION_BLOCK  CONSTANT VARCHAR2(10) := '#FF9933'; 
   G_COLOUR_JAVA             CONSTANT VARCHAR2(10) := '#33CCCC'; 
-  --G_COLOUR_FORWARD_DECLARE  CONSTANT VARCHAR2(10) := '#FF9999'; 
+  G_COLOUR_UNSUPPORTED      CONSTANT VARCHAR2(10) := '#999966'; 
   G_COLOUR_ANNOTATION       CONSTANT VARCHAR2(10) := '#FFCCFF'; 
   G_COLOUR_BIND_VAR         CONSTANT VARCHAR2(10) := '#FFFF00';
   G_COLOUR_VAR              CONSTANT VARCHAR2(10) := '#99FF66';
@@ -844,6 +844,8 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
   l_in_var               BOOLEAN;
   l_out_var              BOOLEAN;
   
+  --This should be expanded to cover G_REGEX_2WORDS etc
+  G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?('||G_REGEX_WORD||')';
   G_REGEX_NAME_IN_OUT     CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?';
 
  
@@ -913,7 +915,8 @@ BEGIN
              
             l_var_def := get_next( i_srch_before    =>  G_REGEX_REC_VAR_DEF_LINE  
                                                ||'|'||G_REGEX_TAB_COL_VAR_DEF_LINE
-                                    ,i_stop         => G_REGEX_VAR_DEF_LINE||'\W'            
+                                    ,i_stop         => G_REGEX_VAR_DEF_LINE||'\W' 
+                                               ||'|'||G_REGEX_PARAM_LINE           
                                     ,i_upper        => TRUE
                                     ,i_colour       => G_COLOUR_PARAM
                                     ,i_raise_error  => TRUE);
@@ -1015,6 +1018,9 @@ BEGIN
                --UNSUPPORTED
                ELSE
                  ms_logger.info(l_node, 'Unsupported datatype');
+                go_past(i_search => G_REGEX_PARAM_LINE
+                       ,i_colour => G_COLOUR_UNSUPPORTED);
+
                  --RAISE x_invalid_keyword;
          
              END CASE; 
