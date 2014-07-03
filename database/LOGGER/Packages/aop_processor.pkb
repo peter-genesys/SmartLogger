@@ -1362,6 +1362,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_index                 binary_integer;
   l_var                   VARCHAR2(100);
 
+  l_exception_section     BOOLEAN :=FALSE;
+
   
   G_REGEX_ASSIGN_TO_REC_COL   CONSTANT VARCHAR2(50) :=  G_REGEX_2WORDS||'\s*?:=';
 
@@ -1533,6 +1535,11 @@ BEGIN
                  ,i_regex_end  => G_REGEX_END_IF
                  ,i_var_list   => l_var_list );
 
+      WHEN regex_match(l_keyword , G_REGEX_EXCEPTION) THEN
+        ms_logger.info(l_node, 'Exception Section');  
+        --Now safe to look for WHEN X THEN
+        l_exception_section := TRUE;
+ 
       WHEN regex_match(l_keyword , G_REGEX_NEUTRAL) THEN
         ms_logger.info(l_node, 'Neutral');  
         --Just let it keep going around the loop.
@@ -1670,11 +1677,14 @@ BEGIN
                ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
                
       WHEN regex_match(l_keyword ,G_REGEX_WHEN_EXCEPT_THEN) THEN 
-        ms_logger.info(l_node, 'WHEN_EXCEPT_THEN');       
-        --comment the exception after WHEN exception THEN 
-        inject( i_new_code => 'ms_logger.comment(l_node,'''||flatten(trim_whitespace(l_keyword))||''');'
-               ,i_indent   => i_indent
-               ,i_colour   => G_COLOUR_COMMENT);       
+        --Only want to note exceptions in an exception section.
+        IF l_exception_section THEN
+          ms_logger.info(l_node, 'WHEN_EXCEPT_THEN');       
+          --comment the exception after WHEN exception THEN 
+          inject( i_new_code => 'ms_logger.comment(l_node,'''||flatten(trim_whitespace(l_keyword))||''');'
+                 ,i_indent   => i_indent
+                 ,i_colour   => G_COLOUR_COMMENT);   
+        END IF;    
 
       WHEN regex_match(l_keyword ,G_REGEX_DML) THEN 
         ms_logger.info(l_node, 'DML');

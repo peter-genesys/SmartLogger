@@ -256,15 +256,22 @@ where max_event_date >= :i_min_qa_date
     --!!This is a special warning
     --##This is a special fatal
 
-    o_param23:= 1;
+    o_param23:= CASE
+                  WHEN TRUE THEN 1
+                  WHEN FALSE THEN 2
+                END;
     io_param24:= 2;
     --i_param25:= 4;
-
+ 
 
 
   exception
     when x_test then
-      null;
+      o_param23:= CASE
+                    WHEN TRUE THEN 1
+                    WHEN FALSE THEN 2
+                  END;
+                  
     when others then
       null;
       --ms_feedback.oracle_error;
