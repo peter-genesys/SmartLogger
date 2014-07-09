@@ -678,6 +678,32 @@ BEGIN
     RETURN l_result;
    
 END f_process_traced;
+
+----------------------------------------------------------------------
+-- f_process_errored - TRUE if any exceptions
+----------------------------------------------------------------------
+FUNCTION f_process_errored(i_process_id IN INTEGER) RETURN BOOLEAN IS
+  CURSOR cu_error_message IS
+  SELECT 1
+  FROM   ms_traversal t
+        ,ms_message   m  
+  WHERE  t.process_id = i_process_id 
+  and    m.traversal_id = t.traversal_id
+  and    m.msg_level   >= G_MSG_LEVEL_FATAL;
+         
+  l_dummy  INTEGER; 
+  l_result BOOLEAN;  
+         
+BEGIN
+ 
+    OPEN cu_error_message;
+    FETCH cu_error_message INTO l_dummy;
+    l_result := cu_error_message%FOUND;
+    CLOSE cu_error_message;
+    
+    RETURN l_result;
+   
+END f_process_errored;
  
 ----------------------------------------------------------------------
 -- f_process_id
@@ -719,7 +745,7 @@ BEGIN
   RETURN NOT f_process_is_closed;
 END f_process_is_open; 
  
- 
+
 ----------------------------------------------------------------------
 -- DERIVATION RULES (private)
 ----------------------------------------------------------------------

@@ -89,28 +89,32 @@ FUNCTION get_html_process_report RETURN CLOB;
 ------------------------------------------------------------------------
 -- get_trace_URL
 ------------------------------------------------------------------------
- 
-FUNCTION get_trace_URL(i_process_id IN INTEGER  DEFAULT NULL
-                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN VARCHAR2; 
+FUNCTION get_trace_URL(i_server_url IN VARCHAR2
+                      ,i_port       IN VARCHAR2
+                      ,i_process_id IN INTEGER  DEFAULT NULL
+                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL  ) RETURN VARCHAR2; 
  
 ------------------------------------------------------------------------
 -- get_user_feedback_URL
 ------------------------------------------------------------------------
  
-FUNCTION get_user_feedback_URL RETURN VARCHAR2; 
+FUNCTION get_user_feedback_URL(i_server_url IN VARCHAR2
+                              ,i_port       IN VARCHAR2) RETURN VARCHAR2; 
  
   
 ------------------------------------------------------------------------
 -- get_user_feedback_anchor
 ------------------------------------------------------------------------
  
-FUNCTION get_user_feedback_anchor RETURN VARCHAR2;  
+FUNCTION get_user_feedback_anchor(i_server_url IN VARCHAR2
+                                 ,i_port       IN VARCHAR2) RETURN VARCHAR2;  
   
 ------------------------------------------------------------------------
 -- get_support_feedback_anchor
 ------------------------------------------------------------------------
  
-FUNCTION get_support_feedback_anchor RETURN VARCHAR2;
+FUNCTION get_support_feedback_anchor(i_server_url IN VARCHAR2
+                                    ,i_port       IN VARCHAR2) RETURN VARCHAR2;
 
   
   

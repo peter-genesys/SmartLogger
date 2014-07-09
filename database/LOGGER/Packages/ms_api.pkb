@@ -21,111 +21,11 @@ create or replace package body ms_api is
 -- This package is not to be instrumented by the AOP_PROCESSOR
 -- @AOP_NEVER 
 ------------------------------------------------------------------------
-/* 
-------------------------------------------------------------------------
--- Internal logging routines (private)
--- ms_logger cannot be used to log itself, so an alternative internal syntax exists
--- Output is designed for the unit test "ms_test.sql".
-------------------------------------------------------------------------
- 
-PROCEDURE intlog_putline(i_line IN VARCHAR2 ) IS
---Don't call this directly.
-BEGIN 
-  IF g_debug_mode THEN
-    dbms_output.put_line(LPAD('+ ',g_debug_indent*2,'+ ')||i_line);
-  END IF;
-END; 
-
- 
-PROCEDURE intlog_start(i_message IN VARCHAR2 ) IS
-BEGIN 
-  intlog_putline('BEGAN: '||i_message);
-  g_debug_indent := g_debug_indent + 1;
-END;
-
-PROCEDURE intlog_end(i_message IN VARCHAR2 ) IS
-BEGIN
-  g_debug_indent := g_debug_indent - 1; 
-  intlog_putline('ENDED: '||i_message);
-  
-END; 
-
-PROCEDURE err_set_process_internal_error IS
-  --set internal error
-  --create_ref, create_traversal, log_message will not start 
-  --while this flag is set.  
-  --These procedures are the ONLY gateways to the LOG and PUSH routines
-  
-   PRAGMA AUTONOMOUS_TRANSACTION;
- 
-BEGIN 
- 
-  g_internal_error := TRUE; 
-  $if $$intlog $then intlog_putline('INTERNAL ERROR'); $end
- 
-  UPDATE ms_process 
-  SET internal_error = 'Y'
-  WHERE process_id   = g_process_id
-  AND internal_error = 'N';
-  
-  COMMIT;
-
-END; 
- 
 
 
-
-PROCEDURE err_create_internal_error(i_message IN VARCHAR2 ) IS
-   
-   PRAGMA AUTONOMOUS_TRANSACTION;
-
-   l_internal_error     ms_internal_error%ROWTYPE;
-
-BEGIN 
-
-  err_set_process_internal_error;
-
-  $if $$intlog $then intlog_putline('* '||i_message);  $end
- 
-  l_internal_error.message      := SUBSTR(i_message,1,G_INTERNAL_ERROR_WIDTH);
-  l_internal_error.msg_level    := G_MSG_LEVEL_INTERNAL;
-  l_internal_error.message_id   := new_message_id;
-  l_internal_error.traversal_id := NVL(f_current_traversal_id,0); -- dummy traversal_id if none current
-  l_internal_error.process_id   := g_process_id;
-  l_internal_error.time_now     := SYSDATE;
-
-  INSERT INTO ms_internal_error VALUES l_internal_error;
-  
-  COMMIT;
-
-END; 
-
- 
-PROCEDURE err_warn_oracle_error(i_message IN VARCHAR2 ) IS
-BEGIN 
-  $if $$intlog $then intlog_putline(i_message||':');     $end
-  err_create_internal_error(SQLERRM);
-  $if $$intlog $then intlog_end(i_message => i_messagntlog_end(i_message => i_message); $end --extra call to intlog_end closes the program unit.
-
-END;
-
-
-
-
-PROCEDURE intlog_debug(i_message IN VARCHAR2 ) IS
-BEGIN 
-  intlog_putline('!'||i_message);
-END;
-
-PROCEDURE intlog_note(i_name  IN VARCHAR2
-                       ,i_value IN VARCHAR2) IS
-BEGIN 
-  intlog_putline('.'||i_name||':'||i_value);
-END;
- 
-
- */
- 
+G_SMARTLOGGER_APP_NO          CONSTANT NUMBER := 104;
+G_SMARTLOGGER_PROCESS_PAGE_NO CONSTANT NUMBER := 8;
+G_SMARTLOGGER_TRACE_PAGE_NO   CONSTANT NUMBER := 24;
  
 
 ------------------------------------------------------------------------ 
@@ -442,14 +342,107 @@ exception
     raise;
 end; --get_html_process_report
 
+
+
+
+------------------------------------------------------------------------
+-- get_apex_page_URL
+------------------------------------------------------------------------
+FUNCTION get_apex_page_URL(i_server_url  IN VARCHAR2
+                          ,i_port        IN VARCHAR2
+                          ,i_app_no      IN VARCHAR2
+                          ,i_page_no     IN VARCHAR2
+                          ,i_request     IN VARCHAR2
+                          ,i_clear_cache IN VARCHAR2
+                          ,i_param_names IN VARCHAR2
+                          ,i_param_values IN VARCHAR2 ) RETURN VARCHAR2 IS
+BEGIN
+  RETURN i_server_url||':'||i_port
+      ||'/apex/f?p='||i_app_no||':'||i_page_no||'::'
+      ||i_request||'::'
+      ||i_clear_cache||':'
+      ||i_param_names||':'
+      ||i_param_values;
+END;  
+
  
+
+------------------------------------------------------------------------
+-- get_smartlogger_trace_URL
+------------------------------------------------------------------------
+FUNCTION get_smartlogger_report_URL(i_server_url   IN VARCHAR2
+                                   ,i_port         IN VARCHAR2
+                                   ,i_page_no      IN VARCHAR2
+                                   ,i_process_id   IN INTEGER   ) RETURN VARCHAR2 IS
+
+  l_request     VARCHAR2(30);
+ 
+BEGIN
+
+   
+  
+  IF ms_logger.f_process_errored(i_process_id => i_process_id) THEN
+    --Exceptions exist so lets show them.
+    l_request := 'IR_REPORT_EXCEPTIONS';
+  ELSE
+    --No exceptions lets show normal messages.
+    l_request := 'IR_REPORT_MESSAGES';
+  END IF;
+ 
+  RETURN get_apex_page_URL(i_server_url  => i_server_url
+                          ,i_port        => i_port
+                          ,i_app_no      => G_SMARTLOGGER_APP_NO
+                          ,i_page_no     => i_page_no
+                          ,i_request     => l_request
+                          ,i_clear_cache => 'RIR,RP,'||i_page_no
+                          ,i_param_names => ':P'||i_page_no||'_PROCESS_ID:'
+                          ,i_param_values => i_process_id);
+
+END; 
+ 
+------------------------------------------------------------------------
+-- get_smartlogger_trace_URL
+------------------------------------------------------------------------
+FUNCTION get_smartlogger_trace_URL(i_server_url   IN VARCHAR2
+                                  ,i_port         IN VARCHAR2
+                                  ,i_process_id   IN INTEGER   ) RETURN VARCHAR2 IS
+ 
+BEGIN
+
+  RETURN get_smartlogger_report_URL(i_server_url  => i_server_url
+                                   ,i_port        => i_port
+                                   ,i_page_no     => G_SMARTLOGGER_TRACE_PAGE_NO
+                                   ,i_process_id  => i_process_id);
+ 
+END; 
+
+
+------------------------------------------------------------------------
+-- get_smartlogger_process_URL
+------------------------------------------------------------------------
+FUNCTION get_smartlogger_process_URL(i_server_url   IN VARCHAR2
+                                    ,i_port         IN VARCHAR2
+                                    ,i_process_id   IN INTEGER   ) RETURN VARCHAR2 IS
+ 
+BEGIN
+
+  RETURN get_smartlogger_report_URL(i_server_url  => i_server_url
+                                   ,i_port        => i_port
+                                   ,i_page_no     => G_SMARTLOGGER_PROCESS_PAGE_NO
+                                   ,i_process_id  => i_process_id);
+ 
+END; 
+
+
  
  
 ------------------------------------------------------------------------
 -- get_trace_URL
 ------------------------------------------------------------------------
-FUNCTION get_trace_URL(i_process_id IN INTEGER  DEFAULT NULL
-                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN VARCHAR2 IS
+FUNCTION get_trace_URL(i_server_url IN VARCHAR2
+                      ,i_port       IN VARCHAR2
+                      ,i_process_id IN INTEGER  DEFAULT NULL
+                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL  ) RETURN VARCHAR2 IS
  
   l_process_id INTEGER;
   l_result     VARCHAR2(2000);
@@ -461,7 +454,10 @@ BEGIN
                                         ,i_ext_ref    => i_ext_ref );  
  
   IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
-    l_result := 'http://soraempl002.au.fcl.internal:8080/apex/f?p=104:24::IR_REPORT_MESSAGES::RIR,RP,24:P24_PROCESS_ID:' ||l_process_id;
+    l_result := get_smartlogger_trace_URL(i_server_url  => i_server_url
+                                         ,i_port        => i_port      
+                                         ,i_process_id  => l_process_id);
+ 
   END IF;
   
   RETURN l_result;
@@ -473,7 +469,8 @@ END;
 -- get_user_feedback_URL
 ------------------------------------------------------------------------
  
-FUNCTION get_user_feedback_URL RETURN VARCHAR2 IS
+FUNCTION get_user_feedback_URL(i_server_url IN VARCHAR2
+                              ,i_port       IN VARCHAR2) RETURN VARCHAR2 IS
   l_process_id INTEGER;
 BEGIN
 
@@ -481,7 +478,11 @@ BEGIN
 
   IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
   
-    RETURN 'Click to view Trace:  http://soraempl002.au.fcl.internal:8080/apex/f?p=104:24::IR_REPORT_MESSAGES::RIR,RP,24:P24_PROCESS_ID:' ||l_process_id;
+    RETURN 'Click to view Trace:  '
+            ||get_smartlogger_trace_URL(i_server_url  => i_server_url
+                                       ,i_port        => i_port      
+                                       ,i_process_id  => l_process_id);
+
   ELSE
     RETURN NULL;
   END IF;
@@ -492,7 +493,8 @@ END;
 -- get_user_feedback_anchor
 ------------------------------------------------------------------------
  
-FUNCTION get_user_feedback_anchor RETURN VARCHAR2 IS
+FUNCTION get_user_feedback_anchor(i_server_url IN VARCHAR2
+                                 ,i_port       IN VARCHAR2)  RETURN VARCHAR2 IS
   l_process_id INTEGER;
 BEGIN
 
@@ -500,8 +502,9 @@ BEGIN
 
   IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
   
-    return htf.anchor(curl        =>'http://soraempl002.au.fcl.internal:8080/apex/f?p=104:24::IR_REPORT_MESSAGES::RIR,RP,24:P24_PROCESS_ID:'
-	                                 ||l_process_id
+    return htf.anchor(curl        => get_smartlogger_trace_URL(i_server_url  => i_server_url
+                                                              ,i_port        => i_port      
+                                                              ,i_process_id  => l_process_id)
                      ,ctext       => 'Click to view Trace'
                      ,cname       => NULL
                      ,cattributes => NULL);
@@ -516,8 +519,9 @@ END;
 -- get_support_feedback_anchor
 ------------------------------------------------------------------------
  
-FUNCTION get_support_feedback_anchor RETURN VARCHAR2 IS
- 
+FUNCTION get_support_feedback_anchor(i_server_url IN VARCHAR2
+                                    ,i_port       IN VARCHAR2) RETURN VARCHAR2 IS
+ --'http://soraempl002.au.fcl.internal:8080'
   l_process_id INTEGER;
 BEGIN
 
@@ -525,8 +529,9 @@ BEGIN
 
   IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
   
-    return htf.anchor(curl        =>'http://soraempl002.au.fcl.internal:8080/apex/f?p=104:8'
-	                             ||'::IR_REPORT_EXCEPTIONS:NO::P8_PROCESS_ID:'||l_process_id
+    return htf.anchor(curl        => get_smartlogger_process_URL(i_server_url  => i_server_url
+                                                                ,i_port        => i_port      
+                                                                ,i_process_id  => l_process_id)
                      ,ctext       => 'Click to view Debugging'
                      ,cname       => NULL
                      ,cattributes => NULL);
@@ -545,11 +550,11 @@ END;
  
 PROCEDURE mail(i_email_to        IN VARCHAR2
               ,i_subject         IN VARCHAR2 
-			  ,i_body_plain      IN CLOB     DEFAULT NULL
-			  ,i_body_html       IN CLOB     DEFAULT NULL
+			        ,i_body_plain      IN CLOB     DEFAULT NULL
+			        ,i_body_html       IN CLOB     DEFAULT NULL
               ,i_email_from      IN VARCHAR2 DEFAULT NULL
-			  ,i_email_reply_to  IN VARCHAR2 DEFAULT NULL
-			  ,i_mail_host       IN VARCHAR2 DEFAULT NULL ) IS
+			        ,i_email_reply_to  IN VARCHAR2 DEFAULT NULL
+			        ,i_mail_host       IN VARCHAR2 DEFAULT NULL ) IS
 						  
   l_email_to       VARCHAR2(100) :=  i_email_to;
   l_email_from     VARCHAR2(100) :=  NVL(i_email_from    ,i_email_to);
