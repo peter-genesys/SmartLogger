@@ -64,7 +64,7 @@ CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
   end test4$;
 
 
-  function test3(i_param31 in varchar2 ) return varchar2 is
+  function test3(i_param31 in varchar2 ) return varchar2  RESULT_CACHE RELIES_ON (dual)  is
   begin
     null;
     --""Eg of debugging message added by a developer

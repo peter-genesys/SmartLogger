@@ -124,6 +124,7 @@ create or replace package body aop_processor is
   
   --G_REGEX_IS_AS           CONSTANT VARCHAR2(20) := '\sIS\s|\sAS\s'; 
   G_REGEX_IS_AS           CONSTANT VARCHAR2(20) := '(\)|\s)\s*(IS|AS)\s';
+  G_REGEX_RETURN_IS_AS    CONSTANT VARCHAR2(50) := '(\)|\s)\s*(RETURN|IS|AS)\s';
   G_REGEX_DEFAULT         CONSTANT VARCHAR2(20) := '(DEFAULT|:=)';
   
   G_REGEX_SUPPORTED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER|DATE|VARCHAR2|VARCHAR|CHAR|BOOLEAN)';
@@ -896,9 +897,9 @@ BEGIN
       --Find first: "(" "," "DEFAULT" ":=" "AS" "IS"
       l_keyword := get_next( i_srch_before       => G_REGEX_OPEN_BRACKET
                                         ||'|'||G_REGEX_COMMA
-                                        ||'|'||G_REGEX_IS_AS
                                         --||'|'||G_REGEX_CLOSE_BRACKET
                                         ||'|'||G_REGEX_DEFAULT
+                            ,i_stop         => G_REGEX_RETURN_IS_AS            
                             ,i_upper        => TRUE
                             ,i_colour       => G_COLOUR_PROG_UNIT
                             ,i_raise_error  => TRUE);
@@ -1059,8 +1060,13 @@ BEGIN
       END LOOP; 
  
     --  --NO MORE PARAMS
-    WHEN regex_match(l_keyword , G_REGEX_IS_AS) THEN
+    WHEN regex_match(l_keyword , G_REGEX_RETURN_IS_AS) THEN
           ms_logger.comment(l_node, 'No more parameters');
+          --Needed to find Return to get to end of params, 
+          --but now make sure we consume the IS/AS.
+          go_past(i_search => G_REGEX_IS_AS
+                 ,i_colour => G_COLOUR_GO_PAST);
+ 
           EXIT;
           
         --OOPS
@@ -1076,8 +1082,6 @@ BEGIN
   END;
  
   END LOOP; 
-  
-  --NB g_current_pos is still behind next keyword 'IS'
  
 exception
   when others then
@@ -1851,7 +1855,7 @@ BEGIN
       --Check for LANGUAGE JAVA NAME
       --If this is a JAVA function then we don't want a node and don't need to bother reading spec or parsing body.
       --Will find a LANGUAGE keyword before next ";"
-      l_language := get_next(i_srch_before       => G_REGEX_JAVA 
+      l_language := get_next(i_srch_before  => G_REGEX_JAVA 
                             ,i_stop         => G_REGEX_SEMI_COL
                             ,i_upper        => TRUE
                             ,i_colour       => G_COLOUR_JAVA
@@ -1867,7 +1871,7 @@ BEGIN
       --If this is a Forward Declaration 
       --then we don't want a node and don't need to bother reading spec or parsing body.
       --Will find a ";" before next IS or AS
-      l_forward_declare := get_next(i_srch_before       => G_REGEX_SEMI_COL 
+      l_forward_declare := get_next(i_srch_before  => G_REGEX_SEMI_COL 
                                    ,i_stop         => G_REGEX_IS_AS 
                                    ,i_upper        => TRUE
                                    ,i_colour       => G_COLOUR_GO_PAST --G_COLOUR_FORWARD_DECLARE
