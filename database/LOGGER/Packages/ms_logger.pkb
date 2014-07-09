@@ -385,7 +385,7 @@ END get_module;
     FETCH cu_owner INTO l_result;
     CLOSE cu_owner;
 
-    RETURN l_result;
+    RETURN NVL(l_result,USER);
  
   END;
 
@@ -680,16 +680,16 @@ BEGIN
 END f_process_traced;
 
 ----------------------------------------------------------------------
--- f_process_errored - TRUE if any exceptions
+-- f_process_exceptions - TRUE if any exceptions
 ----------------------------------------------------------------------
-FUNCTION f_process_errored(i_process_id IN INTEGER) RETURN BOOLEAN IS
+FUNCTION f_process_exceptions(i_process_id IN INTEGER) RETURN BOOLEAN IS
   CURSOR cu_error_message IS
   SELECT 1
   FROM   ms_traversal t
         ,ms_message   m  
   WHERE  t.process_id = i_process_id 
   and    m.traversal_id = t.traversal_id
-  and    m.msg_level   >= G_MSG_LEVEL_FATAL;
+  and    m.msg_level   >= G_MSG_LEVEL_WARNING;
          
   l_dummy  INTEGER; 
   l_result BOOLEAN;  
@@ -703,7 +703,7 @@ BEGIN
     
     RETURN l_result;
    
-END f_process_errored;
+END f_process_exceptions;
  
 ----------------------------------------------------------------------
 -- f_process_id

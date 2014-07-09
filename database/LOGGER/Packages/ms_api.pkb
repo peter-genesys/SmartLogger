@@ -381,7 +381,7 @@ BEGIN
 
    
   
-  IF ms_logger.f_process_errored(i_process_id => i_process_id) THEN
+  IF ms_logger.f_process_exceptions(i_process_id => i_process_id) THEN
     --Exceptions exist so lets show them.
     l_request := 'IR_REPORT_EXCEPTIONS';
   ELSE

@@ -98,9 +98,9 @@ PROCEDURE  set_unit_msg_mode(i_module_name IN VARCHAR2
 FUNCTION f_process_traced(i_process_id IN INTEGER) RETURN BOOLEAN;
 
 ----------------------------------------------------------------------
--- f_process_errored
+-- f_process_exceptions - TRUE if any exceptions
 ----------------------------------------------------------------------
-FUNCTION f_process_errored(i_process_id IN INTEGER) RETURN BOOLEAN;
+FUNCTION f_process_exceptions(i_process_id IN INTEGER) RETURN BOOLEAN;
 
 FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN INTEGER; 
