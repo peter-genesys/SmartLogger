@@ -281,6 +281,39 @@ where max_event_date >= :i_min_qa_date
       --ms_feedback.oracle_error;
   end test2;
 
+
+
+  FUNCTION test5 RETURN VARCHAR2 is
+    l_insert_count number;
+    l_delete_count number;
+    l_update_count number;
+    l_result VARCHAR2(2000);
+
+    PRAGMA AUTONOMOUS_TRANSACTION;
+  begin
+  
+    insert into MS_PROCESS (process_id) values (-1);
+    l_insert_count := SQL%ROWCOUNT;
+ 
+    update MS_PROCESS
+    SET UPDATED_DATE = SYSDATE
+    WHERE process_id = -1 ;
+    l_update_count := SQL%ROWCOUNT;
+ 
+    delete from MS_PROCESS where process_id = -1;
+    l_delete_count := SQL%ROWCOUNT;
+ 
+    l_result := 'INSERTED '||l_insert_count||' UPDATED '||l_update_count||' DELETED '||l_delete_count;
+
+    ROLLBACK;
+
+    RETURN l_result;
+
+  END;
+
+
+
+
   /*
   This is
   a multi-line comment
@@ -290,3 +323,5 @@ end;
 /
 show errors;
 execute logger.aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST');
+ms_api.set_module_debug(i_module_name => 'AOP_TEST');
+select aop_test.test5 from dual;

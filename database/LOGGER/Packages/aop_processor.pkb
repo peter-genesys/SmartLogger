@@ -1511,8 +1511,8 @@ BEGIN
                                        ||'|'||G_REGEX_CLOSE
                           ,i_srch_after       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
                                        ||'|'||G_REGEX_SHOW_ME_LINE 
-                                       ||'|'||G_REGEX_ROW_COUNT_LINE
-                                       ||'|'||G_REGEX_DML               
+                                       --||'|'||G_REGEX_ROW_COUNT_LINE
+                                       --||'|'||G_REGEX_DML               
                                        ||'|'||G_REGEX_SELECT_FETCH_INTO          
                           ,i_stop          => G_REGEX_START_ANNOTATION --don't colour it
                                        ||'|'||G_REGEX_ASSIGN_TO_REC_COL
@@ -1615,14 +1615,14 @@ BEGIN
                ,i_indent   => i_indent
                ,i_colour   => G_COLOUR_COMMENT);
  
-      WHEN regex_match(l_keyword ,G_REGEX_ROW_COUNT_LINE) THEN
-      ms_logger.info(l_node, 'Rowcount');
-      --expose this line of code as a note with rowcount 
-        inject( i_new_code => 'ms_logger.note_rowcount(l_node,'''
-                        ||SUBSTR(l_keyword,1,LENGTH(l_keyword)-4)  
-              ||''');'
-               ,i_indent   => i_indent
-               ,i_colour   => G_COLOUR_NOTE);
+     -- WHEN regex_match(l_keyword ,G_REGEX_ROW_COUNT_LINE) THEN
+     -- ms_logger.info(l_node, 'Rowcount');
+     -- --expose this line of code as a note with rowcount 
+     --   inject( i_new_code => 'ms_logger.note_rowcount(l_node,'''
+     --                   ||SUBSTR(l_keyword,1,LENGTH(l_keyword)-4)  
+     --         ||''');'
+     --          ,i_indent   => i_indent
+     --          ,i_colour   => G_COLOUR_NOTE);
 
  
       WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_BIND_VAR) THEN  
@@ -1708,14 +1708,14 @@ BEGIN
                  ,i_colour   => G_COLOUR_COMMENT);   
         END IF;    
 
-      WHEN regex_match(l_keyword ,G_REGEX_DML) THEN 
-        ms_logger.info(l_node, 'DML');
-        l_table_name := get_next_object_name;
- 
-        go_past(G_REGEX_SEMI_COL); 
-        inject( i_new_code => 'ms_logger.note_rowcount(l_node,'''||flatten(trim_whitespace(l_keyword))||' '||l_table_name||''');'
-               ,i_indent   => i_indent
-               ,i_colour   => G_COLOUR_NOTE); 
+      --WHEN regex_match(l_keyword ,G_REGEX_DML) THEN 
+      --  ms_logger.info(l_node, 'DML');
+      --  l_table_name := get_next_object_name;
+      --
+      --  go_past(G_REGEX_SEMI_COL); 
+      --  inject( i_new_code => 'ms_logger.note_rowcount(l_node,'''||flatten(trim_whitespace(l_keyword))||' '||l_table_name||''');'
+      --         ,i_indent   => i_indent
+      --         ,i_colour   => G_COLOUR_NOTE); 
 
  
       ELSE 
