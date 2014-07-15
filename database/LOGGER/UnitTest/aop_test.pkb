@@ -195,7 +195,8 @@ where max_event_date >= :i_min_qa_date
 
     procedure test1a(i_param1a1 in varchar2) is
       procedure test1aa(i_param1aa1 in varchar2
-                       ,i_param1aa2 in varchar2) is
+                       ,i_param1aa2 in varchar2
+                       ,i_clob      in CLOB) is
       begin
 
         null;
@@ -216,7 +217,8 @@ where max_event_date >= :i_min_qa_date
       --This is a single comment with an active multi-line comment close */
 
       test1aa(i_param1aa1 => i_param1a1
-             ,i_param1aa2 => 'DUMMY');
+             ,i_param1aa2 => 'DUMMY'
+             ,i_clob      => 'ZZZZZ');
 
     end test1a;
 
@@ -243,8 +245,10 @@ where max_event_date >= :i_min_qa_date
 				 ,io_param24 in out varchar2
 				 ,i_param25 varchar2) is
    x_test exception;
+   l_clob_a CLOB;
 
   begin
+    l_clob_a := 'TEST';
     null;
     --""About to raise an error
     raise no_data_found;

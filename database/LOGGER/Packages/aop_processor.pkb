@@ -127,7 +127,8 @@ create or replace package body aop_processor is
   G_REGEX_RETURN_IS_AS    CONSTANT VARCHAR2(50) := '(\)|\s)\s*(RETURN|IS|AS)\s';
   G_REGEX_DEFAULT         CONSTANT VARCHAR2(20) := '(DEFAULT|:=)';
   
-  G_REGEX_SUPPORTED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER|DATE|VARCHAR2|VARCHAR|CHAR|BOOLEAN)';
+  G_REGEX_SUPPORTED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER'
+                                                  ||'|DATE|VARCHAR2|VARCHAR|CHAR|BOOLEAN|CLOB)';
  
   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
   
@@ -805,6 +806,7 @@ PROCEDURE AOP_prog_units(i_indent   IN INTEGER
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
                       ,i_indent         IN INTEGER
                       ,i_param_list     IN param_list_typ
+                      ,i_param_types    IN param_list_typ
                       ,i_var_list       IN var_list_typ );
 
 --------------------------------------------------------------------------------- 
@@ -823,8 +825,9 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 --------------------------------------------------------------------------------- 
 -- AOP_pu_params
 ---------------------------------------------------------------------------------
-PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
-                       ,io_var_list   IN OUT var_list_typ ) is
+PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
+                       ,io_param_types IN OUT param_list_typ
+                       ,io_var_list    IN OUT var_list_typ ) is
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_params'); 
  
   l_param_line           CLOB;
@@ -876,7 +879,8 @@ PROCEDURE AOP_pu_params(io_param_list IN OUT param_list_typ
  
     IF i_in_var OR NOT l_out_var THEN
         --IN and IN OUT and (implicit IN) included in the param input list.
-        io_param_list(io_param_list.COUNT+1) := i_param_name;  
+        io_param_list(io_param_list.COUNT+1)   := i_param_name;  
+        io_param_types(io_param_types.COUNT+1) := i_param_type;  
 
      END IF;  
   
@@ -1278,6 +1282,7 @@ PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
   l_inject_node           VARCHAR2(200);  
   l_inject_process        VARCHAR2(200);  
   l_param_list            param_list_typ;
+  l_param_types           param_list_typ;
   l_var_list              var_list_typ := i_var_list;
   
 BEGIN
@@ -1285,7 +1290,8 @@ BEGIN
   ms_logger.param(l_node, 'i_indent        ' ,i_indent        ); 
   ms_logger.param(l_node, 'i_node_type     ' ,i_node_type     ); 
  
-  AOP_pu_params(io_param_list => l_param_list                 
+  AOP_pu_params(io_param_list  => l_param_list  
+               ,io_param_types => l_param_types               
                ,io_var_list   => l_var_list);    
  
   --NEW PROCESS
@@ -1331,6 +1337,7 @@ BEGIN
     AOP_pu_block(i_prog_unit_name  => i_prog_unit_name
                 ,i_indent          => i_indent
                 ,i_param_list      => l_param_list
+                ,i_param_types     => l_param_types
                 ,i_var_list        => l_var_list);
     
   END IF;
@@ -1414,20 +1421,26 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   END;
  
 
-  PROCEDURE note_var(i_var in varchar2) IS   
-    -- Note a variable (type not important)   
+  PROCEDURE note_var(i_var  in varchar2
+                    ,i_type in varchar2) IS   
+    l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_var');
+    -- Note a variable 
   BEGIN
-    ms_logger.note(l_node,'i_var',i_var);
-    inject( i_new_code   => 'ms_logger.note(l_node,'''||i_var||''','||i_var||');'
-           ,i_indent     => i_indent
-           ,i_colour     => G_COLOUR_NOTE);
+    ms_logger.note(l_node,'i_var' ,i_var);
+    ms_logger.note(l_node,'i_type',i_type);
+    IF i_type = 'CLOB' THEN
+      inject( i_new_code   => 'ms_logger.note_clob(l_node,'''||i_var||''','||i_var||');'
+             ,i_indent     => i_indent
+             ,i_colour     => G_COLOUR_NOTE);
+    ELSE
+      inject( i_new_code   => 'ms_logger.note(l_node,'''||i_var||''','||i_var||');'
+             ,i_indent     => i_indent
+             ,i_colour     => G_COLOUR_NOTE);
+    END IF;
   END;
  
- 
 
-
-
-  PROCEDURE note_non_bind_var(i_var in varchar2) IS
+  PROCEDURE note_non_bind_var(i_var in varchar2 ) IS
     -- find assignment of non-bind variable and inject a note
    
   BEGIN
@@ -1440,7 +1453,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
             --Data type is supported.
             ms_logger.comment(l_node, 'Data type is supported');
             --So we can write a note for it.
-            note_var(i_var => i_var);
+            note_var(i_var   => i_var
+                     ,i_type => l_var_list(i_var));
           ELSE
             ms_logger.comment(l_node, 'Data type is TABLE_NAME');
             --Data type is unsupported so it is the name of a table instead.
@@ -1456,7 +1470,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                and   owner      = l_table_owner  ) LOOP
 
                IF  regex_match(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
-                 note_var(i_var => i_var||'.'||l_column.column_name);
+                 note_var(i_var  => i_var||'.'||l_column.column_name
+                         ,i_type => l_column.data_type);
                END IF;
 
             END LOOP;  
@@ -1467,14 +1482,15 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
         END IF;
   END;
 
-  PROCEDURE note_rec_col_var(i_var in varchar2) IS
+  PROCEDURE note_rec_col_var(i_var  in varchar2) IS
   -- find assignment of rec.column variable and inject a note
  
   BEGIN
  
     IF l_var_list.EXISTS(i_var) THEN
       --Tab Column rec variable exists 
-      note_var(i_var => i_var);
+      note_var(i_var  => i_var
+              ,i_type => l_var_list(i_var));
        
     END IF;
   END;
@@ -1613,7 +1629,8 @@ BEGIN
         ms_logger.info(l_node, 'Assign Bind Var');
 
         l_var := find_var(i_search => G_REGEX_BIND_VAR);
-        note_var(i_var => l_var);
+        note_var(i_var  => l_var
+                ,i_type => NULL);
  
       WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
         ms_logger.info(l_node, 'Assign Record.Column');
@@ -1659,9 +1676,10 @@ BEGIN
           l_var := l_into_var_list(l_index);
           --Note the variable
           CASE 
-            WHEN regex_match(l_var ,G_REGEX_BIND_VAR) THEN note_var(i_var => l_var);
-            WHEN regex_match(l_var ,G_REGEX_VAR)      THEN note_non_bind_var(i_var => l_var);
-            WHEN regex_match(l_var ,G_REGEX_REC_COL)  THEN note_rec_col_var(i_var => l_var);
+            WHEN regex_match(l_var ,G_REGEX_BIND_VAR) THEN note_var(i_var  => l_var
+                                                                   ,i_type => NULL);
+            WHEN regex_match(l_var ,G_REGEX_VAR)      THEN note_non_bind_var(i_var => l_var );
+            WHEN regex_match(l_var ,G_REGEX_REC_COL)  THEN note_rec_col_var(i_var => l_var );
             ELSE 
               ms_logger.fatal(l_node, 'AOP G_REGEX_FETCH_INTO BUG - REGEX Mismatch');
               RAISE x_invalid_keyword;
@@ -1722,6 +1740,7 @@ END AOP_block;
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
                       ,i_indent         IN INTEGER
                       ,i_param_list     IN param_list_typ
+                      ,i_param_types    IN param_list_typ
                       ,i_var_list       IN var_list_typ ) IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_block');
   
@@ -1743,10 +1762,15 @@ BEGIN
   --Add the params (if any)
   l_index := i_param_list.FIRST;
   WHILE l_index IS NOT NULL LOOP
- 
-    inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',32)||','||i_param_list(l_index)||');'
-           ,i_indent    => i_indent
-           ,i_colour    => G_COLOUR_PARAM);
+    IF i_param_types(l_index) = 'CLOB' THEN
+      inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||i_param_list(l_index)||'''',32)||','||i_param_list(l_index)||');'
+             ,i_indent    => i_indent
+             ,i_colour    => G_COLOUR_PARAM);
+    ELSE
+      inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',32)||','||i_param_list(l_index)||');'
+             ,i_indent    => i_indent
+             ,i_colour    => G_COLOUR_PARAM);
+  END IF;
            
     l_index := i_param_list.NEXT(l_index);    
  
