@@ -47,7 +47,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140618101921'
+ ,p_last_upd_yyyymmddhh24miss => '20140630150954'
   );
 null;
  
@@ -2458,6 +2458,23 @@ wwv_flow_api.create_page_button(
   p_button_alignment=> 'RIGHT',
   p_button_redirect_url=> '',
   p_button_execute_validations=>'Y',
+  p_required_patch => null + wwv_flow_api.g_id_offset);
+ 
+wwv_flow_api.create_page_button(
+  p_id             => 4140600863708572 + wwv_flow_api.g_id_offset,
+  p_flow_id        => wwv_flow.g_flow_id,
+  p_flow_step_id   => 8,
+  p_button_sequence=> 40,
+  p_button_plug_id => 17791439222976199+wwv_flow_api.g_id_offset,
+  p_button_name    => 'REFRESH',
+  p_button_action  => 'SUBMIT',
+  p_button_image   => 'template:'||to_char(17754539557931433+wwv_flow_api.g_id_offset),
+  p_button_is_hot=>'N',
+  p_button_image_alt=> 'Refresh',
+  p_button_position=> 'REGION_TEMPLATE_CLOSE',
+  p_button_alignment=> 'RIGHT',
+  p_button_redirect_url=> '',
+  p_button_execute_validations=>'N',
   p_required_patch => null + wwv_flow_api.g_id_offset);
  
 wwv_flow_api.create_page_button(

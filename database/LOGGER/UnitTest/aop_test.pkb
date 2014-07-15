@@ -323,5 +323,5 @@ end;
 /
 show errors;
 execute logger.aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST');
-ms_api.set_module_debug(i_module_name => 'AOP_TEST');
+execute ms_api.set_module_debug(i_module_name => 'AOP_TEST');
 select aop_test.test5 from dual;

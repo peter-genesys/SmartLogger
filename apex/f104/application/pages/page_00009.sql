@@ -27,7 +27,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140618101725'
+ ,p_last_upd_yyyymmddhh24miss => '20140716090708'
   );
 null;
  
@@ -262,7 +262,7 @@ wwv_flow_api.create_report_columns (
   p_sum_column=> 'N',
   p_hidden_column=> 'N',
   p_display_as=>'SELECT_LIST',
-  p_inline_lov=> 'Package;PACKAGE,Procedure;PROCEDURE,Function;FUNCTION,Trigger;TRIGGER,Oracle Report;REPORT,Oracle Form;FORM,Oracle Report PLSQL Library;REPORT_LIB,Oracle Form PLSQL Library;FORM_LIB',
+  p_inline_lov=> 'Package;PACKAGE,Procedure;PROCEDURE,Function;FUNCTION,Trigger;TRIGGER,Oracle Report;REPORT,Oracle Form;FORM,Oracle Report PLSQL Library;REPORT_LIB,Oracle Form PLSQL Library;FORM_LIB,Apex Block;APEX',
   p_lov_show_nulls=> 'NO',
   p_column_width=> '10',
   p_is_required=> false,

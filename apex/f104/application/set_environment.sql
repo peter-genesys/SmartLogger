@@ -21,7 +21,7 @@ prompt  APPLICATION 104 - SmartLogger
 --     Validations:              3
 --     Processes:               22
 --     Regions:                 30
---     Buttons:                 28
+--     Buttons:                 29
 --     Dynamic Actions:         14
 --   Shared Components:
 --     Logic:
