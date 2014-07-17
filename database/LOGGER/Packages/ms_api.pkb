@@ -395,7 +395,7 @@ BEGIN
                           ,i_page_no     => i_page_no
                           ,i_request     => l_request
                           ,i_clear_cache => 'RIR,RP,'||i_page_no
-                          ,i_param_names => ':P'||i_page_no||'_PROCESS_ID:'
+                          ,i_param_names => 'P'||i_page_no||'_PROCESS_ID'
                           ,i_param_values => i_process_id);
 
 END; 

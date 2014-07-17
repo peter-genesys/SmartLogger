@@ -47,7 +47,7 @@ wwv_flow_api.create_page (
  ,p_help_text => 
 'No help is available for this page.'
  ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140630150954'
+ ,p_last_upd_yyyymmddhh24miss => '20140716151436'
   );
 null;
  
@@ -201,6 +201,13 @@ s:=s||'select p.* '||unistr('\000a')||
 'where t.process_id = p.process_id'||unistr('\000a')||
 'and m.traversal_id = t.traversal_id'||unistr('\000a')||
 'and m.msg_level > 2) exception_count'||unistr('\000a')||
+',(select count(*)'||unistr('\000a')||
+'from ms_traversal t'||unistr('\000a')||
+'    ,ms_message m'||unistr('\000a')||
+'where t.process_id = p.process_id'||unistr('\000a')||
+'an';
+
+s:=s||'d m.traversal_id = t.traversal_id ) message_count'||unistr('\000a')||
 'from ms_process p';
 
 wwv_flow_api.create_report_region (
@@ -396,7 +403,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 6,
   p_form_element_id=> null,
   p_column_alias=> 'INTERNAL_ERROR',
-  p_column_display_sequence=> 9,
+  p_column_display_sequence=> 10,
   p_column_heading=> 'Internal Error Flag',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
@@ -446,7 +453,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 8,
   p_form_element_id=> null,
   p_column_alias=> 'ERROR_MESSAGE',
-  p_column_display_sequence=> 10,
+  p_column_display_sequence=> 11,
   p_column_heading=> 'Internal Error Message',
   p_use_as_row_header=> 'N',
   p_column_alignment=>'LEFT',
@@ -475,7 +482,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 9,
   p_form_element_id=> null,
   p_column_alias=> 'CREATED_DATE',
-  p_column_display_sequence=> 11,
+  p_column_display_sequence=> 12,
   p_column_heading=> 'Created DateTime',
   p_column_format=> 'DD-MON-YYYY HH24:MI',
   p_column_alignment=>'LEFT',
@@ -503,7 +510,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 10,
   p_form_element_id=> null,
   p_column_alias=> 'UPDATED_DATE',
-  p_column_display_sequence=> 12,
+  p_column_display_sequence=> 13,
   p_column_heading=> 'Updated Date',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
@@ -553,7 +560,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 12,
   p_form_element_id=> null,
   p_column_alias=> 'EXCEPTION_COUNT',
-  p_column_display_sequence=> 8,
+  p_column_display_sequence=> 9,
   p_column_heading=> 'Exception Count',
   p_use_as_row_header=> 'N',
   p_column_link=>'f?p=&APP_ID.:8:&SESSION.:IR_REPORT_EXCEPTIONS:&DEBUG.::P8_PROCESS_ID,P8_TRAVERSAL_ID:#PROCESS_ID#,#TOP_TRAVERSAL_ID#',
@@ -570,6 +577,31 @@ wwv_flow_api.create_report_columns (
   p_pk_col_source=> s,
   p_lov_display_extra=> 'YES',
   p_include_in_export=> 'Y',
+  p_column_comment=>'');
+end;
+/
+declare
+  s varchar2(32767) := null;
+begin
+s := null;
+wwv_flow_api.create_report_columns (
+  p_id=> 4749719175960477 + wwv_flow_api.g_id_offset,
+  p_region_id=> 17791439222976199 + wwv_flow_api.g_id_offset,
+  p_flow_id=> wwv_flow.g_flow_id,
+  p_query_column_id=> 13,
+  p_form_element_id=> null,
+  p_column_alias=> 'MESSAGE_COUNT',
+  p_column_display_sequence=> 8,
+  p_column_heading=> 'Message Count',
+  p_column_alignment=>'LEFT',
+  p_heading_alignment=>'CENTER',
+  p_default_sort_column_sequence=>0,
+  p_disable_sort_column=>'N',
+  p_sum_column=> 'N',
+  p_hidden_column=> 'N',
+  p_display_as=>'ESCAPE_SC',
+  p_is_required=> false,
+  p_pk_col_source=> s,
   p_column_comment=>'');
 end;
 /
