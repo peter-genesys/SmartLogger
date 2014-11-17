@@ -203,16 +203,16 @@ BEGIN
 -- get_plain_text_process_report
 ------------------------------------------------------------------------
  
-FUNCTION get_plain_text_process_report RETURN CLOB IS
+FUNCTION get_plain_text_process_report(i_process_id IN NUMBER) RETURN CLOB IS
   l_report CLOB;
-  l_process_id INTEGER := ms_logger.f_process_id;
+  l_process_id INTEGER := NVL(i_process_id, ms_logger.f_process_id);
 BEGIN
  
 	FOR l_line IN (SELECT lpad('+ ',(level-1)*2,'+ ')
                          ||module_name||'.'
                          ||unit_name
-                         ||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_message where traversal_id = t.traversal_id and msg_type in ('PARAM','NOTE'))
-                         ||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id and msg_type not in ('PARAM','NOTE')) as text
+                         ||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_message where traversal_id = t.traversal_id and msg_type in ('Param','Note'))
+                         ||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id and msg_type not in ('Param','Note')) as text
                    FROM ms_unit_traversal_vw t
                    WHERE process_id = l_process_id
                    START WITH parent_traversal_id IS NULL

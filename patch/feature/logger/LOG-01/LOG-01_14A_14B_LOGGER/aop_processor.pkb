@@ -310,6 +310,7 @@ create or replace package body aop_processor is
  
       begin
         execute immediate 'alter session set plsql_optimize_level = 1';
+        execute immediate 'set scan off';
       
           execute immediate i_text;  --11G CLOB OK
           l_aop_source.valid_yn := 'Y';
