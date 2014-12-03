@@ -12,6 +12,9 @@ is
   ) return boolean; 
  
   procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL);
+
+ function using_aop(i_object_name IN VARCHAR2
+                   ,i_object_type IN VARCHAR2 DEFAULT 'PACKAGE BODY') return varchar2;
  
 end aop_processor;
 /

@@ -2499,7 +2499,34 @@ BEGIN
      
     END stash_comments_and_quotes;
   
+ function using_aop(i_object_name IN VARCHAR2
+                   ,i_object_type IN VARCHAR2 DEFAULT 'PACKAGE BODY') return varchar2 is
+
+    CURSOR cu_dba_source is
+    select 1
+    from dba_source
+    where NAME = i_object_name
+    and type   = i_object_type
+    and text like '%--Logging by AOP_PROCESSOR%';
+
+    l_dummy number;
+    l_found boolean;
+
+  BEGIN
+   
+    open cu_dba_source;
+    fetch cu_dba_source into l_dummy;
+    l_found := cu_dba_source%FOUND;
+    close cu_dba_source;
+
+    IF l_found then
+      return 'Yes';
+    ELSE
+      return 'No';  
+    END IF;
  
+
+  END;
  
 end aop_processor;
 /
