@@ -1,3 +1,5 @@
+prompt Enable trigger aop_processor_trg only with care.  Can produce unexpected results. 
+/*
 CREATE OR REPLACE TRIGGER aop_processor_trg
 AFTER CREATE
 ON SCHEMA
@@ -41,3 +43,4 @@ BEGIN
       raise;
 END aop_processor_trg;
 /
+*/
