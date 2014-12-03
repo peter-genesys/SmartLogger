@@ -203,26 +203,27 @@ BEGIN
 -- get_plain_text_process_report
 ------------------------------------------------------------------------
  
-FUNCTION get_plain_text_process_report(i_process_id IN NUMBER) RETURN CLOB IS
+FUNCTION get_plain_text_process_report RETURN CLOB IS
   l_report CLOB;
-  l_process_id INTEGER := NVL(i_process_id, ms_logger.f_process_id);
+  l_process_id INTEGER := ms_logger.f_process_id;
 BEGIN
- 
-	FOR l_line IN (SELECT lpad('+ ',(level-1)*2,'+ ')
+ /*
+ FOR l_line IN (SELECT lpad('+ ',(level-1)*2,'+ ')
                          ||module_name||'.'
                          ||unit_name
-                         ||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_message where traversal_id = t.traversal_id and msg_type in ('Param','Note'))
-                         ||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id and msg_type not in ('Param','Note')) as text
+                         ||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_message where traversal_id = t.traversal_id and msg_type in ('PARAM','NOTE'))
+                         ||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id and msg_type not in ('PARAM','NOTE')) as text
                    FROM ms_unit_traversal_vw t
                    WHERE process_id = l_process_id
                    START WITH parent_traversal_id IS NULL
                    CONNECT BY PRIOR traversal_id = parent_traversal_id
                    ORDER SIBLINGS BY traversal_id) LOOP
-	
-	 
-	  l_report := l_report ||chr(10)||l_line.text;
+ 
+  
+   l_report := l_report ||chr(10)||l_line.text;
 
-	END LOOP;  
+ END LOOP;  
+ */
  
   RETURN l_report;
 
@@ -279,14 +280,14 @@ BEGIN
   --Level Unit Name    Name   Value   Message  Time 
   write(htf.tablerowopen);
     write(htf.tableheader('Level Unit Name'   ,calign=>'LEFT'));
-	write(htf.tableheader('Name'              ,calign=>'LEFT'));
-	write(htf.tableheader('Value'             ,calign=>'LEFT'));
-	write(htf.tableheader('Message'           ,calign=>'LEFT'));
-	write(htf.tableheader('Time'              ,calign=>'LEFT',cnowrap=> 'Y'));
+ write(htf.tableheader('Name'              ,calign=>'LEFT'));
+ write(htf.tableheader('Value'             ,calign=>'LEFT'));
+ write(htf.tableheader('Message'           ,calign=>'LEFT'));
+ write(htf.tableheader('Time'              ,calign=>'LEFT',cnowrap=> 'Y'));
   write(htf.tablerowclose);
  
-	FOR l_line IN (
-	   select a.* 
+ FOR l_line IN (
+    select a.* 
              ,m.MESSAGE_ID
              ,decode(instr(m.MESSAGE,chr(10)),0,m.MESSAGE,'<PRE>'||m.MESSAGE||'</PRE>')     MESSAGE
              ,m.MSG_LEVEL
@@ -300,35 +301,35 @@ BEGIN
                ,ut.*
              ,'<span style="padding-left:'||LEVEL*10||'px;">'||ut.unit_name||'</span>' level_unit_name
          from ms_unit_traversal_vw ut
-		 WHERE process_id = l_process_id 
+   WHERE process_id = l_process_id 
          start with ut.PARENT_TRAVERSAL_ID IS NULL
          connect by prior ut.TRAVERSAL_ID = ut.PARENT_TRAVERSAL_ID
          order siblings by ut.TRAVERSAL_ID) a
          ,ms_message_vw m
        where m.traversal_id = a.traversal_id
-	   order by message_id
-	 ) LOOP
-	
-	   IF    l_line.MSG_TYPE       = 'Note'                      THEN l_colour := G_COLOUR_NOTE;
-	   ELSIF l_line.MSG_TYPE       = 'Param'                     THEN l_colour := G_COLOUR_PARAM;   
-	   ELSIF l_line.MSG_LEVEL_TEXT = 'Comment'                   THEN l_colour := G_COLOUR_COMMENT;  
-	   ELSIF l_line.MSG_LEVEL_TEXT = 'Info'                      THEN l_colour := G_COLOUR_INFO;
-	   ELSIF l_line.MSG_LEVEL_TEXT = 'Warning !'                 THEN l_colour := G_COLOUR_WARNING;
-	   ELSIF l_line.MSG_LEVEL_TEXT IN ('Oracle Error','Fatal !') THEN l_colour := G_COLOUR_ERROR;
-	   ELSE  l_colour := '#660066';
-	   END IF; 	
-	   
+    order by message_id
+  ) LOOP
+ 
+    IF    l_line.MSG_TYPE       = 'Note'                      THEN l_colour := G_COLOUR_NOTE;
+    ELSIF l_line.MSG_TYPE       = 'Param'                     THEN l_colour := G_COLOUR_PARAM;   
+    ELSIF l_line.MSG_LEVEL_TEXT = 'Comment'                   THEN l_colour := G_COLOUR_COMMENT;  
+    ELSIF l_line.MSG_LEVEL_TEXT = 'Info'                      THEN l_colour := G_COLOUR_INFO;
+    ELSIF l_line.MSG_LEVEL_TEXT = 'Warning !'                 THEN l_colour := G_COLOUR_WARNING;
+    ELSIF l_line.MSG_LEVEL_TEXT IN ('Oracle Error','Fatal !') THEN l_colour := G_COLOUR_ERROR;
+    ELSE  l_colour := '#660066';
+    END IF;  
+    
      --Level Unit Name    Name   Value   Message  Time_Now
      write(htf.tablerowopen);
        write(htf.tabledata('<span style="background-color:'||G_COLOUR_PROG_UNIT||';">'||l_line.Level_Unit_Name||'</span>'));
-	   write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Name           ||'</span>'));
-	   write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Value          ||'</span>'));
-	   write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Message        ||'</span>'));
-	   write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Time_Now       ||'</span>',cnowrap=> 'Y'));
+    write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Name           ||'</span>'));
+    write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Value          ||'</span>'));
+    write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Message        ||'</span>'));
+    write(htf.tabledata('<span style="background-color:'||l_colour          ||';">'||l_line.Time_Now       ||'</span>',cnowrap=> 'Y'));
      write(htf.tablerowclose);
  
   
-	END LOOP;  
+ END LOOP;  
  
    write(htf.tableclose);
    write('</BODY></HTML>');
@@ -550,15 +551,15 @@ END;
  
 PROCEDURE mail(i_email_to        IN VARCHAR2
               ,i_subject         IN VARCHAR2 
-			        ,i_body_plain      IN CLOB     DEFAULT NULL
-			        ,i_body_html       IN CLOB     DEFAULT NULL
+           ,i_body_plain      IN CLOB     DEFAULT NULL
+           ,i_body_html       IN CLOB     DEFAULT NULL
               ,i_email_from      IN VARCHAR2 DEFAULT NULL
-			        ,i_email_reply_to  IN VARCHAR2 DEFAULT NULL
-			        ,i_mail_host       IN VARCHAR2 DEFAULT NULL ) IS
-						  
+           ,i_email_reply_to  IN VARCHAR2 DEFAULT NULL
+           ,i_mail_host       IN VARCHAR2 DEFAULT NULL ) IS
+        
   l_email_to       VARCHAR2(100) :=  i_email_to;
   l_email_from     VARCHAR2(100) :=  NVL(i_email_from    ,i_email_to);
-  l_email_reply_to VARCHAR2(100) :=  NVL(i_email_reply_to,i_email_from);					  
+  l_email_reply_to VARCHAR2(100) :=  NVL(i_email_reply_to,i_email_from);       
  
   l_boundary       VARCHAR2(50) := 'random-sequence-of-chars';
   
@@ -571,9 +572,9 @@ PROCEDURE mail(i_email_to        IN VARCHAR2
     l_result             VARCHAR2(300)  := NULL;
   BEGIN
       SELECT value 
-	  INTO l_result
-	  FROM NLS_DATABASE_PARAMETERS
-	  WHERE  parameter = 'NLS_CHARACTERSET';
+   INTO l_result
+   FROM NLS_DATABASE_PARAMETERS
+   WHERE  parameter = 'NLS_CHARACTERSET';
   
     RETURN l_result;
   END;
@@ -603,42 +604,42 @@ BEGIN
 
     -- Send the e-mail.
 
-	l_mail_host := NVL(i_mail_host,'localhost');
+ l_mail_host := NVL(i_mail_host,'localhost');
  
     l_mail_conn := utl_smtp.open_connection(l_mail_host, 25);
     utl_smtp.helo(l_mail_conn, l_mail_host);
     utl_smtp.mail(l_mail_conn, l_email_to  );
     utl_smtp.rcpt(l_mail_conn, l_email_from);
     UTL_SMTP.open_data(l_mail_conn);
-	write_line('Date: '     ||TO_CHAR(SYSDATE, 'DD-MON-YYYY HH24:MI:SS'));
-	write_line('To: '       || l_email_to                               );
-	write_line('From: '     || l_email_from                             );
-	write_line('Subject: '  || i_subject                                );
-	write_line('Reply-To: ' || l_email_reply_to                         );
+ write_line('Date: '     ||TO_CHAR(SYSDATE, 'DD-MON-YYYY HH24:MI:SS'));
+ write_line('To: '       || l_email_to                               );
+ write_line('From: '     || l_email_from                             );
+ write_line('Subject: '  || i_subject                                );
+ write_line('Reply-To: ' || l_email_reply_to                         );
 --MULTI-PART START
-	write_line('MIME-Version: 1.0'                                      );
+ write_line('MIME-Version: 1.0'                                      );
     write_line('Content-Type: multipart/alternative; boundary="'||l_boundary ||'"');
-	write_line;
-	write_line('This is a multi-part message in MIME format.');
+ write_line;
+ write_line('This is a multi-part message in MIME format.');
 --PLAIN TEXT VERSION
-	write_line;
-    write_line('--' || l_boundary);	
-	write_line('Content-Type: text/plain; charset="'||get_char_set||'"');
-	--write_line('Content-Transfer-Encoding: quoted-printable');
-	write_line;
+ write_line;
+    write_line('--' || l_boundary); 
+ write_line('Content-Type: text/plain; charset="'||get_char_set||'"');
+ --write_line('Content-Transfer-Encoding: quoted-printable');
+ write_line;
     write_clob(i_body_plain);
---HTML MESSAGE VERSION	
-	write_line;
-    write_line('--' || l_boundary);	 
-	write_line('Content-Type: text/html; charset="'||get_char_set||'"');  --Encoding=”base64″
-	--write_line('Content-Transfer-Encoding: 7bit');
-	write_line;
+--HTML MESSAGE VERSION 
+ write_line;
+    write_line('--' || l_boundary);  
+ write_line('Content-Type: text/html; charset="'||get_char_set||'"');  --Encoding=”base64″
+ --write_line('Content-Transfer-Encoding: 7bit');
+ write_line;
     write_clob(i_body_html);
 --MULTI-PART END
-	write_line;
-    write_line('--' || l_boundary|| '--');	
-	write_line;
-	UTL_SMTP.close_data(l_mail_conn);
+ write_line;
+    write_line('--' || l_boundary|| '--'); 
+ write_line;
+ UTL_SMTP.close_data(l_mail_conn);
     utl_smtp.quit(l_mail_conn);
  
 END mail;

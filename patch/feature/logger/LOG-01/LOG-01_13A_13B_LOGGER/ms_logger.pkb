@@ -10,6 +10,7 @@ create or replace package body ms_logger is
 -- Program  : ms_logger  
 -- Name     : Smart logger for PL/SQL
 -- Author   : P.Burgess
+-- Originally developed as MS_METACODE Date : 23/10/2006
 -- Purpose  : Logging for PL/SQL 
 --            Smart logger has a reduced instruction set, that is appropriate for use with 
 --            the AOP_PROCESSOR for automated instrumentation of code.
@@ -116,7 +117,7 @@ G_MODULE_TYPE_PROCEDURE   CONSTANT ms_module.module_type%TYPE := 'PROCEDURE';
 G_MODULE_TYPE_FUNCTION    CONSTANT ms_module.module_type%TYPE := 'FUNCTION';
 G_MODULE_TYPE_FORM        CONSTANT ms_module.module_type%TYPE := 'FORM';
 G_MODULE_TYPE_REPORT      CONSTANT ms_module.module_type%TYPE := 'REPORT';
-G_MODULE_TYPE_SCRIPT      CONSTANT ms_module.module_type%TYPE := 'SCRIPT';
+G_MODULE_TYPE_SCRIPT        CONSTANT ms_module.module_type%TYPE := 'SCRIPT';
 G_MODULE_TYPE_DBTRIGGER   CONSTANT ms_module.module_type%TYPE := 'DB_TRIG';
   
   
@@ -459,12 +460,8 @@ BEGIN
         ELSE 
           --Look up the module in the data dictionary
           l_module.owner       :=  object_owner(i_object_name => i_module_name);
-          IF l_module.owner = 'ANONYMOUS' THEN
-            l_module.module_type := 'APEX';
-          ELSE
-            l_module.module_type :=  object_type(i_object_name  => i_module_name
+          l_module.module_type :=  object_type(i_object_name  => i_module_name
                                               ,i_owner        => l_module.owner);
-          END IF;
       END CASE;
       
     ELSE

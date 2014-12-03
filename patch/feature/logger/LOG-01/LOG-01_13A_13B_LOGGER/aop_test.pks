@@ -12,7 +12,5 @@ create or replace package aop_test is
   
   function test3(i_param31 in varchar2) return varchar2 RESULT_CACHE;
  
-  FUNCTION test5 RETURN VARCHAR2;
-
 end; 
 /

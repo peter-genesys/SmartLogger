@@ -112,7 +112,12 @@ GROUP BY m.module_id
         ,m.open_process
 /
 
-
+create or replace view ms_process_vw as
+select p.*
+      ,ms_api.get_plain_text_process_report(i_process_id=>process_id) log_listing
+from ms_process p
+order by process_id
+/
 
 
 

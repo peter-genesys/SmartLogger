@@ -44,11 +44,9 @@ create or replace package body aop_processor is
   
   g_aop_module_name    VARCHAR2(30); 
   
-  G_PARAM_NAME_WIDTH   CONSTANT NUMBER := 106;
-
   TYPE var_list_typ IS TABLE OF VARCHAR2(30) INDEX BY VARCHAR2(106);  
   
-  TYPE param_list_typ IS TABLE OF VARCHAR2(106) INDEX BY BINARY_INTEGER;  
+  TYPE param_list_typ IS TABLE OF VARCHAR2(30) INDEX BY BINARY_INTEGER;  
   
   g_indent_spaces     CONSTANT INTEGER := 2;
 
@@ -67,12 +65,10 @@ create or replace package body aop_processor is
   G_REGEX_PKG_BODY       CONSTANT VARCHAR2(50) := '\s *PACKAGE\s+?BODY\s';
   G_REGEX_PROCEDURE      CONSTANT VARCHAR2(50) := '\s *PROCEDURE\s';
   G_REGEX_FUNCTION       CONSTANT VARCHAR2(50) := '\s *FUNCTION\s';
-  G_REGEX_TRIGGER        CONSTANT VARCHAR2(50) := '\s *TRIGGER\s';
   G_REGEX_CREATE         CONSTANT VARCHAR2(50) := '\s *CREATE\s';
   G_REGEX_PROG_UNIT      CONSTANT VARCHAR2(200) := G_REGEX_PKG_BODY
                                             ||'|'||G_REGEX_PROCEDURE
-                                            ||'|'||G_REGEX_FUNCTION
-                                            ||'|'||G_REGEX_TRIGGER;
+                                            ||'|'||G_REGEX_FUNCTION;
   
   G_REGEX_JAVA           CONSTANT VARCHAR2(50) := '\sLANGUAGE\s+?JAVA\s+?NAME\s';
  
@@ -128,9 +124,7 @@ create or replace package body aop_processor is
   
   --G_REGEX_IS_AS           CONSTANT VARCHAR2(20) := '\sIS\s|\sAS\s'; 
   G_REGEX_IS_AS           CONSTANT VARCHAR2(20) := '(\)|\s)\s*(IS|AS)\s';
-  G_REGEX_IS_AS_DECLARE   CONSTANT VARCHAR2(50) := '(\)|\s)\s*(IS|AS|DECLARE)\s';
   G_REGEX_RETURN_IS_AS    CONSTANT VARCHAR2(50) := '(\)|\s)\s*(RETURN|IS|AS)\s';
-  G_REGEX_RETURN_IS_AS_DECLARE    CONSTANT VARCHAR2(50) := '(\)|\s)\s*(RETURN|IS|AS|DECLARE)\s';
   G_REGEX_DEFAULT         CONSTANT VARCHAR2(20) := '(DEFAULT|:=)';
   
   G_REGEX_SUPPORTED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER'
@@ -316,7 +310,7 @@ create or replace package body aop_processor is
  
       begin
         execute immediate 'alter session set plsql_optimize_level = 1';
-        --execute immediate 'set scan off';
+        execute immediate 'set scan off';
       
           execute immediate i_text;  --11G CLOB OK
           l_aop_source.valid_yn := 'Y';
@@ -715,7 +709,6 @@ END get_next;
 -- go_past
 ---------------------------------------------------------------------------------
 PROCEDURE go_past(i_search   IN VARCHAR2 DEFAULT NULL
-                 ,i_stop     IN VARCHAR2 DEFAULT NULL
                  ,i_modifier IN VARCHAR2 DEFAULT 'i'
                  ,i_colour   IN VARCHAR2 DEFAULT G_COLOUR_GO_PAST) IS
   l_dummy CLOB;
@@ -726,8 +719,8 @@ BEGIN
     g_current_pos := g_past_pos;
   ELSE
  
-     l_dummy := get_next(i_srch_before => i_search     
-                        ,i_stop        => i_stop       
+     l_dummy := get_next(i_srch_before      => i_search     
+                        ,i_stop        => NULL       
                         ,i_modifier    => i_modifier   
                         ,i_colour      => i_colour     
                         ,i_raise_error => TRUE );
@@ -911,7 +904,7 @@ BEGIN
                                         ||'|'||G_REGEX_COMMA
                                         --||'|'||G_REGEX_CLOSE_BRACKET
                                         ||'|'||G_REGEX_DEFAULT
-                            ,i_stop         => G_REGEX_RETURN_IS_AS_DECLARE            
+                            ,i_stop         => G_REGEX_RETURN_IS_AS            
                             ,i_upper        => TRUE
                             ,i_colour       => G_COLOUR_PROG_UNIT
                             ,i_raise_error  => TRUE);
@@ -1072,12 +1065,11 @@ BEGIN
       END LOOP; 
  
     --  --NO MORE PARAMS
-    WHEN regex_match(l_keyword , G_REGEX_RETURN_IS_AS_DECLARE) THEN
+    WHEN regex_match(l_keyword , G_REGEX_RETURN_IS_AS) THEN
           ms_logger.comment(l_node, 'No more parameters');
           --Needed to find Return to get to end of params, 
-          --but now make sure we consume the IS/AS/DECLARE (DECLARE for triggers).
-          go_past(i_search => G_REGEX_IS_AS_DECLARE
-                 ,i_stop   => G_REGEX_BEGIN
+          --but now make sure we consume the IS/AS.
+          go_past(i_search => G_REGEX_IS_AS
                  ,i_colour => G_COLOUR_GO_PAST);
  
           EXIT;
@@ -1522,7 +1514,7 @@ BEGIN
                                        ||'|'||G_REGEX_SHOW_ME_LINE 
                                        --||'|'||G_REGEX_ROW_COUNT_LINE
                                        --||'|'||G_REGEX_DML               
-                                       --||'|'||G_REGEX_SELECT_FETCH_INTO          
+                                       ||'|'||G_REGEX_SELECT_FETCH_INTO          
                           ,i_stop          => G_REGEX_START_ANNOTATION --don't colour it
                                        ||'|'||G_REGEX_ASSIGN_TO_REC_COL
                                        ||'|'||G_REGEX_ASSIGN_TO_VARS
@@ -1653,7 +1645,7 @@ BEGIN
         l_var := find_var(i_search => G_REGEX_VAR);
         note_non_bind_var(i_var => l_var);
 
- /*
+ 
       WHEN regex_match(l_keyword ,G_REGEX_SELECT_FETCH_INTO  ) THEN   
         ms_logger.info(l_node, 'Select/Fetch Into');
 
@@ -1697,7 +1689,7 @@ BEGIN
           --Next variable
           l_index := l_into_var_list.NEXT(l_index);
         END LOOP;
- */
+ 
 
   
       WHEN regex_match(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
@@ -1772,11 +1764,11 @@ BEGIN
   l_index := i_param_list.FIRST;
   WHILE l_index IS NOT NULL LOOP
     IF i_param_types(l_index) = 'CLOB' THEN
-      inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||i_param_list(l_index)||'''',G_PARAM_NAME_WIDTH)||','||i_param_list(l_index)||');'
+      inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||i_param_list(l_index)||'''',32)||','||i_param_list(l_index)||');'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_PARAM);
     ELSE
-      inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',G_PARAM_NAME_WIDTH)||','||i_param_list(l_index)||');'
+      inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',32)||','||i_param_list(l_index)||');'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_PARAM);
   END IF;
@@ -1877,9 +1869,6 @@ BEGIN
         WHEN regex_match(l_keyword,G_REGEX_FUNCTION) THEN
           l_node_type := 'new_func';
           l_prog_unit_name := NULL;
-        WHEN regex_match(l_keyword,G_REGEX_TRIGGER) THEN
-          l_node_type := 'new_trig';
-          l_prog_unit_name := NULL;
       WHEN regex_match(l_keyword,G_REGEX_BEGIN) OR l_keyword IS NULL THEN
         EXIT;
         ELSE
@@ -1906,9 +1895,9 @@ BEGIN
       --Check for Forward Declaration
       --If this is a Forward Declaration 
       --then we don't want a node and don't need to bother reading spec or parsing body.
-      --Will find a ";" before next IS or AS (or DECLARE for trigger)
+      --Will find a ";" before next IS or AS
       l_forward_declare := get_next(i_srch_before  => G_REGEX_SEMI_COL 
-                                   ,i_stop         => G_REGEX_IS_AS_DECLARE 
+                                   ,i_stop         => G_REGEX_IS_AS 
                                    ,i_upper        => TRUE
                                    ,i_colour       => G_COLOUR_GO_PAST --G_COLOUR_FORWARD_DECLARE
                                    ,i_raise_error  => TRUE );
@@ -2030,7 +2019,9 @@ END;
     g_current_pos := 1;
     l_keyword := get_next(i_stop       => G_REGEX_DECLARE
                                    ||'|'||G_REGEX_BEGIN  
-                                   ||'|'||G_REGEX_PROG_UNIT 
+                                   ||'|'||G_REGEX_PROCEDURE
+                                   ||'|'||G_REGEX_FUNCTION 
+                                   ||'|'||G_REGEX_PKG_BODY 
                                    ||'|'||G_REGEX_CREATE
                          ,i_upper      => TRUE
                          ,i_raise_error => TRUE  );
@@ -2051,7 +2042,9 @@ END;
                  ,i_regex_end  => G_REGEX_END_BEGIN
                  ,i_var_list   => l_var_list);
     
-      WHEN regex_match(l_keyword , G_REGEX_PROG_UNIT
+      WHEN regex_match(l_keyword , G_REGEX_PROCEDURE
+                            ||'|'||G_REGEX_FUNCTION 
+                            ||'|'||G_REGEX_PKG_BODY
                             ||'|'||G_REGEX_CREATE) THEN
         AOP_prog_units(i_indent   => calc_indent(g_initial_indent,l_keyword)
                       ,i_var_list => l_var_list      );
@@ -2133,16 +2126,7 @@ END;
     ms_logger.param(l_node, 'i_object_type  '          ,i_object_type   );
     ms_logger.param(l_node, 'i_object_owner '          ,i_object_owner  );
  
-    --dbms_metadata.set_transform_param( DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', TRUE );
-
     l_code:= dbms_metadata.get_ddl(REPLACE(i_object_type,' ','_'), i_object_name, i_object_owner);
-
-    IF i_object_type = 'TRIGGER' THEN
-      l_code:= regexp_replace(l_code 
-                            ,'(CREATE OR REPLACE TRIGGER )(.+)(ALTER TRIGGER .+)', 
-                     '\1\2', 1, 0, 'n');
-    END IF;
-
  
     return trim_clob(i_clob => l_code);
   end get_plsql;

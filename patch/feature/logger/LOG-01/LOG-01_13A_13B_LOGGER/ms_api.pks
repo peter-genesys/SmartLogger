@@ -79,7 +79,7 @@ PROCEDURE purge_old_processes(i_keep_day_count IN NUMBER DEFAULT 1);
 -- get_plain_text_process_report
 ------------------------------------------------------------------------
  
-FUNCTION get_plain_text_process_report(i_process_id IN NUMBER) RETURN CLOB;
+FUNCTION get_plain_text_process_report RETURN CLOB;
  
 ------------------------------------------------------------------------
 -- get_html_process_report
