@@ -20,6 +20,12 @@ create or replace package ms_api is
 -- This package is not to be instrumented by the AOP_PROCESSOR
 ------------------------------------------------------------------------
  
+
+--------------------------------------------------------------------------------
+--f_config_value
+--------------------------------------------------------------------------------
+function f_config_value(i_name IN VARCHAR2) return VARCHAR2;
+
 ------------------------------------------------------------------------ 
 -- FUNCTIONS USED IN VIEWS
 ------------------------------------------------------------------------ 
@@ -89,34 +95,45 @@ FUNCTION get_html_process_report RETURN CLOB;
 ------------------------------------------------------------------------
 -- get_trace_URL
 ------------------------------------------------------------------------
-FUNCTION get_trace_URL(i_server_url IN VARCHAR2
-                      ,i_port       IN VARCHAR2
-                      ,i_process_id IN INTEGER  DEFAULT NULL
-                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL  ) RETURN VARCHAR2; 
+FUNCTION get_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
+                      ,i_port         IN VARCHAR2 DEFAULT NULL
+                      ,i_dir          IN VARCHAR2 DEFAULT NULL
+                      ,i_process_id   IN INTEGER  DEFAULT NULL
+                      ,i_ext_ref      IN VARCHAR2 DEFAULT NULL  ) RETURN VARCHAR2; 
  
 ------------------------------------------------------------------------
 -- get_user_feedback_URL
 ------------------------------------------------------------------------
  
-FUNCTION get_user_feedback_URL(i_server_url IN VARCHAR2
-                              ,i_port       IN VARCHAR2) RETURN VARCHAR2; 
+FUNCTION get_user_feedback_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
+                              ,i_port         IN VARCHAR2 DEFAULT NULL
+                              ,i_dir          IN VARCHAR2 DEFAULT NULL
+                              ,i_process_id   IN NUMBER   DEFAULT NULL) RETURN VARCHAR2; 
  
   
 ------------------------------------------------------------------------
 -- get_user_feedback_anchor
 ------------------------------------------------------------------------
  
-FUNCTION get_user_feedback_anchor(i_server_url IN VARCHAR2
-                                 ,i_port       IN VARCHAR2) RETURN VARCHAR2;  
+FUNCTION get_user_feedback_anchor(i_server_url   IN VARCHAR2 DEFAULT NULL
+                                 ,i_port         IN VARCHAR2 DEFAULT NULL
+                                 ,i_dir          IN VARCHAR2 DEFAULT NULL
+                                 ,i_process_id   IN NUMBER   DEFAULT NULL ) RETURN VARCHAR2;  
   
 ------------------------------------------------------------------------
 -- get_support_feedback_anchor
 ------------------------------------------------------------------------
  
-FUNCTION get_support_feedback_anchor(i_server_url IN VARCHAR2
-                                    ,i_port       IN VARCHAR2) RETURN VARCHAR2;
+FUNCTION get_support_feedback_anchor(i_server_url   IN VARCHAR2 DEFAULT NULL
+                                    ,i_port         IN VARCHAR2 DEFAULT NULL
+                                    ,i_dir          IN VARCHAR2 DEFAULT NULL
+                                    ,i_process_id   IN NUMBER   DEFAULT NULL) RETURN VARCHAR2;
 
   
-  
+------------------------------------------------------------------------
+-- trawl_log_for_errors
+------------------------------------------------------------------------
+PROCEDURE trawl_log_for_errors;
+
 end;
 /

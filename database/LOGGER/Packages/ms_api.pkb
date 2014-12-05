@@ -28,6 +28,27 @@ G_SMARTLOGGER_PROCESS_PAGE_NO CONSTANT NUMBER := 8;
 G_SMARTLOGGER_TRACE_PAGE_NO   CONSTANT NUMBER := 24;
  
 
+--------------------------------------------------------------------------------
+--f_config_value
+--------------------------------------------------------------------------------
+function f_config_value(i_name IN VARCHAR2) return VARCHAR2 IS
+
+  cursor cu_config(c_name IN VARCHAR2) is
+  select value
+  from   ms_config
+  where  name = c_name;
+
+  l_result  ms_config.value%type;
+ 
+begin
+  open  cu_config(c_name => i_name);
+  fetch cu_config into l_result;
+  close cu_config;
+
+  return l_result;
+ 
+end; 
+
 ------------------------------------------------------------------------ 
 -- FUNCTIONS USED IN VIEWS
 ------------------------------------------------------------------------ 
@@ -348,17 +369,32 @@ end; --get_html_process_report
 ------------------------------------------------------------------------
 -- get_apex_page_URL
 ------------------------------------------------------------------------
-FUNCTION get_apex_page_URL(i_server_url  IN VARCHAR2
-                          ,i_port        IN VARCHAR2
+FUNCTION get_apex_page_URL(i_server_url  IN VARCHAR2 DEFAULT NULL
+                          ,i_port        IN VARCHAR2 DEFAULT NULL
+                          ,i_dir         IN VARCHAR2 DEFAULT NULL
                           ,i_app_no      IN VARCHAR2
                           ,i_page_no     IN VARCHAR2
                           ,i_request     IN VARCHAR2
                           ,i_clear_cache IN VARCHAR2
                           ,i_param_names IN VARCHAR2
                           ,i_param_values IN VARCHAR2 ) RETURN VARCHAR2 IS
+
+  l_server_url VARCHAR2(200) := NVL(i_server_url, f_config_value(i_name => 'APEX_SERVER_URL') );
+  l_port       VARCHAR2(20)  := NVL(i_port,       f_config_value(i_name => 'APEX_PORT') );
+  l_dir        VARCHAR2(50)  := NVL(i_dir,        f_config_value(i_name => 'APEX_DIR') );
+
+
 BEGIN
-  RETURN i_server_url||':'||i_port
-      ||'/apex/f?p='||i_app_no||':'||i_page_no||'::'
+  RETURN l_server_url
+      ||case l_port
+          when null then null
+        else ':'||l_port
+        end
+      ||case l_dir
+          when null then null
+        else '/'||l_dir
+        end
+      ||'/f?p='||i_app_no||':'||i_page_no||'::'
       ||i_request||'::'
       ||i_clear_cache||':'
       ||i_param_names||':'
@@ -370,8 +406,9 @@ END;
 ------------------------------------------------------------------------
 -- get_smartlogger_trace_URL
 ------------------------------------------------------------------------
-FUNCTION get_smartlogger_report_URL(i_server_url   IN VARCHAR2
-                                   ,i_port         IN VARCHAR2
+FUNCTION get_smartlogger_report_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
+                                   ,i_port         IN VARCHAR2 DEFAULT NULL
+                                   ,i_dir          IN VARCHAR2 DEFAULT NULL
                                    ,i_page_no      IN VARCHAR2
                                    ,i_process_id   IN INTEGER   ) RETURN VARCHAR2 IS
 
@@ -391,6 +428,7 @@ BEGIN
  
   RETURN get_apex_page_URL(i_server_url  => i_server_url
                           ,i_port        => i_port
+                          ,i_dir         => i_dir
                           ,i_app_no      => G_SMARTLOGGER_APP_NO
                           ,i_page_no     => i_page_no
                           ,i_request     => l_request
@@ -403,14 +441,16 @@ END;
 ------------------------------------------------------------------------
 -- get_smartlogger_trace_URL
 ------------------------------------------------------------------------
-FUNCTION get_smartlogger_trace_URL(i_server_url   IN VARCHAR2
-                                  ,i_port         IN VARCHAR2
+FUNCTION get_smartlogger_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
+                                  ,i_port         IN VARCHAR2 DEFAULT NULL
+                                  ,i_dir          IN VARCHAR2 DEFAULT NULL
                                   ,i_process_id   IN INTEGER   ) RETURN VARCHAR2 IS
  
 BEGIN
 
   RETURN get_smartlogger_report_URL(i_server_url  => i_server_url
                                    ,i_port        => i_port
+                                   ,i_dir         => i_dir
                                    ,i_page_no     => G_SMARTLOGGER_TRACE_PAGE_NO
                                    ,i_process_id  => i_process_id);
  
@@ -420,14 +460,16 @@ END;
 ------------------------------------------------------------------------
 -- get_smartlogger_process_URL
 ------------------------------------------------------------------------
-FUNCTION get_smartlogger_process_URL(i_server_url   IN VARCHAR2
-                                    ,i_port         IN VARCHAR2
+FUNCTION get_smartlogger_process_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
+                                    ,i_port         IN VARCHAR2 DEFAULT NULL
+                                    ,i_dir          IN VARCHAR2 DEFAULT NULL
                                     ,i_process_id   IN INTEGER   ) RETURN VARCHAR2 IS
  
 BEGIN
 
   RETURN get_smartlogger_report_URL(i_server_url  => i_server_url
                                    ,i_port        => i_port
+                                   ,i_dir         => i_dir
                                    ,i_page_no     => G_SMARTLOGGER_PROCESS_PAGE_NO
                                    ,i_process_id  => i_process_id);
  
@@ -439,10 +481,11 @@ END;
 ------------------------------------------------------------------------
 -- get_trace_URL
 ------------------------------------------------------------------------
-FUNCTION get_trace_URL(i_server_url IN VARCHAR2
-                      ,i_port       IN VARCHAR2
-                      ,i_process_id IN INTEGER  DEFAULT NULL
-                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL  ) RETURN VARCHAR2 IS
+FUNCTION get_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
+                      ,i_port         IN VARCHAR2 DEFAULT NULL
+                      ,i_dir          IN VARCHAR2 DEFAULT NULL
+                      ,i_process_id   IN INTEGER  DEFAULT NULL
+                      ,i_ext_ref      IN VARCHAR2 DEFAULT NULL  ) RETURN VARCHAR2 IS
  
   l_process_id INTEGER;
   l_result     VARCHAR2(2000);
@@ -455,7 +498,8 @@ BEGIN
  
   IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
     l_result := get_smartlogger_trace_URL(i_server_url  => i_server_url
-                                         ,i_port        => i_port      
+                                         ,i_port        => i_port
+                                         ,i_dir         => i_dir      
                                          ,i_process_id  => l_process_id);
  
   END IF;
@@ -469,18 +513,21 @@ END;
 -- get_user_feedback_URL
 ------------------------------------------------------------------------
  
-FUNCTION get_user_feedback_URL(i_server_url IN VARCHAR2
-                              ,i_port       IN VARCHAR2) RETURN VARCHAR2 IS
+FUNCTION get_user_feedback_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
+                              ,i_port         IN VARCHAR2 DEFAULT NULL
+                              ,i_dir          IN VARCHAR2 DEFAULT NULL
+                              ,i_process_id   IN NUMBER   DEFAULT NULL) RETURN VARCHAR2 IS
   l_process_id INTEGER;
 BEGIN
 
-  l_process_id := ms_logger.f_process_id;
+  l_process_id := NVL(i_process_id, ms_logger.f_process_id);
 
   IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
   
     RETURN 'Click to view Trace:  '
             ||get_smartlogger_trace_URL(i_server_url  => i_server_url
-                                       ,i_port        => i_port      
+                                       ,i_port        => i_port
+                                       ,i_dir         => i_dir       
                                        ,i_process_id  => l_process_id);
 
   ELSE
@@ -493,17 +540,20 @@ END;
 -- get_user_feedback_anchor
 ------------------------------------------------------------------------
  
-FUNCTION get_user_feedback_anchor(i_server_url IN VARCHAR2
-                                 ,i_port       IN VARCHAR2)  RETURN VARCHAR2 IS
+FUNCTION get_user_feedback_anchor(i_server_url   IN VARCHAR2 DEFAULT NULL
+                                 ,i_port         IN VARCHAR2 DEFAULT NULL
+                                 ,i_dir          IN VARCHAR2 DEFAULT NULL
+                                 ,i_process_id   IN NUMBER   DEFAULT NULL ) RETURN VARCHAR2 IS
   l_process_id INTEGER;
 BEGIN
 
-  l_process_id := ms_logger.f_process_id;
+  l_process_id := NVL(i_process_id, ms_logger.f_process_id);
 
   IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
   
     return htf.anchor(curl        => get_smartlogger_trace_URL(i_server_url  => i_server_url
-                                                              ,i_port        => i_port      
+                                                              ,i_port        => i_port
+                                                              ,i_dir         => i_dir       
                                                               ,i_process_id  => l_process_id)
                      ,ctext       => 'Click to view Trace'
                      ,cname       => NULL
@@ -519,18 +569,21 @@ END;
 -- get_support_feedback_anchor
 ------------------------------------------------------------------------
  
-FUNCTION get_support_feedback_anchor(i_server_url IN VARCHAR2
-                                    ,i_port       IN VARCHAR2) RETURN VARCHAR2 IS
+FUNCTION get_support_feedback_anchor(i_server_url   IN VARCHAR2 DEFAULT NULL
+                                    ,i_port         IN VARCHAR2 DEFAULT NULL
+                                    ,i_dir          IN VARCHAR2 DEFAULT NULL
+                                    ,i_process_id   IN NUMBER   DEFAULT NULL) RETURN VARCHAR2 IS
  --'http://soraempl002.au.fcl.internal:8080'
   l_process_id INTEGER;
 BEGIN
 
-  l_process_id := ms_logger.f_process_id;
+  l_process_id := NVL(i_process_id, ms_logger.f_process_id);
 
   IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
   
     return htf.anchor(curl        => get_smartlogger_process_URL(i_server_url  => i_server_url
-                                                                ,i_port        => i_port      
+                                                                ,i_port        => i_port
+                                                                ,i_dir         => i_dir      
                                                                 ,i_process_id  => l_process_id)
                      ,ctext       => 'Click to view Debugging'
                      ,cname       => NULL
@@ -643,6 +696,64 @@ BEGIN
  
 END mail;
  
+ 
+------------------------------------------------------------------------
+-- trawl_log_for_errors
+------------------------------------------------------------------------
+PROCEDURE trawl_log_for_errors IS
+
+  --Find all bad
+  CURSOR cu_bad_processes IS
+  SELECT * 
+  FROM   ms_process_v2
+  WHERE  (exception_count > 0 
+      OR internal_error = 'Y')
+  and    notified_flag = 'N';
+
+
+  l_process_list clob;
+
+  L_CRLF   CONSTANT VARCHAR2(2)   := CHR(13) || CHR(10);
+  
+  BR       CONSTANT VARCHAR2(10)  := '<BR>';
+  INDENT   CONSTANT VARCHAR2(100) := '&'||'nbsp;&'||'nbsp;&'||'nbsp;&'||'nbsp;&'||'nbsp;&'||'nbsp;';
+
+BEGIN
+  
+  FOR l_bad_process IN cu_bad_processes LOOP
+
+    l_process_list := l_process_list 
+      || '<LI> Process '||l_bad_process.process_id ||' ' ||get_support_feedback_anchor(i_process_id => l_bad_process.process_id);
+ 
+    UPDATE ms_process 
+    set    notified_flag = 'Y'
+    where  process_id = l_bad_process.process_id;
+
+  END LOOP; 
+
+
+  IF l_process_list IS NOT NULL THEN
+
+
+
+
+      mail(i_email_to       => f_config_value(i_name => 'ADMIN_EMAIL')
+         ,i_subject         => f_config_value(i_name => 'LOG_TRAWLER_SUBJECT')
+    --     ,i_body_plain      => 
+    --         'The following SmartLogger processes have produced errors :'
+    -- ||L_CRLF
+    -- ||L_CRLF||fi_error_number||':'||fi_error_message
+    -- ||L_CRLF
+    -- ||L_CRLF||logger.ms_api.get_plain_text_process_report
+                        ,i_body_html       => 
+             'The following recent SmartLogger processes have produced errors :'
+     ||BR
+     ||BR||l_process_list 
+          ,i_mail_host       => 'localhost'  );
+
+  END IF;
+ 
+END;  
  
   
 end;
