@@ -598,10 +598,10 @@ END;
  
  
 ------------------------------------------------------------------------
--- mail
+-- smtp_mail
 ------------------------------------------------------------------------
  
-PROCEDURE mail(i_email_to        IN VARCHAR2
+PROCEDURE smtp_mail(i_email_to        IN VARCHAR2
               ,i_subject         IN VARCHAR2 
 			        ,i_body_plain      IN CLOB     DEFAULT NULL
 			        ,i_body_html       IN CLOB     DEFAULT NULL
@@ -694,7 +694,7 @@ BEGIN
 	UTL_SMTP.close_data(l_mail_conn);
     utl_smtp.quit(l_mail_conn);
  
-END mail;
+END smtp_mail;
  
  
 ------------------------------------------------------------------------
@@ -708,7 +708,7 @@ PROCEDURE trawl_log_for_errors IS
   FROM   ms_process_v2
   WHERE  (exception_count > 0 
       OR internal_error = 'Y')
-  and    notified_flag = 'N';
+  and    NVL(notified_flag,'N') = 'N';
 
 
   l_process_list clob;
@@ -718,6 +718,13 @@ PROCEDURE trawl_log_for_errors IS
   BR       CONSTANT VARCHAR2(10)  := '<BR>';
   INDENT   CONSTANT VARCHAR2(100) := '&'||'nbsp;&'||'nbsp;&'||'nbsp;&'||'nbsp;&'||'nbsp;&'||'nbsp;';
 
+
+
+   l_body      clob := 'To view the content of this message, please use a HTML enabled mail client.';
+   l_body_html clob;
+   
+   l_mail_id   number;
+ 
 BEGIN
   
   FOR l_bad_process IN cu_bad_processes LOOP
@@ -731,27 +738,56 @@ BEGIN
 
   END LOOP; 
 
+  l_body_html := 'The following recent SmartLogger processes have produced errors :'
+     ||BR
+     ||BR||l_process_list; 
 
+ 
   IF l_process_list IS NOT NULL THEN
 
+    IF f_config_value(i_name => 'SMTP_MAIL') = 'Y' THEN
 
 
 
-      mail(i_email_to       => f_config_value(i_name => 'ADMIN_EMAIL')
-         ,i_subject         => f_config_value(i_name => 'LOG_TRAWLER_SUBJECT')
-    --     ,i_body_plain      => 
-    --         'The following SmartLogger processes have produced errors :'
-    -- ||L_CRLF
-    -- ||L_CRLF||fi_error_number||':'||fi_error_message
-    -- ||L_CRLF
-    -- ||L_CRLF||logger.ms_api.get_plain_text_process_report
-                        ,i_body_html       => 
-             'The following recent SmartLogger processes have produced errors :'
-     ||BR
-     ||BR||l_process_list 
-          ,i_mail_host       => 'localhost'  );
+      smtp_mail(i_email_to       => f_config_value(i_name => 'ADMIN_EMAIL')
+               ,i_email_from     => f_config_value(i_name => 'EMAIL_FROM')
+               ,i_subject        => f_config_value(i_name => 'TRAWLER_SUBJECT')
+               ,i_body_plain     => l_body
+               ,i_body_html      => l_body_html
+               ,i_mail_host      => 'localhost'  );
+
+
+    ELSIF f_config_value(i_name => 'APEX_MAIL') = 'Y' THEN
+
+
+   --Ensure Apex Session Exists
+   DECLARE
+     l_workspace_id    number := null;
+   BEGIN  
+     --Create an Apex session
+    l_workspace_id := apex_util.find_security_group_id (p_workspace => f_config_value(i_name => 'LOGGER_WORKSPACE'));
+    apex_util.set_security_group_id (p_security_group_id => l_workspace_id);
+  END;
+ 
+   -- construct the email
+   l_mail_id      :=
+      apex_mail.send(
+         p_to        => f_config_value(i_name => 'ADMIN_EMAIL')
+        --,p_cc        => f_config_value(i_name => 'EMAIL_CC')
+        --,p_bcc       => f_config_value(i_name => 'EMAIL_BCC')
+        ,p_from      => f_config_value(i_name => 'EMAIL_FROM')
+        ,p_subj      => f_config_value(i_name => 'TRAWLER_SUBJECT')
+        ,p_body      => l_body
+        ,p_body_html => l_body_html
+      );
+
+   
+   END IF;
+ 
 
   END IF;
+
+  COMMIT;
  
 END;  
  

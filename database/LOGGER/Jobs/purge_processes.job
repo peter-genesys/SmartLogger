@@ -1,11 +1,12 @@
+set serveroutput on;
 declare
   l_job_no NUMBER;
 begin
       dbms_job.submit(  job       => l_job_no
                        ,what      => 
-      'ms_api.purge_old_processes(i_keep_day_count =>  ms_api.f_config_value(i_name => 'KEEP_DAY_COUNT'));'
-                       ,next_date =>  TRUNC(SYSDATE * 24) + 1) / 24 --to start on next hour
-                       ,interval  => 'TRUNC(SYSDATE)+1/24'          --hourly
+      'ms_api.purge_old_processes(i_keep_day_count =>  ms_api.f_config_value(i_name => ''KEEP_DAY_COUNT''));'
+                       ,next_date => TRUNC(SYSDATE) + 1               --midnight
+                       ,interval  => 'TRUNC(SYSDATE)+1+1/24'          --hourly
                        ,no_parse  => false); 
   dbms_output.put_line('Job '||l_job_no||' created to purge processes hourly.');
 exception
