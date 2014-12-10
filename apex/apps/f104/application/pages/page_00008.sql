@@ -46,8 +46,8 @@ wwv_flow_api.create_page (
  ,p_cache_by_user_yn => 'N'
  ,p_help_text => 
 'No help is available for this page.'
- ,p_last_updated_by => 'PBURGESS'
- ,p_last_upd_yyyymmddhh24miss => '20140716151436'
+ ,p_last_updated_by => 'PETER'
+ ,p_last_upd_yyyymmddhh24miss => '20141210155534'
   );
 null;
  
@@ -231,6 +231,7 @@ wwv_flow_api.create_report_region (
   p_customized=> '0',
   p_translate_title=> 'Y',
   p_ajax_enabled=> 'Y',
+  p_rest_enabled=> 'N',
   p_query_row_template=> 17758952883931438+ wwv_flow_api.g_id_offset,
   p_query_headings_type=> 'COLON_DELMITED_LIST',
   p_query_num_rows=> '5',
@@ -403,7 +404,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 6,
   p_form_element_id=> null,
   p_column_alias=> 'INTERNAL_ERROR',
-  p_column_display_sequence=> 10,
+  p_column_display_sequence=> 9,
   p_column_heading=> 'Internal Error Flag',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
@@ -428,14 +429,14 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 7,
   p_form_element_id=> null,
   p_column_alias=> 'NOTIFIED_FLAG',
-  p_column_display_sequence=> 6,
+  p_column_display_sequence=> 10,
   p_column_heading=> 'Notified Flag',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
   p_default_sort_column_sequence=>0,
   p_disable_sort_column=>'N',
   p_sum_column=> 'N',
-  p_hidden_column=> 'Y',
+  p_hidden_column=> 'N',
   p_display_as=>'ESCAPE_SC',
   p_is_required=> false,
   p_pk_col_source=> s,
@@ -515,9 +516,9 @@ wwv_flow_api.create_report_columns (
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
   p_default_sort_column_sequence=>0,
-  p_disable_sort_column=>'N',
+  p_disable_sort_column=>'Y',
   p_sum_column=> 'N',
-  p_hidden_column=> 'N',
+  p_hidden_column=> 'Y',
   p_display_as=>'ESCAPE_SC',
   p_is_required=> false,
   p_pk_col_source=> s,
@@ -535,7 +536,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 11,
   p_form_element_id=> null,
   p_column_alias=> 'TOP_TRAVERSAL_ID',
-  p_column_display_sequence=> 7,
+  p_column_display_sequence=> 6,
   p_column_heading=> 'Top Traversal Id',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
@@ -560,7 +561,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 12,
   p_form_element_id=> null,
   p_column_alias=> 'EXCEPTION_COUNT',
-  p_column_display_sequence=> 9,
+  p_column_display_sequence=> 8,
   p_column_heading=> 'Exception Count',
   p_use_as_row_header=> 'N',
   p_column_link=>'f?p=&APP_ID.:8:&SESSION.:IR_REPORT_EXCEPTIONS:&DEBUG.::P8_PROCESS_ID,P8_TRAVERSAL_ID:#PROCESS_ID#,#TOP_TRAVERSAL_ID#',
@@ -591,7 +592,7 @@ wwv_flow_api.create_report_columns (
   p_query_column_id=> 13,
   p_form_element_id=> null,
   p_column_alias=> 'MESSAGE_COUNT',
-  p_column_display_sequence=> 8,
+  p_column_display_sequence=> 7,
   p_column_heading=> 'Message Count',
   p_column_alignment=>'LEFT',
   p_heading_alignment=>'CENTER',
