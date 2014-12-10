@@ -4,10 +4,10 @@ declare
 begin
       dbms_job.submit(  job       => l_job_no
                        ,what      => 'ms_api.trawl_log_for_errors;'
-                       ,next_date => TRUNC(SYSDATE) + 1               --midnight
-                       ,interval  => 'TRUNC(SYSDATE)+1+1/24'          --hourly
+                       ,next_date => SYSDATE + 30/86400           --now + 30 secs
+                       ,interval  => 'SYSDATE + 10/1440'          --every 10 minutes
                        ,no_parse  => false); 
-  dbms_output.put_line('Job '||l_job_no||' created to trawl for errors hourly.');
+  dbms_output.put_line('Job '||l_job_no||' created to trawl for errors every 10mins.');
 exception
   when others then
   dbms_output.put_line('Failed to create hourly LOG TRAWLWER job: '||SQLERRM);
