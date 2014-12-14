@@ -45,6 +45,8 @@ create or replace package body aop_processor is
   g_aop_module_name    VARCHAR2(30); 
   
   G_PARAM_NAME_WIDTH   CONSTANT NUMBER := 106;
+  G_PARAM_NAME_PADDING CONSTANT NUMBER := 32;
+
 
   TYPE var_list_typ IS TABLE OF VARCHAR2(30) INDEX BY VARCHAR2(106);  
   
@@ -236,12 +238,29 @@ create or replace package body aop_processor is
     return (sysdate - g_weave_start_time) * 24 * 60 * 60;
   end;
  
+
+  FUNCTION escape_html(i_text   IN CLOB ) RETURN CLOB IS
+
+    l_result CLOB;
+
+  BEGIN
+
+    l_result := REPLACE(i_text  , '&', '&amp');
+    l_result := REPLACE(l_result, '<', '&lt');
+    l_result := REPLACE(l_result, '>', '&gt');
+
+    RETURN l_result;
+
+  END;
+
+
+
   FUNCTION f_colour(i_text   IN CLOB
                    ,i_colour IN VARCHAR2) RETURN CLOB IS
   BEGIN
     IF g_for_aop_html AND i_colour IS NOT NULL THEN
     RETURN '<span style="background-color:#'||LTRIM(i_colour,'#')||';">'
-         ||i_text
+         ||escape_html(i_text)
        ||'</span>';
     ELSE
      RETURN i_text;
@@ -1772,11 +1791,11 @@ BEGIN
   l_index := i_param_list.FIRST;
   WHILE l_index IS NOT NULL LOOP
     IF i_param_types(l_index) = 'CLOB' THEN
-      inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||i_param_list(l_index)||'''',G_PARAM_NAME_WIDTH)||','||i_param_list(l_index)||');'
+      inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||i_param_list(l_index)||'''',GREATEST(G_PARAM_NAME_PADDING,LENGTH(i_param_list(l_index))))||','||i_param_list(l_index)||');'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_PARAM);
     ELSE
-      inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',G_PARAM_NAME_WIDTH)||','||i_param_list(l_index)||');'
+      inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',GREATEST(G_PARAM_NAME_PADDING,LENGTH(i_param_list(l_index))))||','||i_param_list(l_index)||');'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_PARAM);
   END IF;
