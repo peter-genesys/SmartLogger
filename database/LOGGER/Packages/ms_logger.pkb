@@ -448,23 +448,28 @@ BEGIN
 	
     IF i_module_type IS NULL THEN 
       --Derive module type
+      $if $$intlog $then intlog_debug('Derive module type');  $end
       CASE 
         WHEN i_unit_name IN ('beforepform'
                             ,'afterpform'
                             ,'afterreport') THEN 
           --These program units are assumed to be reoprts.
-          l_module.owner  := USER;
-          l_module.module_type     := G_MODULE_TYPE_REPORT;
+          $if $$intlog $then intlog_debug('assumed to be reoprts');  $end
+          l_module.owner        := USER;
+          l_module.module_type  := G_MODULE_TYPE_REPORT;
 
         ELSE 
           --Look up the module in the data dictionary
+          $if $$intlog $then intlog_debug('Look up data dictionary');  $end
           l_module.owner       :=  object_owner(i_object_name => i_module_name);
+          $if $$intlog $then intlog_note('l_module.owner'   ,l_module.owner );  $end
           IF l_module.owner = 'ANONYMOUS' THEN
             l_module.module_type := 'APEX';
           ELSE
             l_module.module_type :=  object_type(i_object_name  => i_module_name
-                                              ,i_owner        => l_module.owner);
+                                                ,i_owner        => l_module.owner);
           END IF;
+          $if $$intlog $then intlog_note('l_module.module_type'   ,l_module.module_type );  $end
       END CASE;
       
     ELSE
@@ -472,6 +477,7 @@ BEGIN
     END IF;  
 
     --create the new module record
+    $if $$intlog $then intlog_debug('create the new module record');  $end
     l_module.module_id       := new_module_id;
     l_module.module_name     := i_module_name;
     l_module.revision        := i_revision;
@@ -481,6 +487,7 @@ BEGIN
     l_module.open_process    := G_OPEN_PROCESS_NEVER;     
  
     --insert a new module instance
+    $if $$intlog $then intlog_debug('insert module');  $end
     INSERT INTO ms_module VALUES l_module; 
  
   END IF;
