@@ -440,7 +440,7 @@ BEGIN
   $if $$intlog $then intlog_note('i_unit_name  ',i_unit_name  );  $end
   $if $$intlog $then intlog_note('i_create  '   ,i_create     );  $end
   
-  l_module := get_module(i_module_name => i_module_name  );
+  l_module := get_module(i_module_name => LOWER(i_module_name)  );
   l_module_exists := l_module.module_id IS NOT NULL;
 
   IF NOT l_module_exists AND i_create THEN
@@ -479,7 +479,7 @@ BEGIN
     --create the new module record
     $if $$intlog $then intlog_debug('create the new module record');  $end
     l_module.module_id       := new_module_id;
-    l_module.module_name     := i_module_name;
+    l_module.module_name     := LOWER(i_module_name);
     l_module.revision        := i_revision;
     --l_module.msg_mode        := G_MSG_MODE_DEBUG; 
     --l_module.open_process    := G_OPEN_PROCESS_IF_CLOSED;  
@@ -1964,7 +1964,7 @@ BEGIN
 
   debug_error( i_node             => i_node     
               ,i_message          => i_message
-              ,i_msg_level        => G_MSG_LEVEL_WARNING );
+              ,i_msg_level        => G_MSG_LEVEL_FATAL );
 
 
 END warn_error;

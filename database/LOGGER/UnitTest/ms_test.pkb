@@ -952,6 +952,20 @@ END f_elapsed_time;
 	dbms_output.put_line(dbms_utility.format_call_stack); 
   end;
   
+
+  PROCEDURE test_quiet_mode is
+    l_node ms_logger.node_typ := ms_logger.new_proc($$plsql_unit ,'test_quiet_mode');
+  begin --test_quiet_mode
+  begin  
+    ms_logger.comment(l_node,'About to error');
+    raise NO_DATA_FOUND;
+  END;
+  exception
+    when others then
+      ms_logger.warn_error(l_node);
+      raise;
+  end; --test_quiet_mode
+
  
  
 END ms_test;

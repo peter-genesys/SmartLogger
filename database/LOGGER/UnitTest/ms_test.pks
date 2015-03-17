@@ -85,6 +85,8 @@ CREATE OR REPLACE PACKAGE  ms_test AS
   PROCEDURE test_tree;
   
   PROCEDURE test_call_stack;
+
+  PROCEDURE test_quiet_mode;
  
 
 END ms_test;
