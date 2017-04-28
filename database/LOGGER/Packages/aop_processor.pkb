@@ -2526,7 +2526,7 @@ BEGIN
     from dba_source
     where NAME = i_object_name
     and type   = i_object_type
-    and text like '%--Logging by AOP_PROCESSOR%';
+    and text like '%Logging by AOP_PROCESSOR%';
 
     l_dummy number;
     l_found boolean;

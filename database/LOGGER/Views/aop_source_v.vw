@@ -12,7 +12,8 @@ select
 ,aop.load_datetime        aop_load_datetime
 ,aop_html.text            html_text  
 ,aop_html.load_datetime   html_load_datetime  
-,aop_processor.using_aop(i_object_name => orig.name ) using_aop
+,aop_processor.using_aop(i_object_name => orig.name
+                       , i_object_type => orig.type) using_aop
 from aop_source orig
     ,aop_source aop
 	,aop_source aop_html
