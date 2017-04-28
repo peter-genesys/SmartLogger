@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY LOGGER."AOP_TEST" is
+CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
   --@AOP_LOG
 
   g$ number;
@@ -322,6 +322,6 @@ where max_event_date >= :i_min_qa_date
 end;
 /
 show errors;
-execute logger.aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST');
+execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST');
 execute ms_api.set_module_debug(i_module_name => 'AOP_TEST');
 select aop_test.test5 from dual;

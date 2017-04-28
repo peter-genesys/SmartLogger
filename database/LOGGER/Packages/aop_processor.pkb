@@ -359,7 +359,7 @@ create or replace package body aop_processor is
  
     end if;
  
-    logger.ins_upd_aop_source(i_aop_source => l_aop_source);
+    ins_upd_aop_source(i_aop_source => l_aop_source);
        
     COMMIT;
     

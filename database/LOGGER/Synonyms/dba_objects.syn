@@ -1,0 +1,12 @@
+
+create or replace view user_objects_v as 
+select 
+  user  as OWNER
+ ,uo.*	
+from user_objects uo;
+
+drop synonym dba_objects;
+create synonym dba_objects for user_objects_v;
+ 
+desc dba_objects; 
+ 
