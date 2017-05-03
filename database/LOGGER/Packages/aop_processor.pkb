@@ -1672,7 +1672,7 @@ BEGIN
         l_var := find_var(i_search => G_REGEX_VAR);
         note_non_bind_var(i_var => l_var);
 
- /*
+ 
       WHEN regex_match(l_keyword ,G_REGEX_SELECT_FETCH_INTO  ) THEN   
         ms_logger.info(l_node, 'Select/Fetch Into');
 
@@ -1716,7 +1716,7 @@ BEGIN
           --Next variable
           l_index := l_into_var_list.NEXT(l_index);
         END LOOP;
- */
+ 
 
   
       WHEN regex_match(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
@@ -2523,7 +2523,7 @@ BEGIN
 
     CURSOR cu_dba_source is
     select 1
-    from dba_source
+    from dba_source_v
     where NAME = i_object_name
     and type   = i_object_type
     and text like '%Logging by AOP_PROCESSOR%';
