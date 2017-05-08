@@ -90,6 +90,14 @@ PROMPT ms_views.vw
 @&&patch_path.ms_views.vw;
 Show error;
 
+PROMPT dba_source_v.vw 
+@&&patch_path.dba_source_v.vw;
+Show error;
+
+PROMPT dba_objects_v.vw 
+@&&patch_path.dba_objects_v.vw;
+Show error;
+
 PROMPT SYNONYMS
 
 WHENEVER SQLERROR CONTINUE

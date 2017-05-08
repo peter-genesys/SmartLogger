@@ -52,6 +52,8 @@ execute &&PATCH_ADMIN_user..patch_installer.patch_started( -
 ||',ms_config_pop.sql' -
 ||',aop_test.sql' -
 ||',ms_test.sql' -
+||',dba_source_v.vw' -
+||',dba_objects_v.vw' -
  ,i_patch_create_date  => '04-28-2017' -
  ,i_patch_created_by   => 'Peter' -
  ,i_note               => '' -
@@ -132,7 +134,15 @@ Show error;
 PROMPT ms_views.vw 
 @&&patch_path.ms_views.vw;
 Show error;
+ 
+PROMPT dba_source_v.vw 
+@&&patch_path.dba_source_v.vw;
+Show error;
 
+PROMPT dba_objects_v.vw 
+@&&patch_path.dba_objects_v.vw;
+Show error;
+ 
 PROMPT SYNONYMS
 
 PROMPT dba_source.syn 

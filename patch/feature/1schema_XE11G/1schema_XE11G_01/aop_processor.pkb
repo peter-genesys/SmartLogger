@@ -137,14 +137,15 @@ create or replace package body aop_processor is
   
   G_REGEX_SUPPORTED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER'
                                                   ||'|DATE|VARCHAR2|VARCHAR|CHAR|BOOLEAN|CLOB)';
- 
-  G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
+  
+  G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##|\^\^)';
   
   G_REGEX_STASHED_COMMENT    CONSTANT VARCHAR2(50) := '<<comment\d+>>';
   G_REGEX_COMMENT            CONSTANT VARCHAR2(50) := '--""';
   G_REGEX_INFO               CONSTANT VARCHAR2(50) := '--\?\?';
   G_REGEX_WARNING            CONSTANT VARCHAR2(50) := '--!!';
   G_REGEX_FATAL              CONSTANT VARCHAR2(50) := '--##';  
+  G_REGEX_NOTE               CONSTANT VARCHAR2(50) := '--\^\^';  
 
  
  
@@ -1618,6 +1619,8 @@ BEGIN
            WHEN regex_match(l_keyword ,G_REGEX_INFO   ) THEN l_function := 'info';
            WHEN regex_match(l_keyword ,G_REGEX_WARNING) THEN l_function := 'warning';
            WHEN regex_match(l_keyword ,G_REGEX_FATAL  ) THEN l_function := 'fatal';
+           WHEN regex_match(l_keyword ,G_REGEX_NOTE  )  THEN l_function := 'note';
+     
          END CASE;
          
          ms_logger.note(l_node, 'l_function',l_function);
@@ -1627,12 +1630,22 @@ BEGIN
          l_stashed_comment := get_next( i_stop        => G_REGEX_STASHED_COMMENT
                                        ,i_raise_error => TRUE);
          ms_logger.note(l_node, 'l_stashed_comment',l_stashed_comment);
+
+         if l_function = 'note' then
+           g_code := REPLACE(g_code
+                           , l_keyword||l_stashed_comment
+                           , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'''
+                           , i_colour => G_COLOUR_NOTE)
+               ||l_stashed_comment||''','||l_stashed_comment||');');
+         else 
   
-         g_code := REPLACE(g_code
-                         , l_keyword||l_stashed_comment
-                         , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'''
-                         , i_colour => G_COLOUR_ANNOTATION)
-             ||l_stashed_comment||''');');
+           g_code := REPLACE(g_code
+                           , l_keyword||l_stashed_comment
+                           , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'''
+                           , i_colour => G_COLOUR_ANNOTATION)
+               ||l_stashed_comment||''');');
+
+         end if;
  
       WHEN regex_match(l_keyword ,G_REGEX_SHOW_ME_LINE) THEN
       ms_logger.info(l_node, 'Show Me');
@@ -1672,7 +1685,7 @@ BEGIN
         l_var := find_var(i_search => G_REGEX_VAR);
         note_non_bind_var(i_var => l_var);
 
- /*
+ 
       WHEN regex_match(l_keyword ,G_REGEX_SELECT_FETCH_INTO  ) THEN   
         ms_logger.info(l_node, 'Select/Fetch Into');
 
@@ -1716,7 +1729,7 @@ BEGIN
           --Next variable
           l_index := l_into_var_list.NEXT(l_index);
         END LOOP;
- */
+ 
 
   
       WHEN regex_match(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
@@ -2409,9 +2422,7 @@ BEGIN
   loop
    
    DECLARE
-  
-   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##)';
-
+ 
    G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--..'    ;
    G_REGEX_START_MULTI_COMMENT   CONSTANT VARCHAR2(50) :=  '/\*'    ;
    G_REGEX_START_QUOTE           CONSTANT VARCHAR2(50) :=  '\'''    ;
@@ -2523,7 +2534,7 @@ BEGIN
 
     CURSOR cu_dba_source is
     select 1
-    from dba_source
+    from dba_source_v
     where NAME = i_object_name
     and type   = i_object_type
     and text like '%Logging by AOP_PROCESSOR%';
