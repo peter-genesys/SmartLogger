@@ -608,7 +608,9 @@ PROCEDURE smtp_mail(i_email_to        IN VARCHAR2
               ,i_email_from      IN VARCHAR2 DEFAULT NULL
 			        ,i_email_reply_to  IN VARCHAR2 DEFAULT NULL
 			        ,i_mail_host       IN VARCHAR2 DEFAULT NULL ) IS
-						  
+BEGIN
+  NULL;
+  /*  HIDE FROM XE11G  						  
   l_email_to       VARCHAR2(100) :=  i_email_to;
   l_email_from     VARCHAR2(100) :=  NVL(i_email_from    ,i_email_to);
   l_email_reply_to VARCHAR2(100) :=  NVL(i_email_reply_to,i_email_from);					  
@@ -693,7 +695,7 @@ BEGIN
 	write_line;
 	UTL_SMTP.close_data(l_mail_conn);
     utl_smtp.quit(l_mail_conn);
- 
+ */
 END smtp_mail;
  
  

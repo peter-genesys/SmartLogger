@@ -1,0 +1,20 @@
+--drop table ms_config;
+
+create table ms_config (
+  name               varchar2(30) NOT NULL
+ ,value              varchar2(100)
+);
+
+ 
+--------------------------------------------------------
+--  DDL for Index wty_config_PK
+--------------------------------------------------------
+
+  CREATE UNIQUE INDEX ms_config_PK ON ms_config (name) ;
+
+--------------------------------------------------------
+--  Constraints for Table ms_config
+--------------------------------------------------------
+ 
+  ALTER TABLE ms_config ADD CONSTRAINT ms_config_PK PRIMARY KEY (name) ENABLE;
+ 
