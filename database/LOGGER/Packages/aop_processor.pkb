@@ -82,7 +82,7 @@ create or replace package body aop_processor is
   G_REGEX_DECLARE       CONSTANT VARCHAR2(50) := '\s *DECLARE\s';
   G_REGEX_BEGIN         CONSTANT VARCHAR2(50) := '\s *BEGIN\s';
   G_REGEX_LOOP          CONSTANT VARCHAR2(50) := '\s *LOOP\s';
-  G_REGEX_CASE          CONSTANT VARCHAR2(50) := '\s *CASE\s';
+  G_REGEX_CASE          CONSTANT VARCHAR2(50) := '(\s|\,)CASE\s';
   G_REGEX_IF            CONSTANT VARCHAR2(50) := '\s *IF\s';
   --Neutral Blocks
   G_REGEX_ELSE          CONSTANT VARCHAR2(50) := '\sELSE\s';

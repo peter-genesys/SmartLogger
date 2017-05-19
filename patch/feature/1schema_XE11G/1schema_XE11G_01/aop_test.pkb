@@ -247,7 +247,22 @@ where max_event_date >= :i_min_qa_date
    x_test exception;
    l_clob_a CLOB;
 
+   l_dummy number;
+
   begin
+
+    case 
+      when l_dummy = 1 then
+        null;
+      when l_dummy = 2 then
+        null;
+      else
+        null;
+    end case;    
+
+
+
+
     l_clob_a := 'TEST';
     null;
     --""About to raise an error
@@ -259,11 +274,15 @@ where max_event_date >= :i_min_qa_date
     --??This is a special info
     --!!This is a special warning
     --##This is a special fatal
+    --""Next comment produces a Note.
+    --^^l_clob_a
+    if true then
 
-    o_param23:= CASE
-                  WHEN TRUE THEN 1
-                  WHEN FALSE THEN 2
-                END;
+      o_param23:= NVL(NULL,CASE
+                             WHEN TRUE THEN 1
+                             WHEN FALSE THEN 2
+                           END);
+    end if;            
     io_param24:= 2;
     --i_param25:= 4;
  
