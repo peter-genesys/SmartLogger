@@ -87,10 +87,10 @@ PROMPT ms_tables.tab
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 PROMPT SEQUENCES
-
+WHENEVER SQLERROR CONTINUE
 PROMPT ms_seqs.seq 
 @&&patch_path.ms_seqs.seq;
-
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 
 PROMPT PACKAGE SPECS
@@ -143,10 +143,7 @@ PROMPT dba_objects_v.vw
 @&&patch_path.dba_objects_v.vw;
 Show error;
  
-PROMPT SYNONYMS
 
-PROMPT dba_source.syn 
-@&&patch_path.dba_source.syn;
 
 PROMPT PACKAGE BODIES
 

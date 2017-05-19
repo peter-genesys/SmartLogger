@@ -98,15 +98,6 @@ PROMPT dba_objects_v.vw
 @&&patch_path.dba_objects_v.vw;
 Show error;
 
-PROMPT SYNONYMS
-
-WHENEVER SQLERROR CONTINUE
-PROMPT dba_source.syn 
-@&&patch_path.dba_source.syn;
-
-PROMPT dba_objects.syn 
-@&&patch_path.dba_objects.syn;
-WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 PROMPT PACKAGE BODIES
 
