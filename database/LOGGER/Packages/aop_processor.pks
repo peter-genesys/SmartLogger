@@ -1,7 +1,21 @@
---alter trigger aop_processor_trg disable;
+alter trigger aop_processor_trg disable;
 
 create or replace package aop_processor AUTHID CURRENT_USER 
 is
+
+  --------------------------------------------------------------------
+  -- source_weave_now
+  --------------------------------------------------------------------
+  function source_weave_now(i_owner varchar2
+                           ,i_name  varchar2
+                           ,i_type  varchar2) return boolean;
+  --------------------------------------------------------------------
+  -- source_reg_mode_debug
+  --------------------------------------------------------------------
+  function source_reg_mode_debug(i_owner varchar2
+                           ,i_name  varchar2
+                           ,i_type  varchar2) return boolean;
+
   function during_advise return boolean;
  
   function weave
@@ -20,4 +34,4 @@ end aop_processor;
 /
 show error;
 
---alter trigger aop_processor_trg enable;
+alter trigger aop_processor_trg enable;

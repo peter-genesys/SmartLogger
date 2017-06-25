@@ -14,6 +14,9 @@ select
 ,aop_html.load_datetime   html_load_datetime  
 ,aop_processor.using_aop(i_object_name => orig.name
                        , i_object_type => orig.type) using_aop
+,DBMS_METADATA.GET_DDL (
+    object_type => DECODE(orig.type,'PACKAGE BODY','PACKAGE_BODY',orig.type)
+   ,name        => orig.name ) installed_text
 from aop_source orig
     ,aop_source aop
 	,aop_source aop_html
