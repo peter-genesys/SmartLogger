@@ -330,7 +330,23 @@ where max_event_date >= :i_min_qa_date
 
   END;
 
+  procedure test99 is
 
+    TYPE rule_set_typ IS RECORD (
+       selector      VARCHAR2(50)
+      ,selector_type VARCHAR2(30)
+      ,decl_block    CLOB);
+    
+    TYPE rule_set_tab_typ IS TABLE OF rule_set_typ INDEX BY BINARY_INTEGER;
+
+    l_rule_set_tab  rule_set_tab_typ;
+
+  BEGIN
+      l_rule_set_tab(1).selector   := ltrim(l_selector,'.#'); --Does this create a valid statement?
+     
+  
+
+  END;
 
 
   /*

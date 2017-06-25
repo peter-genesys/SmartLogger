@@ -49,7 +49,7 @@ create or replace package body aop_processor is
   g_aop_module_name    VARCHAR2(30); 
   
   G_PARAM_NAME_WIDTH   CONSTANT NUMBER := 106;
-  G_PARAM_NAME_PADDING CONSTANT NUMBER := 32;
+  G_PARAM_NAME_PADDING CONSTANT NUMBER := 106;
 
 
   TYPE var_list_typ IS TABLE OF VARCHAR2(30) INDEX BY VARCHAR2(106);  
