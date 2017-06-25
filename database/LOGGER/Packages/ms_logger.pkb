@@ -1695,7 +1695,7 @@ BEGIN
 
 
   set_module_msg_mode(i_module_id  => find_module(i_module_name => i_module_name
-                                                 ,i_create      => FALSE).module_id
+                                                 ,i_create      => TRUE).module_id
                      ,i_msg_mode => i_msg_mode);
  
 END; 

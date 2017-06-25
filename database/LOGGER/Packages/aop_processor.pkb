@@ -1,4 +1,4 @@
---alter trigger aop_processor_trg disable;
+alter trigger aop_processor_trg disable;
 
 --Ensure no inlining so ms_logger can be used
 alter session set plsql_optimize_level = 1;
@@ -13,8 +13,12 @@ create or replace package body aop_processor is
  
   g_during_advise boolean:= false;
   
-  g_aop_never     CONSTANT VARCHAR2(30) := '@AOP_NEVER';
-  g_aop_directive CONSTANT VARCHAR2(30) := '@AOP_LOG'; 
+  g_aop_never           CONSTANT VARCHAR2(30) := '@AOP_NEVER';
+  g_aop_directive       CONSTANT VARCHAR2(30) := '@AOP_LOG'; 
+  g_aop_woven           CONSTANT VARCHAR2(30) := '@AOP_LOG_WOVEN';
+  g_aop_weave_now       CONSTANT VARCHAR2(30) := '@AOP_LOG_WEAVE_NOW'; 
+
+  g_aop_reg_mode_debug  CONSTANT VARCHAR2(30) := '@AOP_REG_MODE_DEBUG';
  
   g_for_aop_html      boolean := false;
  
@@ -176,6 +180,82 @@ create or replace package body aop_processor is
   G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
  
 
+
+
+
+  function source_has_tag(i_owner varchar2
+                         ,i_name  varchar2
+                         ,i_type  varchar2
+                         ,i_tag   varchar2) return boolean is
+    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'source_has_tag');
+
+  cursor cu_check_aop_tags(c_owner varchar2
+                          ,c_name  varchar2
+                          ,c_type  varchar2
+                          ,c_tag   varchar2) is
+  select 1 --l_archived, owner, name, type, line, text
+  --from   dba_source
+  --where  owner = c_owner
+  from   user_source
+  where  name  = c_name
+  and    type  = c_type
+  and    text  like '%'||i_tag||'%';
+
+
+  l_dummy number;
+  l_result boolean;
+  begin --source_has_tag
+    ms_logger.param(l_node,'i_owner'                       ,i_owner);
+    ms_logger.param(l_node,'i_name'                        ,i_name);
+    ms_logger.param(l_node,'i_type'                        ,i_type);
+    ms_logger.param(l_node,'i_tag'                         ,i_tag);
+  begin
+    OPEN cu_check_aop_tags(c_owner => i_owner
+                          ,c_name  => i_name 
+                          ,c_type  => i_type
+                          ,c_tag   => i_tag );
+    FETCH cu_check_aop_tags into l_dummy;
+    l_result := cu_check_aop_tags%FOUND;
+    ms_logger.note(l_node,'l_result',l_result);
+    CLOSE cu_check_aop_tags;
+
+    return l_result;
+  end;
+  exception
+    when others then
+      ms_logger.warn_error(l_node);
+      raise;
+  end; --source_has_tag
+
+  --------------------------------------------------------------------
+  -- source_weave_now
+  --------------------------------------------------------------------
+  function source_weave_now(i_owner varchar2
+                           ,i_name  varchar2
+                           ,i_type  varchar2) return boolean is
+  BEGIN
+    return source_has_tag(i_owner => i_owner
+                         ,i_name  => i_name 
+                         ,i_type  => i_type 
+                         ,i_tag   => g_aop_weave_now );
+  
+
+  END;
+  --------------------------------------------------------------------
+  -- source_reg_mode_debug
+  --------------------------------------------------------------------
+  function source_reg_mode_debug(i_owner varchar2
+                           ,i_name  varchar2
+                           ,i_type  varchar2) return boolean is
+  BEGIN
+    return source_has_tag(i_owner => i_owner
+                         ,i_name  => i_name 
+                         ,i_type  => i_type 
+                         ,i_tag   => g_aop_reg_mode_debug );
+  
+
+  END;
+ 
   --------------------------------------------------------------------
   -- regex_match
   --------------------------------------------------------------------
@@ -2209,9 +2289,9 @@ END;
                            , i_object_type    => i_object_type   );
     -- check if perhaps the AOP_NEVER string is included that indicates that no AOP should be applied to a program unit
     -- (this bail-out is primarily used for this package itself, riddled as it is with AOP instructions)
-  -- Conversely it also checks for @AOP_LOG, which must be present or AOP will also exit.
-  --This ensure that a routine is not logged unless explicitly requested.
-  --Also AOP will remove AOP_LOG in the AOP Source, so that logging cannot be doubled-up.
+    -- Conversely it also checks for @AOP_LOG, which must be present or AOP will also exit.
+    -- This ensure that a routine is not logged unless explicitly requested.
+    -- Also AOP will remove AOP_LOG in the AOP Source, so that logging cannot be doubled-up.
     if instr(l_orig_body, g_aop_never) > 0 THEN
       g_during_advise:= false; 
 	  ms_logger.info(l_node, '@AOP_NEVER found.  AOP_PROCESSOR skipping this request' );
@@ -2257,6 +2337,12 @@ END;
       --but trap it incase we do  
           ms_logger.fatal(l_node,'Original Source is invalid on second try.');      
       end if;
+    else
+      --Register the module!!
+      if instr(l_orig_body, g_aop_reg_mode_debug) > 0 THEN
+        ms_api.set_module_debug(i_module_name => i_object_name );
+      end if;
+
     end if;
   
 
@@ -2537,7 +2623,7 @@ BEGIN
     from dba_source_v
     where NAME = i_object_name
     and type   = i_object_type
-    and text like '%Logging by AOP_PROCESSOR%';
+    and (text like '%Logging by AOP_PROCESSOR%' or text like '%@AOP_LOG_WOVEN%');
 
     l_dummy number;
     l_found boolean;
@@ -2564,4 +2650,4 @@ show error;
 
 set define on;
 
---alter trigger aop_processor_trg enable;
+alter trigger aop_processor_trg enable;
