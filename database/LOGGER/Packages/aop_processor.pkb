@@ -95,15 +95,26 @@ create or replace package body aop_processor is
   G_REGEX_THEN          CONSTANT VARCHAR2(50) := '\sTHEN\s';
   G_REGEX_EXCEPTION     CONSTANT VARCHAR2(50) := '\sEXCEPTION\s';
   --Closing Blocks
-  G_REGEX_END_BEGIN     CONSTANT VARCHAR2(50) := '\sEND\s*?'||G_REGEX_WORD_CHAR||'*?\s*?;';    --END(any whitespace)(any wordschars)(any whitespace)SEMI-COLON
-  G_REGEX_END_LOOP      CONSTANT VARCHAR2(50) := '\sEND\s+?LOOP\s*?;';
-  G_REGEX_END_CASE      CONSTANT VARCHAR2(50) := '\sEND\s+?CASE\s*?;';
-  G_REGEX_END_CASE_EXPR CONSTANT VARCHAR2(50) := '\sEND\W'; 
-  G_REGEX_END_IF        CONSTANT VARCHAR2(50) := '\sEND\s+?IF\s*?;';
+  G_REGEX_END_BEGIN_NO_NAME CONSTANT VARCHAR2(50) := '\sEND\s*?;';         --END(any whitespace)SEMI-COLON
+  G_REGEX_END_BEGIN_NAMED   CONSTANT VARCHAR2(50) := '\sEND\s+?'||G_REGEX_WORD_CHAR||'*?\s*?;';  --END(at least 1 whitespace)(any wordschars)(any whitespace)SEMI-COLON
+  
+  G_REGEX_END_BEGIN         CONSTANT VARCHAR2(200) :=   G_REGEX_END_BEGIN_NO_NAME      
+                                                 ||'|'||G_REGEX_END_BEGIN_NAMED;   
+
+  G_REGEX_END_LOOP_NO_NAME CONSTANT VARCHAR2(50) := '\sEND\s+?LOOP\s*?;'; --END(at least 1 whitespace)LOOP(any whitespace)SEMI-COLON  
+  G_REGEX_END_LOOP_NAMED   CONSTANT VARCHAR2(50) := '\sEND\s+?LOOP\s+?'||G_REGEX_WORD_CHAR||'*?\s*?;';  --END(at least 1 whitespace)LOOP(any wordschars)(any whitespace)SEMI-COLON
+  
+  G_REGEX_END_LOOP        CONSTANT VARCHAR2(200) :=   G_REGEX_END_LOOP_NO_NAME      
+                                               ||'|'||G_REGEX_END_LOOP_NAMED;  
+
+  G_REGEX_END_CASE        CONSTANT VARCHAR2(50) := '\sEND\s+?CASE\s*?;';
+  G_REGEX_END_CASE_EXPR   CONSTANT VARCHAR2(50) := '\sEND\W'; 
+  G_REGEX_END_IF          CONSTANT VARCHAR2(50) := '\sEND\s+?IF\s*?;';
 
   G_REGEX_SEMI_COL      CONSTANT VARCHAR2(50) := ';';
    
   --G_REGEX_ANNOTATION          CONSTANT VARCHAR2(50) := '--';
+ 
  
   G_REGEX_OPEN         CONSTANT VARCHAR2(200) :=   G_REGEX_DECLARE      
                                             ||'|'||G_REGEX_BEGIN        
@@ -789,9 +800,9 @@ BEGIN
 
   ms_logger.note_clob(l_node, 'l_result with LF,CR,SP' ,REPLACE(
                                                         REPLACE(
-                                                        REPLACE(l_result,chr(10),'LF')
-                                                                        ,chr(13),'CR')
-                                                                        ,chr(32),'SP') ); 
+                                                        REPLACE(l_result,chr(10),'[LF]')
+                                                                        ,chr(13),'[CR]')
+                                                                        ,chr(32),'[SP]') ); 
  
 
   IF i_upper THEN   
@@ -1615,7 +1626,7 @@ BEGIN
  
   loop
  
-  l_keyword := get_next(  i_srch_before       =>   G_REGEX_OPEN
+  l_keyword := get_next(  i_srch_before  =>   G_REGEX_OPEN
                                        ||'|'||G_REGEX_NEUTRAL
                                        ||'|'||G_REGEX_CLOSE
                           ,i_srch_after       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
@@ -1634,8 +1645,30 @@ BEGIN
   ms_logger.note(l_node, 'l_keyword',l_keyword);
  
     CASE 
-    WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN     
-        ms_logger.info(l_node, 'Declare');    
+      --BLOCK CLOSING REGEX
+      --Check for the CLOSEs first, since they are more selective that the OPENs
+
+      --END_BEGIN will also match END_LOOP, END_CASE and END IF
+      --So we need to make sure it hasn't matched on them.      
+      WHEN i_regex_end = G_REGEX_END_BEGIN               AND
+             regex_match(l_keyword , i_regex_end)        AND 
+             (  regex_match(l_keyword ,G_REGEX_END_LOOP) OR
+                regex_match(l_keyword ,G_REGEX_END_CASE) OR 
+                regex_match(l_keyword ,G_REGEX_END_IF)) THEN
+        ms_logger.fatal(l_node, 'Mis-matched Expected END; Got '||l_keyword);
+        RAISE X_INVALID_KEYWORD;
+ 
+      WHEN regex_match(l_keyword ,i_regex_end) THEN
+         ms_logger.info(l_node, 'Block End Found!');
+         EXIT;
+          
+      WHEN regex_match(l_keyword ,G_REGEX_CLOSE) THEN
+        ms_logger.fatal(l_node, 'Mis-matched END Expecting :'||i_regex_end||' Got: '||l_keyword);
+        RAISE X_INVALID_KEYWORD;
+
+      --BLOCK OPENING REGEX
+      WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN     
+          ms_logger.info(l_node, 'Declare');    
         AOP_declare(i_indent    => calc_indent(i_indent + g_indent_spaces,l_keyword)
                    ,i_var_list  => l_var_list);    
         
@@ -1664,6 +1697,7 @@ BEGIN
                  ,i_regex_end  => G_REGEX_END_IF
                  ,i_var_list   => l_var_list );
 
+      --BLOCK NEUTRAL - no further nesting/indenting
       WHEN regex_match(l_keyword , G_REGEX_EXCEPTION) THEN
         ms_logger.info(l_node, 'Exception Section');  
         --Now safe to look for WHEN X THEN
@@ -1673,25 +1707,7 @@ BEGIN
         ms_logger.info(l_node, 'Neutral');  
         --Just let it keep going around the loop.
         NULL;
-        
-      --END_BEGIN will also match END_LOOP, END_CASE and END IF
-      --So we need to make sure it hasn't matched on them.      
-    WHEN i_regex_end = G_REGEX_END_BEGIN              AND
-           regex_match(l_keyword , i_regex_end)        AND 
-           (  regex_match(l_keyword ,G_REGEX_END_LOOP) OR
-              regex_match(l_keyword ,G_REGEX_END_CASE) OR 
-              regex_match(l_keyword ,G_REGEX_END_IF)) THEN
-      ms_logger.fatal(l_node, 'Mis-matched Expected END; Got '||l_keyword);
-    RAISE X_INVALID_KEYWORD;
  
-    WHEN regex_match(l_keyword ,i_regex_end) THEN
-       ms_logger.info(l_node, 'Block End Found!');
-       EXIT;
-        
-    WHEN regex_match(l_keyword ,G_REGEX_CLOSE) THEN
-      ms_logger.fatal(l_node, 'Mis-matched END Expecting :'||i_regex_end||' Got: '||l_keyword);
-    RAISE X_INVALID_KEYWORD;
-        
       WHEN regex_match(l_keyword ,G_REGEX_START_ANNOTATION) THEN
         --What sort of annotation is it?
          CASE 
