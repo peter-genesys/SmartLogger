@@ -9,6 +9,8 @@ create or replace package body aop_processor is
   -- AUTHID CURRENT_USER - see spec
   -- @AOP_NEVER
  
+  --GREAT regex tesing resource => https://www.regextester.com/
+ 
   g_package_name        CONSTANT VARCHAR2(30) := 'aop_processor'; 
  
   g_during_advise boolean:= false;
@@ -24,7 +26,7 @@ create or replace package body aop_processor is
  
   g_weave_start_time  date;
   
-  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 180; 
+  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 240; -- 4mins per 1000 lines
   g_weave_timeout_secs NUMBER;   
   
   g_initial_indent     constant integer := 0;
@@ -49,7 +51,7 @@ create or replace package body aop_processor is
   g_aop_module_name    VARCHAR2(30); 
   
   G_PARAM_NAME_WIDTH   CONSTANT NUMBER := 106;
-  G_PARAM_NAME_PADDING CONSTANT NUMBER := 106;
+  G_MIN_PARAM_NAME_PADDING CONSTANT NUMBER := 5;  --for formatting only.
 
 
   TYPE var_list_typ IS TABLE OF VARCHAR2(30) INDEX BY VARCHAR2(106);  
@@ -131,7 +133,7 @@ create or replace package body aop_processor is
   G_REGEX_WHEN_OTHERS_THEN          CONSTANT VARCHAR2(50) := '\sWHEN\s+?OTHERS\s+?THEN\s';
   G_REGEX_WHEN_EXCEPT_THEN          CONSTANT VARCHAR2(50) := '\sWHEN\s+?('||G_REGEX_WORD||'\s+?)+?THEN\s';
  
-  G_REGEX_CLOSE        CONSTANT VARCHAR2(200) :=  G_REGEX_END_BEGIN    
+  G_REGEX_CLOSE        CONSTANT VARCHAR2(300) :=  G_REGEX_END_BEGIN    
                                            ||'|'||G_REGEX_END_LOOP     
                                            ||'|'||G_REGEX_END_CASE     
                                            ||'|'||G_REGEX_END_CASE_EXPR
@@ -1883,11 +1885,26 @@ PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
   
   l_var_list              var_list_typ := i_var_list;
   l_index                 BINARY_INTEGER;
+  l_param_padding         integer;
  
 BEGIN
  
   ms_logger.param(l_node, 'i_prog_unit_name'     ,i_prog_unit_name     );
   ms_logger.param(l_node, 'i_indent        '     ,i_indent             );
+ 
+
+  --Calculate optimal param padding to line them up nicely.
+  l_param_padding := 0;
+  l_index := i_param_list.FIRST;
+  WHILE l_index IS NOT NULL LOOP
+
+    --Find the length of the longest parameter name
+    l_param_padding := GREATEST(l_param_padding, LENGTH(i_param_list(l_index))+2, G_MIN_PARAM_NAME_PADDING);
+ 
+    l_index := i_param_list.NEXT(l_index);    
+ 
+  END LOOP;
+
  
 
   --Add extra BEGIN infront of existing BEGIN, ensuring not trimmed.
@@ -1900,11 +1917,11 @@ BEGIN
   l_index := i_param_list.FIRST;
   WHILE l_index IS NOT NULL LOOP
     IF i_param_types(l_index) = 'CLOB' THEN
-      inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||i_param_list(l_index)||'''',GREATEST(G_PARAM_NAME_PADDING,LENGTH(i_param_list(l_index))))||','||i_param_list(l_index)||');'
+      inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||i_param_list(l_index)||'''',l_param_padding)||','||i_param_list(l_index)||');'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_PARAM);
     ELSE
-      inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',GREATEST(G_PARAM_NAME_PADDING,LENGTH(i_param_list(l_index))))||','||i_param_list(l_index)||');'
+      inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',l_param_padding)||','||i_param_list(l_index)||');'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_PARAM);
   END IF;
@@ -2330,7 +2347,7 @@ END;
   end if;     
  
     l_aop_body := l_orig_body;
-    -- manipulate source by weaving in aspects as required; only weave if the key logging not yet applied.
+    -- manipulate source by weaving in aspects as required; only weave if the keyword logging not yet applied.
     l_advised := weave( p_code         => l_aop_body
                       , p_package_name => lower(i_object_name)
                       , p_end_user     => i_object_owner        );
