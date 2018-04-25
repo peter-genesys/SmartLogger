@@ -340,7 +340,7 @@ where max_event_date >= :i_min_qa_date
     TYPE rule_set_tab_typ IS TABLE OF rule_set_typ INDEX BY BINARY_INTEGER;
 
     l_rule_set_tab  rule_set_tab_typ;
-
+    l_selector      VARCHAR2(50);  
   BEGIN
       l_rule_set_tab(1).selector   := ltrim(l_selector,'.#'); --Does this create a valid statement?
      

@@ -67,10 +67,14 @@ create or replace package body aop_processor is
   ----------------------------------------------------------------------------
   --Word Char  = non-quoted Oracle identifier chars include "A-Z,_,#,$"
   G_REGEX_WORD_CHAR      CONSTANT VARCHAR2(50) := '(\w|\#|\$)'; 
+
   --Word is at least 1 Word Char
   G_REGEX_WORD           CONSTANT VARCHAR2(50) := G_REGEX_WORD_CHAR||'+';  
   G_REGEX_2WORDS         CONSTANT VARCHAR2(50) := G_REGEX_WORD||'\.'||G_REGEX_WORD;
   G_REGEX_2_QUOTED_WORDS CONSTANT VARCHAR2(50) := '"*'||G_REGEX_WORD||'"*\."*'||G_REGEX_WORD||'"*'; --quotes are optional    
+
+  G_REGEX_NON_WORD_CHAR  CONSTANT VARCHAR2(50) := '[^\w\#\$]'; 
+  G_REGEX_NON_WORD       CONSTANT VARCHAR2(50) := G_REGEX_NON_WORD_CHAR||'+'; 
  
   G_REGEX_PKG_BODY       CONSTANT VARCHAR2(50) := '\s *PACKAGE\s+?BODY\s';
   G_REGEX_PROCEDURE      CONSTANT VARCHAR2(50) := '\s *PROCEDURE\s';
@@ -88,7 +92,9 @@ create or replace package body aop_processor is
   G_REGEX_DECLARE       CONSTANT VARCHAR2(50) := '\s *DECLARE\s';
   G_REGEX_BEGIN         CONSTANT VARCHAR2(50) := '\s *BEGIN\s';
   G_REGEX_LOOP          CONSTANT VARCHAR2(50) := '\s *LOOP\s';
-  G_REGEX_CASE          CONSTANT VARCHAR2(50) := '(\s|\,)CASE\s';
+  G_REGEX_CASE          CONSTANT VARCHAR2(50) := G_REGEX_NON_WORD_CHAR||'CASE\s'; --CASE can be preceded by any non-word
+  -- G_REGEX_CASE          CONSTANT VARCHAR2(50) := '(\s|\,|\||\)|\()CASE\s'; --CASE can be preceded by [WS ) ( , ||] --though not sure 
+
   G_REGEX_IF            CONSTANT VARCHAR2(50) := '\s *IF\s';
   --Neutral Blocks
   G_REGEX_ELSE          CONSTANT VARCHAR2(50) := '\sELSE\s';
@@ -1645,10 +1651,10 @@ BEGIN
 );
  
   ms_logger.note(l_node, 'l_keyword',l_keyword);
- 
+  --Now process the key words that have already been identified.
     CASE 
       --BLOCK CLOSING REGEX
-      --Check for the CLOSEs first, since they are more selective that the OPENs
+      --Check for the CLOSEs first, since they are more selective than the OPENs
 
       --END_BEGIN will also match END_LOOP, END_CASE and END IF
       --So we need to make sure it hasn't matched on them.      
@@ -2112,7 +2118,7 @@ END;
   ( p_code         in out clob
   , p_package_name in varchar2
   , p_for_html     in boolean default false
-  , p_end_user     in varchar default null
+  , p_end_user     in varchar2 default null
   ) return boolean
   is
 
@@ -2301,6 +2307,7 @@ END;
   ( i_object_name   in varchar2
   , i_object_type   in varchar2
   , i_object_owner  in varchar2
+  , i_versions      in varchar2 --USAGE 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
   ) is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'instrument_plsql');
   
@@ -2335,68 +2342,96 @@ END;
       return;
     end if;
   
-  IF NOT  validate_source(i_name  => i_object_name
-                        , i_type  => i_object_type
-                        , i_text  => l_orig_body
-                        , i_aop_ver => 'ORIG'
-                        , i_compile => TRUE
-                        ) THEN
-    g_during_advise:= false; 
-	ms_logger.info(l_node, 'Original Source is invalid.  AOP_PROCESSOR skipping this request' );
-    return;    
-  end if;     
+    IF NOT  validate_source(i_name  => i_object_name
+                          , i_type  => i_object_type
+                          , i_text  => l_orig_body
+                          , i_aop_ver => 'ORIG'
+                          , i_compile => TRUE
+                          ) THEN
+      g_during_advise:= false; 
+	  ms_logger.info(l_node, 'Original Source is invalid.  AOP_PROCESSOR skipping this request' );
+      return;    
+    end if;     
+
+    if i_versions like 'HTML%' then
+      --Reweave with html - even if the AOP failed.
+      --We want to see what happened.
+      ms_logger.comment(l_node,'Reweave with html');  
+      l_html_body := l_orig_body;
+        l_advised := weave( p_code         => l_html_body
+                          , p_package_name => lower(i_object_name)
+                          , p_for_html     => true
+                          , p_end_user     => i_object_owner);
  
-    l_aop_body := l_orig_body;
-    -- manipulate source by weaving in aspects as required; only weave if the keyword logging not yet applied.
-    l_advised := weave( p_code         => l_aop_body
-                      , p_package_name => lower(i_object_name)
-                      , p_end_user     => i_object_owner        );
- 
-    -- (re)compile the source 
-    ms_logger.comment(l_node, 'Validate the AOP version.' );
-    IF NOT validate_source(i_name  => i_object_name
-                       , i_type  => i_object_type
-                       , i_text  => l_aop_body
-                       , i_aop_ver => 'AOP'
-                       , i_compile => l_advised  ) THEN
-      ms_logger.info(l_node, 'Recompile the Original version.' );
-      --reexecute the original so that we at least end up with a valid package.
-      IF NOT  validate_source(i_name  => i_object_name
-                            , i_type  => i_object_type
-                            , i_text  => l_orig_body
-                            , i_aop_ver => 'ORIG'
-                            , i_compile => TRUE) THEN
-      --unlikely that will get an error in the original if it worked last time
-      --but trap it incase we do  
-          ms_logger.fatal(l_node,'Original Source is invalid on second try.');      
-      end if;
-    else
-      --Register the module!!
-      if instr(l_orig_body, g_aop_reg_mode_debug) > 0 THEN
-        ms_api.set_module_debug(i_module_name => i_object_name );
-      end if;
+      IF NOT validate_source(i_name  => i_object_name
+                           , i_type  => i_object_type
+                           , i_text  => l_html_body
+                           , i_aop_ver => 'AOP_HTML'
+                           , i_compile => FALSE) THEN
+        ms_logger.fatal(l_node,'Oops problem committing AOP_HTML.');             
+     
+      END IF;
 
     end if;
-  
 
-    --Reweave with html - even if the AOP failed.
-    --We want to see what happened.
-    ms_logger.comment(l_node,'Reweave with html');  
-    l_html_body := l_orig_body;
-      l_advised := weave( p_code         => l_html_body
+    if i_versions like '%AOP%' then
+
+      l_aop_body := l_orig_body;
+      -- manipulate source by weaving in aspects as required; only weave if the keyword logging not yet applied.
+      l_advised := weave( p_code         => l_aop_body
                         , p_package_name => lower(i_object_name)
-                        , p_for_html     => true
-                        , p_end_user     => i_object_owner);
- 
-    IF NOT validate_source(i_name  => i_object_name
+                        , p_end_user     => i_object_owner        );
+
+      -- (re)compile the source 
+      ms_logger.comment(l_node, 'Validate the AOP version.' );
+      IF NOT validate_source(i_name  => i_object_name
                          , i_type  => i_object_type
-                         , i_text  => l_html_body
-                         , i_aop_ver => 'AOP_HTML'
-                         , i_compile => FALSE) THEN
-      ms_logger.fatal(l_node,'Oops problem committing AOP_HTML.');             
-   
-    END IF;
+                         , i_text  => l_aop_body
+                         , i_aop_ver => 'AOP'
+                         , i_compile => l_advised  ) THEN
+        ms_logger.info(l_node, 'Recompile the Original version.' );
+        --reexecute the original so that we at least end up with a valid package.
+        IF NOT  validate_source(i_name  => i_object_name
+                              , i_type  => i_object_type
+                              , i_text  => l_orig_body
+                              , i_aop_ver => 'ORIG'
+                              , i_compile => TRUE) THEN
+        --unlikely that will get an error in the original if it worked last time
+        --but trap it incase we do  
+            ms_logger.fatal(l_node,'Original Source is invalid on second try.');      
+        end if;
+      else
+        --Register the module!!
+        if instr(l_orig_body, g_aop_reg_mode_debug) > 0 THEN
+          ms_api.set_module_debug(i_module_name => i_object_name );
+        end if;
+
+      end if;
  
+    end if;
+
+    if i_versions = 'AOP,HTML' then
+
+      --Reweave with html - even if the AOP failed.
+      --We want to see what happened.
+      ms_logger.comment(l_node,'Reweave with html');  
+      l_html_body := l_orig_body;
+        l_advised := weave( p_code         => l_html_body
+                          , p_package_name => lower(i_object_name)
+                          , p_for_html     => true
+                          , p_end_user     => i_object_owner);
+ 
+      IF NOT validate_source(i_name  => i_object_name
+                           , i_type  => i_object_type
+                           , i_text  => l_html_body
+                           , i_aop_ver => 'AOP_HTML'
+                           , i_compile => FALSE) THEN
+        ms_logger.fatal(l_node,'Oops problem committing AOP_HTML.');             
+     
+      END IF;
+
+    end if;
+
     
     g_during_advise:= false; 
 
@@ -2415,7 +2450,8 @@ END;
   --------------------------------------------------------------------
   -- reapply_aspect
   --------------------------------------------------------------------  
-  procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL) is
+  procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL
+                         , i_versions    in varchar2 default 'AOP,HTML') is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'reapply_aspect'); 
   begin
     ms_logger.param(l_node, 'i_object_name', i_object_name);
@@ -2433,7 +2469,8 @@ END;
           --AOP the code
           instrument_plsql( i_object_name  => l_object.object_name
                           , i_object_type  => l_object.object_type
-                          , i_object_owner => l_object.owner);
+                          , i_object_owner => l_object.owner
+                          ,i_versions      => i_versions);
   
       end loop;
   end reapply_aspect;

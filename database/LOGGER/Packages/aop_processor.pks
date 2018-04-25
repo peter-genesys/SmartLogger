@@ -22,10 +22,11 @@ is
   ( p_code         in out clob
   , p_package_name in varchar2
   , p_for_html     in boolean default false
-  , p_end_user     in varchar default null
+  , p_end_user     in varchar2 default null
   ) return boolean; 
  
-  procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL);
+  procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL
+                         , i_versions    in varchar2 default 'AOP,HTML');
 
  function using_aop(i_object_name IN VARCHAR2
                    ,i_object_type IN VARCHAR2 DEFAULT 'PACKAGE BODY') return varchar2;
