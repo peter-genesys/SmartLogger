@@ -1,0 +1,629 @@
+alter trigger aop_processor_trg disable;
+
+create or replace package aop_processor AUTHID CURRENT_USER 
+is
+/** 
+* AOP Processor - Aspect Orientated Programming Processor<br/>
+* Purpose is to weaving the logging instrumentation into valid plsql progam units.<br/> 
+*/
+ 
+-----------------------------------------------------------------------------------------------
+-- P R I V A T E - Exposed only in this UNIT TEST version of the package spec
+----------------------------------------------------------------------------------------------- 
+
+  ----------------------------------------------------------------------------
+  -- COLOUR CODES
+  ----------------------------------------------------------------------------
+ 
+  G_COLOUR_PROG_UNIT        CONSTANT VARCHAR2(10) := '#9999FF';
+  G_COLOUR_BLOCK            CONSTANT VARCHAR2(10) := '#FFCC99';
+  G_COLOUR_COMMENT          CONSTANT VARCHAR2(10) := '#FFFF99';
+  G_COLOUR_QUOTE            CONSTANT VARCHAR2(10) := '#99CCFF';
+  G_COLOUR_PARAM            CONSTANT VARCHAR2(10) := '#FF99FF';
+  G_COLOUR_NODE             CONSTANT VARCHAR2(10) := '#66FFFF';
+  G_COLOUR_ERROR            CONSTANT VARCHAR2(10) := '#FF6600';
+  G_COLOUR_SPLICE           CONSTANT VARCHAR2(10) := '#FFCC66';
+  G_COLOUR_PU_NAME          CONSTANT VARCHAR2(10) := '#99FF99';
+  G_COLOUR_OBJECT_NAME      CONSTANT VARCHAR2(10) := '#FFCC00';
+  G_COLOUR_PKG_BEGIN        CONSTANT VARCHAR2(10) := '#CCCC00'; 
+  G_COLOUR_GO_PAST          CONSTANT VARCHAR2(10) := '#FF9999'; 
+  G_COLOUR_BRACKETS         CONSTANT VARCHAR2(10) := '#FF5050'; 
+  G_COLOUR_EXCEPTION_BLOCK  CONSTANT VARCHAR2(10) := '#FF9933'; 
+  G_COLOUR_JAVA             CONSTANT VARCHAR2(10) := '#33CCCC'; 
+  G_COLOUR_UNSUPPORTED      CONSTANT VARCHAR2(10) := '#999966'; 
+  G_COLOUR_ANNOTATION       CONSTANT VARCHAR2(10) := '#FFCCFF'; 
+  G_COLOUR_BIND_VAR         CONSTANT VARCHAR2(10) := '#FFFF00';
+  G_COLOUR_VAR              CONSTANT VARCHAR2(10) := '#99FF66';
+  G_COLOUR_NOTE             CONSTANT VARCHAR2(10) := '#00FF99';
+  G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
+
+
+  TYPE var_list_typ IS TABLE OF VARCHAR2(30) INDEX BY VARCHAR2(106);  
+  
+  TYPE param_list_typ IS TABLE OF VARCHAR2(106) INDEX BY BINARY_INTEGER;  
+ 
+--------------------------------------------------------------------
+-- source_has_tag
+--------------------------------------------------------------------
+/** PRIVATE
+* Check existence of a text tag within the source text of an object
+* @param i_owner Object Owner 
+* @param i_name  Object Name 
+* @param i_type  Object Type 
+* @param i_tag   Search Tag
+*/
+  function source_has_tag(i_owner varchar2
+                         ,i_name  varchar2
+                         ,i_type  varchar2
+                         ,i_tag   varchar2) return boolean;
+--------------------------------------------------------------------
+-- source_weave_now
+--------------------------------------------------------------------
+/** PUBLIC
+* Check existence of @AOP_LOG_WEAVE_NOW tag within the source text of an object
+* @param i_owner Object Owner 
+* @param i_name  Object Name 
+* @param i_type  Object Type 
+*/
+  function source_weave_now(i_owner varchar2
+                           ,i_name  varchar2
+                           ,i_type  varchar2) return boolean;
+
+--------------------------------------------------------------------
+-- source_reg_mode_debug
+--------------------------------------------------------------------
+/** PUBLIC
+* Check existence of @AOP_REG_MODE_DEBUG tag within the source text of an object
+* @param i_owner Object Owner 
+* @param i_name  Object Name 
+* @param i_type  Object Type 
+*/
+  function source_reg_mode_debug(i_owner varchar2
+                           ,i_name  varchar2
+                           ,i_type  varchar2) return boolean;
+
+--------------------------------------------------------------------
+-- regex_match
+--------------------------------------------------------------------
+/** PRIVATE
+* Uses REGEXP_LIKE to check for i_pattern within i_source_string
+* @param i_source_string   Source Text 
+* @param i_pattern         Search Pattern
+* @param i_match_parameter Match Parameter - text literal that lets you change the default matching behavior of the function REGEXP_LIKE
+*  i - specifies case-insensitive matching.
+*  c - specifies case-sensitive matching.
+*  n - allows the period (.), which is the match-any-character wildcard character, to match the newline character. If you omit this parameter, the period does not match the newline character.
+*  m - treats the source string as multiple lines. Oracle interprets ^ and $ as the start and end, respectively, of any line anywhere in the source string, rather than only at the start or end of the entire source string. If you omit this parameter, Oracle treats the source string as a single line.
+* @return TRUE indicates a match was found.
+*/
+  FUNCTION regex_match(i_source_string   IN CLOB
+                      ,i_pattern         IN VARCHAR2
+                      ,i_match_parameter IN VARCHAR2 DEFAULT 'i') RETURN BOOLEAN;
+ 
+--------------------------------------------------------------------
+-- table_owner
+--------------------------------------------------------------------
+/** PRIVATE
+* Search all_tables for table i_table_name.
+* Find the most appropriate table owner.
+* Of All Tables (that the end user can see)
+* Select 1 owner, with preference to the end user
+* @param i_table_name      Table Name
+* @return Table Owner
+*/
+  FUNCTION table_owner(i_table_name IN VARCHAR2) RETURN VARCHAR2;
+
+--------------------------------------------------------------------
+-- calc_indent
+--------------------------------------------------------------------
+/** PRIVATE
+* Read the indent (number of leading spaces) in i_match
+* @param i_default      Default Ident
+* @param i_match        Matched string 
+* @return Count of leading spaces in i_match, or if i_match does not start with CR, just return i_default.
+*/
+  FUNCTION calc_indent(i_default IN INTEGER
+                      ,i_match   IN VARCHAR2) RETURN INTEGER;
+
+
+--------------------------------------------------------------------
+-- elapsed_time_secs
+--------------------------------------------------------------------
+/** PRIVATE
+* Calculate the elapsed time since the weave began 
+* @return Elapsed time in seconds
+*/
+  function elapsed_time_secs return integer;
+ 
+--------------------------------------------------------------------
+-- escape_html
+--------------------------------------------------------------------
+/** PRIVATE
+* Replace some chars [&<>] that are reserved in HTML with coded equivalents
+* @param i_text   Source Text
+* @return i_text post replacement
+*/
+  FUNCTION escape_html(i_text   IN CLOB ) RETURN CLOB;
+
+--------------------------------------------------------------------
+-- f_colour
+--------------------------------------------------------------------
+/** PRIVATE
+* Add HTML inline span style colour tags to highlight the HTML text
+* This is specifically designed for display in the Apex app.
+* @param i_text   Source Text
+* @param i_colour HEX colour code 
+* @return i_text post replacement
+*/
+  FUNCTION f_colour(i_text   IN CLOB
+                   ,i_colour IN VARCHAR2) RETURN CLOB;
+
+--------------------------------------------------------------------
+-- check_timeout
+--------------------------------------------------------------------
+/** PRIVATE
+* Determine whether the precalculated timeout has been exceeded.
+* Throws x_weave_timeout
+*/
+  procedure check_timeout;
+
+--------------------------------------------------------------------
+-- set_weave_timeout
+--------------------------------------------------------------------
+/** PRIVATE
+* Calculate the max time allowed for the weave, based on the number of lines in the source.
+* Result is stored in g_weave_timeout_secs
+* The timeout is used to protect against infinite recursion or iteration.
+* Throws x_weave_timeout
+*/
+  procedure set_weave_timeout;
+ 
+--------------------------------------------------------------------
+-- during_advise
+--------------------------------------------------------------------
+/** PUBLIC
+* Is the weaver currently performing a weave.
+* This function is used purely by the trigger aop_processor_trg to ensure it is NOT triggered by the weaver itself.
+* @return TRUE when weaving.
+*/
+  function during_advise return boolean;
+
+ 
+--------------------------------------------------------------------
+-- validate_source
+--------------------------------------------------------------------
+/** PRIVATE
+* Compile the source against the database, as directed (i_compile).
+* Store the source in table aop_source
+* Return the success result of compilation, if any.
+* Executes i_text against the database.
+* Uses ALL_ERRORS to report compilation errors.
+* @param i_name     Object Name
+* @param i_type     Object Type
+* @param i_text     Object source text
+* @param i_aop_ver  AOP Version (ORIG,AOP,HTML)
+* @param i_compile  Directive to compile or not.
+* @return TRUE if compilation successful, or not directed to compile.
+*/
+  function validate_source(i_name        IN VARCHAR2
+                         , i_type        IN VARCHAR2
+                         , i_text        IN CLOB
+                         , i_aop_ver     IN VARCHAR2
+                         , i_compile     IN BOOLEAN  
+            ) RETURN boolean;
+ 
+ 
+--------------------------------------------------------------------
+-- splice
+--------------------------------------------------------------------
+/** PRIVATE
+* Splice extra code into source code.  
+* Extra code will be inserted within the source code to create a longer result.
+* Return the result in p_code.
+* @param p_code     Source Code
+* @param p_new_code Extra Code to be spliced into Source Code
+* @param p_pos      Position within Source Code to splice Extra Code
+* @param p_indent   Current indenting (number of spaces indented) - if not null, then a new line is injected.
+* @param p_colour   Colour to be wrapped around the spliced code.
+*/
+  procedure splice( p_code     in out clob
+                   ,p_new_code in clob
+                   ,p_pos      in out number
+                   ,p_indent   in number   default null
+                   ,p_colour   in varchar2 default null );
+  
+--------------------------------------------------------------------
+-- wedge
+--------------------------------------------------------------------
+/** PRIVATE
+* Wedge splices i_new_code into the global g_code at the global g_current_pos
+* Does not specify p_indent when calling splice, so splice will NOT create a new line.
+* @param i_new_code Extra Code to be spliced into g_code
+* @param i_colour   Colour to be wrapped around the spliced code.
+*/
+    PROCEDURE wedge( i_new_code in varchar2
+                    ,i_colour   in varchar2 default null);
+  
+--------------------------------------------------------------------
+-- inject
+--------------------------------------------------------------------
+/** PRIVATE
+* Inject splices i_new_code into the global g_code at the global g_current_pos with a new line (assuming i_indent is not null)
+* @param i_new_code Extra Code to be spliced into g_code.
+* @param i_indent   Indenting to be used on the new line.
+* @param i_colour   Colour to be wrapped around the spliced code.
+*/
+    PROCEDURE inject( i_new_code in varchar2
+                     ,i_indent   in number
+                     ,i_colour   in varchar2 default null);
+
+--------------------------------------------------------------------------------- 
+-- ATOMIC - Low level routines.
+--------------------------------------------------------------------------------- 
+ 
+
+--------------------------------------------------------------------
+-- trim_whitespace
+--------------------------------------------------------------------
+/** PRIVATE
+* Use REGEXP_REPLACE to remove upto 1 leading and trailing whitespace from i_words
+* @param i_words Source Text to be trimmed.
+* @return Trimmed Source Text 
+*/
+FUNCTION trim_whitespace(i_words IN CLOB) RETURN CLOB;
+
+--------------------------------------------------------------------
+-- flatten
+--------------------------------------------------------------------
+/** PRIVATE
+* Use REGEXP_REPLACE to convert all whitespace in i_words to simple spaces.
+* This effectively turns multiple lines into a single line.
+* @param i_words Source Text to be trimmed.
+* @return Flatten Source Text 
+*/
+FUNCTION flatten(i_words IN VARCHAR2) RETURN VARCHAR2;
+
+--------------------------------------------------------------------
+-- REGEXP_INSTR_NOT0
+--------------------------------------------------------------------
+/** PRIVATE
+* Variant of REGEXP_INSTR.   This version will return 10000000 instead of 0.
+* Usage: REGEXP_INSTR_NOT0(string, pattern [, position [, occurrence [, return_position [, regexp_modifier]]]])
+* @param i_string          source string
+* @param i_pattern         search pattern
+* @param i_position        start search position
+* @param i_occurrence      search for this occurrence
+* @param i_return_option   lets you specify what Oracle should return in relation to the occurrence:
+* If you specify 0, then Oracle returns the position of the first character of the occurrence. This is the default.
+* If you specify 1, then Oracle returns the position of the character following the occurrence.
+* @param i_regexp_modifier  Is a text literal that lets you change the default matching behavior of the function REGEXP_INSTR
+* @return position of i_pattern within i_string.
+*/
+FUNCTION REGEXP_INSTR_NOT0(i_string           IN CLOB  
+                          ,i_pattern          IN VARCHAR2
+                          ,i_position         IN INTEGER  DEFAULT NULL
+                          ,i_occurrence       IN INTEGER  DEFAULT NULL
+                          ,i_return_option    IN INTEGER  DEFAULT NULL
+                          ,i_regexp_modifier  IN VARCHAR2 DEFAULT NULL) RETURN INTEGER;
+ 
+ 
+--------------------------------------------------------------------
+-- get_next
+--------------------------------------------------------------------
+/** PRIVATE
+* Given keywords to find, get_next will return first matching string.
+* The search keywords are split into i_srch_before, i_stop, i_srch_after, in that order of priority.
+* If there is a match in more than one keyword set, the match from i_srch_before is given priority over i_stop, and i_stop is given priority over i_srch_after
+* The highest priority match is returned as the result, but only a match from i_srch_before or i_srch_after is consumed.
+* When a match is consumed, the current position is advanced past the match, and the text is then not scanned again.
+* A match from i_stop is merely used to halt the search.  The match itself is not consumed.  The current position is not advanced.
+* After ANY match the global positions will be updated
+*   g_upto_pos to the start of the match
+*   g_past_pos to the end of the match
+* IF match FROM i_srch_before or i_srch_after THEN it is consumed, meaning g_current_pos will also advance to g_past_pos. 
+* IF match FROM i_stop                        THEN it is NOT consumed.  g_current_pos does not change, even though g_upto_pos and g_past_pos have advanced.
+* @param i_srch_before     search and consume keywords       - higher priority than i_stop   
+* @param i_stop            search and stop without consuming
+* @param i_srch_after      search and consume keywords       - lower  priority than i_stop
+* @param i_modifier        modifier is applied in all REGEX functions       
+* @param i_upper           return UPPER(result)     
+* @param i_lower           return LOWER(result)         
+* @param i_colour          colour used to highlight consumed words in HTML mode.       
+* @param i_raise_error     raise an error if no match, and output the search string
+* @param i_trim_result     strip from result, upto 1 leading and trailing whitespace     
+* @param i_trim_pointers   g_upto_pos and g_past_pos will point to the start and stop of the trimmed result      
+* @return matched text
+* Throws x_string_not_found
+*/
+FUNCTION get_next(i_srch_before        IN     VARCHAR2 DEFAULT NULL
+                 ,i_srch_after         IN     VARCHAR2 DEFAULT NULL 
+                 ,i_stop               IN     VARCHAR2 DEFAULT NULL
+                 ,i_modifier           IN     VARCHAR2 DEFAULT 'i'
+                 ,i_upper              IN     BOOLEAN  DEFAULT FALSE
+                 ,i_lower              IN     BOOLEAN  DEFAULT FALSE
+                 ,i_colour             IN     VARCHAR2 DEFAULT NULL 
+                 ,i_raise_error        IN     BOOLEAN  DEFAULT FALSE
+                 ,i_trim_pointers      IN     BOOLEAN  DEFAULT TRUE
+                 ,i_trim_result        IN     BOOLEAN  DEFAULT FALSE 
+                 ,io_code               IN OUT CLOB 
+                 ,io_current_pos        IN OUT INTEGER 
+                 ,io_upto_pos           IN OUT INTEGER 
+                 ,io_past_pos           IN OUT INTEGER ) return CLOB;
+--------------------------------------------------------------------------------- 
+-- go_past
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Use get_next to advance past i_search
+* Discard result, raise error if no match
+* If i_search is null then simply goto the position g_past_pos found during last get_next
+* @param i_search   pass to get_next as i_srch_before
+* @param i_stop     pass to get_next
+* @param i_modifier pass to get_next
+* @param i_colour   pass to get_next
+* Throws x_string_not_found
+*/
+PROCEDURE go_past(i_search   IN VARCHAR2 DEFAULT NULL
+                 ,i_stop     IN VARCHAR2 DEFAULT NULL
+                 ,i_modifier IN VARCHAR2 DEFAULT 'i'
+                 ,i_colour   IN VARCHAR2 DEFAULT G_COLOUR_GO_PAST);
+
+--------------------------------------------------------------------------------- 
+-- go_upto
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Use go_upto to advance upto i_stop
+* Discard result, raise error if no match
+* If i_stop is null then simply goto the position g_upto_pos found during last get_next
+* @param i_stop            pass to get_next
+* @param i_modifier        pass to get_next
+* @param i_trim_pointers   pass to get_next
+* Throws x_string_not_found
+*/
+PROCEDURE go_upto(i_stop          IN VARCHAR2 DEFAULT NULL
+                 ,i_modifier      IN VARCHAR2 DEFAULT 'i'
+                 ,i_trim_pointers IN BOOLEAN DEFAULT FALSE
+                 );
+
+--------------------------------------------------------------------------------- 
+-- get_next_object_name
+---------------------------------------------------------------------------------
+/** PRIVATE
+* get and consume the next object name
+* Search from current position for a single or double word.
+* If double word then l_object_name is the 2nd word.
+* @return l_object_name
+*/
+FUNCTION get_next_object_name RETURN VARCHAR2;
+
+ 
+--------------------------------------------------------------------------------- 
+-- AOP_pu_params
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Indentify parameters in the header of the current program unit
+* Determine usage of parameter and add to approp parameter lists.
+* param input lists (io_param_list and io_param_types) - For params IN or IN OUT or implicit IN
+* variable list     (io_var_list)                      - For params       IN OUT or OUT  
+* @param io_param_list  List of input parameter names (indexed by integer)
+* @param io_param_types List of input parameter types (indexed by integer)
+* @param io_var_list    List of variable names and types -(indexed by name) 
+*/
+PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
+                       ,io_param_types IN OUT param_list_typ
+                       ,io_var_list    IN OUT var_list_typ );
+ 
+
+--------------------------------------------------------------------------------- 
+-- AOP_var_defs    
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Indentify variables defined in the declaration section of the current block
+* Add vars them to the var list. 
+* @param  i_var_list list of scoped variables
+* @return total list of scoped variables
+*/
+FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ;
+    
+--------------------------------------------------------------------------------- 
+-- AOP_declare_block
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Process a block with a declaration section.
+*   Find declared variables
+*   Process declared sub program units
+*   Process the rest of the block. 
+* @param  i_indent   current indent count
+* @param  i_var_list list of scoped variables
+*/
+PROCEDURE AOP_declare_block(i_indent   IN INTEGER
+                           ,i_var_list IN var_list_typ);
+  
+--------------------------------------------------------------------------------- 
+-- AOP_is_as
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Found IS or AS section of current Program Unit 
+*   Find the program unit parameters
+*   Find declared variables
+*   Process declared sub program units
+*   Process the program unit block. 
+* @param  i_prog_unit_name Name of the Program Unit
+* @param  i_indent         Current indent count
+* @param  i_node_type      Type of Node
+* @param  i_var_list       List of scoped variables
+*/
+PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
+                   ,i_indent         IN INTEGER
+                   ,i_node_type      IN VARCHAR2
+                   ,i_var_list       IN var_list_typ);
+
+  
+        
+--------------------------------------------------------------------------------- 
+-- AOP_block
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Process any kind of block - currently kinds accommodated.
+*   BEGIN - END
+*   LOOP  - END LOOP
+*   CASE  - END CASE
+*   IF    - END IF  (Includes ELSIF and ELSE)
+* @param  i_indent    Current indent count
+* @param  i_regex_end End of the block must match this regex.
+* @param  i_var_list  List of scoped variables
+*/
+--PROCEDURE AOP_block(i_indent         IN INTEGER
+--                   ,i_regex_end      IN VARCHAR2
+--                   ,i_var_list       IN var_list_typ  );
+
+--------------------------------------------------------------------------------- 
+-- AOP_pu_block
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Weave a Program Unit block
+*   Wrap an extra BEGIN END block around the original block, to support
+*   - logger param calls before the original BEGIN.
+*   - an EXCEPTION WHEN OTHERS after the original END.
+*     to trap, note and re-raise errors from the original block.
+* @param  i_prog_unit_name Name of program unit
+* @param  i_indent    Current indent count
+* @param  i_param_list  List of parameter names (indexed by integer)
+* @param  i_param_types List of parameter types (indexed by integer)
+* @param  i_var_list  List of scoped variables
+*/
+--PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
+--                      ,i_indent         IN INTEGER
+--                      ,i_param_list     IN param_list_typ
+--                      ,i_param_types    IN param_list_typ
+--                      ,i_var_list       IN var_list_typ );
+
+
+ 
+--------------------------------------------------------------------------------- 
+-- AOP_prog_units
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Weave program units until no more program units found.
+* @param  i_indent   current indent count
+* @param  i_var_list list of scoped variables
+*/
+--PROCEDURE AOP_prog_units(i_indent   IN INTEGER
+--                        ,i_var_list IN var_list_typ  );
+ 
+--------------------------------------------------------------------
+-- trim_clob
+--------------------------------------------------------------------
+/** PRIVATE
+* Remove all leading and trailing whitespace from CLOB
+* @param i_clob   source clob
+* @return trim(source clob)
+*/
+FUNCTION trim_clob(i_clob IN CLOB) RETURN CLOB;
+
+  --------------------------------------------------------------------
+  -- get_plsql
+  --------------------------------------------------------------------
+/** PRIVATE
+* Retrieve PLSQL object source using dbms_metadata.get_ddl
+* @param i_object_name      Object Name
+* @param i_object_type      Object Type
+* @param i_object_owner     Object Owner
+* @return object source code
+*/
+  function get_plsql ( i_object_name   in varchar2
+                     , i_object_type   in varchar2
+                     , i_object_owner  in varchar2 )  return clob;
+
+-----------------------------------------------------------------------------------------------
+-- P U B L I C
+----------------------------------------------------------------------------------------------- 
+
+ 
+
+-----------------------------------------------------------------------------------------------
+-- weave
+----------------------------------------------------------------------------------------------- 
+/** PUBLIC
+* Weave logger instrumentation into the source code.  
+* Will process 
+*  one package body (and componants) or 
+*  one anonymous block (and componants) or
+*  a list of program units (Procedures and Functions)            
+* @param p_code         source code
+* @param p_package_name name of package (optional)
+* @param p_for_html     flag to add HTML style tags for apex pretty print
+* @param p_end_user     object owner
+* @return TRUE if woven successfully.
+*/
+
+  function weave
+  ( p_code         in out clob
+  , p_package_name in varchar2
+  , p_for_html     in boolean default false
+  , p_end_user     in varchar2 default null
+  ) return boolean;
+  
+ 
+--------------------------------------------------------------------
+-- instrument_plsql
+--------------------------------------------------------------------  
+/** PRIVATE
+* Reweave the object for each requested version and store the results.
+* @param i_object_name   Object Name 
+* @param i_object_type   Object Type 
+* @param i_object_owner  Object Owner
+* @param i_versions      Versions of Logger weaving required 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
+*/
+  procedure instrument_plsql
+  ( i_object_name   in varchar2
+  , i_object_type   in varchar2
+  , i_object_owner  in varchar2
+  , i_versions      in varchar2 --USAGE 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
+  );
+
+--------------------------------------------------------------------
+-- reapply_aspect
+--------------------------------------------------------------------  
+/** PUBLIC
+* Reweave the object
+* @param i_object_name  Object Name 
+* @param i_versions     Versions of Logger weaving required 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
+*/
+  procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL
+                         , i_versions    in varchar2 default 'AOP,HTML');
+
+--------------------------------------------------------------------
+-- restore_comments_and_strings
+--------------------------------------------------------------------  
+/** PRIVATE
+* Replace all comment placeholders with the original comment
+* Replace all string placeholders with the original strings
+*/
+--  procedure restore_comments_and_strings;
+  
+--------------------------------------------------------------------
+-- stash_comments_and_strings
+--------------------------------------------------------------------  
+/** PRIVATE
+* Replace each comment with a placeholder and stash the original comment
+* Replace each string with a placeholder and stash the original string
+* www.orafaq.com/forum/t/99722/2/ discussion of alternative methods.
+*/
+
+--  procedure stash_comments_and_strings;
+   
+--------------------------------------------------------------------
+-- using_aop
+--------------------------------------------------------------------  
+/** PUBLIC
+* Determine whether the woven version is currently installed in the database.
+* @return Yes/No
+*/
+  function using_aop(i_object_name IN VARCHAR2
+                    ,i_object_type IN VARCHAR2 DEFAULT 'PACKAGE BODY') return varchar2;
+ 
+end aop_processor;
+/
+show error;
+
+alter trigger aop_processor_trg enable;

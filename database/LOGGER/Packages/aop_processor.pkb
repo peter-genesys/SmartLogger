@@ -6,6 +6,11 @@ alter session set plsql_optimize_level = 1;
 set define off;
 
 create or replace package body aop_processor is
+/** 
+* AOP Processor - Aspect Orientated Programming Processor
+* Weaves the logging instrumentation into valid plsql progam units. 
+*/
+
   -- AUTHID CURRENT_USER - see spec
   -- @AOP_NEVER
  
@@ -13,7 +18,7 @@ create or replace package body aop_processor is
  
   g_package_name        CONSTANT VARCHAR2(30) := 'aop_processor'; 
  
-  g_during_advise boolean:= false;
+  g_during_advise       boolean:= false;
   
   g_aop_never           CONSTANT VARCHAR2(30) := '@AOP_NEVER';
   g_aop_directive       CONSTANT VARCHAR2(30) := '@AOP_LOG'; 
@@ -26,7 +31,7 @@ create or replace package body aop_processor is
  
   g_weave_start_time  date;
   
-  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 240; -- 4mins per 1000 lines
+  G_TIMEOUT_SECS_PER_1000_LINES CONSTANT NUMBER := 300; -- 5mins per 1000 lines
   g_weave_timeout_secs NUMBER;   
   
   g_initial_indent     constant integer := 0;
@@ -38,6 +43,9 @@ create or replace package body aop_processor is
   g_comment_stack clob_stack_typ;
   g_quote_stack   clob_stack_typ;
  
+  --@TODO could change this into a record type 
+  --Then attempt to do both AOP and HTML versions at once. - or that could be just making it too hard.
+
   g_code               CLOB;
   g_current_pos        INTEGER;
   g_upto_pos           INTEGER;
@@ -52,12 +60,7 @@ create or replace package body aop_processor is
   
   G_PARAM_NAME_WIDTH   CONSTANT NUMBER := 106;
   G_MIN_PARAM_NAME_PADDING CONSTANT NUMBER := 5;  --for formatting only.
-
-
-  TYPE var_list_typ IS TABLE OF VARCHAR2(30) INDEX BY VARCHAR2(106);  
-  
-  TYPE param_list_typ IS TABLE OF VARCHAR2(106) INDEX BY BINARY_INTEGER;  
-  
+ 
   g_indent_spaces     CONSTANT INTEGER := 2;
 
   g_end_user          VARCHAR2(30); --owner for normal packages, invoker for invoker packages.
@@ -74,6 +77,7 @@ create or replace package body aop_processor is
   G_REGEX_2_QUOTED_WORDS CONSTANT VARCHAR2(50) := '"*'||G_REGEX_WORD||'"*\."*'||G_REGEX_WORD||'"*'; --quotes are optional    
 
   G_REGEX_NON_WORD_CHAR  CONSTANT VARCHAR2(50) := '[^\w\#\$]'; 
+  --G_REGEX_NON_WORD_CHAR  CONSTANT VARCHAR2(50) := '(^\w|\#|\$)';
   G_REGEX_NON_WORD       CONSTANT VARCHAR2(50) := G_REGEX_NON_WORD_CHAR||'+'; 
  
   G_REGEX_PKG_BODY       CONSTANT VARCHAR2(50) := '\s *PACKAGE\s+?BODY\s';
@@ -88,10 +92,10 @@ create or replace package body aop_processor is
   
   G_REGEX_JAVA           CONSTANT VARCHAR2(50) := '\sLANGUAGE\s+?JAVA\s+?NAME\s';
  
-  --Opening Blocks
-  G_REGEX_DECLARE       CONSTANT VARCHAR2(50) := '\s *DECLARE\s';
-  G_REGEX_BEGIN         CONSTANT VARCHAR2(50) := '\s *BEGIN\s';
-  G_REGEX_LOOP          CONSTANT VARCHAR2(50) := '\s *LOOP\s';
+  --Opening Blocks (CR and spaces needed by calc_indent)
+  G_REGEX_DECLARE       CONSTANT VARCHAR2(50) := '\s *DECLARE\s'; --Find CR and spaces and DECLARE
+  G_REGEX_BEGIN         CONSTANT VARCHAR2(50) := '\s *BEGIN\s';   --Find CR and spaces and BEGIN
+  G_REGEX_LOOP          CONSTANT VARCHAR2(50) := '\s *LOOP\s';    --Find CR and spaces and LOOP
   G_REGEX_CASE          CONSTANT VARCHAR2(50) := G_REGEX_NON_WORD_CHAR||'CASE\s'; --CASE can be preceded by any non-word
   -- G_REGEX_CASE          CONSTANT VARCHAR2(50) := '(\s|\,|\||\)|\()CASE\s'; --CASE can be preceded by [WS ) ( , ||] --though not sure 
 
@@ -158,7 +162,7 @@ create or replace package body aop_processor is
   G_REGEX_RETURN_IS_AS_DECLARE    CONSTANT VARCHAR2(50) := '(\)|\s)\s*(RETURN|IS|AS|DECLARE)\s';
   G_REGEX_DEFAULT         CONSTANT VARCHAR2(20) := '(DEFAULT|:=)';
   
-  G_REGEX_SUPPORTED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER'
+  G_REGEX_PREDEFINED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER'
                                                   ||'|DATE|VARCHAR2|VARCHAR|CHAR|BOOLEAN|CLOB)';
   
   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##|\^\^)';
@@ -171,37 +175,16 @@ create or replace package body aop_processor is
   G_REGEX_NOTE               CONSTANT VARCHAR2(50) := '--\^\^';  
 
  
- 
-  ----------------------------------------------------------------------------
-  -- COLOUR CODES
-  ----------------------------------------------------------------------------
- 
-  G_COLOUR_PROG_UNIT        CONSTANT VARCHAR2(10) := '#9999FF';
-  G_COLOUR_BLOCK            CONSTANT VARCHAR2(10) := '#FFCC99';
-  G_COLOUR_COMMENT          CONSTANT VARCHAR2(10) := '#FFFF99';
-  G_COLOUR_QUOTE            CONSTANT VARCHAR2(10) := '#99CCFF';
-  G_COLOUR_PARAM            CONSTANT VARCHAR2(10) := '#FF99FF';
-  G_COLOUR_NODE             CONSTANT VARCHAR2(10) := '#66FFFF';
-  G_COLOUR_ERROR            CONSTANT VARCHAR2(10) := '#FF6600';
-  G_COLOUR_SPLICE           CONSTANT VARCHAR2(10) := '#FFCC66';
-  G_COLOUR_PU_NAME          CONSTANT VARCHAR2(10) := '#99FF99';
-  G_COLOUR_OBJECT_NAME      CONSTANT VARCHAR2(10) := '#FFCC00';
-  G_COLOUR_PKG_BEGIN        CONSTANT VARCHAR2(10) := '#CCCC00'; 
-  G_COLOUR_GO_PAST          CONSTANT VARCHAR2(10) := '#FF9999'; 
-  G_COLOUR_BRACKETS         CONSTANT VARCHAR2(10) := '#FF5050'; 
-  G_COLOUR_EXCEPTION_BLOCK  CONSTANT VARCHAR2(10) := '#FF9933'; 
-  G_COLOUR_JAVA             CONSTANT VARCHAR2(10) := '#33CCCC'; 
-  G_COLOUR_UNSUPPORTED      CONSTANT VARCHAR2(10) := '#999966'; 
-  G_COLOUR_ANNOTATION       CONSTANT VARCHAR2(10) := '#FFCCFF'; 
-  G_COLOUR_BIND_VAR         CONSTANT VARCHAR2(10) := '#FFFF00';
-  G_COLOUR_VAR              CONSTANT VARCHAR2(10) := '#99FF66';
-  G_COLOUR_NOTE             CONSTANT VARCHAR2(10) := '#00FF99';
-  G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
- 
-
-
-
-
+--------------------------------------------------------------------
+-- source_has_tag
+--------------------------------------------------------------------
+/** PRIVATE
+* Check existence of a text tag within the source text of an object
+* @param i_owner Object Owner 
+* @param i_name  Object Name 
+* @param i_type  Object Type 
+* @param i_tag   Search Tag
+*/
   function source_has_tag(i_owner varchar2
                          ,i_name  varchar2
                          ,i_type  varchar2
@@ -246,9 +229,15 @@ create or replace package body aop_processor is
       raise;
   end; --source_has_tag
 
-  --------------------------------------------------------------------
-  -- source_weave_now
-  --------------------------------------------------------------------
+--------------------------------------------------------------------
+-- source_weave_now
+--------------------------------------------------------------------
+/** PUBLIC
+* Check existence of @AOP_LOG_WEAVE_NOW tag within the source text of an object
+* @param i_owner Object Owner 
+* @param i_name  Object Name 
+* @param i_type  Object Type 
+*/
   function source_weave_now(i_owner varchar2
                            ,i_name  varchar2
                            ,i_type  varchar2) return boolean is
@@ -260,9 +249,16 @@ create or replace package body aop_processor is
   
 
   END;
-  --------------------------------------------------------------------
-  -- source_reg_mode_debug
-  --------------------------------------------------------------------
+
+--------------------------------------------------------------------
+-- source_reg_mode_debug
+--------------------------------------------------------------------
+/** PUBLIC
+* Check existence of @AOP_REG_MODE_DEBUG tag within the source text of an object
+* @param i_owner Object Owner 
+* @param i_name  Object Name 
+* @param i_type  Object Type 
+*/
   function source_reg_mode_debug(i_owner varchar2
                            ,i_name  varchar2
                            ,i_type  varchar2) return boolean is
@@ -275,9 +271,20 @@ create or replace package body aop_processor is
 
   END;
  
-  --------------------------------------------------------------------
-  -- regex_match
-  --------------------------------------------------------------------
+--------------------------------------------------------------------
+-- regex_match
+--------------------------------------------------------------------
+/** PRIVATE
+* Uses REGEXP_LIKE to check for i_pattern within i_source_string
+* @param i_source_string   Source Text 
+* @param i_pattern         Search Pattern
+* @param i_match_parameter Match Parameter - text literal that lets you change the default matching behavior of the function REGEXP_LIKE
+*  i - specifies case-insensitive matching.
+*  c - specifies case-sensitive matching.
+*  n - allows the period (.), which is the match-any-character wildcard character, to match the newline character. If you omit this parameter, the period does not match the newline character.
+*  m - treats the source string as multiple lines. Oracle interprets ^ and $ as the start and end, respectively, of any line anywhere in the source string, rather than only at the start or end of the entire source string. If you omit this parameter, Oracle treats the source string as a single line.
+* @return TRUE indicates a match was found.
+*/
   FUNCTION regex_match(i_source_string   IN CLOB
                       ,i_pattern         IN VARCHAR2
                       ,i_match_parameter IN VARCHAR2 DEFAULT 'i') RETURN BOOLEAN IS
@@ -285,14 +292,20 @@ create or replace package body aop_processor is
     RETURN REGEXP_LIKE(i_source_string,i_pattern,i_match_parameter);
   END;
  
-  --------------------------------------------------------------------
-  -- table_owner
-  --------------------------------------------------------------------
+--------------------------------------------------------------------
+-- table_owner
+--------------------------------------------------------------------
+/** PRIVATE
+* Search all_tables for table i_table_name.
+* Find the most appropriate table owner.
+* Of All Tables (that the end user can see)
+* Select 1 owner, with preference to the end user
+* @param i_table_name      Table Name
+* @return Table Owner
+*/
   FUNCTION table_owner(i_table_name IN VARCHAR2) RETURN VARCHAR2 IS
     
-    -- find the most appropriate table owner.
-    -- Of All Tables (that the end user can see)
-    -- Select 1 owner, with preference to the end user
+
     CURSOR cu_owner IS
     select owner
     from   all_tables
@@ -310,11 +323,15 @@ create or replace package body aop_processor is
  
   END;
 
- 
-  
-  --------------------------------------------------------------------
-  -- calc_indent
-  --------------------------------------------------------------------
+--------------------------------------------------------------------
+-- calc_indent
+--------------------------------------------------------------------
+/** PRIVATE
+* Read the indent (number of leading spaces) in i_match
+* @param i_default      Default Ident
+* @param i_match        Matched string 
+* @return Count of leading spaces in i_match, or if i_match does not start with CR, just return i_default.
+*/
   FUNCTION calc_indent(i_default IN INTEGER
                       ,i_match   IN VARCHAR2) RETURN INTEGER IS
     l_indent INTEGER;
@@ -332,13 +349,27 @@ create or replace package body aop_processor is
     END IF;
   END;
 
- 
+
+--------------------------------------------------------------------
+-- elapsed_time_secs
+--------------------------------------------------------------------
+/** PRIVATE
+* Calculate the elapsed time since the weave began 
+* @return Elapsed time in seconds
+*/
   function elapsed_time_secs return integer is
   begin
     return (sysdate - g_weave_start_time) * 24 * 60 * 60;
   end;
  
-
+--------------------------------------------------------------------
+-- escape_html
+--------------------------------------------------------------------
+/** PRIVATE
+* Replace some chars [&<>] that are reserved in HTML with coded equivalents
+* @param i_text   Source Text
+* @return i_text post replacement
+*/
   FUNCTION escape_html(i_text   IN CLOB ) RETURN CLOB IS
 
     l_result CLOB;
@@ -354,7 +385,16 @@ create or replace package body aop_processor is
   END;
 
 
-
+--------------------------------------------------------------------
+-- f_colour
+--------------------------------------------------------------------
+/** PRIVATE
+* Add HTML inline span style colour tags to highlight the HTML text
+* This is specifically designed for display in the Apex app.
+* @param i_text   Source Text
+* @param i_colour HEX colour code 
+* @return i_text post replacement
+*/
   FUNCTION f_colour(i_text   IN CLOB
                    ,i_colour IN VARCHAR2) RETURN CLOB IS
   BEGIN
@@ -367,22 +407,39 @@ create or replace package body aop_processor is
   END IF;
   END;
  
+
+--------------------------------------------------------------------
+-- check_timeout
+--------------------------------------------------------------------
+/** PRIVATE
+* Determine whether the precalculated timeout has been exceeded.
+* @throws x_weave_timeout
+*/
   procedure check_timeout is
-  --The timeout is used to protect against infinite recursion or iteration.
+  --
   begin
     if elapsed_time_secs >  g_weave_timeout_secs then
     raise x_weave_timeout;
   end if;
   
   end;
-  
+
+--------------------------------------------------------------------
+-- set_weave_timeout
+--------------------------------------------------------------------
+/** PRIVATE
+* Calculate the max time allowed for the weave, based on the number of lines in the source.
+* Result is stored in g_weave_timeout_secs
+* The timeout is used to protect against infinite recursion or iteration.
+* @throws x_weave_timeout
+*/
   procedure set_weave_timeout is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'set_weave_timeout');  
     l_weave_line_count INTEGER;
  
   BEGIN
     --Line Count derived from length of CLOB minus length of CLOB-without-CR
-  l_weave_line_count := LENGTH(g_code) - LENGTH(REPLACE(g_code,chr(10)));
+    l_weave_line_count := LENGTH(g_code) - LENGTH(REPLACE(g_code,chr(10)));
     ms_logger.note(l_node, 'l_weave_line_count ',l_weave_line_count );
     g_weave_timeout_secs := ROUND(l_weave_line_count/1000*G_TIMEOUT_SECS_PER_1000_LINES)+2;
     ms_logger.note(l_node, 'g_weave_timeout_secs ',g_weave_timeout_secs );
@@ -390,19 +447,36 @@ create or replace package body aop_processor is
  
   END;
  
-  --------------------------------------------------------------------
-  -- during_advise
-  --------------------------------------------------------------------
-  
+--------------------------------------------------------------------
+-- during_advise
+--------------------------------------------------------------------
+/** PUBLIC
+* Is the weaver currently performing a weave.
+* This function is used purely by the trigger aop_processor_trg to ensure it is NOT triggered by the weaver itself.
+* @return TRUE when weaving.
+*/
   function during_advise return boolean is
   begin 
     return g_during_advise;
   end during_advise;
 
  
-  --------------------------------------------------------------------
-  -- validate_source
-  --------------------------------------------------------------------
+--------------------------------------------------------------------
+-- validate_source
+--------------------------------------------------------------------
+/** PRIVATE
+* Compile the source against the database, as directed (i_compile).
+* Store the source in table aop_source
+* Return the success result of compilation, if any.
+* Executes i_text against the database.
+* Uses ALL_ERRORS to report compilation errors.
+* @param i_name     Object Name
+* @param i_type     Object Type
+* @param i_text     Object source text
+* @param i_aop_ver  AOP Version (ORIG,AOP,HTML)
+* @param i_compile  Directive to compile or not.
+* @return TRUE if compilation successful, or not directed to compile.
+*/
   function validate_source(i_name        IN VARCHAR2
                          , i_type        IN VARCHAR2
                          , i_text        IN CLOB
@@ -434,6 +508,16 @@ create or replace package body aop_processor is
     IF i_compile THEN 
  
       begin
+
+        --It is important for the correct determination of execution tree (later), that the optimiser level is set to 1 while i_text is compiled. 
+
+        --https://docs.oracle.com/cd/B28359_01/server.111/b28320/initparams184.htm#REFRN10255
+        --PLSQL_OPTIMIZE_LEVEL specifies the optimization level that will be used to compile PL/SQL library units. 
+        --The higher the setting of this parameter, the more effort the compiler makes to optimize PL/SQL library units.
+        --Applies a wide range of optimizations to PL/SQL programs including the elimination of unnecessary computations and exceptions, 
+        --but generally does not move source code out of its original source order.
+
+
         execute immediate 'alter session set plsql_optimize_level = 1';
         --execute immediate 'set scan off';
       
@@ -473,10 +557,19 @@ create or replace package body aop_processor is
   END;
  
  
-
-  --------------------------------------------------------------------
-  -- splice
-  --------------------------------------------------------------------
+--------------------------------------------------------------------
+-- splice
+--------------------------------------------------------------------
+/** PRIVATE
+* Splice extra code into source code.  
+* Extra code will be inserted within the source code to create a longer result.
+* Return the result in p_code.
+* @param p_code     Source Code
+* @param p_new_code Extra Code to be spliced into Source Code
+* @param p_pos      Position within Source Code to splice Extra Code
+* @param p_indent   Current indenting (number of spaces indented) - if not null, then a new line is injected.
+* @param p_colour   Colour to be wrapped around the spliced code.
+*/
   procedure splice( p_code     in out clob
                    ,p_new_code in clob
                    ,p_pos      in out number
@@ -558,9 +651,15 @@ create or replace package body aop_processor is
 
   END;
   
-  --------------------------------------------------------------------
-  -- wedge
-  --------------------------------------------------------------------
+--------------------------------------------------------------------
+-- wedge
+--------------------------------------------------------------------
+/** PRIVATE
+* Wedge splices i_new_code into the global g_code at the global g_current_pos
+* Does not specify p_indent when calling splice, so splice will NOT create a new line.
+* @param i_new_code Extra Code to be spliced into g_code
+* @param i_colour   Colour to be wrapped around the spliced code.
+*/
     PROCEDURE wedge( i_new_code in varchar2
                     ,i_colour   in varchar2 default null) IS
   
@@ -574,10 +673,15 @@ create or replace package body aop_processor is
    
   END;
   
-  --------------------------------------------------------------------
-  -- inject
-  --------------------------------------------------------------------
-  
+--------------------------------------------------------------------
+-- inject
+--------------------------------------------------------------------
+/** PRIVATE
+* Inject splices i_new_code into the global g_code at the global g_current_pos with a new line (assuming i_indent is not null)
+* @param i_new_code Extra Code to be spliced into g_code.
+* @param i_indent   Indenting to be used on the new line.
+* @param i_colour   Colour to be wrapped around the spliced code.
+*/
     PROCEDURE inject( i_new_code in varchar2
                      ,i_indent   in number
                      ,i_colour   in varchar2 default null) IS
@@ -594,15 +698,33 @@ create or replace package body aop_processor is
   
 
 --------------------------------------------------------------------------------- 
--- ATOMIC
+-- ATOMIC - Low level routines.
 --------------------------------------------------------------------------------- 
  
+
+--------------------------------------------------------------------
+-- trim_whitespace
+--------------------------------------------------------------------
+/** PRIVATE
+* Use REGEXP_REPLACE to remove upto 1 leading and trailing whitespace from i_words
+* @param i_words Source Text to be trimmed.
+* @return Trimmed Source Text 
+*/
 FUNCTION trim_whitespace(i_words IN CLOB) RETURN CLOB IS
-  G_REGEX_LEADING_TRAILING_WHITE CONSTANT VARCHAR2(20) := '^\s|\s$';
+  G_REGEX_LEADING_TRAILING_WHITE CONSTANT VARCHAR2(20) := '^\s|\s$'; --upto 1 leading and trailing whitespace
 BEGIN
   RETURN TRIM(REGEXP_REPLACE(i_words,G_REGEX_LEADING_TRAILING_WHITE,''));
 END;
 
+--------------------------------------------------------------------
+-- flatten
+--------------------------------------------------------------------
+/** PRIVATE
+* Use REGEXP_REPLACE to convert all whitespace in i_words to simple spaces.
+* This effectively turns multiple lines into a single line.
+* @param i_words Source Text to be trimmed.
+* @return Flatten Source Text 
+*/
 FUNCTION flatten(i_words IN VARCHAR2) RETURN VARCHAR2 IS
   G_REGEX_WHITE CONSTANT VARCHAR2(20) := '\s';
 BEGIN
@@ -610,19 +732,33 @@ BEGIN
 END;
 
 
+--------------------------------------------------------------------
+-- REGEXP_INSTR_NOT0
+--------------------------------------------------------------------
+/** PRIVATE
+* Variant of REGEXP_INSTR.   This version will return 10000000 instead of 0.
+* Usage: REGEXP_INSTR_NOT0(string, pattern [, position [, occurrence [, return_position [, regexp_modifier]]]])
+* @param i_string          source string
+* @param i_pattern         search pattern
+* @param i_position        start search position
+* @param i_occurrence      search for this occurrence
+* @param i_return_option   lets you specify what Oracle should return in relation to the occurrence:
+* If you specify 0, then Oracle returns the position of the first character of the occurrence. This is the default.
+* If you specify 1, then Oracle returns the position of the character following the occurrence.
+* @param i_regexp_modifier  Is a text literal that lets you change the default matching behavior of the function REGEXP_INSTR
+* @return position of i_pattern within i_string.
+*/
 FUNCTION REGEXP_INSTR_NOT0(i_string           IN CLOB  
                           ,i_pattern          IN VARCHAR2
                           ,i_position         IN INTEGER  DEFAULT NULL
                           ,i_occurrence       IN INTEGER  DEFAULT NULL
-                          ,i_return_position  IN INTEGER  DEFAULT NULL
+                          ,i_return_option    IN INTEGER  DEFAULT NULL
                           ,i_regexp_modifier  IN VARCHAR2 DEFAULT NULL) RETURN INTEGER IS
---Overload the std oracle built-in, but this version does not return 0
---REGEXP_INSTR(string, pattern [, position [, occurrence [, return_position [, regexp_modifier]]]])
 
   l_result INTEGER;
  
 BEGIN
-  l_result := REGEXP_INSTR(i_string, i_pattern, i_position , i_occurrence , i_return_position , i_regexp_modifier );
+  l_result := REGEXP_INSTR(i_string, i_pattern, i_position , i_occurrence , i_return_option , i_regexp_modifier );
 
   IF l_result = 0 THEN
     RETURN 10000000;
@@ -632,44 +768,58 @@ BEGIN
  
 END;  
  
+ 
+--------------------------------------------------------------------
+-- get_next
+--------------------------------------------------------------------
+/** PRIVATE
+* Given keywords to find, get_next will return first matching string.
+* The search keywords are split into i_srch_before, i_stop, i_srch_after, in that order of priority.
+* If there is a match in more than one keyword set, the match from i_srch_before is given priority over i_stop, and i_stop is given priority over i_srch_after
+* The highest priority match is returned as the result, but only a match from i_srch_before or i_srch_after is consumed.
+* When a match is consumed, the current position is advanced past the match, and the text is then not scanned again.
+* A match from i_stop is merely used to halt the search.  The match itself is not consumed.  The current position is not advanced.
+* After ANY match the global positions will be updated
+*   g_upto_pos to the start of the match
+*   g_past_pos to the end of the match
+* IF match FROM i_srch_before or i_srch_after THEN it is consumed, meaning g_current_pos will also advance to g_past_pos. 
+* IF match FROM i_stop                        THEN it is NOT consumed.  g_current_pos does not change, even though g_upto_pos and g_past_pos have advanced.
+* @param i_srch_before     search and consume keywords       - higher priority than i_stop   
+* @param i_stop            search and stop without consuming
+* @param i_srch_after      search and consume keywords       - lower  priority than i_stop
+* @param i_modifier        modifier is applied in all REGEX functions       
+* @param i_upper           return UPPER(result)     
+* @param i_lower           return LOWER(result)         
+* @param i_colour          colour used to highlight consumed words in HTML mode.       
+* @param i_raise_error     raise an error if no match, and output the search string
+* @param i_trim_result     strip from result, upto 1 leading and trailing whitespace     
+* @param i_trim_pointers   g_upto_pos and g_past_pos will point to the start and stop of the trimmed result      
+* @return matched text
+* @throws x_string_not_found
+*/
+FUNCTION get_next(i_srch_before        IN     VARCHAR2 DEFAULT NULL
+                 ,i_srch_after         IN     VARCHAR2 DEFAULT NULL 
+                 ,i_stop               IN     VARCHAR2 DEFAULT NULL
+                 ,i_modifier           IN     VARCHAR2 DEFAULT 'i'
+                 ,i_upper              IN     BOOLEAN  DEFAULT FALSE
+                 ,i_lower              IN     BOOLEAN  DEFAULT FALSE
+                 ,i_colour             IN     VARCHAR2 DEFAULT NULL 
+                 ,i_raise_error        IN     BOOLEAN  DEFAULT FALSE
+                 ,i_trim_pointers      IN     BOOLEAN  DEFAULT TRUE
+                 ,i_trim_result        IN     BOOLEAN  DEFAULT FALSE 
+                 ,io_code               IN OUT CLOB 
+                 ,io_current_pos        IN OUT INTEGER 
+                 ,io_upto_pos           IN OUT INTEGER 
+                 ,io_past_pos           IN OUT INTEGER ) return CLOB IS
 
---------------------------------------------------------------------------------- 
--- get_next - return first matching string
----------------------------------------------------------------------------------
--- Search is split into i_srch_before, i_stop, i_srch_after in that order of priority.
--- l_any_match is the match from any of the componants
--- i_modifier is applied to the std REGEXP_SUBSTR search
--- g_upto_pos is the start of the match
--- g_past_pos is the end of the match
--- IF i_trim_result    THEN stripped of upto 1 leading and trailing whitespace
--- IF i_trim_pointers  THEN g_upto_pos and g_past_pos will point to the start and stop of the trimmed match
--- IF match FROM i_srch_before/after THEN g_current_pos will advance to g_past_pos, otherwise g_current_pos does not change.
--- IF i_upper    THEN  result is in UPPER
--- IF i_lower    THEN  result is in LOWER
--- IN HTML mode i_colour determines the highlighting used when the match is consumed (g_current_pos set to g_past_pos)
--- IF i_raise_error and NO MATCH, and exception is raises, and the search string written out.
----------------------------------------------------------------------------------
-
-FUNCTION get_next(i_srch_before        IN VARCHAR2 DEFAULT NULL
-                 ,i_srch_after         IN VARCHAR2 DEFAULT NULL 
-                 ,i_stop               IN VARCHAR2 DEFAULT NULL
-                 ,i_modifier           IN VARCHAR2 DEFAULT 'i'
-                 ,i_upper              IN BOOLEAN  DEFAULT FALSE
-                 ,i_lower              IN BOOLEAN  DEFAULT FALSE
-                 ,i_colour             IN VARCHAR2 DEFAULT NULL 
-                 ,i_raise_error        IN BOOLEAN  DEFAULT FALSE
-                 ,i_trim_pointers      IN BOOLEAN  DEFAULT TRUE
-                 ,i_trim_result        IN BOOLEAN  DEFAULT FALSE ) return CLOB IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next'); 
   
-  l_any_match             CLOB;
+  l_any_match             CLOB;  --the match from any of the componants
   l_trimmed_any_match     CLOB;
   l_colour_either_match   CLOB;
-  l_search_match          CLOB;
   l_result                CLOB;
   l_any_search            CLOB;
-  l_search                CLOB;
-
+ 
   l_trim_upto_pos         INTEGER;
 
   l_srch_before_pos       INTEGER;
@@ -678,32 +828,43 @@ FUNCTION get_next(i_srch_before        IN VARCHAR2 DEFAULT NULL
 
   l_use_srch_before          BOOLEAN := TRUE;
 
-
+  --------------------------------------------------------------------
+  -- consume_search
+  --------------------------------------------------------------------
+  /** SUB-PROC
+  * Consume search componant that was just found.
+  */
   PROCEDURE consume_search IS
   BEGIN
     ms_logger.comment(l_node, 'Consume search componant');
     l_colour_either_match := f_colour(i_text   => l_trimmed_any_match  
                                      ,i_colour => i_colour);
  
-    g_code := SUBSTR(g_code,1,g_upto_pos-1)
+    io_code := SUBSTR(io_code,1,io_upto_pos-1)
             ||l_colour_either_match
-            ||SUBSTR(g_code,g_past_pos)  ;
+            ||SUBSTR(io_code,io_past_pos)  ;
        
     --Now advance the past_pos   
-    g_past_pos := g_upto_pos + LENGTH(l_colour_either_match);
+    io_past_pos := io_upto_pos + LENGTH(l_colour_either_match);
     --Current pos is now the past_pos
-    g_current_pos := g_past_pos;
+    io_current_pos := io_past_pos;
   END;
  
 
-BEGIN
-  check_timeout; --GET_NEXT
+BEGIN --GET_NEXT
   ms_logger.param(l_node, 'i_srch_before'     ,i_srch_before);
-  ms_logger.param(l_node, 'i_srch_after'    ,i_srch_after);
-  ms_logger.param(l_node, 'i_stop'       ,i_stop);
-  ms_logger.param(l_node, 'g_current_pos',g_current_pos);
-
-  
+  ms_logger.param(l_node, 'i_srch_after'      ,i_srch_after);
+  ms_logger.param(l_node, 'i_stop'            ,i_stop);
+  ms_logger.param(l_node, 'i_modifier     '   ,i_modifier     );
+  ms_logger.param(l_node, 'i_upper        '   ,i_upper        );
+  ms_logger.param(l_node, 'i_lower        '   ,i_lower        );
+  ms_logger.param(l_node, 'i_colour       '   ,i_colour       );
+  ms_logger.param(l_node, 'i_raise_error  '   ,i_raise_error  );
+  ms_logger.param(l_node, 'i_trim_pointers'   ,i_trim_pointers);
+  ms_logger.param(l_node, 'i_trim_result  '   ,i_trim_result  );
+  ms_logger.param(l_node, 'io_current_pos'    ,io_current_pos);
+  ms_logger.param(l_node, 'io_upto_pos'       ,io_upto_pos);
+  ms_logger.param(l_node, 'io_past_pos'       ,io_past_pos);
 
   --Workaround - when i_srch_before gets too long -> ORA-03113: end-of-file on communication channel
   --So split into 2 searches.
@@ -718,8 +879,8 @@ BEGIN
 
     ms_logger.comment(l_node, 'Choosing search param');
  
-    l_srch_before_pos  := REGEXP_INSTR_NOT0(g_code,i_srch_before,g_current_pos,1,0,i_modifier);
-    l_srch_after_pos := REGEXP_INSTR_NOT0(g_code,i_srch_after,g_current_pos,1,0,i_modifier);
+    l_srch_before_pos  := REGEXP_INSTR_NOT0(io_code,i_srch_before,io_current_pos,1,0,i_modifier);
+    l_srch_after_pos   := REGEXP_INSTR_NOT0(io_code,i_srch_after ,io_current_pos,1,0,i_modifier);
 
     ms_logger.note(l_node, 'l_srch_before_pos',l_srch_before_pos);
     ms_logger.note(l_node, 'l_srch_after_pos',l_srch_after_pos);
@@ -729,12 +890,10 @@ BEGIN
   end if;
  
   If l_use_srch_before THEN
-      ms_logger.info(l_node, 'Using i_srch_before');
-      l_search := i_srch_before;
+      ms_logger.info(l_node, 'Using i_srch_before|i_stop');
       l_any_search := TRIM('|' FROM i_srch_before ||'|'||i_stop);
     else
-      ms_logger.info(l_node, 'Using i_srch_after');
-      l_search := i_srch_after;
+      ms_logger.info(l_node, 'Using i_stop|i_srch_after');
       l_any_search := TRIM('|' FROM i_stop ||'|'||i_srch_after);
   end if;
 
@@ -743,7 +902,7 @@ BEGIN
   ms_logger.note_length(l_node, 'l_any_search',l_any_search  );
  
   --Keep the original "either" match
-  l_any_match := REGEXP_SUBSTR(g_code,l_any_search,g_current_pos,1,i_modifier);
+  l_any_match := REGEXP_SUBSTR(io_code,l_any_search,io_current_pos,1,i_modifier);
   ms_logger.note_clob(l_node, 'l_any_match',l_any_match  );
  
   --Should we raise an error?
@@ -756,9 +915,9 @@ BEGIN
   END IF; 
   
   --Calculate the new positions.  
-  g_upto_pos := REGEXP_INSTR(g_code,l_any_search,g_current_pos,1,0,i_modifier);
-  g_past_pos := REGEXP_INSTR(g_code,l_any_search,g_current_pos,1,1,i_modifier);     
-  ms_logger.note(l_node, 'g_upto_pos',g_upto_pos  );
+  io_upto_pos := REGEXP_INSTR(io_code,l_any_search,io_current_pos,1,0,i_modifier);
+  io_past_pos := REGEXP_INSTR(io_code,l_any_search,io_current_pos,1,1,i_modifier);     
+  ms_logger.note(l_node, 'io_upto_pos',io_upto_pos  );
  
   
   l_trimmed_any_match := trim_whitespace(l_any_match);
@@ -774,16 +933,16 @@ BEGIN
     --Now that we've trimmed the match, lets change the pointers to suit.
     --Not a regex search, since just searching for the known string.
     ms_logger.info(l_node, 'Shifting pointers to trimmed match.');
-    g_upto_pos := INSTR(g_code,l_trimmed_any_match,g_upto_pos);
-    g_past_pos := g_upto_pos + LENGTH(l_trimmed_any_match);
-    ms_logger.note(l_node, 'g_upto_pos',g_upto_pos  );
-    ms_logger.note(l_node, 'g_past_pos',g_past_pos  );   
+    io_upto_pos := INSTR(io_code,l_trimmed_any_match,io_upto_pos);
+    io_past_pos := io_upto_pos + LENGTH(l_trimmed_any_match);
+    ms_logger.note(l_node, 'io_upto_pos',io_upto_pos  );
+    ms_logger.note(l_node, 'io_past_pos',io_past_pos  );   
   
   END IF;
  
  
-  
-  IF  l_use_srch_before AND regex_match(l_any_match,l_search,i_modifier) THEN
+  --Determine the priority i_srch_before > i_stop > i_srch_after
+  IF  l_use_srch_before AND regex_match(l_any_match,i_srch_before,i_modifier) THEN
     ms_logger.info(l_node, 'Matched on the search componant1');
     consume_search;
  
@@ -791,18 +950,18 @@ BEGIN
     ms_logger.info(l_node, 'Matched on the stop componant');
     --Matched on the stop componant, don't consume - ie don't advance the pointer.
     NULL;
-  ELSIF NOT l_use_srch_before AND regex_match(l_any_match,l_search,i_modifier) THEN
+  ELSIF NOT l_use_srch_before AND regex_match(l_any_match,i_srch_after,i_modifier) THEN
     ms_logger.info(l_node, 'Matched on the search componant2');
     consume_search;  
   END IF;
  
  
-  --ms_logger.param(l_node, 'g_current_pos',g_current_pos);
-  --ms_logger.note(l_node, 'char @ g_current_pos -2     '   ,substr(g_code, g_current_pos-2, 1)||ascii(substr(g_code, g_current_pos-2, 1)));
-  --ms_logger.note(l_node, 'char @ g_current_pos -1     '   ,substr(g_code, g_current_pos-1, 1)||ascii(substr(g_code, g_current_pos-1, 1)));
-  --ms_logger.note(l_node, 'char @ g_current_pos        '   ,substr(g_code, g_current_pos, 1)||ascii(substr(g_code, g_current_pos, 1)));
-  --ms_logger.note(l_node, 'char @ g_current_pos +1     '   ,substr(g_code, g_current_pos+1, 1)||ascii(substr(g_code, g_current_pos+1, 1)));
-  --ms_logger.note(l_node, 'char @ g_current_pos +2     '   ,substr(g_code, g_current_pos+2, 1)||ascii(substr(g_code, g_current_pos+2, 1)));
+  --ms_logger.param(l_node, 'io_current_pos',io_current_pos);
+  --ms_logger.note(l_node, 'char @ io_current_pos -2     '   ,substr(io_code, io_current_pos-2, 1)||ascii(substr(io_code, io_current_pos-2, 1)));
+  --ms_logger.note(l_node, 'char @ io_current_pos -1     '   ,substr(io_code, io_current_pos-1, 1)||ascii(substr(io_code, io_current_pos-1, 1)));
+  --ms_logger.note(l_node, 'char @ io_current_pos        '   ,substr(io_code, io_current_pos, 1)||ascii(substr(io_code, io_current_pos, 1)));
+  --ms_logger.note(l_node, 'char @ io_current_pos +1     '   ,substr(io_code, io_current_pos+1, 1)||ascii(substr(io_code, io_current_pos+1, 1)));
+  --ms_logger.note(l_node, 'char @ io_current_pos +2     '   ,substr(io_code, io_current_pos+2, 1)||ascii(substr(io_code, io_current_pos+2, 1)));
  
   ms_logger.note_clob(l_node, 'l_result',l_result); 
 
@@ -827,12 +986,56 @@ exception
     raise;
 
 END get_next;
- 
- 
 
+--------------------------------------------------------------------
+-- get_next
+--------------------------------------------------------------------
+/** PRIVATE
+* Overloaded to allow for unit testing of get_next without package variables
+*/
+FUNCTION get_next(i_srch_before        IN VARCHAR2 DEFAULT NULL
+                 ,i_srch_after         IN VARCHAR2 DEFAULT NULL 
+                 ,i_stop               IN VARCHAR2 DEFAULT NULL
+                 ,i_modifier           IN VARCHAR2 DEFAULT 'i'
+                 ,i_upper              IN BOOLEAN  DEFAULT FALSE
+                 ,i_lower              IN BOOLEAN  DEFAULT FALSE
+                 ,i_colour             IN VARCHAR2 DEFAULT NULL 
+                 ,i_raise_error        IN BOOLEAN  DEFAULT FALSE
+                 ,i_trim_pointers      IN BOOLEAN  DEFAULT TRUE
+                 ,i_trim_result        IN BOOLEAN  DEFAULT FALSE ) return CLOB is
+begin
+  check_timeout;  
+
+  return get_next(i_srch_before      => i_srch_before    
+                 ,i_srch_after       => i_srch_after     
+                 ,i_stop             => i_stop           
+                 ,i_modifier         => i_modifier       
+                 ,i_upper            => i_upper          
+                 ,i_lower            => i_lower          
+                 ,i_colour           => i_colour         
+                 ,i_raise_error      => i_raise_error    
+                 ,i_trim_pointers    => i_trim_pointers  
+                 ,i_trim_result      => i_trim_result    
+                 ,io_code             => g_code         
+                 ,io_current_pos      => g_current_pos  
+                 ,io_upto_pos         => g_upto_pos     
+                 ,io_past_pos         => g_past_pos); 
+ 
+end;
+ 
 --------------------------------------------------------------------------------- 
 -- go_past
 ---------------------------------------------------------------------------------
+/** PRIVATE
+* Use get_next to advance past i_search
+* Discard result, raise error if no match
+* If i_search is null then simply goto the position g_past_pos found during last get_next
+* @param i_search   pass to get_next as i_srch_before
+* @param i_stop     pass to get_next
+* @param i_modifier pass to get_next
+* @param i_colour   pass to get_next
+* @throws x_string_not_found
+*/
 PROCEDURE go_past(i_search   IN VARCHAR2 DEFAULT NULL
                  ,i_stop     IN VARCHAR2 DEFAULT NULL
                  ,i_modifier IN VARCHAR2 DEFAULT 'i'
@@ -858,6 +1061,15 @@ END;
 --------------------------------------------------------------------------------- 
 -- go_upto
 ---------------------------------------------------------------------------------
+/** PRIVATE
+* Use go_upto to advance upto i_stop
+* Discard result, raise error if no match
+* If i_stop is null then simply goto the position g_upto_pos found during last get_next
+* @param i_stop            pass to get_next
+* @param i_modifier        pass to get_next
+* @param i_trim_pointers   pass to get_next
+* @throws x_string_not_found
+*/
 PROCEDURE go_upto(i_stop          IN VARCHAR2 DEFAULT NULL
                  ,i_modifier      IN VARCHAR2 DEFAULT 'i'
                  ,i_trim_pointers IN BOOLEAN DEFAULT FALSE
@@ -884,6 +1096,12 @@ END;
 --------------------------------------------------------------------------------- 
 -- get_next_object_name
 ---------------------------------------------------------------------------------
+/** PRIVATE
+* get and consume the next object name
+* Search from current position for a single or double word.
+* If double word then l_object_name is the 2nd word.
+* @return l_object_name
+*/
 FUNCTION get_next_object_name RETURN VARCHAR2 IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next_object_name'); 
   l_object_name VARCHAR2(100);
@@ -911,14 +1129,14 @@ END;
 --------------------------------------------------------------------------------- 
     
 --------------------------------------------------------------------------------- 
--- stash_comments_and_quotes - Forward Declaration
+-- stash_comments_and_strings - Forward Declaration
 ---------------------------------------------------------------------------------
-procedure stash_comments_and_quotes;
+procedure stash_comments_and_strings;
 
 --------------------------------------------------------------------------------- 
--- restore_comments_and_quotes - Forward Declaration
+-- restore_comments_and_strings - Forward Declaration
 ---------------------------------------------------------------------------------
-procedure restore_comments_and_quotes;
+procedure restore_comments_and_strings;
 
 --------------------------------------------------------------------------------- 
 -- AOP_prog_units - Forward Declaration
@@ -952,19 +1170,33 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 --------------------------------------------------------------------------------- 
 -- AOP_pu_params
 ---------------------------------------------------------------------------------
+/** PRIVATE
+* Indentify parameters in the header of the current program unit
+* Determine usage of parameter and add to approp parameter lists.
+* param input lists (io_param_list and io_param_types) - For params IN or IN OUT or implicit IN
+* variable list     (io_var_list)                      - For params       IN OUT or OUT  
+* @param io_param_list  List of input parameter names (indexed by integer)
+* @param io_param_types List of input parameter types (indexed by integer)
+* @param io_var_list    List of variable names and types -(indexed by name) 
+*/
 PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
                        ,io_param_types IN OUT param_list_typ
                        ,io_var_list    IN OUT var_list_typ ) is
+
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_params'); 
  
   l_param_line           CLOB;
   
-  l_param_name  VARCHAR2(30);
-  l_param_type  VARCHAR2(106);
-  l_table_name  VARCHAR2(30);
-  l_column_name VARCHAR2(30);
-  l_table_owner VARCHAR2(30);
- 
+  l_param_name    VARCHAR2(30);
+  l_param_type    VARCHAR2(106);
+  l_table_name    VARCHAR2(30);
+  l_column_name   VARCHAR2(30);
+  l_table_owner   VARCHAR2(30);
+  l_package_owner  VARCHAR2(30);
+  l_package_name   varchar2(50);
+  l_type_name  VARCHAR2(30);
+
+
   l_keyword              CLOB;
   l_bracket              VARCHAR2(50);
   x_out_param            EXCEPTION;
@@ -975,18 +1207,34 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
   l_in_var               BOOLEAN;
   l_out_var              BOOLEAN;
   
-  --This should be expanded to cover G_REGEX_2WORDS etc
-  G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?('||G_REGEX_WORD||')';
+  --This should be expanded to cover G_REGEX_2WORDS etc - PAB DOING ...
   G_REGEX_NAME_IN_OUT     CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?';
+  --G_REGEX_PARAM_LINE    CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?('||G_REGEX_WORD||')';
+  --G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?('||G_REGEX_WORD||')(\.'||G_REGEX_WORD||')?';
+
+  --G_REGEX_PARAM_LINE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')(\.'||G_REGEX_WORD||')?';
+
+
 
  
     
   l_var_def                     CLOB;
-  G_REGEX_VAR_DEF_LINE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_SUPPORTED_TYPES;
-  G_REGEX_REC_VAR_DEF_LINE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||'?)%ROWTYPE';
-  G_REGEX_TAB_COL_VAR_DEF_LINE  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||'?)\.('||G_REGEX_WORD||'?)%TYPE';
-  
+  G_REGEX_PARAM_PREDEFINED       CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_PREDEFINED_TYPES;
+  G_REGEX_PARAM_ROWTYPE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')%ROWTYPE';                     --Table row type
+  G_REGEX_PARAM_COLTYPE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')\.('||G_REGEX_WORD||')%TYPE'; --Table column Type
+  G_REGEX_CUSTOM_PLSQL_TYPE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')\.('||G_REGEX_WORD||')';
+  G_REGEX_CUSTOM_PLSQL_TYPE2     CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')';
+
+  --G_REGEX_CUSTOM_PLSQL_TYPE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_2WORDS;
    
+  --G_REGEX_PACK_REC_VAR_DEF_LINE CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||'?)\.[\w\#\$]+[^\w\#\$]+?';
+
+  --'('||G_REGEX_WORD||'?)'||G_REGEX_NON_WORD_CHAR; --Packaged Record Type
+    
+
+  --G_REGEX_PACK_REC_VAR_DEF_LINE CONSTANT VARCHAR2(200) :='([\w\#\$]+)\s+(IN\s+)?(OUT\s+)?([\w\#\$]+?)\.([\w\#\$]+?)[^\w\#\$]';
+
+
     
   PROCEDURE store_var_def(i_param_name IN VARCHAR2
                          ,i_param_type IN VARCHAR2  
@@ -1002,17 +1250,19 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
     ms_logger.param(l_node, 'i_in_var    ' ,i_in_var    ); 
     ms_logger.param(l_node, 'i_out_var   ' ,i_out_var   ); 
  
-    IF regex_match(i_param_type,G_REGEX_SUPPORTED_TYPES,'i') THEN
+    IF regex_match(i_param_type,G_REGEX_PREDEFINED_TYPES,'i') THEN
  
     IF i_in_var OR NOT l_out_var THEN
         --IN and IN OUT and (implicit IN) included in the param input list.
+        ms_logger.comment(l_node, 'Stored IN var');  
         io_param_list(io_param_list.COUNT+1)   := i_param_name;  
         io_param_types(io_param_types.COUNT+1) := i_param_type;  
 
      END IF;  
   
       IF l_out_var THEN
-        --Save IN OUT and OUT params in the variable list.        
+        --Save IN OUT and OUT params in the variable list. 
+        ms_logger.comment(l_node, 'Stored OUT var');       
         io_var_list(i_param_name) := i_param_type;  
         ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);
       END IF;
@@ -1045,10 +1295,12 @@ BEGIN
              --  varname IN OUT vartype ,
              --  varname IN vartype)
              
-            l_var_def := get_next( i_srch_before    =>  G_REGEX_REC_VAR_DEF_LINE  
-                                               ||'|'||G_REGEX_TAB_COL_VAR_DEF_LINE
-                                    ,i_stop         => G_REGEX_VAR_DEF_LINE||'\W' 
-                                               ||'|'||G_REGEX_PARAM_LINE           
+          l_var_def := get_next( i_srch_before    =>  G_REGEX_PARAM_ROWTYPE
+                                               ||'|'||G_REGEX_PARAM_COLTYPE
+
+                                  ,i_stop         =>  G_REGEX_PARAM_PREDEFINED||'\W'
+                                               ||'|'||G_REGEX_CUSTOM_PLSQL_TYPE
+                                               ||'|'||G_REGEX_CUSTOM_PLSQL_TYPE2
                                     ,i_upper        => TRUE
                                     ,i_colour       => G_COLOUR_PARAM
                                     ,i_raise_error  => TRUE);
@@ -1057,14 +1309,14 @@ BEGIN
 
 
             --temp debugging only
-            -- ms_logger.note(l_node, 'l_var_def p1', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',1));
-            -- ms_logger.note(l_node, 'l_var_def p2', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',2));
-            -- ms_logger.note(l_node, 'l_var_def p3', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',3));
-            -- ms_logger.note(l_node, 'l_var_def p4', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',4));
-            -- ms_logger.note(l_node, 'l_var_def p5', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',5));
-            -- ms_logger.note(l_node, 'l_var_def p6', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',6));
-            -- ms_logger.note(l_node, 'l_var_def p7', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',7));
-            -- ms_logger.note(l_node, 'l_var_def p8', REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',8));
+          -- ms_logger.note(l_node, 'l_var_def p1', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',1));
+          -- ms_logger.note(l_node, 'l_var_def p2', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',2));
+          -- ms_logger.note(l_node, 'l_var_def p3', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',3));
+          -- ms_logger.note(l_node, 'l_var_def p4', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',4));
+          -- ms_logger.note(l_node, 'l_var_def p5', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',5));
+          -- ms_logger.note(l_node, 'l_var_def p6', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',6));
+          -- ms_logger.note(l_node, 'l_var_def p7', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',7));
+          -- ms_logger.note(l_node, 'l_var_def p8', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',8));
 
 
              
@@ -1075,11 +1327,11 @@ BEGIN
      
              CASE 
 
-            WHEN regex_match(l_var_def , G_REGEX_REC_VAR_DEF_LINE) THEN 
+            WHEN regex_match(l_var_def , G_REGEX_PARAM_ROWTYPE) THEN
               ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
               --Looking for ROWTYPE VARS
-                 l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_DEF_LINE,1,1,'i',1));
-                 l_table_name  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_DEF_LINE,1,1,'i',5));
+                 l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_ROWTYPE,1,1,'i',1));
+                 l_table_name  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_ROWTYPE,1,1,'i',5));
           
                  ms_logger.note(l_node, 'l_param_name',l_param_name); 
                  ms_logger.note(l_node, 'l_table_name',l_table_name); 
@@ -1104,11 +1356,11 @@ BEGIN
  
             END LOOP;   
             
-            WHEN regex_match(l_var_def , G_REGEX_TAB_COL_VAR_DEF_LINE) THEN 
+            WHEN regex_match(l_var_def , G_REGEX_PARAM_COLTYPE) THEN
               ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
-                 l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',1));
-                 l_table_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',5));
-                 l_column_name   := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_VAR_DEF_LINE,1,1,'i',7));
+                 l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',1));
+                 l_table_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',5));
+                 l_column_name   := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',7));
             
                  ms_logger.note(l_node, 'l_param_name' ,l_param_name); 
                  ms_logger.note(l_node, 'l_table_name' ,l_table_name); 
@@ -1131,11 +1383,14 @@ BEGIN
   
             END LOOP; 
 
-            WHEN regex_match(l_var_def , G_REGEX_VAR_DEF_LINE) THEN 
+
+
+
+            WHEN regex_match(l_var_def , G_REGEX_PARAM_PREDEFINED) THEN
               ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
               --LOOKING FOR ATOMIC VARS
-                l_param_name := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_DEF_LINE,1,1,'i',1));
-                l_param_type := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_DEF_LINE,1,1,'i',5));
+                l_param_name := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_PREDEFINED,1,1,'i',1));
+                l_param_type := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_PREDEFINED,1,1,'i',5));
                 ms_logger.note(l_node, 'l_param_name',l_param_name);
                 ms_logger.note(l_node, 'l_param_type',l_param_type);
                 
@@ -1144,13 +1399,102 @@ BEGIN
                              ,i_in_var      => l_in_var
                              ,i_out_var     => l_out_var );
  
-                go_past(i_search => G_REGEX_VAR_DEF_LINE
+                go_past(i_search => G_REGEX_PARAM_PREDEFINED
+                       ,i_colour => G_COLOUR_GO_PAST);
+
+
+            WHEN regex_match(l_var_def , G_REGEX_CUSTOM_PLSQL_TYPE) THEN
+              ms_logger.info(l_node, 'LOOKING FOR FOREIGN CUSTOM PLSQL TYPE VARS');
+
+                 l_in_var  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',3)) LIKE 'IN%';
+                 l_out_var := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',4)) LIKE 'OUT%';
+                 ms_logger.note(l_node, 'l_in_var',l_in_var);
+                 ms_logger.note(l_node, 'l_out_var',l_out_var);
+ 
+                 l_param_name      := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE,1,1,'i',1));
+                 l_package_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE,1,1,'i',5));
+                 l_type_name       := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE,1,1,'i',7));
+
+                 ms_logger.note(l_node, 'l_param_name'   ,l_param_name);
+                 ms_logger.note(l_node, 'l_package_name' ,l_package_name);
+                 ms_logger.note(l_node, 'l_type_name'    ,l_type_name);
+
+
+                --Remember the Record name itself as a var with a type of PACKAGE_NAME.TYPE_NAME
+                 io_var_list(l_param_name) := l_package_name||'.'||l_type_name;
+                 ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
+ 
+                 --Only attempts to write out atomic vars, unless we start recursion..
+                 --Also need to add 1 var def for each valid componant of the record type.
+                 l_package_owner := 'PACMAN'; --package_owner(i_table_name => l_table_name);
+
+                 declare
+                   l_param_found boolean := FALSE;
+                 begin  
+                   FOR l_column IN 
+                     (select lower(ATTR_NAME) column_name
+                            ,DECODE(ATTR_TYPE_NAME,'PL/SQL BOOLEAN','BOOLEAN'
+                                                                   ,ATTR_TYPE_NAME)   data_type
+                      from pack_record_v
+                      where  type_owner   =  l_package_owner    
+                      and    type_name    =  l_package_name
+                      and    type_subname =  l_type_name  ) LOOP
+                      
+                      --Restrict to atomic types.
+                      IF G_REGEX_PREDEFINED_TYPES like '%'||l_column.data_type||'%' THEN
+
+                          l_param_found := TRUE;
+                          store_var_def(i_param_name  => l_param_name||'.'||l_column.column_name
+                                       ,i_param_type  => l_column.data_type
+                                       ,i_in_var      => l_in_var
+                                       ,i_out_var     => l_out_var );
+                      ELSE
+                         ms_logger.note(l_node, 'l_column.data_type',l_column.data_type);   
+                         ms_logger.warning(l_node, 'Parameter data type not recognised atomic data type.');   
+                      END IF;    
+    
+                   END LOOP; 
+                   
+                   if not l_param_found then
+                     ms_logger.warning(l_node, 'Parameter NOT stored!');
+                   end if;
+                 end;
+                   
+                 go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE
+                        ,i_colour => G_COLOUR_GO_PAST);
+
+
+
+            WHEN regex_match(l_var_def , G_REGEX_CUSTOM_PLSQL_TYPE2) THEN
+              ms_logger.info(l_node, 'LOOKING FOR LOCAL CUSTOM PLSQL TYPE VARS');
+
+              --temp debugging only
+              ms_logger.note(l_node, 'l_var_def p1', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',1));
+              ms_logger.note(l_node, 'l_var_def p2', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',2));
+              ms_logger.note(l_node, 'l_var_def p3', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',3));
+              ms_logger.note(l_node, 'l_var_def p4', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',4));
+              ms_logger.note(l_node, 'l_var_def p5', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',5));
+              ms_logger.note(l_node, 'l_var_def p6', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',6));
+              ms_logger.note(l_node, 'l_var_def p7', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',7));
+              ms_logger.note(l_node, 'l_var_def p8', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',8));
+
+
+                 l_param_name      := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',1));
+                 l_package_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',5));
+                 l_type_name       := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',7));
+
+                 ms_logger.note(l_node, 'l_param_name' ,l_param_name);
+                 ms_logger.note(l_node, 'l_package_name' ,l_package_name);
+                 ms_logger.note(l_node, 'l_type_name',l_type_name);
+
+
+                go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE2
                        ,i_colour => G_COLOUR_GO_PAST);
           
                --UNSUPPORTED
                ELSE
                  ms_logger.info(l_node, 'Unsupported datatype');
-                go_past(i_search => G_REGEX_PARAM_LINE
+                go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE
                        ,i_colour => G_COLOUR_UNSUPPORTED);
 
                  --RAISE x_invalid_keyword;
@@ -1225,16 +1569,22 @@ END AOP_pu_params;
  
 
 --------------------------------------------------------------------------------- 
--- AOP_var_def - Harvests any vars and appends them to the var list.     
+-- AOP_var_defs    
 ---------------------------------------------------------------------------------
+/** PRIVATE
+* Indentify variables defined in the declaration section of the current block
+* Add vars them to the var list. 
+* @param  i_var_list list of scoped variables
+* @return total list of scoped variables
+*/
 FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
   l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'AOP_var_defs'); 
   
   l_var_list              var_list_typ := i_var_list;
   l_var_def               CLOB;
-  G_REGEX_VAR_DEF_LINE         CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?'||G_REGEX_SUPPORTED_TYPES||'\W';
-  G_REGEX_REC_VAR_DEF_LINE     CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?%ROWTYPE';
-  G_REGEX_TAB_COL_VAR_DEF_LINE CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?\.'||G_REGEX_WORD||'?%TYPE';
+  G_REGEX_PARAM_PREDEFINED         CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?'||G_REGEX_PREDEFINED_TYPES||'\W';
+  G_REGEX_PARAM_ROWTYPE       CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?%ROWTYPE';
+  G_REGEX_PARAM_COLTYPE       CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?\.'||G_REGEX_WORD||'?%TYPE';
   
   
   G_REGEX_VAR_NAME_TYPE       CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+('||G_REGEX_WORD||')';
@@ -1253,9 +1603,9 @@ BEGIN
  
   loop
  
-  l_var_def := get_next( i_srch_before      => G_REGEX_VAR_DEF_LINE 
-                                    ||'|'||G_REGEX_REC_VAR_DEF_LINE  
-                                    ||'|'||G_REGEX_TAB_COL_VAR_DEF_LINE
+  l_var_def := get_next( i_srch_before      => G_REGEX_PARAM_PREDEFINED
+                                    ||'|'||G_REGEX_PARAM_ROWTYPE
+                                    ||'|'||G_REGEX_PARAM_COLTYPE
                          ,i_stop        => G_REGEX_BEGIN  
                                     ||'|'||G_REGEX_PROG_UNIT
                          ,i_upper      => TRUE
@@ -1264,7 +1614,7 @@ BEGIN
   ms_logger.note(l_node, 'l_var_def',l_var_def);
  
     CASE 
-    WHEN regex_match(l_var_def , G_REGEX_VAR_DEF_LINE) THEN 
+    WHEN regex_match(l_var_def , G_REGEX_PARAM_PREDEFINED) THEN
       ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
       --LOOKING FOR ATOMIC VARS
         l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',1));
@@ -1277,7 +1627,7 @@ BEGIN
         ms_logger.note(l_node, 'l_param_name',l_param_name); 
         ms_logger.note(l_node, 'l_param_type',l_param_type); 
     
-      IF  regex_match(l_param_type , G_REGEX_SUPPORTED_TYPES) THEN
+      IF  regex_match(l_param_type , G_REGEX_PREDEFINED_TYPES) THEN
           
       --Supported data type so store in the var list.
           l_var_list(l_param_name) := l_param_type;  
@@ -1285,7 +1635,7 @@ BEGIN
  
         END IF; 
  
-    WHEN regex_match(l_var_def , G_REGEX_REC_VAR_DEF_LINE) THEN 
+    WHEN regex_match(l_var_def , G_REGEX_PARAM_ROWTYPE) THEN
       ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
       --Looking for ROWTYPE VARS
         l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_NAME_TYPE,1,1,'i',1));
@@ -1307,7 +1657,7 @@ BEGIN
        where table_name = l_table_name 
        and   owner      = l_table_owner  ) LOOP
 
-         IF  regex_match(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
+         IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
        
            l_var_list(l_param_name||'.'||l_column.column_name) := l_column.data_type;  
            ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);       
@@ -1315,7 +1665,7 @@ BEGIN
        
     END LOOP;   
     
-    WHEN regex_match(l_var_def , G_REGEX_TAB_COL_VAR_DEF_LINE) THEN 
+    WHEN regex_match(l_var_def , G_REGEX_PARAM_COLTYPE) THEN
         ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
         l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',1));
         l_table_name    :=       REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',3);
@@ -1335,7 +1685,7 @@ BEGIN
        and   column_name = l_column_name 
        and   owner       = l_table_owner  ) LOOP
 
-         IF  regex_match(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
+         IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
        
           l_var_list(l_param_name) := l_column.data_type;  
           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
@@ -1363,11 +1713,19 @@ END AOP_var_defs;
 
     
 --------------------------------------------------------------------------------- 
--- AOP_declare
+-- AOP_declare_block
 ---------------------------------------------------------------------------------
-PROCEDURE AOP_declare(i_indent   IN INTEGER
-                     ,i_var_list IN var_list_typ) IS
-  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_declare'); 
+/** PRIVATE
+* Process a block with a declaration section.
+*   Find declared variables
+*   Process declared sub program units
+*   Process the rest of the block. 
+* @param  i_indent   current indent count
+* @param  i_var_list list of scoped variables
+*/
+PROCEDURE AOP_declare_block(i_indent   IN INTEGER
+                           ,i_var_list IN var_list_typ) IS
+  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_declare_block'); 
   
   l_var_list          var_list_typ := i_var_list;
   
@@ -1375,15 +1733,19 @@ BEGIN
 
   ms_logger.param(l_node, 'i_indent' ,i_indent); 
 
-  --Search for nested PROCEDURE and FUNCTION within the declaration section of the block.
-  --Drop out when a BEGIN is reached.
- 
+
+  --Find the vars defined in this block
   l_var_list := AOP_var_defs( i_var_list => l_var_list);    
  
+
+  --Search for nested PROCEDURE and FUNCTION within the declaration section of the block.
+  --Pass in the scoped list of vars
+  --Drop out when a BEGIN is reached.
   AOP_prog_units(i_indent   => i_indent + g_indent_spaces
                 ,i_var_list => l_var_list);
   
-  --calc indent and consume BEGIN
+  --Calc indent and consume BEGIN
+  --Drop out when the corresponding END is reached.
   AOP_block(i_indent    => calc_indent(i_indent, get_next(i_srch_before => G_REGEX_BEGIN
                                                          ,i_colour => G_COLOUR_GO_PAST))
            ,i_regex_end => G_REGEX_END_BEGIN
@@ -1394,12 +1756,23 @@ exception
     ms_logger.warn_error(l_node);
     raise; 
  
-END AOP_declare;
+END AOP_declare_block;
 
   
 --------------------------------------------------------------------------------- 
 -- AOP_is_as
 ---------------------------------------------------------------------------------
+/** PRIVATE
+* Found IS or AS section of current Program Unit 
+*   Find the program unit parameters
+*   Find declared variables
+*   Process declared sub program units
+*   Process the program unit block. 
+* @param  i_prog_unit_name Name of the Program Unit
+* @param  i_indent         Current indent count
+* @param  i_node_type      Type of Node
+* @param  i_var_list       List of scoped variables
+*/
 PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
                    ,i_indent         IN INTEGER
                    ,i_node_type      IN VARCHAR2
@@ -1482,6 +1855,16 @@ END AOP_is_as;
 --------------------------------------------------------------------------------- 
 -- AOP_block
 ---------------------------------------------------------------------------------
+/** PRIVATE
+* Process any kind of block - currently kinds accommodated.
+*   BEGIN - END
+*   LOOP  - END LOOP
+*   CASE  - END CASE
+*   IF    - END IF  (Includes ELSIF and ELSE)
+* @param  i_indent    Current indent count
+* @param  i_regex_end End of the block must match this regex.
+* @param  i_var_list  List of scoped variables
+*/
 PROCEDURE AOP_block(i_indent         IN INTEGER
                    ,i_regex_end      IN VARCHAR2
                    ,i_var_list       IN var_list_typ  )  IS
@@ -1577,7 +1960,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
           --This variable exists in the list of scoped variables with compatible types    
           ms_logger.comment(l_node, 'Scoped Var');
           ms_logger.note(l_node,'l_var_list(i_var)',l_var_list(i_var));
-          IF  regex_match(l_var_list(i_var) , G_REGEX_SUPPORTED_TYPES) THEN
+          IF  regex_match(l_var_list(i_var) , G_REGEX_PREDEFINED_TYPES) THEN
             --Data type is supported.
             ms_logger.comment(l_node, 'Data type is supported');
             --So we can write a note for it.
@@ -1597,7 +1980,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                where table_name = l_var_list(i_var) 
                and   owner      = l_table_owner  ) LOOP
 
-               IF  regex_match(l_column.data_type , G_REGEX_SUPPORTED_TYPES) THEN
+               IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
                  note_var(i_var  => i_var||'.'||l_column.column_name
                          ,i_type => l_column.data_type);
                END IF;
@@ -1677,7 +2060,7 @@ BEGIN
       --BLOCK OPENING REGEX
       WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN     
           ms_logger.info(l_node, 'Declare');    
-        AOP_declare(i_indent    => calc_indent(i_indent + g_indent_spaces,l_keyword)
+        AOP_declare_block(i_indent    => calc_indent(i_indent + g_indent_spaces,l_keyword)
                    ,i_var_list  => l_var_list);    
         
       WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN    
@@ -1882,6 +2265,18 @@ END AOP_block;
 --------------------------------------------------------------------------------- 
 -- AOP_pu_block
 ---------------------------------------------------------------------------------
+/** PRIVATE
+* Weave a Program Unit block
+*   Wrap an extra BEGIN END block around the original block, to support
+*   - logger param calls before the original BEGIN.
+*   - an EXCEPTION WHEN OTHERS after the original END.
+*     to trap, note and re-raise errors from the original block.
+* @param  i_prog_unit_name Name of program unit
+* @param  i_indent    Current indent count
+* @param  i_param_list  List of parameter names (indexed by integer)
+* @param  i_param_types List of parameter types (indexed by integer)
+* @param  i_var_list  List of scoped variables
+*/
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
                       ,i_indent         IN INTEGER
                       ,i_param_list     IN param_list_typ
@@ -1989,13 +2384,18 @@ END AOP_pu_block;
 --------------------------------------------------------------------------------- 
 -- AOP_prog_units
 ---------------------------------------------------------------------------------
+/** PRIVATE
+* Weave program units until no more program units found.
+* @param  i_indent   current indent count
+* @param  i_var_list list of scoped variables
+*/
 PROCEDURE AOP_prog_units(i_indent   IN INTEGER
                         ,i_var_list IN var_list_typ  ) IS
   l_node    ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_prog_units'); 
 
   l_keyword         VARCHAR2(50);
   l_language        VARCHAR2(50);
-  l_forward_declare        VARCHAR2(50);
+  l_forward_declare VARCHAR2(50);
   l_node_type       VARCHAR2(50);
   l_prog_unit_name  VARCHAR2(30);
   
@@ -2012,7 +2412,7 @@ BEGIN
     BEGIN
  
         --Find node type
-        l_keyword := get_next( i_srch_before      => G_REGEX_PROG_UNIT
+        l_keyword := get_next( i_srch_before => G_REGEX_PROG_UNIT
                               ,i_stop        => G_REGEX_BEGIN
                               ,i_upper       => TRUE
                               ,i_colour      => G_COLOUR_PROG_UNIT );
@@ -2104,6 +2504,11 @@ END AOP_prog_units;
 --------------------------------------------------------------------
 -- trim_clob
 --------------------------------------------------------------------
+/** PRIVATE
+* Remove all leading and trailing whitespace from CLOB
+* @param i_clob   source clob
+* @return trim(source clob)
+*/
 FUNCTION trim_clob(i_clob IN CLOB) RETURN CLOB IS
   G_REGEX_LEADING_TRAILING_WHITE CONSTANT VARCHAR2(20) := '^\s*|\s*$';
 BEGIN
@@ -2111,168 +2516,16 @@ BEGIN
 END;
 
 
---------------------------------------------------------------------------------- 
--- weave
----------------------------------------------------------------------------------
-  function weave
-  ( p_code         in out clob
-  , p_package_name in varchar2
-  , p_for_html     in boolean default false
-  , p_end_user     in varchar2 default null
-  ) return boolean
-  is
-
-    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'weave'); 
- 
-    l_advised            boolean := false;
-    l_current_pos        integer := 1;
-    l_count              NUMBER  := 0;
-    l_end_pos            integer;  
-  
-    l_end_value          varchar2(50);
-    l_mystery_word       varchar2(50);
-
-    l_package_name       varchar2(50);
-  
-  begin
-  begin
- 
-    ms_logger.param(l_node, 'p_package_name'      ,p_package_name);
-    ms_logger.param(l_node, 'p_for_html'          ,p_for_html);
-  
-    IF p_package_name IS NULL THEN
-      g_aop_module_name := '$$plsql_unit';
-      ELSE
-      g_aop_module_name := ''''||p_package_name||'''';
-    END IF;
-   
-    g_for_aop_html := p_for_html;
-    g_end_user     := p_end_user;
-   
-    --First task will be to remove all comments or 
-    --somehow identify and remember all sections that can be ignored because they are comments
-    
-    g_code := chr(10)||p_code||chr(10); --add a trailing CR to help with searching
-  
-    set_weave_timeout;
-      
-    stash_comments_and_quotes;
- 
-    --Reset the processing pointer.
-    g_current_pos := 1;
- 
-    --Need to determine what sort of code we have - at the top level.
-
-  --Anonymous Block             - look for DECLARE or BEGIN
-  --Progam Units                - look for PROCEDURE or FUNCTION 
-  --PACKAGE BODY                - look for PACKAGE BODY
-  
-  --Each of these can have prog units embedded in the declaration section (if any).
-  --and each may have additional Anonymous blocks embedded in the body section (if any).
-  
-  
-    --  A package body which would be similar to procedure or function but with no parameters.
-
-  declare
-    l_keyword    varchar2(50);
-    l_var_list   var_list_typ;
-  
-  begin
-    g_current_pos := 1;
-    l_keyword := get_next(i_stop       => G_REGEX_DECLARE
-                                   ||'|'||G_REGEX_BEGIN  
-                                   ||'|'||G_REGEX_PROG_UNIT 
-                                   ||'|'||G_REGEX_CREATE
-                         ,i_upper      => TRUE
-                         ,i_raise_error => TRUE  );
- 
-    ms_logger.note(l_node, 'l_keyword' ,l_keyword);
-
-    CASE 
-      WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN
-        --calc indent and consume DECLARE
-        AOP_declare(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_DECLARE
-                                                                         ,i_colour => G_COLOUR_GO_PAST))
-                   ,i_var_list => l_var_list);
-          
-      WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN
-        --calc indent and consume BEGIN
-        AOP_block(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_BEGIN
-                                                                       ,i_colour => G_COLOUR_GO_PAST))
-                 ,i_regex_end  => G_REGEX_END_BEGIN
-                 ,i_var_list   => l_var_list);
-    
-      WHEN regex_match(l_keyword , G_REGEX_PROG_UNIT
-                            ||'|'||G_REGEX_CREATE) THEN
-        AOP_prog_units(i_indent   => calc_indent(g_initial_indent,l_keyword)
-                      ,i_var_list => l_var_list      );
-
-    ELSE
-      ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
-      RAISE x_invalid_keyword;
-    end case;   
-  end;
- 
-    l_advised:= true;
-
-  --Translate SIMPLE ms_feedback syntax to MORE COMPLEX ms_logger syntax
-  --EG ms_feedback.x(           ->  ms_logger.x(l_node,
-  g_code := REGEXP_REPLACE(g_code,'(ms_feedback)(\.)(.+)(\()','ms_logger.\3(l_node,');
-
-  --Replace routines with no params 
-  --EG ms_feedback.oracle_error -> ms_logger.oracle_error(l_node)
-  g_code := REGEXP_REPLACE(g_code,'(ms_feedback)(\.)(.+)(;)','ms_logger.\3(l_node);');
-  
- 
-  restore_comments_and_quotes;
- 
-  exception 
-    when x_restore_failed then
-      ms_logger.fatal(l_node, 'x_restore_failed');
-      wedge( i_new_code => 'RESTORE FAILED'
-            ,i_colour  => G_COLOUR_ERROR);
-      l_advised := false;
-    when x_invalid_keyword then
-      ms_logger.fatal(l_node, 'x_invalid_keyword');
-      wedge( i_new_code => 'INVALID KEYWORD'
-            ,i_colour  => G_COLOUR_ERROR);
-      l_advised := false;
-    when x_weave_timeout then
-      ms_logger.fatal(l_node, 'x_weave_timeout');
-      wedge( i_new_code => 'WEAVE TIMED OUT'
-            ,i_colour  => G_COLOUR_ERROR);
-      l_advised := false;
-    when x_string_not_found then
-      ms_logger.fatal(l_node, 'x_string_not_found');
-      l_advised := false;
-   
-  end;
-  
-    ms_logger.note(l_node, 'elapsed_time_secs' ,elapsed_time_secs);
-    
-    g_code := REPLACE(g_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
-  
-  IF g_for_aop_html then
-    g_code := REPLACE(REPLACE(g_code,'<<','&lt;&lt;'),'>>','&gt;&gt;');
-      g_code := REGEXP_REPLACE(g_code,'(ms_logger)(.+)(;)','<B>\1\2\3</B>');
-      g_code := '<PRE>'||g_code||'</PRE>';
-  END IF;  
- 
-    p_code := trim_clob(i_clob => g_code);
- 
-    return l_advised;
- 
-  exception 
-    when others then
-      ms_logger.oracle_error(l_node); 
-    raise;
-  
-  end weave;
-  
- 
   --------------------------------------------------------------------
   -- get_plsql
   --------------------------------------------------------------------
+/** PRIVATE
+* Retrieve PLSQL object source using dbms_metadata.get_ddl
+* @param i_object_name      Object Name
+* @param i_object_type      Object Type
+* @param i_object_owner     Object Owner
+* @return object source code
+*/
   function get_plsql ( i_object_name   in varchar2
                      , i_object_type   in varchar2
                      , i_object_owner  in varchar2 )  return clob is
@@ -2293,16 +2546,193 @@ END;
                             ,'(CREATE OR REPLACE TRIGGER )(.+)(ALTER TRIGGER .+)', 
                      '\1\2', 1, 0, 'n');
     END IF;
-
  
     return trim_clob(i_clob => l_code);
   end get_plsql;
 
+
+-----------------------------------------------------------------------------------------------
+-- P U B L I C
+----------------------------------------------------------------------------------------------- 
+
+ 
+
+-----------------------------------------------------------------------------------------------
+-- weave
+----------------------------------------------------------------------------------------------- 
+/** PUBLIC
+* Weave logger instrumentation into the source code.  
+* Will process 
+*  one package body (and componants) or 
+*  one anonymous block (and componants) or
+*  a list of program units (Procedures and Functions)            
+* @param p_code         source code
+* @param p_package_name name of package (optional)
+* @param p_for_html     flag to add HTML style tags for apex pretty print
+* @param p_end_user     object owner
+* @return TRUE if woven successfully.
+*/
+
+  function weave
+  ( p_code         in out clob
+  , p_package_name in varchar2
+  , p_for_html     in boolean default false
+  , p_end_user     in varchar2 default null
+  ) return boolean
+  is
+
+    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'weave'); 
+ 
+    l_woven              boolean := false;
+    l_current_pos        integer := 1;
+    l_count              NUMBER  := 0;
+    l_end_pos            integer;  
   
+    l_end_value          varchar2(50);
+    l_mystery_word       varchar2(50);
+
+    l_package_name       varchar2(50);
   
-  --------------------------------------------------------------------
-  -- instrument_plsql
-  --------------------------------------------------------------------  
+  begin
+    ms_logger.param(l_node, 'p_package_name'      ,p_package_name);
+    ms_logger.param(l_node, 'p_for_html'          ,p_for_html);
+
+    begin
+ 
+      IF p_package_name IS NULL THEN
+        g_aop_module_name := '$$plsql_unit';
+        ELSE
+        g_aop_module_name := ''''||p_package_name||'''';
+      END IF;
+     
+      g_for_aop_html := p_for_html;
+      g_end_user     := p_end_user;
+   
+      g_code := chr(10)||p_code||chr(10); --add a trailing CR to help with searching
+    
+      set_weave_timeout;
+        
+      --Remove all comments and quoted strings, so they can be ignored by the weaver.  
+      stash_comments_and_strings;
+   
+      --Reset the processing pointer.
+      g_current_pos := 1;
+   
+      --Need to determine what sort of code we have - at the top level.
+  
+      --Anonymous Block             - look for DECLARE or BEGIN
+      --Progam Units                - look for PROCEDURE or FUNCTION 
+      --PACKAGE BODY                - look for PACKAGE BODY
+      
+      --Each of these can have prog units embedded in the declaration section (if any).
+      --and each may have additional Anonymous blocks embedded in the body section (if any).
+      
+      
+      --  A package body which would be similar to procedure or function but with no parameters.
+
+      declare
+        l_keyword    varchar2(50);
+        l_var_list   var_list_typ;
+      
+      begin
+        g_current_pos := 1;
+        l_keyword := get_next(i_stop       => G_REGEX_DECLARE
+                                       ||'|'||G_REGEX_BEGIN  
+                                       ||'|'||G_REGEX_PROG_UNIT 
+                                       ||'|'||G_REGEX_CREATE
+                             ,i_upper      => TRUE
+                             ,i_raise_error => TRUE  );
+     
+        ms_logger.note(l_node, 'l_keyword' ,l_keyword);
+    
+        CASE 
+          WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN
+            ms_logger.comment(l_node, 'Found Anonymous Block with declaration');
+            --calc indent and consume DECLARE
+            AOP_declare_block(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_DECLARE
+                                                                             ,i_colour => G_COLOUR_GO_PAST))
+                       ,i_var_list => l_var_list);
+              
+          WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN
+            ms_logger.comment(l_node, 'Found Simple Anonymous Block');
+            --calc indent and consume BEGIN
+            AOP_block(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_BEGIN
+                                                                           ,i_colour => G_COLOUR_GO_PAST))
+                     ,i_regex_end  => G_REGEX_END_BEGIN
+                     ,i_var_list   => l_var_list);
+        
+          WHEN regex_match(l_keyword , G_REGEX_PROG_UNIT
+                                ||'|'||G_REGEX_CREATE) THEN
+            ms_logger.comment(l_node, 'Found Program Unit');
+            AOP_prog_units(i_indent   => calc_indent(g_initial_indent,l_keyword)
+                          ,i_var_list => l_var_list      );
+    
+        ELSE
+          ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
+          RAISE x_invalid_keyword;
+        end case;   
+      end;
+ 
+      l_woven:= true;
+
+      --DEPRECATED - Translate SIMPLE ms_feedback syntax to MORE COMPLEX ms_logger syntax
+ 
+      restore_comments_and_strings;
+ 
+    exception 
+      when x_restore_failed then
+        ms_logger.fatal(l_node, 'x_restore_failed');
+        wedge( i_new_code => 'RESTORE FAILED'
+              ,i_colour  => G_COLOUR_ERROR);
+        l_woven := false;
+      when x_invalid_keyword then
+        ms_logger.fatal(l_node, 'x_invalid_keyword');
+        wedge( i_new_code => 'INVALID KEYWORD'
+              ,i_colour  => G_COLOUR_ERROR);
+        l_woven := false;
+      when x_weave_timeout then
+        ms_logger.fatal(l_node, 'x_weave_timeout');
+        wedge( i_new_code => 'WEAVE TIMED OUT'
+              ,i_colour  => G_COLOUR_ERROR);
+        l_woven := false;
+      when x_string_not_found then
+        ms_logger.fatal(l_node, 'x_string_not_found');
+        l_woven := false;
+     
+    end;
+  
+    ms_logger.note(l_node, 'elapsed_time_secs' ,elapsed_time_secs);
+    
+    g_code := REPLACE(g_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
+  
+    IF g_for_aop_html then
+        g_code := REPLACE(REPLACE(g_code,'<<','&lt;&lt;'),'>>','&gt;&gt;');
+        g_code := REGEXP_REPLACE(g_code,'(ms_logger)(.+)(;)','<B>\1\2\3</B>');
+        g_code := '<PRE>'||g_code||'</PRE>';
+    END IF;  
+ 
+    p_code := trim_clob(i_clob => g_code);
+ 
+    return l_woven;
+ 
+  exception 
+    when others then
+      ms_logger.oracle_error(l_node); 
+    raise;
+  
+  end weave;
+  
+ 
+--------------------------------------------------------------------
+-- instrument_plsql
+--------------------------------------------------------------------  
+/** PRIVATE
+* Reweave the object for each requested version and store the results.
+* @param i_object_name   Object Name 
+* @param i_object_type   Object Type 
+* @param i_object_owner  Object Owner
+* @param i_versions      Versions of Logger weaving required 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
+*/
   procedure instrument_plsql
   ( i_object_name   in varchar2
   , i_object_type   in varchar2
@@ -2314,7 +2744,7 @@ END;
     l_orig_body clob;
     l_aop_body clob;
     l_html_body clob;
-    l_advised boolean := false;
+    l_woven boolean := false;
   begin 
   begin
     ms_logger.param(l_node, 'i_object_name'  ,i_object_name  );
@@ -2358,7 +2788,7 @@ END;
       --We want to see what happened.
       ms_logger.comment(l_node,'Reweave with html');  
       l_html_body := l_orig_body;
-        l_advised := weave( p_code         => l_html_body
+        l_woven := weave( p_code         => l_html_body
                           , p_package_name => lower(i_object_name)
                           , p_for_html     => true
                           , p_end_user     => i_object_owner);
@@ -2378,7 +2808,7 @@ END;
 
       l_aop_body := l_orig_body;
       -- manipulate source by weaving in aspects as required; only weave if the keyword logging not yet applied.
-      l_advised := weave( p_code         => l_aop_body
+      l_woven := weave( p_code         => l_aop_body
                         , p_package_name => lower(i_object_name)
                         , p_end_user     => i_object_owner        );
 
@@ -2388,7 +2818,7 @@ END;
                          , i_type  => i_object_type
                          , i_text  => l_aop_body
                          , i_aop_ver => 'AOP'
-                         , i_compile => l_advised  ) THEN
+                         , i_compile => l_woven  ) THEN
         ms_logger.info(l_node, 'Recompile the Original version.' );
         --reexecute the original so that we at least end up with a valid package.
         IF NOT  validate_source(i_name  => i_object_name
@@ -2416,7 +2846,7 @@ END;
       --We want to see what happened.
       ms_logger.comment(l_node,'Reweave with html');  
       l_html_body := l_orig_body;
-        l_advised := weave( p_code         => l_html_body
+        l_woven := weave( p_code         => l_html_body
                           , p_package_name => lower(i_object_name)
                           , p_for_html     => true
                           , p_end_user     => i_object_owner);
@@ -2446,10 +2876,14 @@ END;
       g_during_advise:= false; 
   end instrument_plsql;
 
- 
-  --------------------------------------------------------------------
-  -- reapply_aspect
-  --------------------------------------------------------------------  
+--------------------------------------------------------------------
+-- reapply_aspect
+--------------------------------------------------------------------  
+/** PUBLIC
+* Reweave the object
+* @param i_object_name  Object Name 
+* @param i_versions     Versions of Logger weaving required 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
+*/
   procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL
                          , i_versions    in varchar2 default 'AOP,HTML') is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'reapply_aspect'); 
@@ -2475,12 +2909,15 @@ END;
       end loop;
   end reapply_aspect;
 
-
-  --------------------------------------------------------------------
-  -- restore_comments_and_quotes
-  --------------------------------------------------------------------  
-  procedure restore_comments_and_quotes IS
-      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'restore_comments_and_quotes'); 
+--------------------------------------------------------------------
+-- restore_comments_and_strings
+--------------------------------------------------------------------  
+/** PRIVATE
+* Replace all comment placeholders with the original comment
+* Replace all string placeholders with the original strings
+*/
+  procedure restore_comments_and_strings IS
+      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'restore_comments_and_strings'); 
       l_text CLOB;    
       l_temp_code CLOB;
   BEGIN
@@ -2525,168 +2962,178 @@ END;
 
   END;
   
-  --------------------------------------------------------------------
-  -- stash_comments_and_quotes
-  -- www.orafaq.com/forum/t/99722/2/ discussion of alternative methods.
-  --------------------------------------------------------------------
+--------------------------------------------------------------------
+-- stash_comments_and_strings
+--------------------------------------------------------------------  
+/** PRIVATE
+* Replace each comment with a placeholder and stash the original comment
+* Replace each string with a placeholder and stash the original string
+* www.orafaq.com/forum/t/99722/2/ discussion of alternative methods.
+*/
 
-    procedure stash_comments_and_quotes  IS
-       
-      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'stash_comments_and_quotes');  
-  
-      l_keyword              VARCHAR2(50);  
-
-  procedure extract_comment(i_mask     IN VARCHAR2
-                           ,i_modifier IN VARCHAR2 DEFAULT 'in') IS
-    l_comment              CLOB;
-  BEGIN
-    l_comment := get_next(i_stop     => i_mask
-                           ,i_modifier => i_modifier ); --multi-line, lazy
-    ms_logger.note_clob(l_node, 'l_comment', l_comment);
-    g_comment_stack(g_comment_stack.count+1) := l_comment; --Put another comment on the stack
-    ms_logger.note(l_node, 'g_comment_stack.count', g_comment_stack.count);
-    g_code := REGEXP_REPLACE(g_code, i_mask, '<<comment'||g_comment_stack.count||'>>',g_current_pos, 1, i_modifier);
-    go_past(i_search => '<<comment'||g_comment_stack.count||'>>'
-           ,i_colour => NULL);
-      
-  END;
-  
-  procedure extract_quote(i_mask     IN VARCHAR2
-                         ,i_modifier IN VARCHAR2 DEFAULT 'in') IS
-    l_quote              CLOB;
-  BEGIN
-    l_quote := get_next(i_stop     => i_mask
-                       ,i_modifier => i_modifier ); --multi-line, lazy
-    ms_logger.note(l_node, 'l_quote', l_quote);
-    g_quote_stack(g_quote_stack.count+1) := l_quote; --Put another quote on the stack
-    ms_logger.note(l_node, 'g_quote_stack.count', g_quote_stack.count);
-    g_code := REGEXP_REPLACE(g_code, i_mask, '<<quote'||g_quote_stack.count||'>>',g_current_pos, 1, i_modifier);
-    go_past(i_search => '<<quote'||g_quote_stack.count||'>>'
-           ,i_colour => NULL);
-  END;
- 
-BEGIN  
- 
-   g_current_pos   := 1;
- 
-   --initialise comments and quotes
-   
-   g_comment_stack.DELETE;  
-   g_quote_stack.DELETE;
- 
- 
-  loop
-   
-   DECLARE
- 
-   G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--..'    ;
-   G_REGEX_START_MULTI_COMMENT   CONSTANT VARCHAR2(50) :=  '/\*'    ;
-   G_REGEX_START_QUOTE           CONSTANT VARCHAR2(50) :=  '\'''    ;
-   G_REGEX_START_ADV_QUOTE       CONSTANT VARCHAR2(50) :=  'Q\''\S' ;
-
-   G_REGEX_SHOW_ME               CONSTANT VARCHAR2(50) :=  '--(\@\@)';
-   G_REGEX_ROW_COUNT             CONSTANT VARCHAR2(50) :=  '--(RC)';
- 
-   G_REGEX_START_COMMENT_OR_QUOTE CONSTANT VARCHAR2(200) := G_REGEX_START_SINGLE_COMMENT  
-                                                     ||'|'||G_REGEX_START_MULTI_COMMENT
-                                                     ||'|'||G_REGEX_START_QUOTE
-                                                     ||'|'||G_REGEX_START_ADV_QUOTE;
- 
-   G_REGEX_SINGLE_LINE_ANNOTATION   CONSTANT VARCHAR2(50)  :=    '.*';
-   G_REGEX_SINGLE_LINE_COMMENT      CONSTANT VARCHAR2(50)  :=    '--.*';
-   G_REGEX_MULTI_LINE_COMMENT       CONSTANT VARCHAR2(50)  :=    '/\*.*?\*/'; --'/\*(\s|\S)*?\*/';
-   G_REGEX_MULTI_LINE_QUOTE         CONSTANT VARCHAR2(50)  :=    '\''.*?\''';
-   G_REGEX_MULTI_LINE_ADV_QUOTE     CONSTANT VARCHAR2(100) :=    'Q\''\[.*?\]\''|Q\''\{.*?\}\''|Q\''\(.*?\)\''|Q\''\<.*?\>\''|Q\''(\S).*?\1\''';
- 
-    BEGIN
- 
-      --Searching for the start of a comment or quote
-      l_keyword :=  get_next(i_stop       => G_REGEX_START_COMMENT_OR_QUOTE
-                            ,i_upper      => TRUE   );
- 
-      ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
-    
-      CASE 
-
-      WHEN regex_match(l_keyword , G_REGEX_START_SINGLE_COMMENT)  THEN 
-
-
-  
-          --Check for an annotation                         
-          IF regex_match(l_keyword , G_REGEX_START_ANNOTATION) THEN                           
-            ms_logger.info(l_node, 'Annotation');         
-            --ANNOTATION          
-            go_past;          
-            extract_comment(i_mask     => G_REGEX_SINGLE_LINE_ANNOTATION          
-                           ,i_modifier => 'i');   
-
-          ELSIF regex_match(l_keyword , G_REGEX_SHOW_ME) THEN                           
-            ms_logger.info(l_node, 'Show Me');         
-            --SHOW ME
-            --Just ignore this till later.      
-            go_past;  
-
-          ELSIF regex_match(l_keyword , G_REGEX_ROW_COUNT) THEN                           
-            ms_logger.info(l_node, 'Rowcount');         
-            --ROWCOUNT
-            --Just ignore this till later.      
-            go_past;  
-
-
- 
-          ELSE
- 
-            --Just a comment
-            ms_logger.info(l_node, 'Single Line Comment');         
-          --REMOVE SINGLE LINE COMMENTS 
-          --Find "--" and remove chars upto EOL     
-        extract_comment(i_mask     => G_REGEX_SINGLE_LINE_COMMENT
-                       ,i_modifier => 'i');
-    
-          END IF;
-  
- 
-      WHEN regex_match(l_keyword , G_REGEX_START_MULTI_COMMENT)  THEN  
-           ms_logger.info(l_node, 'Multi Line Comment');  
-        --REMOVE MULTI-LINE COMMENTS 
-        --Find "/*" and remove upto "*/" 
-      extract_comment(i_mask => G_REGEX_MULTI_LINE_COMMENT);
-                        -- ,i_modifier => 'i');
- 
-      WHEN regex_match(l_keyword , G_REGEX_START_ADV_QUOTE)  THEN  
-           ms_logger.info(l_node, 'Multi Line Adv Quote');  
-      --REMOVE ADVANCED QUOTES - MULTI_LINE
-      --Find "q'[" and remove to next "]'", variations in clude [] {} <> () and any single printable char.
-      extract_quote(i_mask => G_REGEX_MULTI_LINE_ADV_QUOTE);
-          
-      WHEN regex_match(l_keyword , G_REGEX_START_QUOTE)  THEN  
-           ms_logger.info(l_node, 'Multi Line Simple Quote');
-      --REMOVE SIMPLE QUOTES - MULTI_LINE
-          --Find "'" and remove to next "'"     
-      extract_quote(i_mask => G_REGEX_MULTI_LINE_QUOTE);
-          
- 
-    ELSE 
-      EXIT;
-    
-    END CASE; 
-  
-  END;
- 
-  
-  END LOOP; 
-  
-  ms_logger.comment(l_node, 'No more comments or quotes.'); 
-  
-    exception
-      when others then
-        ms_logger.warn_error(l_node);
-        raise;
+  procedure stash_comments_and_strings  IS
      
-    END stash_comments_and_quotes;
+    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'stash_comments_and_strings');  
   
- function using_aop(i_object_name IN VARCHAR2
-                   ,i_object_type IN VARCHAR2 DEFAULT 'PACKAGE BODY') return varchar2 is
+    l_keyword              VARCHAR2(50);  
+
+    procedure extract_comment(i_mask     IN VARCHAR2
+                             ,i_modifier IN VARCHAR2 DEFAULT 'in') IS
+      l_comment              CLOB;
+    BEGIN
+      l_comment := get_next(i_stop     => i_mask
+                             ,i_modifier => i_modifier ); --multi-line, lazy
+      ms_logger.note_clob(l_node, 'l_comment', l_comment);
+      g_comment_stack(g_comment_stack.count+1) := l_comment; --Put another comment on the stack
+      ms_logger.note(l_node, 'g_comment_stack.count', g_comment_stack.count);
+      g_code := REGEXP_REPLACE(g_code, i_mask, '<<comment'||g_comment_stack.count||'>>',g_current_pos, 1, i_modifier);
+      go_past(i_search => '<<comment'||g_comment_stack.count||'>>'
+             ,i_colour => NULL);
+        
+    END;
+  
+    procedure extract_strings(i_mask     IN VARCHAR2
+                                 ,i_modifier IN VARCHAR2 DEFAULT 'in') IS
+      l_quote              CLOB;
+    BEGIN
+      l_quote := get_next(i_stop     => i_mask
+                         ,i_modifier => i_modifier ); --multi-line, lazy
+      ms_logger.note(l_node, 'l_quote', l_quote);
+      g_quote_stack(g_quote_stack.count+1) := l_quote; --Put another quote on the stack
+      ms_logger.note(l_node, 'g_quote_stack.count', g_quote_stack.count);
+      g_code := REGEXP_REPLACE(g_code, i_mask, '<<quote'||g_quote_stack.count||'>>',g_current_pos, 1, i_modifier);
+      go_past(i_search => '<<quote'||g_quote_stack.count||'>>'
+             ,i_colour => NULL);
+    END;
+ 
+  BEGIN  
+ 
+    g_current_pos   := 1;
+  
+    --initialise comments and quotes
+    
+    g_comment_stack.DELETE;  
+    g_quote_stack.DELETE;
+ 
+ 
+    LOOP
+     
+      DECLARE
+   
+        G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--..'    ;
+        G_REGEX_START_MULTI_COMMENT   CONSTANT VARCHAR2(50) :=  '/\*'    ;
+        G_REGEX_START_QUOTE           CONSTANT VARCHAR2(50) :=  '\'''    ;
+        G_REGEX_START_ADV_QUOTE       CONSTANT VARCHAR2(50) :=  'Q\''\S' ;
+     
+        G_REGEX_SHOW_ME               CONSTANT VARCHAR2(50) :=  '--(\@\@)';
+        G_REGEX_ROW_COUNT             CONSTANT VARCHAR2(50) :=  '--(RC)';
+      
+        G_REGEX_START_COMMENT_OR_QUOTE CONSTANT VARCHAR2(200) := G_REGEX_START_SINGLE_COMMENT  
+                                                          ||'|'||G_REGEX_START_MULTI_COMMENT
+                                                          ||'|'||G_REGEX_START_QUOTE
+                                                          ||'|'||G_REGEX_START_ADV_QUOTE;
+      
+        G_REGEX_SINGLE_LINE_ANNOTATION   CONSTANT VARCHAR2(50)  :=    '.*';
+        G_REGEX_SINGLE_LINE_COMMENT      CONSTANT VARCHAR2(50)  :=    '--.*';
+        G_REGEX_MULTI_LINE_COMMENT       CONSTANT VARCHAR2(50)  :=    '/\*.*?\*/'; --'/\*(\s|\S)*?\*/';
+        G_REGEX_MULTI_LINE_QUOTE         CONSTANT VARCHAR2(50)  :=    '\''.*?\''';
+        G_REGEX_MULTI_LINE_ADV_QUOTE     CONSTANT VARCHAR2(100) :=    'Q\''\[.*?\]\''|Q\''\{.*?\}\''|Q\''\(.*?\)\''|Q\''\<.*?\>\''|Q\''(\S).*?\1\''';
+   
+      BEGIN
+ 
+        --Searching for the start of a comment or quote
+        l_keyword :=  get_next(i_stop       => G_REGEX_START_COMMENT_OR_QUOTE
+                              ,i_upper      => TRUE   );
+   
+        ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
+      
+        CASE 
+  
+          WHEN regex_match(l_keyword , G_REGEX_START_SINGLE_COMMENT)  THEN 
+
+
+  
+            --Check for an annotation                         
+            IF regex_match(l_keyword , G_REGEX_START_ANNOTATION) THEN                           
+              ms_logger.info(l_node, 'Annotation');         
+              --ANNOTATION          
+              go_past;          
+              extract_comment(i_mask     => G_REGEX_SINGLE_LINE_ANNOTATION          
+                             ,i_modifier => 'i');   
+  
+            ELSIF regex_match(l_keyword , G_REGEX_SHOW_ME) THEN                           
+              ms_logger.info(l_node, 'Show Me');         
+              --SHOW ME
+              --Just ignore this till later.      
+              go_past;  
+  
+            ELSIF regex_match(l_keyword , G_REGEX_ROW_COUNT) THEN                           
+              ms_logger.info(l_node, 'Rowcount');         
+              --ROWCOUNT
+              --Just ignore this till later.      
+              go_past;  
+  
+  
+   
+            ELSE
+ 
+              --Just a comment
+              ms_logger.info(l_node, 'Single Line Comment');         
+              --REMOVE SINGLE LINE COMMENTS 
+              --Find "--" and remove chars upto EOL     
+              extract_comment(i_mask     => G_REGEX_SINGLE_LINE_COMMENT
+                             ,i_modifier => 'i');
+    
+            END IF;
+  
+ 
+          WHEN regex_match(l_keyword , G_REGEX_START_MULTI_COMMENT)  THEN  
+            ms_logger.info(l_node, 'Multi Line Comment');  
+            --REMOVE MULTI-LINE COMMENTS 
+            --Find "/*" and remove upto "*/" 
+            extract_comment(i_mask => G_REGEX_MULTI_LINE_COMMENT);
+                            -- ,i_modifier => 'i');
+ 
+          WHEN regex_match(l_keyword , G_REGEX_START_ADV_QUOTE)  THEN  
+            ms_logger.info(l_node, 'Multi Line Adv Quote');  
+            --REMOVE ADVANCED QUOTES - MULTI_LINE
+            --Find "q'[" and remove to next "]'", variations in clude [] {} <> () and any single printable char.
+            extract_strings(i_mask => G_REGEX_MULTI_LINE_ADV_QUOTE);
+              
+          WHEN regex_match(l_keyword , G_REGEX_START_QUOTE)  THEN  
+            ms_logger.info(l_node, 'Multi Line Simple Quote');
+            --REMOVE SIMPLE QUOTES - MULTI_LINE
+            --Find "'" and remove to next "'"     
+            extract_strings(i_mask => G_REGEX_MULTI_LINE_QUOTE);
+          
+ 
+          ELSE 
+            EXIT;
+          
+          END CASE; 
+  
+        END;
+ 
+  
+    END LOOP; 
+  
+    ms_logger.comment(l_node, 'No more comments or quotes.'); 
+  
+  EXCEPTION
+    WHEN OTHERS THEN
+      ms_logger.warn_error(l_node);
+      RAISE;
+  END;
+
+--------------------------------------------------------------------
+-- using_aop
+--------------------------------------------------------------------  
+/** PUBLIC
+* Determine whether the woven version is currently installed in the database.
+* @return Yes/No
+*/
+  function using_aop(i_object_name IN VARCHAR2
+                    ,i_object_type IN VARCHAR2 DEFAULT 'PACKAGE BODY') return varchar2 is
 
     CURSOR cu_dba_source is
     select 1

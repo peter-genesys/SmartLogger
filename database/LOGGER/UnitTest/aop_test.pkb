@@ -330,6 +330,16 @@ where max_event_date >= :i_min_qa_date
 
   END;
 
+  procedure test_spec_var(i_test in out test_typ) is
+
+  BEGIN
+    i_test.num := 2;
+
+  END;
+
+
+
+
   procedure test99 is
 
     TYPE rule_set_typ IS RECORD (
@@ -341,10 +351,15 @@ where max_event_date >= :i_min_qa_date
 
     l_rule_set_tab  rule_set_tab_typ;
     l_selector      VARCHAR2(50);  
+    l_test          test_typ;
+    l_rule_set      rule_set_typ;
+
   BEGIN
-      l_rule_set_tab(1).selector   := ltrim(l_selector,'.#'); --Does this create a valid statement?
+    l_test.num := 1;
+
+    l_rule_set_tab(1).selector   := ltrim(l_selector,'.#'); --Does this create a valid statement?
      
-  
+    l_rule_set.selector := 'TEST';
 
   END;
 

@@ -1,5 +1,12 @@
 create or replace package aop_test is
   --@AOP_LOG
+
+
+    TYPE test_typ IS RECORD (
+       num      number
+      ,name     varchar2(50));
+
+
   procedure test1(i_param11 in varchar2
                  ,i_param12 in varchar2
 				 ,i_param13 in varchar2);
@@ -16,3 +23,4 @@ create or replace package aop_test is
 
 end; 
 /
+
