@@ -330,7 +330,8 @@ where max_event_date >= :i_min_qa_date
 
   END;
 
-  procedure test_spec_var(i_test in out test_typ) is
+  procedure test_spec_var(i_test in out aop_test.test_typ
+                         ,i_test2 in out aop_test.test_typ2 ) is
 
   BEGIN
     i_test.num := 2;
@@ -361,7 +362,20 @@ where max_event_date >= :i_min_qa_date
      
     l_rule_set.selector := 'TEST';
 
+    
+
   END;
+
+  procedure last is
+
+    l_simple number;
+  BEGIN
+    l_simple := 1;
+
+    --Package Spec Var
+    g_test4 := 'HI';
+    
+  end;
 
 
   /*
@@ -375,3 +389,7 @@ show errors;
 execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST');
 execute ms_api.set_module_debug(i_module_name => 'AOP_TEST');
 select aop_test.test5 from dual;
+
+SELECT PLSCOPE_SETTINGS
+FROM USER_PLSQL_OBJECT_SETTINGS
+ WHERE NAME='AOP_TEST' AND TYPE='PACKAGE';

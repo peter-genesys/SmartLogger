@@ -174,7 +174,33 @@ create or replace package body aop_processor is
   G_REGEX_FATAL              CONSTANT VARCHAR2(50) := '--##';  
   G_REGEX_NOTE               CONSTANT VARCHAR2(50) := '--\^\^';  
 
- 
+--------------------------------------------------------------------
+-- display_var_list - Log the var list
+--------------------------------------------------------------------
+  procedure display_var_list(i_var_list in var_list_typ) is
+  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'display_var_list'); 
+        l_index varchar2(200);
+  BEGIN
+    l_index := i_var_list.FIRST;
+    
+    WHILE l_index is not null loop
+      ms_logger.note(l_node, 'Var Name l_index'            ,l_index);
+      ms_logger.note(l_node, 'Var Type i_var_list(l_index)',i_var_list(l_index));
+      l_index := i_var_list.NEXT(l_index);
+    end loop;
+  END;
+
+--------------------------------------------------------------------
+-- store_var_list - Store names and types in uppercase
+--------------------------------------------------------------------
+  procedure store_var_list(i_param_name in     varchar2
+                          ,i_param_type in     varchar2
+                          ,io_var_list  in out var_list_typ ) is
+  BEGIN
+      io_var_list(UPPER(i_param_name)) := UPPER(i_param_type);  
+  END;
+
+
 --------------------------------------------------------------------
 -- source_has_tag
 --------------------------------------------------------------------
@@ -1235,14 +1261,14 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
   --G_REGEX_PACK_REC_VAR_DEF_LINE CONSTANT VARCHAR2(200) :='([\w\#\$]+)\s+(IN\s+)?(OUT\s+)?([\w\#\$]+?)\.([\w\#\$]+?)[^\w\#\$]';
 
 
-    
+ 
   PROCEDURE store_var_def(i_param_name IN VARCHAR2
                          ,i_param_type IN VARCHAR2  
                          ,i_in_var     IN BOOLEAN
                          ,i_out_var    IN BOOLEAN ) IS
                          
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'store_var_def'); 
-                         
+                    
   BEGIN
   
     ms_logger.param(l_node, 'i_param_name' ,i_param_name); 
@@ -1252,20 +1278,28 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
  
     IF regex_match(i_param_type,G_REGEX_PREDEFINED_TYPES,'i') THEN
  
-    IF i_in_var OR NOT l_out_var THEN
-        --IN and IN OUT and (implicit IN) included in the param input list.
-        ms_logger.comment(l_node, 'Stored IN var');  
-        io_param_list(io_param_list.COUNT+1)   := i_param_name;  
-        io_param_types(io_param_types.COUNT+1) := i_param_type;  
-
-     END IF;  
+      IF i_in_var OR NOT i_out_var THEN
+          --IN and IN OUT and (implicit IN) included in the param input list.
+          ms_logger.comment(l_node, 'Stored IN var');  
+          io_param_list(io_param_list.COUNT+1)   := i_param_name;  
+          io_param_types(io_param_types.COUNT+1) := i_param_type;  
   
-      IF l_out_var THEN
-        --Save IN OUT and OUT params in the variable list. 
-        ms_logger.comment(l_node, 'Stored OUT var');       
-        io_var_list(i_param_name) := i_param_type;  
-        ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);
-      END IF;
+       END IF;  
+    
+        IF i_out_var THEN
+          --Save IN OUT and OUT params in the variable list. 
+          ms_logger.comment(l_node, 'Stored OUT var');  
+  
+          store_var_list(i_param_name => i_param_name
+                        ,i_param_type => i_param_type
+                        ,io_var_list  => io_var_list );
+   
+          ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);
+        END IF;
+
+    ELSE
+    
+      ms_logger.warning(l_node, 'Not a predefined type. '||G_REGEX_PREDEFINED_TYPES);      
  
     END IF;
   END store_var_def;  
@@ -1337,7 +1371,10 @@ BEGIN
                  ms_logger.note(l_node, 'l_table_name',l_table_name); 
   
                  --Remember the Record name itself as a var with a type of TABLE_NAME
-                 io_var_list(l_param_name) := l_table_name;  
+                 store_var_list(i_param_name => l_param_name
+                               ,i_param_type => l_table_name
+                               ,io_var_list  => io_var_list );
+ 
                  ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
             
             --Also need to add 1 var def for each valid componant of the record type.
@@ -1421,7 +1458,10 @@ BEGIN
 
 
                 --Remember the Record name itself as a var with a type of PACKAGE_NAME.TYPE_NAME
-                 io_var_list(l_param_name) := l_package_name||'.'||l_type_name;
+                 store_var_list(i_param_name => l_param_name
+                               ,i_param_type => l_package_name||'.'||l_type_name
+                               ,io_var_list  => io_var_list );
+
                  ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
  
                  --Only attempts to write out atomic vars, unless we start recursion..
@@ -1630,7 +1670,9 @@ BEGIN
       IF  regex_match(l_param_type , G_REGEX_PREDEFINED_TYPES) THEN
           
       --Supported data type so store in the var list.
-          l_var_list(l_param_name) := l_param_type;  
+          store_var_list(i_param_name => l_param_name
+                        ,i_param_type => l_param_type
+                        ,io_var_list  => l_var_list );
           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);     
  
         END IF; 
@@ -1645,7 +1687,9 @@ BEGIN
         ms_logger.note(l_node, 'l_table_name',l_table_name); 
  
         --Remember the Record name itself as a var with a type of TABLE_NAME
-        l_var_list(l_param_name) := l_table_name;  
+        store_var_list(i_param_name => l_param_name
+                      ,i_param_type => l_table_name
+                      ,io_var_list  => l_var_list );
         ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);   
     
     --Also need to add 1 var def for each valid componant of the record type.
@@ -1658,8 +1702,10 @@ BEGIN
        and   owner      = l_table_owner  ) LOOP
 
          IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
-       
-           l_var_list(l_param_name||'.'||l_column.column_name) := l_column.data_type;  
+           store_var_list(i_param_name => l_param_name||'.'||l_column.column_name
+                         ,i_param_type => l_column.data_type
+                         ,io_var_list  => l_var_list );
+
            ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);       
          END IF; 
        
@@ -1687,7 +1733,10 @@ BEGIN
 
          IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
        
-          l_var_list(l_param_name) := l_column.data_type;  
+          store_var_list(i_param_name => l_param_name
+                        ,i_param_type => l_column.data_type
+                        ,io_var_list  => l_var_list );
+
           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
 
          END IF;    
@@ -1950,38 +1999,39 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
     END IF;
   END;
  
-
   PROCEDURE note_non_bind_var(i_var in varchar2 ) IS
     -- find assignment of non-bind variable and inject a note
+    l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_non_bind_var');
+    l_var varchar2(200) := upper(i_var);
    
   BEGIN
  
-        IF l_var_list.EXISTS(i_var) THEN
+        IF l_var_list.EXISTS(l_var) THEN
           --This variable exists in the list of scoped variables with compatible types    
           ms_logger.comment(l_node, 'Scoped Var');
-          ms_logger.note(l_node,'l_var_list(i_var)',l_var_list(i_var));
-          IF  regex_match(l_var_list(i_var) , G_REGEX_PREDEFINED_TYPES) THEN
+          ms_logger.note(l_node,'l_var_list(l_var)',l_var_list(l_var));
+          IF  regex_match(l_var_list(l_var) , G_REGEX_PREDEFINED_TYPES) THEN
             --Data type is supported.
             ms_logger.comment(l_node, 'Data type is supported');
             --So we can write a note for it.
-            note_var(i_var   => i_var
-                     ,i_type => l_var_list(i_var));
+            note_var(i_var  => i_var --Use the original case
+                    ,i_type => l_var_list(l_var));
           ELSE
             ms_logger.comment(l_node, 'Data type is TABLE_NAME');
             --Data type is unsupported so it is the name of a table instead.
             --Now write a note for each supported column.
             ms_logger.comment(l_node, 'Data type is supported');
             --Also need to add 1 var def for each valid componant of the record type.
-            l_table_owner := table_owner(i_table_name => l_var_list(i_var));
+            l_table_owner := table_owner(i_table_name => l_var_list(l_var));
             FOR l_column IN 
               (select lower(column_name) column_name
                      ,data_type
                from all_tab_columns
-               where table_name = l_var_list(i_var) 
+               where table_name = l_var_list(l_var) 
                and   owner      = l_table_owner  ) LOOP
 
                IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
-                 note_var(i_var  => i_var||'.'||l_column.column_name
+                 note_var(i_var  => i_var||'.'||l_column.column_name --Use the original case
                          ,i_type => l_column.data_type);
                END IF;
 
@@ -1989,21 +2039,27 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
  
           END IF;
 
-         
+        ELSE 
+          ms_logger.warning(l_node, 'Var not known '||i_var);
+          display_var_list(i_var_list => l_var_list);
         END IF;
   END;
 
   PROCEDURE note_rec_col_var(i_var  in varchar2) IS
   -- find assignment of rec.column variable and inject a note
- 
+    l_var varchar2(200) := upper(i_var);
   BEGIN
  
-    IF l_var_list.EXISTS(i_var) THEN
+    IF l_var_list.EXISTS(l_var) THEN
       --Tab Column rec variable exists 
-      note_var(i_var  => i_var
-              ,i_type => l_var_list(i_var));
+      note_var(i_var  => i_var --Use the original case
+              ,i_type => l_var_list(l_var));
        
-    END IF;
+   ELSE 
+      ms_logger.warning(l_node, 'Var not known');
+      display_var_list(i_var_list => l_var_list);
+ 
+   END IF;
   END;
 
  
@@ -2560,7 +2616,7 @@ END;
 -----------------------------------------------------------------------------------------------
 -- weave
 ----------------------------------------------------------------------------------------------- 
-/** PUBLIC
+/** PRIVATE
 * Weave logger instrumentation into the source code.  
 * Will process 
 *  one package body (and componants) or 
@@ -2568,6 +2624,7 @@ END;
 *  a list of program units (Procedures and Functions)            
 * @param p_code         source code
 * @param p_package_name name of package (optional)
+* @param p_var_list     list of scoped variables, typically from a package spec
 * @param p_for_html     flag to add HTML style tags for apex pretty print
 * @param p_end_user     object owner
 * @return TRUE if woven successfully.
@@ -2576,8 +2633,9 @@ END;
   function weave
   ( p_code         in out clob
   , p_package_name in varchar2
-  , p_for_html     in boolean default false
-  , p_end_user     in varchar2 default null
+  , p_var_list     in var_list_typ  
+  , p_for_html     in boolean      default false
+  , p_end_user     in varchar2     default null
   ) return boolean
   is
 
@@ -2632,7 +2690,7 @@ END;
 
       declare
         l_keyword    varchar2(50);
-        l_var_list   var_list_typ;
+        l_var_list   var_list_typ := p_var_list;
       
       begin
         g_current_pos := 1;
@@ -2722,7 +2780,175 @@ END;
   
   end weave;
   
+-----------------------------------------------------------------------------------------------
+-- weave
+----------------------------------------------------------------------------------------------- 
+/** PUBLIC
+* Calls the private weave function with an empty p_var_list
+* So that the Apex app can call this for Quick Weave without sending p_var_list          
+* @param p_code         source code
+* @param p_package_name name of package (optional)
+* @param p_for_html     flag to add HTML style tags for apex pretty print
+* @param p_end_user     object owner
+* @return TRUE if woven successfully.
+*/
+  function weave ( p_code         in out clob
+                 , p_package_name in varchar2
+                 , p_for_html     in boolean      default false
+                 , p_end_user     in varchar2     default null
+                 ) return boolean is
+    l_var_list   var_list_typ;
+  BEGIN
+    
+    RETURN weave( p_code         => p_code        
+                , p_package_name => p_package_name
+                , p_var_list     => l_var_list    
+                , p_for_html     => p_for_html    
+                , p_end_user     => p_end_user    
+                ) ;
+  END;  
+
+
+--------------------------------------------------------------------
+-- is_PLScoped
+--------------------------------------------------------------------  
+/** PRIVATE
+* Verify that PL/Scope collected all identifiers
+* @param i_name   Object Name 
+* @param i_type   Object Type 
+*/
+
+FUNCTION is_PLScoped(i_name in varchar2
+                    ,i_type in varchar2 ) return boolean is
+  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'is_plscoped');
+
+  cursor cu_plsql_object_settings is
+  SELECT PLSCOPE_SETTINGS
+  FROM   USER_PLSQL_OBJECT_SETTINGS
+  WHERE  NAME = i_name 
+  AND    TYPE = i_type;
+
+  l_plsql_object_settings cu_plsql_object_settings%ROWTYPE;
+begin --is_plscoped
+  ms_logger.param(l_node,'i_name',i_name);
+  ms_logger.param(l_node,'i_type',i_type);
+BEGIN
+  OPEN  cu_plsql_object_settings;
+  FETCH cu_plsql_object_settings INTO l_plsql_object_settings;
+  CLOSE cu_plsql_object_settings;
+
+  return l_plsql_object_settings.plscope_settings = 'IDENTIFIERS:ALL';
+
+END;
+exception
+  when others then
+    ms_logger.warn_error(l_node);
+    raise;
+end; --is_plscoped
  
+--------------------------------------------------------------------
+-- compile_with_plscope
+--------------------------------------------------------------------  
+/** PRIVATE
+* Recompile the source code using the PLSCOPE directive.
+* @param i_text   Source Code
+*/
+PROCEDURE compile_with_plscope(i_text in clob) is
+  PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN     
+  execute immediate q'[alter session set plscope_settings='IDENTIFIERS:ALL']';
+  execute immediate i_text;  --11G CLOB OK
+  commit;
+END;
+
+
+--------------------------------------------------------------------
+-- get_package_spec_vars
+--------------------------------------------------------------------  
+/** PRIVATE
+* Use PLScope to find variables in the spec
+* recompile spec if needed
+* @param i_name   Object Name 
+* @param i_owner  Object Owner
+*/
+FUNCTION get_package_spec_vars(i_name  in varchar2
+                                ,i_owner in varchar2) return var_list_typ is
+    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_package_spec_vars');
+    l_var_list    var_list_typ;
+    l_source_code clob;
+  begin --get_package_spec_vars
+    ms_logger.param(l_node,'i_name' ,i_name);
+    ms_logger.param(l_node,'i_owner',i_owner);
+  BEGIN
+    IF NOT is_PLScoped(i_name => i_name
+                      ,i_type => 'PACKAGE') THEN
+      ms_logger.comment(l_node,'Package is not currently PLScoped');
+      --Need to recompile the package spec with plscope set
+      l_source_code := get_plsql( i_object_name    => i_name
+                                , i_object_owner   => i_owner
+                                , i_object_type    => 'PACKAGE'   );
+      ms_logger.note_clob(l_node,'l_source_code',l_source_code);
+      compile_with_plscope(i_text => l_source_code);
+
+      IF NOT is_PLScoped(i_name => i_name
+                        ,i_type => 'PACKAGE') THEN
+        ms_logger.warning(l_node,'Package Spec could not be compiled with PLSCOPE');
+        null;
+      END IF;
+     
+    END IF;
+    
+    --Now get the variables.
+    For l_var in (
+WITH plscope_hierarchy
+        AS (SELECT line
+                 , col
+                 , name
+                 , TYPE
+                 , usage
+                 , usage_id
+                 , usage_context_id
+              FROM all_identifiers
+             WHERE     owner = USER
+                   AND object_name = i_name
+                   AND object_type = 'PACKAGE')
+select v.name
+      ,v.type
+      ,v.usage
+      ,t.name data_type
+      ,t.type data_class
+from  plscope_hierarchy p
+     ,plscope_hierarchy v
+     ,plscope_hierarchy t
+where p.usage_context_id = 0
+and   v.usage_context_id = p.usage_id
+and   v.type  = 'VARIABLE'
+and   v.usage = 'DECLARATION'
+and   t.usage_context_id = v.usage_id ) LOOP
+
+      ms_logger.note(l_node, 'l_var.name'     ,l_var.name);
+      ms_logger.note(l_node, 'l_var.data_type',l_var.data_type);
+
+      IF  regex_match(l_var.data_type , G_REGEX_PREDEFINED_TYPES) THEN
+          ms_logger.comment(l_node, 'Found predefined type variable in Package Spec');
+          l_var_list(l_var.name) := l_var.data_type;  
+          ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
+
+      END IF;    
+     
+
+    END LOOP;
+ 
+    return l_var_list;
+  END;
+  exception
+    when others then
+      ms_logger.warn_error(l_node);
+      raise;
+  end; --get_package_spec_vars
+
+
+
 --------------------------------------------------------------------
 -- instrument_plsql
 --------------------------------------------------------------------  
@@ -2741,10 +2967,11 @@ END;
   ) is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'instrument_plsql');
   
-    l_orig_body clob;
-    l_aop_body clob;
-    l_html_body clob;
-    l_woven boolean := false;
+    l_orig_body  clob;
+    l_aop_body   clob;
+    l_html_body  clob;
+    l_woven      boolean := false;
+    l_var_list   var_list_typ;
   begin 
   begin
     ms_logger.param(l_node, 'i_object_name'  ,i_object_name  );
@@ -2772,9 +2999,9 @@ END;
       return;
     end if;
   
-    IF NOT  validate_source(i_name  => i_object_name
-                          , i_type  => i_object_type
-                          , i_text  => l_orig_body
+    IF NOT  validate_source(i_name    => i_object_name
+                          , i_type    => i_object_type
+                          , i_text    => l_orig_body
                           , i_aop_ver => 'ORIG'
                           , i_compile => TRUE
                           ) THEN
@@ -2783,6 +3010,12 @@ END;
       return;    
     end if;     
 
+    IF i_object_type = 'PACKAGE BODY' THEN
+      --Get a list of variables from the package spec
+      l_var_list := get_package_spec_vars(i_name  => i_object_name
+                                         ,i_owner => i_object_owner);
+    END IF;  
+ 
     if i_versions like 'HTML%' then
       --Reweave with html - even if the AOP failed.
       --We want to see what happened.
@@ -2790,6 +3023,7 @@ END;
       l_html_body := l_orig_body;
         l_woven := weave( p_code         => l_html_body
                           , p_package_name => lower(i_object_name)
+                          , p_var_list     => l_var_list
                           , p_for_html     => true
                           , p_end_user     => i_object_owner);
  
@@ -2810,6 +3044,7 @@ END;
       -- manipulate source by weaving in aspects as required; only weave if the keyword logging not yet applied.
       l_woven := weave( p_code         => l_aop_body
                         , p_package_name => lower(i_object_name)
+                        , p_var_list     => l_var_list
                         , p_end_user     => i_object_owner        );
 
       -- (re)compile the source 
@@ -2848,6 +3083,7 @@ END;
       l_html_body := l_orig_body;
         l_woven := weave( p_code         => l_html_body
                           , p_package_name => lower(i_object_name)
+                          , p_var_list     => l_var_list
                           , p_for_html     => true
                           , p_end_user     => i_object_owner);
  

@@ -35,7 +35,7 @@ is
   G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
 
   TYPE var_list_typ IS TABLE OF VARCHAR2(30) INDEX BY VARCHAR2(106);  
-  
+
   TYPE param_list_typ IS TABLE OF VARCHAR2(106) INDEX BY BINARY_INTEGER;  
  
   --------------------------------------------------------------------
@@ -81,23 +81,20 @@ is
 -- weave
 ----------------------------------------------------------------------------------------------- 
 /** PUBLIC
-* Weave logger instrumentation into the source code.  
-* Will process 
-*  one package body (and componants) or 
-*  one anonymous block (and componants) or
-*  a list of program units (Procedures and Functions)            
+* Calls the private weave function with an empty p_var_list
+* So that the Apex app can call this for Quick Weave without sending p_var_list          
 * @param p_code         source code
 * @param p_package_name name of package (optional)
 * @param p_for_html     flag to add HTML style tags for apex pretty print
 * @param p_end_user     object owner
 * @return TRUE if woven successfully.
 */
-  function weave
-  ( p_code         in out clob
-  , p_package_name in varchar2
-  , p_for_html     in boolean default false
-  , p_end_user     in varchar2 default null
-  ) return boolean; 
+  function weave ( p_code         in out clob
+                 , p_package_name in varchar2
+                 , p_for_html     in boolean      default false
+                 , p_end_user     in varchar2     default null
+                 ) return boolean; 
+  
 --------------------------------------------------------------------
 -- reapply_aspect
 --------------------------------------------------------------------  
