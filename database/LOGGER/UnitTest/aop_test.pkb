@@ -330,14 +330,21 @@ where max_event_date >= :i_min_qa_date
 
   END;
 
-  procedure test_spec_var(i_test in out aop_test.test_typ
-                         ,i_test2 in out aop_test.test_typ2 ) is
+  procedure test_spec_type(i_test in out aop_test.test_typ
+                          ,i_test2 in out aop_test.test_typ2 ) is
 
   BEGIN
     i_test.num := 2;
 
   END;
 
+
+  procedure test_spec_var  is
+
+  BEGIN
+    g_test1.num := 2;
+
+  END;
 
 
 

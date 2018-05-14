@@ -175,10 +175,10 @@ create or replace package body aop_processor is
   G_REGEX_NOTE               CONSTANT VARCHAR2(50) := '--\^\^';  
 
 --------------------------------------------------------------------
--- display_var_list - Log the var list
+-- log_var_list - Log the var list
 --------------------------------------------------------------------
-  procedure display_var_list(i_var_list in var_list_typ) is
-  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'display_var_list'); 
+  procedure log_var_list(i_var_list in var_list_typ) is
+  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'log_var_list'); 
         l_index varchar2(200);
   BEGIN
     l_index := i_var_list.FIRST;
@@ -1244,14 +1244,14 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
 
  
     
-  l_var_def                     CLOB;
+  l_var_def                      CLOB;
   G_REGEX_PARAM_PREDEFINED       CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_PREDEFINED_TYPES;
   G_REGEX_PARAM_ROWTYPE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')%ROWTYPE';                     --Table row type
   G_REGEX_PARAM_COLTYPE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')\.('||G_REGEX_WORD||')%TYPE'; --Table column Type
-  G_REGEX_CUSTOM_PLSQL_TYPE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')\.('||G_REGEX_WORD||')';
-  G_REGEX_CUSTOM_PLSQL_TYPE2     CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')';
+  G_REGEX_CUSTOM_PLSQL_TYPE_2WD  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')\.('||G_REGEX_WORD||')';
+  G_REGEX_CUSTOM_PLSQL_TYPE_1WD  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')';
 
-  --G_REGEX_CUSTOM_PLSQL_TYPE      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_2WORDS;
+  --G_REGEX_CUSTOM_PLSQL_TYPE_2WD      CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_2WORDS;
    
   --G_REGEX_PACK_REC_VAR_DEF_LINE CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||'?)\.[\w\#\$]+[^\w\#\$]+?';
 
@@ -1333,8 +1333,8 @@ BEGIN
                                                ||'|'||G_REGEX_PARAM_COLTYPE
 
                                   ,i_stop         =>  G_REGEX_PARAM_PREDEFINED||'\W'
-                                               ||'|'||G_REGEX_CUSTOM_PLSQL_TYPE
-                                               ||'|'||G_REGEX_CUSTOM_PLSQL_TYPE2
+                                               ||'|'||G_REGEX_CUSTOM_PLSQL_TYPE_2WD
+                                               ||'|'||G_REGEX_CUSTOM_PLSQL_TYPE_1WD
                                     ,i_upper        => TRUE
                                     ,i_colour       => G_COLOUR_PARAM
                                     ,i_raise_error  => TRUE);
@@ -1440,7 +1440,7 @@ BEGIN
                        ,i_colour => G_COLOUR_GO_PAST);
 
 
-            WHEN regex_match(l_var_def , G_REGEX_CUSTOM_PLSQL_TYPE) THEN
+            WHEN regex_match(l_var_def , G_REGEX_CUSTOM_PLSQL_TYPE_2WD) THEN
               ms_logger.info(l_node, 'LOOKING FOR FOREIGN CUSTOM PLSQL TYPE VARS');
 
                  l_in_var  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',3)) LIKE 'IN%';
@@ -1448,9 +1448,9 @@ BEGIN
                  ms_logger.note(l_node, 'l_in_var',l_in_var);
                  ms_logger.note(l_node, 'l_out_var',l_out_var);
  
-                 l_param_name      := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE,1,1,'i',1));
-                 l_package_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE,1,1,'i',5));
-                 l_type_name       := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE,1,1,'i',7));
+                 l_param_name      := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_2WD,1,1,'i',1));
+                 l_package_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_2WD,1,1,'i',5));
+                 l_type_name       := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_2WD,1,1,'i',7));
 
                  ms_logger.note(l_node, 'l_param_name'   ,l_param_name);
                  ms_logger.note(l_node, 'l_package_name' ,l_package_name);
@@ -1479,9 +1479,13 @@ BEGIN
                       where  type_owner   =  l_package_owner    
                       and    type_name    =  l_package_name
                       and    type_subname =  l_type_name  ) LOOP
+
+                     ms_logger.note(l_node, 'l_column.data_type',l_column.data_type);
                       
                       --Restrict to atomic types.
                       IF G_REGEX_PREDEFINED_TYPES like '%'||l_column.data_type||'%' THEN
+
+                        --regex_match(l_column.data_type,G_REGEX_PREDEFINED_TYPES,'i')
 
                           l_param_found := TRUE;
                           store_var_def(i_param_name  => l_param_name||'.'||l_column.column_name
@@ -1500,41 +1504,41 @@ BEGIN
                    end if;
                  end;
                    
-                 go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE
+                 go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE_2WD
                         ,i_colour => G_COLOUR_GO_PAST);
 
 
 
-            WHEN regex_match(l_var_def , G_REGEX_CUSTOM_PLSQL_TYPE2) THEN
+            WHEN regex_match(l_var_def , G_REGEX_CUSTOM_PLSQL_TYPE_1WD) THEN
               ms_logger.info(l_node, 'LOOKING FOR LOCAL CUSTOM PLSQL TYPE VARS');
 
               --temp debugging only
-              ms_logger.note(l_node, 'l_var_def p1', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',1));
-              ms_logger.note(l_node, 'l_var_def p2', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',2));
-              ms_logger.note(l_node, 'l_var_def p3', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',3));
-              ms_logger.note(l_node, 'l_var_def p4', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',4));
-              ms_logger.note(l_node, 'l_var_def p5', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',5));
-              ms_logger.note(l_node, 'l_var_def p6', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',6));
-              ms_logger.note(l_node, 'l_var_def p7', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',7));
-              ms_logger.note(l_node, 'l_var_def p8', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',8));
+              ms_logger.note(l_node, 'l_var_def p1', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',1));
+              ms_logger.note(l_node, 'l_var_def p2', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',2));
+              ms_logger.note(l_node, 'l_var_def p3', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',3));
+              ms_logger.note(l_node, 'l_var_def p4', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',4));
+              ms_logger.note(l_node, 'l_var_def p5', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',5));
+              ms_logger.note(l_node, 'l_var_def p6', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',6));
+              ms_logger.note(l_node, 'l_var_def p7', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',7));
+              ms_logger.note(l_node, 'l_var_def p8', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',8));
 
 
-                 l_param_name      := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',1));
-                 l_package_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',5));
-                 l_type_name       := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE2,1,1,'i',7));
+                 l_param_name      := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',1));
+                 l_package_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',5));
+                 l_type_name       := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',7));
 
                  ms_logger.note(l_node, 'l_param_name' ,l_param_name);
                  ms_logger.note(l_node, 'l_package_name' ,l_package_name);
                  ms_logger.note(l_node, 'l_type_name',l_type_name);
 
 
-                go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE2
+                go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE_1WD
                        ,i_colour => G_COLOUR_GO_PAST);
           
                --UNSUPPORTED
                ELSE
                  ms_logger.info(l_node, 'Unsupported datatype');
-                go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE
+                go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE_2WD
                        ,i_colour => G_COLOUR_UNSUPPORTED);
 
                  --RAISE x_invalid_keyword;
@@ -1622,7 +1626,10 @@ FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
   
   l_var_list              var_list_typ := i_var_list;
   l_var_def               CLOB;
-  G_REGEX_PARAM_PREDEFINED         CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?'||G_REGEX_PREDEFINED_TYPES||'\W';
+
+  G_REGEX_NAME     CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?';
+
+  G_REGEX_PARAM_PREDEFINED    CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?'||G_REGEX_PREDEFINED_TYPES||'\W';
   G_REGEX_PARAM_ROWTYPE       CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?%ROWTYPE';
   G_REGEX_PARAM_COLTYPE       CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?\.'||G_REGEX_WORD||'?%TYPE';
   
@@ -1630,6 +1637,9 @@ FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
   G_REGEX_VAR_NAME_TYPE       CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+('||G_REGEX_WORD||')';
   G_REGEX_REC_VAR_NAME_TYPE   CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+('||G_REGEX_WORD||')%ROWTYPE';
   G_REGEX_TAB_COL_NAME_TYPE   CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+('||G_REGEX_WORD||')\.('||G_REGEX_WORD||')%TYPE';
+
+  G_REGEX_CUSTOM_PLSQL_TYPE_2WD  CONSTANT VARCHAR2(200) := G_REGEX_NAME||'('||G_REGEX_WORD||')\.('||G_REGEX_WORD||')';
+  G_REGEX_CUSTOM_PLSQL_TYPE_1WD  CONSTANT VARCHAR2(200) := G_REGEX_NAME||'('||G_REGEX_WORD||')';
 
   
   l_param_name  VARCHAR2(30);
@@ -2041,7 +2051,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 
         ELSE 
           ms_logger.warning(l_node, 'Var not known '||i_var);
-          display_var_list(i_var_list => l_var_list);
+          log_var_list(i_var_list => l_var_list);
         END IF;
   END;
 
@@ -2057,7 +2067,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
        
    ELSE 
       ms_logger.warning(l_node, 'Var not known');
-      display_var_list(i_var_list => l_var_list);
+      log_var_list(i_var_list => l_var_list);
  
    END IF;
   END;
@@ -2872,7 +2882,7 @@ END;
 * @param i_owner  Object Owner
 */
 FUNCTION get_package_spec_vars(i_name  in varchar2
-                                ,i_owner in varchar2) return var_list_typ is
+                              ,i_owner in varchar2) return var_list_typ is
     l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_package_spec_vars');
     l_var_list    var_list_typ;
     l_source_code clob;
@@ -2926,6 +2936,11 @@ and   v.type  = 'VARIABLE'
 and   v.usage = 'DECLARATION'
 and   t.usage_context_id = v.usage_id ) LOOP
 
+--NB - Could use the original hierarchiacal query 
+--Or could just use a recursive proc/function to store what ever it need with recursive calls 
+--to the same query..
+
+
       ms_logger.note(l_node, 'l_var.name'     ,l_var.name);
       ms_logger.note(l_node, 'l_var.data_type',l_var.data_type);
 
@@ -2934,10 +2949,70 @@ and   t.usage_context_id = v.usage_id ) LOOP
           l_var_list(l_var.name) := l_var.data_type;  
           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
 
+      ELSIF l_var.data_class = 'RECORD' THEN
+          ms_logger.comment(l_node, 'Found a Package Spec variable of record type, type defined in the package?');
+          l_var_list(l_var.name) := l_var.data_type; --Add the Record Type
+          --Add all the componants
+          --(@TODO Convert this to cursor function)
+          FOR l_column in ( WITH plscope_hierarchy
+                AS (SELECT line
+                         , col
+                         , name
+                         , TYPE
+                         , usage
+                         , usage_id
+                         , usage_context_id
+                      FROM all_identifiers
+                     WHERE     owner = USER
+                     AND object_name = 'AOP_TEST'
+                     AND object_type = 'PACKAGE')
+                select v.name
+                      ,v.type
+                      ,v.usage
+                      ,col.name col_name
+                     -- ,col.type var_type
+                      ,typ.name data_type
+                      ,typ.type type_class
+                from  plscope_hierarchy p
+                     ,plscope_hierarchy v
+                     ,plscope_hierarchy col
+                     ,plscope_hierarchy typ
+                where p.usage_context_id = 0
+                and   v.usage_context_id = p.usage_id
+                and   v.type  = 'RECORD'
+                and   v.usage = 'DECLARATION'
+                and   v.name  = l_var.data_type --'TEST_TYPE'
+                and   v.type  = 'RECORD'
+                and   col.usage_context_id = v.usage_id 
+                and   typ.usage_context_id = col.usage_id 
+                ) LOOP 
+
+             ms_logger.note(l_node, 'l_column.col_name'  ,l_column.col_name);
+             ms_logger.note(l_node, 'l_column.data_type' ,l_column.data_type);
+             l_var_list(l_var.name||'.'||l_column.col_name) := l_column.data_type; --Add the Record Type
+ 
+          END LOOP; 
+ 
+      ELSE
+         null;
+          --So it is another sort of type 
+          --What are the choices
+          --DB table or view Record Type
+          --PLSQL Record Type
+          --PLSQL Table Type
+          --Cursor Type - not sure we will be able to determine this one.
+          --Package Spec Type
+          --Database Type
+
+
+
+
       END IF;    
      
 
     END LOOP;
+
+    log_var_list(i_var_list => l_var_list);
  
     return l_var_list;
   END;
