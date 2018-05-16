@@ -12,10 +12,13 @@ create or replace package aop_test is
 
     TYPE test_typ2 IS TABLE OF ms_message%ROWTYPE INDEX BY BINARY_INTEGER;  
 
+
+
     g_test1 test_typ;
     g_test2 ms_logger.node_typ;
     g_test3 number;
     g_test4 varchar2(100);
+    g_test5 ms_message%ROWTYPE;
 
   procedure test1(i_param11 in varchar2
                  ,i_param12 in varchar2

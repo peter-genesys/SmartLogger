@@ -8,6 +8,21 @@ is
 */
  
 
+
+
+ 
+--TYPE identifier_rec is record (field_name    all_identifiers.name%TYPE 
+--                              ,data_type     all_identifiers.name%TYPE 
+--                              ,data_class    all_identifiers.type%TYPE 
+--                              ,ref_signature all_identifiers.signature%TYPE);
+TYPE identifier_rec is record (col_name    varchar2(128) 
+                              ,data_type   varchar2(128) 
+                              ,data_class  varchar2(18)  
+                              ,signature   varchar2(32));
+
+--TYPE identifier_tab IS table of all_identifiers%ROWTYPE;
+TYPE identifier_tab IS table of identifier_rec index by BINARY_INTEGER;
+ 
   ----------------------------------------------------------------------------
   -- COLOUR CODES
   ----------------------------------------------------------------------------
@@ -34,7 +49,7 @@ is
   G_COLOUR_NOTE             CONSTANT VARCHAR2(10) := '#00FF99';
   G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
 
-  TYPE var_list_typ IS TABLE OF VARCHAR2(30) INDEX BY VARCHAR2(106);  
+  TYPE var_list_typ IS TABLE OF VARCHAR2(32) INDEX BY VARCHAR2(106);  
 
   TYPE param_list_typ IS TABLE OF VARCHAR2(106) INDEX BY BINARY_INTEGER;  
  

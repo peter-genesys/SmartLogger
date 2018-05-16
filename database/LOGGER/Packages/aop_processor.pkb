@@ -5,6 +5,8 @@ alter session set plsql_optimize_level = 1;
 
 set define off;
 
+
+
 create or replace package body aop_processor is
 /** 
 * AOP Processor - Aspect Orientated Programming Processor
@@ -184,8 +186,9 @@ create or replace package body aop_processor is
     l_index := i_var_list.FIRST;
     
     WHILE l_index is not null loop
-      ms_logger.note(l_node, 'Var Name l_index'            ,l_index);
-      ms_logger.note(l_node, 'Var Type i_var_list(l_index)',i_var_list(l_index));
+      --ms_logger.note(l_node, 'Var Name l_index'            ,l_index);
+      --ms_logger.note(l_node, 'Var Type i_var_list(l_index)',i_var_list(l_index));
+      ms_logger.note(l_node,l_index,i_var_list(l_index));
       l_index := i_var_list.NEXT(l_index);
     end loop;
   END;
@@ -200,6 +203,193 @@ create or replace package body aop_processor is
       io_var_list(UPPER(i_param_name)) := UPPER(i_param_type);  
   END;
 
+
+
+
+--------------------------------------------------------------------
+-- identifier_exists
+--------------------------------------------------------------------  
+/** PRIVATE
+* Does this signature exist?
+* @param i_signature   Signature of a DECLARATION
+*/
+FUNCTION identifier_exists(i_signature   in varchar2) return boolean is
+ 
+  --Query to identify a simple reference
+  CURSOR cu_identifier is
+    SELECT 1
+    FROM all_identifiers 
+    where signature = i_signature 
+    and usage = 'DECLARATION';
+ 
+   l_dummy  number;
+   l_result boolean;
+ BEGIN
+   
+   OPEN cu_identifier;
+   FETCH cu_identifier INTO l_dummy;
+   l_result := cu_identifier%FOUND;
+   CLOSE cu_identifier;
+
+   RETURN l_result;
+
+ END; 
+
+/*
+--------------------------------------------------------------------
+-- get_type_defn_piped
+--------------------------------------------------------------------  
+  PRIVATE
+* Find the type definition, and componants
+* @param i_signature   Signature of a DECLARATION
+ 
+FUNCTION get_type_defn_piped(--i_object_name in varchar2
+                       --i_object_type in varchar2
+                       i_signature   in varchar2) return identifier_tab pipelined is
+
+  --CURSOR cu_identifier
+  --  WITH plscope_hierarchy
+  --          AS (SELECT *
+  --                FROM all_identifiers
+  --               WHERE     owner = USER
+  --                     AND object_name = i_object_name
+  --                    AND object_type  = i_object_type
+  --               )
+  --  select v.name      col_name
+  --        ,t.name      data_type
+  --        ,t.type      data_class
+  --        ,t.signature signature
+  --  from   plscope_hierarchy v
+  --        ,plscope_hierarchy t
+  --  where v.usage            = 'DECLARATION'
+  --  and   v.signature        = i_signature
+  --  and   t.usage_context_id = v.usage_id;
+
+  CURSOR cu_identifier is
+    select v.name      col_name
+          ,t.name      data_type
+          ,t.type      data_class
+          ,t.signature signature
+    from   all_identifiers v
+          ,all_identifiers t
+    where v.usage            = 'DECLARATION'
+    and   v.signature        = i_signature
+    and   t.usage_context_id = v.usage_id
+    and   t.owner            = v.owner
+    and   t.object_name      = v.object_name
+    and   t.object_type      = v.object_type;
+
+
+  --Query to identify a simple reference
+  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
+ 
+ BEGIN
+   
+   FOR l_identifier_rec IN cu_identifier LOOP
+     PIPE ROW (l_identifier_rec);
+   END LOOP;
+
+   RETURN;
+
+ END get_type_defn_piped; 
+*/
+
+--------------------------------------------------------------------
+-- get_type_defn
+--------------------------------------------------------------------  
+/** PRIVATE
+* Find the type definition, and componants
+* @param i_signature   Signature of a DECLARATION
+*/
+/*
+FUNCTION get_type_defn(--i_object_name in varchar2
+                       --i_object_type in varchar2
+                       i_signature   in varchar2) return identifier_tab is
+
+ 
+  CURSOR cu_identifier is
+    select v.name      col_name
+          ,t.name      data_type
+          ,t.type      data_class
+          ,t.signature signature
+    from   all_identifiers v
+          ,all_identifiers t
+    where v.usage            = 'DECLARATION'
+    and   v.signature        = i_signature
+    and   t.usage_context_id = v.usage_id
+    and   t.owner            = v.owner
+    and   t.object_name      = v.object_name
+    and   t.object_type      = v.object_type;
+
+
+  --Query to identify a simple reference
+  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
+
+   l_identifier_tab   identifier_tab;
+   l_index            number := 0;
+ 
+ BEGIN
+   
+   FOR l_identifier_rec IN cu_identifier LOOP
+     l_index := l_index + 1;
+     l_identifier_tab(l_index) := l_identifier_rec;
+   END LOOP;
+
+   RETURN l_identifier_tab;
+
+ END; 
+ */
+
+FUNCTION get_type_defn( i_signature   in varchar2) return identifier_tab is
+  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_type_defn');
+
+ 
+  CURSOR cu_identifier is
+   select  lower(c.name) col_name
+          ,t.name        data_type
+          ,t.type        data_class 
+          ,t.signature signature
+    from   all_identifiers d
+          ,all_identifiers c
+          ,all_identifiers t
+    where d.usage            = 'DECLARATION'
+    and   d.signature        = i_signature
+    and   c.usage_context_id = d.usage_id
+    and   c.owner            = d.owner
+    and   c.object_name      = d.object_name
+    and   c.object_type      = d.object_type
+    and   t.usage_context_id = c.usage_id
+    and   t.owner            = c.owner
+    and   t.object_name      = c.object_name
+    and   t.object_type      = c.object_type;
+
+  --Query to identify a simple reference
+  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
+
+   l_identifier_tab   identifier_tab;
+   l_index            number := 0;
+ 
+begin --get_type_defn
+  ms_logger.param(l_node,'i_signature',i_signature);
+ BEGIN
+   
+   FOR l_identifier_rec IN cu_identifier LOOP
+     l_index := l_index + 1;
+     ms_logger.note(l_node,'l_index',l_index);
+     l_identifier_tab(l_index) := l_identifier_rec;
+     ms_logger.note(l_node,'l_identifier_rec.col_name',l_identifier_rec.col_name);
+   END LOOP;
+
+   ms_logger.note(l_node,'l_identifier_tab.count',l_identifier_tab.count);
+
+   RETURN l_identifier_tab;
+
+ END;
+exception
+  when others then
+    ms_logger.warn_error(l_node);
+    raise;
+end; --get_type_defn
 
 --------------------------------------------------------------------
 -- source_has_tag
@@ -336,6 +526,41 @@ create or replace package body aop_processor is
     select owner
     from   all_tables
     where  table_name = i_table_name
+    order by decode(owner,g_end_user,1,2);
+
+    l_result VARCHAR2(30);
+
+  BEGIN
+    OPEN cu_owner;
+    FETCH cu_owner INTO l_result;
+    CLOSE cu_owner;
+
+    RETURN l_result;
+ 
+  END;
+
+
+--------------------------------------------------------------------
+-- object_owner
+--------------------------------------------------------------------
+/** PRIVATE
+* Search all_objects for i_object_name
+* Find the most appropriate object owner.
+* Of All Objects (that the end user can see)
+* Select 1 owner, with preference to the end user
+* @param i_obect_name      Object Name
+* @param i_obect_type      Object Type
+* @return Object Owner
+*/
+  FUNCTION object_owner(i_object_name IN VARCHAR2
+                       ,i_object_type IN VARCHAR2) RETURN VARCHAR2 IS
+    
+
+    CURSOR cu_owner IS
+    select owner
+    from   all_objects
+    where  object_name = i_object_name
+    and    object_type = i_object_type
     order by decode(owner,g_end_user,1,2);
 
     l_result VARCHAR2(30);
@@ -2011,9 +2236,9 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
  
   PROCEDURE note_non_bind_var(i_var in varchar2 ) IS
     -- find assignment of non-bind variable and inject a note
-    l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_non_bind_var');
-    l_var varchar2(200) := upper(i_var);
-   
+    l_node      ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_non_bind_var');
+    l_var       varchar2(200) := upper(i_var);
+    
   BEGIN
  
         IF l_var_list.EXISTS(l_var) THEN
@@ -2026,8 +2251,36 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
             --So we can write a note for it.
             note_var(i_var  => i_var --Use the original case
                     ,i_type => l_var_list(l_var));
+
+
+          ELSIF  identifier_exists(i_signature => l_var_list(l_var)) THEN
+            ms_logger.comment(l_node, 'Data type is known signature');
+            
+            
+            --Find columns for this signature.
+            DECLARE
+              l_type_defn_tab identifier_tab;
+              l_index binary_integer;
+            BEGIN
+              l_type_defn_tab := get_type_defn(i_signature => l_var_list(l_var));
+              l_index := l_type_defn_tab.FIRST;
+              WHILE l_index is not null loop
+                
+                IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
+                  --@TODO This needs to be able to recursively search lower levels.
+                   note_var(i_var  => i_var||'.'||l_type_defn_tab(l_index).col_name
+                           ,i_type => l_type_defn_tab(l_index).data_type);
+                END IF;
+
+                l_index := l_type_defn_tab.NEXT(l_index);
+              END LOOP;
+            END;
+
+    
+  
+
           ELSE
-            ms_logger.comment(l_node, 'Data type is TABLE_NAME');
+            ms_logger.comment(l_node, 'Data type assumed to be a TABLE_NAME');
             --Data type is unsupported so it is the name of a table instead.
             --Now write a note for each supported column.
             ms_logger.comment(l_node, 'Data type is supported');
@@ -2664,6 +2917,7 @@ END;
   begin
     ms_logger.param(l_node, 'p_package_name'      ,p_package_name);
     ms_logger.param(l_node, 'p_for_html'          ,p_for_html);
+    ms_logger.param(l_node, 'p_end_user'          ,p_end_user);
 
     begin
  
@@ -2790,33 +3044,6 @@ END;
   
   end weave;
   
------------------------------------------------------------------------------------------------
--- weave
------------------------------------------------------------------------------------------------ 
-/** PUBLIC
-* Calls the private weave function with an empty p_var_list
-* So that the Apex app can call this for Quick Weave without sending p_var_list          
-* @param p_code         source code
-* @param p_package_name name of package (optional)
-* @param p_for_html     flag to add HTML style tags for apex pretty print
-* @param p_end_user     object owner
-* @return TRUE if woven successfully.
-*/
-  function weave ( p_code         in out clob
-                 , p_package_name in varchar2
-                 , p_for_html     in boolean      default false
-                 , p_end_user     in varchar2     default null
-                 ) return boolean is
-    l_var_list   var_list_typ;
-  BEGIN
-    
-    RETURN weave( p_code         => p_code        
-                , p_package_name => p_package_name
-                , p_var_list     => l_var_list    
-                , p_for_html     => p_for_html    
-                , p_end_user     => p_end_user    
-                ) ;
-  END;  
 
 
 --------------------------------------------------------------------
@@ -2872,6 +3099,7 @@ BEGIN
 END;
 
 
+
 --------------------------------------------------------------------
 -- get_package_spec_vars
 --------------------------------------------------------------------  
@@ -2890,8 +3118,10 @@ FUNCTION get_package_spec_vars(i_name  in varchar2
     ms_logger.param(l_node,'i_name' ,i_name);
     ms_logger.param(l_node,'i_owner',i_owner);
   BEGIN
-    IF NOT is_PLScoped(i_name => i_name
+    IF is_PLScoped(i_name => i_name
                       ,i_type => 'PACKAGE') THEN
+      ms_logger.info(l_node,'Package is already PLScoped');
+    ELSE
       ms_logger.comment(l_node,'Package is not currently PLScoped');
       --Need to recompile the package spec with plscope set
       l_source_code := get_plsql( i_object_name    => i_name
@@ -2918,15 +3148,17 @@ WITH plscope_hierarchy
                  , usage
                  , usage_id
                  , usage_context_id
+                 , signature
               FROM all_identifiers
-             WHERE     owner = USER
-                   AND object_name = i_name
-                   AND object_type = 'PACKAGE')
+             WHERE owner       = i_owner
+               AND object_name = i_name
+               AND object_type = 'PACKAGE')
 select v.name
       ,v.type
       ,v.usage
-      ,t.name data_type
-      ,t.type data_class
+      ,t.name      data_type
+      ,t.type      data_class
+      ,t.signature signature
 from  plscope_hierarchy p
      ,plscope_hierarchy v
      ,plscope_hierarchy t
@@ -2951,8 +3183,10 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
       ELSIF l_var.data_class = 'RECORD' THEN
           ms_logger.comment(l_node, 'Found a Package Spec variable of record type, type defined in the package?');
-          l_var_list(l_var.name) := l_var.data_type; --Add the Record Type
+          ms_logger.comment(l_node, 'Add the record variable with the signature as the type');
+          l_var_list(l_var.name) := l_var.signature; --Add the Record 
           --Add all the componants
+          -- @TODO verify that this is still the way i want to do it!
           --(@TODO Convert this to cursor function)
           FOR l_column in ( WITH plscope_hierarchy
                 AS (SELECT line
@@ -2963,9 +3197,9 @@ and   t.usage_context_id = v.usage_id ) LOOP
                          , usage_id
                          , usage_context_id
                       FROM all_identifiers
-                     WHERE     owner = USER
-                     AND object_name = 'AOP_TEST'
-                     AND object_type = 'PACKAGE')
+                     WHERE owner       = i_owner
+                     AND   object_name = 'AOP_TEST'
+                     AND   object_type = 'PACKAGE')
                 select v.name
                       ,v.type
                       ,v.usage
@@ -3003,10 +3237,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
           --Cursor Type - not sure we will be able to determine this one.
           --Package Spec Type
           --Database Type
-
-
-
-
+ 
       END IF;    
      
 
@@ -3021,6 +3252,54 @@ and   t.usage_context_id = v.usage_id ) LOOP
       ms_logger.warn_error(l_node);
       raise;
   end; --get_package_spec_vars
+
+
+
+-----------------------------------------------------------------------------------------------
+-- weave
+----------------------------------------------------------------------------------------------- 
+/** PUBLIC
+* Calls the private weave function with an empty p_var_list
+* So that the Apex app can call this for Quick Weave without sending p_var_list
+* If package name is given - get package spec vars for var list
+* If owner is not given - derive it from package name           
+* @param p_code         source code
+* @param p_package_name name of package (optional)
+* @param p_for_html     flag to add HTML style tags for apex pretty print
+* @param p_end_user     object owner
+* @return TRUE if woven successfully.
+*/
+  function weave ( p_code         in out clob
+                 , p_package_name in varchar2
+                 , p_for_html     in boolean      default false
+                 , p_end_user     in varchar2     default null
+                 ) return boolean is
+    l_var_list   var_list_typ;
+    l_owner      varchar2(30) := p_end_user;
+  BEGIN
+
+    if p_package_name is not null then
+
+      if l_owner is null then
+
+         l_owner := object_owner(i_object_name => p_package_name
+                                ,i_object_type => 'PACKAGE');
+ 
+      end if;  
+ 
+      --Get a list of variables from the package spec
+      l_var_list := get_package_spec_vars(i_name  => p_package_name
+                                         ,i_owner => l_owner);
+ 
+    end if;  
+    
+    RETURN weave( p_code         => p_code        
+                , p_package_name => p_package_name
+                , p_var_list     => l_var_list    
+                , p_for_html     => p_for_html    
+                , p_end_user     => p_end_user    
+                ) ;
+  END;  
 
 
 
