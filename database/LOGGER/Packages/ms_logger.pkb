@@ -968,6 +968,7 @@ BEGIN
     l_process.created_date   := SYSDATE; 
     l_process.comments       := i_comments;
     l_process.internal_error := 'N';
+    l_process.keep_yn        := 'N';
  
     
  

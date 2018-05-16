@@ -1,0 +1,2 @@
+--ms_process_01.tab
+alter table ms_process add keep_yn varchar2(1) default 'N';

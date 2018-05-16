@@ -19,6 +19,7 @@ CREATE TABLE MS_PROCESS
   ,error_message  CLOB
   ,CREATED_DATE   DATE
   ,UPDATED_DATE   DATE
+  ,keep_yn varchar2(1) default 'N'
 )
 LOGGING
 NOCACHE

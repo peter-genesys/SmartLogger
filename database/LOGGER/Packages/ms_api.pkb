@@ -212,13 +212,50 @@ PROCEDURE purge_old_processes(i_keep_day_count IN NUMBER DEFAULT 1) IS
  
 BEGIN 
 
-  delete from ms_process        where created_date < (SYSDATE - i_keep_day_count);
+  delete from ms_process 
+  where  created_date < (SYSDATE - i_keep_day_count)
+  and    keep_yn = 'N';
  
   COMMIT;
   
  END;
  
+--------------------------------------------------------------------
+--set_process_keep_flag
+-------------------------------------------------------------------
+PROCEDURE set_process_keep_flag(i_process_id IN NUMBER
+                               ,i_keep_yn    IN VARCHAR2 DEFAULT 'Y') IS
+
+ PRAGMA AUTONOMOUS_TRANSACTION;
+ 
+BEGIN 
+
+  update ms_process 
+     set keep_yn = i_keep_yn
+  where  process_id = i_process_id;
+ 
+  COMMIT;
   
+ END;
+
+
+--------------------------------------------------------------------
+--toggle_process_keep_flag
+-------------------------------------------------------------------
+PROCEDURE toggle_process_keep_flag(i_process_id IN NUMBER ) IS
+
+ PRAGMA AUTONOMOUS_TRANSACTION;
+ 
+BEGIN 
+
+  update ms_process 
+     set keep_yn = decode(keep_yn,'Y','N','N','Y','Y')
+  where  process_id = i_process_id;
+ 
+  COMMIT;
+  
+ END;
+
  
 ------------------------------------------------------------------------
 -- get_plain_text_process_report

@@ -81,6 +81,17 @@ PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
 
 PROCEDURE purge_old_processes(i_keep_day_count IN NUMBER DEFAULT 1);
 
+--------------------------------------------------------------------
+--set_process_keep_flag
+-------------------------------------------------------------------
+PROCEDURE set_process_keep_flag(i_process_id IN NUMBER
+                               ,i_keep_yn    IN VARCHAR2 DEFAULT 'Y');
+
+--------------------------------------------------------------------
+--toggle_process_keep_flag
+-------------------------------------------------------------------
+PROCEDURE toggle_process_keep_flag(i_process_id IN NUMBER );
+
 ------------------------------------------------------------------------
 -- get_plain_text_process_report
 ------------------------------------------------------------------------

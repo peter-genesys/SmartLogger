@@ -16,7 +16,8 @@ select
                        , i_object_type => orig.type) using_aop
 ,DBMS_METADATA.GET_DDL (
     object_type => DECODE(orig.type,'PACKAGE BODY','PACKAGE_BODY',orig.type)
-   ,name        => orig.name ) installed_text
+   ,name        => orig.name 
+   ,schema      => orig.owner) installed_text
 from aop_source orig
     ,aop_source aop
 	,aop_source aop_html
