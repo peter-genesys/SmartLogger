@@ -345,7 +345,7 @@ FUNCTION get_type_defn( i_signature   in varchar2) return identifier_tab is
 
  
   CURSOR cu_identifier is
-   select  lower(c.name) col_name
+   select  c.name        col_name
           ,t.name        data_type
           ,t.type        data_class 
           ,t.signature signature
@@ -2268,7 +2268,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                 
                 IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
                   --@TODO This needs to be able to recursively search lower levels.
-                   note_var(i_var  => i_var||'.'||l_type_defn_tab(l_index).col_name
+                   note_var(i_var  => lower(i_var||'.'||l_type_defn_tab(l_index).col_name)
                            ,i_type => l_type_defn_tab(l_index).data_type);
                 END IF;
 
@@ -3186,6 +3186,27 @@ and   t.usage_context_id = v.usage_id ) LOOP
           ms_logger.comment(l_node, 'Add the record variable with the signature as the type');
           l_var_list(l_var.name) := l_var.signature; --Add the Record 
           --Add all the componants
+          DECLARE
+            l_type_defn_tab identifier_tab;
+            l_index binary_integer;
+          BEGIN
+            l_type_defn_tab := get_type_defn(i_signature => l_var.signature);
+            l_index := l_type_defn_tab.FIRST;
+            WHILE l_index is not null loop
+              
+              IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
+                --@TODO This needs to be able to recursively search lower levels.
+                ms_logger.note(l_node, l_type_defn_tab(l_index).col_name ,l_type_defn_tab(l_index).data_type);
+                --Add the Record Type
+                l_var_list(l_var.name||'.'||l_type_defn_tab(l_index).col_name) := l_type_defn_tab(l_index).data_type; 
+ 
+              END IF;
+
+              l_index := l_type_defn_tab.NEXT(l_index);
+            END LOOP;
+          END;
+
+          /*
           -- @TODO verify that this is still the way i want to do it!
           --(@TODO Convert this to cursor function)
           FOR l_column in ( WITH plscope_hierarchy
@@ -3215,7 +3236,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                 and   v.usage_context_id = p.usage_id
                 and   v.type  = 'RECORD'
                 and   v.usage = 'DECLARATION'
-                and   v.name  = l_var.data_type --'TEST_TYPE'
+                and   v.name  = l_var.data_type 
                 and   v.type  = 'RECORD'
                 and   col.usage_context_id = v.usage_id 
                 and   typ.usage_context_id = col.usage_id 
@@ -3226,6 +3247,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
              l_var_list(l_var.name||'.'||l_column.col_name) := l_column.data_type; --Add the Record Type
  
           END LOOP; 
+          */
  
       ELSE
          null;
