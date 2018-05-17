@@ -176,32 +176,288 @@ create or replace package body aop_processor is
   G_REGEX_FATAL              CONSTANT VARCHAR2(50) := '--##';  
   G_REGEX_NOTE               CONSTANT VARCHAR2(50) := '--\^\^';  
 
+
+--------------------------------------------------------------------
+-- regex_match
+--------------------------------------------------------------------
+/** PRIVATE
+* Uses REGEXP_LIKE to check for i_pattern within i_source_string
+* @param i_source_string   Source Text 
+* @param i_pattern         Search Pattern
+* @param i_match_parameter Match Parameter - text literal that lets you change the default matching behavior of the function REGEXP_LIKE
+*  i - specifies case-insensitive matching.
+*  c - specifies case-sensitive matching.
+*  n - allows the period (.), which is the match-any-character wildcard character, to match the newline character. If you omit this parameter, the period does not match the newline character.
+*  m - treats the source string as multiple lines. Oracle interprets ^ and $ as the start and end, respectively, of any line anywhere in the source string, rather than only at the start or end of the entire source string. If you omit this parameter, Oracle treats the source string as a single line.
+* @return TRUE indicates a match was found.
+*/
+  FUNCTION regex_match(i_source_string   IN CLOB
+                      ,i_pattern         IN VARCHAR2
+                      ,i_match_parameter IN VARCHAR2 DEFAULT 'i') RETURN BOOLEAN IS
+  BEGIN
+    RETURN REGEXP_LIKE(i_source_string,i_pattern,i_match_parameter);
+  END;
+ 
+--------------------------------------------------------------------
+-- table_owner
+--------------------------------------------------------------------
+/** PRIVATE
+* Search all_tables for table i_table_name.
+* Find the most appropriate table owner.
+* Of All Tables (that the end user can see)
+* Select 1 owner, with preference to the end user
+* @param i_table_name      Table Name
+* @return Table Owner
+*/
+  FUNCTION table_owner(i_table_name IN VARCHAR2) RETURN VARCHAR2 IS
+    
+
+    CURSOR cu_owner IS
+    select owner
+    from   all_tables
+    where  table_name = i_table_name
+    order by decode(owner,g_end_user,1,2);
+
+    l_result VARCHAR2(30);
+
+  BEGIN
+    OPEN cu_owner;
+    FETCH cu_owner INTO l_result;
+    CLOSE cu_owner;
+
+    RETURN l_result;
+ 
+  END;
+
+
+--------------------------------------------------------------------
+-- object_owner
+--------------------------------------------------------------------
+/** PRIVATE
+* Search all_objects for i_object_name
+* Find the most appropriate object owner.
+* Of All Objects (that the end user can see)
+* Select 1 owner, with preference to the end user
+* @param i_obect_name      Object Name
+* @param i_obect_type      Object Type
+* @return Object Owner
+*/
+  FUNCTION object_owner(i_object_name IN VARCHAR2
+                       ,i_object_type IN VARCHAR2) RETURN VARCHAR2 IS
+    
+
+    CURSOR cu_owner IS
+    select owner
+    from   all_objects
+    where  object_name = i_object_name
+    and    object_type = i_object_type
+    order by decode(owner,g_end_user,1,2);
+
+    l_result VARCHAR2(30);
+
+  BEGIN
+    OPEN cu_owner;
+    FETCH cu_owner INTO l_result;
+    CLOSE cu_owner;
+
+    RETURN l_result;
+ 
+  END;
+
 --------------------------------------------------------------------
 -- log_var_list - Log the var list
 --------------------------------------------------------------------
   procedure log_var_list(i_var_list in var_list_typ) is
-  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'log_var_list'); 
-        l_index varchar2(200);
+    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'log_var_list'); 
+    l_index varchar2(200);
   BEGIN
     l_index := i_var_list.FIRST;
     
     WHILE l_index is not null loop
-      --ms_logger.note(l_node, 'Var Name l_index'            ,l_index);
-      --ms_logger.note(l_node, 'Var Type i_var_list(l_index)',i_var_list(l_index));
-      ms_logger.note(l_node,l_index,i_var_list(l_index));
+      ms_logger.note(l_node,i_var_list(l_index).name,i_var_list(l_index).type);
       l_index := i_var_list.NEXT(l_index);
     end loop;
   END;
 
+
 --------------------------------------------------------------------
--- store_var_list - Store names and types in uppercase
+-- log_param_list - Log the param list
 --------------------------------------------------------------------
-  procedure store_var_list(i_param_name in     varchar2
-                          ,i_param_type in     varchar2
+  procedure log_param_list(i_param_list in param_list_typ) is
+    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'log_param_list'); 
+    l_index varchar2(200);
+  BEGIN
+    l_index := i_param_list.FIRST;
+    
+    WHILE l_index is not null loop
+      ms_logger.note(l_node,i_param_list(l_index).name,i_param_list(l_index).type);
+      l_index := i_param_list.NEXT(l_index);
+    end loop;
+  END;
+
+--------------------------------------------------------------------
+-- create_var_rec - smart constructor for var_rec
+--------------------------------------------------------------------
+ FUNCTION create_var_rec(i_param_name IN VARCHAR2
+                        ,i_param_type IN VARCHAR2 default null
+                        ,i_rowtype    IN VARCHAR2 default null
+                        ,i_in_var     IN BOOLEAN  default false
+                        ,i_out_var    IN BOOLEAN  default false
+                        ,i_lex_var    in BOOLEAN  default false 
+                        ,i_lim_var    in BOOLEAN  default false
+                        ,i_signature   in varchar2 default null ) return var_rec_typ is
+    l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'create_var_rec'); 
+    l_var      var_rec_typ;
+  BEGIN
+    ms_logger.param(l_node, 'i_param_name' ,i_param_name); 
+    ms_logger.param(l_node, 'i_param_type' ,i_param_type); 
+    ms_logger.param(l_node, 'i_rowtype'   , i_rowtype);
+    ms_logger.param(l_node, 'i_in_var    ' ,i_in_var    ); 
+    ms_logger.param(l_node, 'i_out_var   ' ,i_out_var   ); 
+    ms_logger.param(l_node, 'i_lex_var   ' ,i_lex_var    ); 
+    ms_logger.param(l_node, 'i_lim_var   ' ,i_lim_var   ); 
+
+    l_var.name    := i_param_name;
+    l_var.type    := UPPER(i_param_type); --convert all types to UPPERCASE   
+    l_var.rowtype := i_rowtype;
+    IF l_var.type is null and l_var.rowtype is not null then 
+      l_var.type := 'ROWTYPE';
+    END IF;
+
+    l_var.in_var  := i_in_var OR (NOT i_out_var and NOT i_lex_var and NOT i_lim_var);  --in  param implcit or explicit
+    l_var.out_var := i_out_var;  --out param            explicit
+    l_var.lex_var := i_lex_var;  --lex locally declared explicit
+    l_var.lim_var := i_lim_var;  --lim locally declared implicit (eg FOR LOOP)
+    --,owner                     --current scope    @FUTURE USE
+    --,scope                     --program hierachy @FUTURE USE
+    l_var.signature := i_signature;   --@TODO Populate this. PLScope changes every time the package is recompiled.
+ 
+    RETURN l_var;
+  END;
+
+/*
+  FUNCTION | PROCEDURE decompose_type(i_var       in     var_rec_typ
+                                     ,io_var_list IN OUT var_list_typ) is
+  BEGIN
+    
+    IF 
+
+            --Also need to add 1 var def for each valid componant of the record type.
+            l_table_owner := table_owner(i_table_name => l_table_name);
+            FOR l_column IN 
+              (select lower(column_name) column_name
+                     ,data_type
+               from all_tab_columns
+               where table_name = l_table_name 
+               and   owner      = l_table_owner ) LOOP
+               
+                   store_var_def(i_param_name  => l_param_name||'.'||l_column.column_name
+                                ,i_param_type  => l_column.data_type
+                                ,i_in_var      => l_in_var
+                                ,i_out_var     => l_out_var );
+ 
+            END LOOP;   
+
+  END;
+*/
+
+ 
+
+--------------------------------------------------------------------
+-- store_param - Store variable in paramlist in order of appearance
+--------------------------------------------------------------------
+  procedure store_param(i_param       in     var_rec_typ
+                       ,io_param_list in out param_list_typ ) is
+  BEGIN
+    io_param_list(io_param_list.COUNT+1) := i_param; 
+  END;
+
+ 
+
+--------------------------------------------------------------------
+-- store_var_list - Store variable in variable list, index by upper of name
+--------------------------------------------------------------------
+  procedure store_var_list(i_var        in     var_rec_typ
                           ,io_var_list  in out var_list_typ ) is
   BEGIN
-      io_var_list(UPPER(i_param_name)) := UPPER(i_param_type);  
+      io_var_list(UPPER(i_var.name)) := i_var;   
   END;
+
+--------------------------------------------------------------------
+-- get_expanded_param_list - Expand any composite parameter into its componants
+--------------------------------------------------------------------
+ FUNCTION get_expanded_param_list(i_param_list in param_list_typ ) return param_list_typ is
+  l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_expanded_param_list'); 
+  l_expanded_param_list   param_list_typ;
+  l_index                 BINARY_INTEGER;
+
+BEGIN
+ 
+  
+  --  Expand any composite parameter into its componants and add them to the new list.
+ 
+  --Loop thru input list 
+  l_index := i_param_list.FIRST;
+  WHILE l_index IS NOT NULL LOOP
+
+     ms_logger.note(l_node, 'i_param_list(l_index).name'   ,i_param_list(l_index).name); 
+     ms_logger.note(l_node, 'i_param_list(l_index).type'   ,i_param_list(l_index).type); 
+     ms_logger.note(l_node, 'i_param_list(l_index).rowtype',i_param_list(l_index).rowtype); 
+
+    
+    CASE
+      --Check type of param
+      WHEN regex_match(i_param_list(l_index).type,G_REGEX_PREDEFINED_TYPES,'i') THEN
+        ms_logger.comment(l_node, 'Copy simple param to new list.');
+        store_param(i_param       => i_param_list(l_index)
+                   ,io_param_list => l_expanded_param_list);
+
+      --Check for rowtype
+      WHEN i_param_list(l_index).rowtype is not null then
+        ms_logger.comment(l_node, 'Expand a Rowtype');
+        --assume we've already figured out this is a rowtype
+        declare 
+          l_table_owner     varchar2(30);
+          l_component_param var_rec_typ;
+        begin
+
+          l_table_owner     := table_owner(i_table_name => i_param_list(l_index).rowtype);
+          ms_logger.note(l_node, 'l_table_owner'    ,l_table_owner); 
+ 
+          FOR l_column IN 
+            (select lower(column_name) column_name
+                   ,data_type
+             from all_tab_columns
+             where table_name = i_param_list(l_index).rowtype 
+             and   owner      = l_table_owner ) LOOP
+
+             l_component_param         := i_param_list(l_index); --clone the parent type
+             l_component_param.rowtype := null;
+             l_component_param.name    := l_component_param.name||'.'||l_column.column_name;
+             l_component_param.type    := l_column.data_type;
+
+             store_param(i_param       => l_component_param
+                        ,io_param_list => l_expanded_param_list);
+
+          END LOOP;   
+        end;
+
+       ELSE
+         ms_logger.comment(l_node, 'Param ommitted!');
+
+     END CASE;   
+ 
+    l_index := i_param_list.NEXT(l_index);    
+ 
+  END LOOP;
+
+  log_param_list(i_param_list => l_expanded_param_list);
+
+  RETURN l_expanded_param_list;
+
+
+END;
+
 
 
 
@@ -487,92 +743,7 @@ end; --get_type_defn
 
   END;
  
---------------------------------------------------------------------
--- regex_match
---------------------------------------------------------------------
-/** PRIVATE
-* Uses REGEXP_LIKE to check for i_pattern within i_source_string
-* @param i_source_string   Source Text 
-* @param i_pattern         Search Pattern
-* @param i_match_parameter Match Parameter - text literal that lets you change the default matching behavior of the function REGEXP_LIKE
-*  i - specifies case-insensitive matching.
-*  c - specifies case-sensitive matching.
-*  n - allows the period (.), which is the match-any-character wildcard character, to match the newline character. If you omit this parameter, the period does not match the newline character.
-*  m - treats the source string as multiple lines. Oracle interprets ^ and $ as the start and end, respectively, of any line anywhere in the source string, rather than only at the start or end of the entire source string. If you omit this parameter, Oracle treats the source string as a single line.
-* @return TRUE indicates a match was found.
-*/
-  FUNCTION regex_match(i_source_string   IN CLOB
-                      ,i_pattern         IN VARCHAR2
-                      ,i_match_parameter IN VARCHAR2 DEFAULT 'i') RETURN BOOLEAN IS
-  BEGIN
-    RETURN REGEXP_LIKE(i_source_string,i_pattern,i_match_parameter);
-  END;
- 
---------------------------------------------------------------------
--- table_owner
---------------------------------------------------------------------
-/** PRIVATE
-* Search all_tables for table i_table_name.
-* Find the most appropriate table owner.
-* Of All Tables (that the end user can see)
-* Select 1 owner, with preference to the end user
-* @param i_table_name      Table Name
-* @return Table Owner
-*/
-  FUNCTION table_owner(i_table_name IN VARCHAR2) RETURN VARCHAR2 IS
-    
 
-    CURSOR cu_owner IS
-    select owner
-    from   all_tables
-    where  table_name = i_table_name
-    order by decode(owner,g_end_user,1,2);
-
-    l_result VARCHAR2(30);
-
-  BEGIN
-    OPEN cu_owner;
-    FETCH cu_owner INTO l_result;
-    CLOSE cu_owner;
-
-    RETURN l_result;
- 
-  END;
-
-
---------------------------------------------------------------------
--- object_owner
---------------------------------------------------------------------
-/** PRIVATE
-* Search all_objects for i_object_name
-* Find the most appropriate object owner.
-* Of All Objects (that the end user can see)
-* Select 1 owner, with preference to the end user
-* @param i_obect_name      Object Name
-* @param i_obect_type      Object Type
-* @return Object Owner
-*/
-  FUNCTION object_owner(i_object_name IN VARCHAR2
-                       ,i_object_type IN VARCHAR2) RETURN VARCHAR2 IS
-    
-
-    CURSOR cu_owner IS
-    select owner
-    from   all_objects
-    where  object_name = i_object_name
-    and    object_type = i_object_type
-    order by decode(owner,g_end_user,1,2);
-
-    l_result VARCHAR2(30);
-
-  BEGIN
-    OPEN cu_owner;
-    FETCH cu_owner INTO l_result;
-    CLOSE cu_owner;
-
-    RETURN l_result;
- 
-  END;
 
 --------------------------------------------------------------------
 -- calc_indent
@@ -1402,7 +1573,6 @@ PROCEDURE AOP_prog_units(i_indent   IN INTEGER
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
                       ,i_indent         IN INTEGER
                       ,i_param_list     IN param_list_typ
-                      ,i_param_types    IN param_list_typ
                       ,i_var_list       IN var_list_typ );
 
 --------------------------------------------------------------------------------- 
@@ -1431,7 +1601,6 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 * @param io_var_list    List of variable names and types -(indexed by name) 
 */
 PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
-                       ,io_param_types IN OUT param_list_typ
                        ,io_var_list    IN OUT var_list_typ ) is
 
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_params'); 
@@ -1484,38 +1653,68 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
     
 
   --G_REGEX_PACK_REC_VAR_DEF_LINE CONSTANT VARCHAR2(200) :='([\w\#\$]+)\s+(IN\s+)?(OUT\s+)?([\w\#\$]+?)\.([\w\#\$]+?)[^\w\#\$]';
-
-
+ 
  
   PROCEDURE store_var_def(i_param_name IN VARCHAR2
-                         ,i_param_type IN VARCHAR2  
+                         ,i_param_type IN VARCHAR2 default null
+                         ,i_rowtype    IN VARCHAR2 default null
                          ,i_in_var     IN BOOLEAN
                          ,i_out_var    IN BOOLEAN ) IS
                          
-  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'store_var_def'); 
+  l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'store_var_def'); 
+  l_var      var_rec_typ;
                     
   BEGIN
   
     ms_logger.param(l_node, 'i_param_name' ,i_param_name); 
     ms_logger.param(l_node, 'i_param_type' ,i_param_type); 
+    ms_logger.param(l_node, 'i_rowtype' ,   i_rowtype); 
     ms_logger.param(l_node, 'i_in_var    ' ,i_in_var    ); 
     ms_logger.param(l_node, 'i_out_var   ' ,i_out_var   ); 
- 
+
+    l_var :=  create_var_rec(i_param_name => i_param_name
+                            ,i_param_type => i_param_type
+                            ,i_rowtype    => i_rowtype
+                            ,i_in_var     => i_in_var    
+                            ,i_out_var    => i_out_var   );
+  
+    IF l_var.in_var THEN
+      store_param(i_param       => l_var
+                 ,io_param_list => io_param_list);
+    END IF;
+
+    IF l_var.out_var THEN
+      store_var_list(i_var        => l_var
+                    ,io_var_list  => io_var_list);
+
+    END IF;
+
+
+ /*
     IF regex_match(i_param_type,G_REGEX_PREDEFINED_TYPES,'i') THEN
  
       IF i_in_var OR NOT i_out_var THEN
           --IN and IN OUT and (implicit IN) included in the param input list.
           ms_logger.comment(l_node, 'Stored IN var');  
-          io_param_list(io_param_list.COUNT+1)   := i_param_name;  
-          io_param_types(io_param_types.COUNT+1) := i_param_type;  
-  
+          l_var.name    := i_param_name;
+          l_var.type    := i_param_type;
+          l_var.in_var  := i_in_var OR NOT i_out_var;   --in  param implcit or explicit
+          l_var.out_var := i_out_var;                   --out param            explicit
+          l_var.lex_var := false;                       --lex locally declared explicit
+          l_var.lim_var := false;          --lim locally declared implicit (eg FOR LOOP)
+          --,owner --current scope    @FUTURE USE
+          --,scope --program hierachy @FUTURE USE
+          l_var.signature := null;         --@TODO Populate this. PLScope changes every time the package is recompiled.
+ 
+          io_param_list(io_param_list.COUNT+1) := l_var
+ 
        END IF;  
     
-        IF i_out_var THEN
+       IF i_out_var THEN
           --Save IN OUT and OUT params in the variable list. 
           ms_logger.comment(l_node, 'Stored OUT var');  
   
-          store_var_list(i_param_name => i_param_name
+          store_var_list(i_var  _name => i_param_name
                         ,i_param_type => i_param_type
                         ,io_var_list  => io_var_list );
    
@@ -1527,6 +1726,8 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
       ms_logger.warning(l_node, 'Not a predefined type. '||G_REGEX_PREDEFINED_TYPES);      
  
     END IF;
+    */
+
   END store_var_def;  
  
 BEGIN  
@@ -1596,27 +1797,18 @@ BEGIN
                  ms_logger.note(l_node, 'l_table_name',l_table_name); 
   
                  --Remember the Record name itself as a var with a type of TABLE_NAME
-                 store_var_list(i_param_name => l_param_name
-                               ,i_param_type => l_table_name
-                               ,io_var_list  => io_var_list );
+                 --store_var_list(i_var  _name => l_param_name
+                 --              ,i_param_type => l_table_name
+                 --              ,io_var_list  => io_var_list );
+                 --@TODO check this still works after change to proc used..
+                 store_var_def(i_param_name => l_param_name
+                              ,i_rowtype    => l_table_name
+                              ,i_in_var     => l_in_var
+                              ,i_out_var    => l_out_var );
+
  
                  ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
-            
-            --Also need to add 1 var def for each valid componant of the record type.
-            l_table_owner := table_owner(i_table_name => l_table_name);
-            FOR l_column IN 
-              (select lower(column_name) column_name
-                     ,data_type
-               from all_tab_columns
-               where table_name = l_table_name 
-               and   owner      = l_table_owner ) LOOP
-               
-                   store_var_def(i_param_name  => l_param_name||'.'||l_column.column_name
-                                ,i_param_type  => l_column.data_type
-                                ,i_in_var      => l_in_var
-                                ,i_out_var     => l_out_var );
- 
-            END LOOP;   
+       
             
             WHEN regex_match(l_var_def , G_REGEX_PARAM_COLTYPE) THEN
               ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
@@ -1646,7 +1838,7 @@ BEGIN
             END LOOP; 
 
 
-
+             --@TODO will also need to cover database types and object types
 
             WHEN regex_match(l_var_def , G_REGEX_PARAM_PREDEFINED) THEN
               ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
@@ -1681,11 +1873,23 @@ BEGIN
                  ms_logger.note(l_node, 'l_package_name' ,l_package_name);
                  ms_logger.note(l_node, 'l_type_name'    ,l_type_name);
 
+                 --@TODO Currently assuming a 2WD typename is package.type but could also be user.type
+                 --   Need to also search for user.package.type
+                 --   May also need to be able to resolve synonyms, and database links.
+
 
                 --Remember the Record name itself as a var with a type of PACKAGE_NAME.TYPE_NAME
-                 store_var_list(i_param_name => l_param_name
-                               ,i_param_type => l_package_name||'.'||l_type_name
-                               ,io_var_list  => io_var_list );
+                --store_var_list(i_var  _name => l_param_name
+                --              ,i_param_type => l_package_name||'.'||l_type_name
+                --              ,io_var_list  => io_var_list );
+                 --@TODO check this still works after change to proc used..
+                 store_var_def(i_param_name => l_param_name
+                              ,i_param_type => l_package_name||'.'||l_type_name
+                              ,i_in_var     => l_in_var
+                              ,i_out_var    => l_out_var );
+
+
+
 
                  ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
  
@@ -1828,7 +2032,8 @@ BEGIN
  
   END LOOP; 
 
-  log_var_list(i_var_list => io_var_list);
+  log_var_list(i_var_list     => io_var_list);
+  log_param_list(i_param_list => io_param_list);
  
 exception
   when others then
@@ -1903,16 +2108,20 @@ BEGIN
    
         ms_logger.note(l_node, 'l_param_name',l_param_name); 
         ms_logger.note(l_node, 'l_param_type',l_param_type); 
+
+        store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
+                                                    ,i_param_type  => l_param_type
+                                                    ,i_lex_var     => true)
+                     ,io_var_list  => l_var_list);
+
     
-      IF  regex_match(l_param_type , G_REGEX_PREDEFINED_TYPES) THEN
-          
-      --Supported data type so store in the var list.
-          store_var_list(i_param_name => l_param_name
-                        ,i_param_type => l_param_type
-                        ,io_var_list  => l_var_list );
-          ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);     
- 
-        END IF; 
+        --IF  regex_match(l_param_type , G_REGEX_PREDEFINED_TYPES) THEN
+        ----Supported data type so store in the var list.
+        --  store_var_list(i_var  _name => l_param_name
+        --                ,i_param_type => l_param_type
+        --                ,io_var_list  => l_var_list );
+        --  ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);     
+        --END IF; 
  
     WHEN regex_match(l_var_def , G_REGEX_PARAM_ROWTYPE) THEN
       ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
@@ -1924,9 +2133,15 @@ BEGIN
         ms_logger.note(l_node, 'l_table_name',l_table_name); 
  
         --Remember the Record name itself as a var with a type of TABLE_NAME
-        store_var_list(i_param_name => l_param_name
-                      ,i_param_type => l_table_name
-                      ,io_var_list  => l_var_list );
+        --store_var_list(i_var  _name => l_param_name
+        --              ,i_param_type => l_table_name
+        --              ,io_var_list  => l_var_list );
+
+        store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
+                                                    ,i_param_type  => l_table_name
+                                                    ,i_lex_var     => true)
+                     ,io_var_list  => l_var_list);
+ 
         ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);   
     
     --Also need to add 1 var def for each valid componant of the record type.
@@ -1939,9 +2154,14 @@ BEGIN
        and   owner      = l_table_owner  ) LOOP
 
          IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
-           store_var_list(i_param_name => l_param_name||'.'||l_column.column_name
-                         ,i_param_type => l_column.data_type
-                         ,io_var_list  => l_var_list );
+           --store_var_list(i_var  _name => l_param_name||'.'||l_column.column_name
+           --              ,i_param_type => l_column.data_type
+           --              ,io_var_list  => l_var_list );
+           store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name||'.'||l_column.column_name
+                                                       ,i_param_type  => l_column.data_type
+                                                       ,i_lex_var     => true)
+                        ,io_var_list  => l_var_list);
+
 
            ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);       
          END IF; 
@@ -1958,7 +2178,7 @@ BEGIN
         ms_logger.note(l_node, 'l_table_name' ,l_table_name); 
         ms_logger.note(l_node, 'l_column_name',l_column_name);    
     
-    --Also need to add 1 var def for each valid componant of the record type.
+    --Need to add 1 var def for just one componant of the record type.
     l_table_owner := table_owner(i_table_name => l_table_name);
     FOR l_column IN 
       (select lower(column_name) column_name
@@ -1970,9 +2190,14 @@ BEGIN
 
          IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
        
-          store_var_list(i_param_name => l_param_name
-                        ,i_param_type => l_column.data_type
-                        ,io_var_list  => l_var_list );
+          --store_var_list(i_var  _name => l_param_name
+          --              ,i_param_type => l_column.data_type
+          --              ,io_var_list  => l_var_list );
+
+           store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
+                                                       ,i_param_type  => l_column.data_type
+                                                       ,i_lex_var     => true)
+                         ,io_var_list  => l_var_list);
 
           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
 
@@ -2071,7 +2296,6 @@ PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
   l_inject_node           VARCHAR2(200);  
   l_inject_process        VARCHAR2(200);  
   l_param_list            param_list_typ;
-  l_param_types           param_list_typ;
   l_var_list              var_list_typ := i_var_list;
   
 BEGIN
@@ -2079,8 +2303,7 @@ BEGIN
   ms_logger.param(l_node, 'i_indent        ' ,i_indent        ); 
   ms_logger.param(l_node, 'i_node_type     ' ,i_node_type     ); 
  
-  AOP_pu_params(io_param_list  => l_param_list  
-               ,io_param_types => l_param_types               
+  AOP_pu_params(io_param_list  => l_param_list          
                ,io_var_list   => l_var_list);    
  
   --NEW PROCESS
@@ -2126,7 +2349,6 @@ BEGIN
     AOP_pu_block(i_prog_unit_name  => i_prog_unit_name
                 ,i_indent          => i_indent
                 ,i_param_list      => l_param_list
-                ,i_param_types     => l_param_types
                 ,i_var_list        => l_var_list);
     
   END IF;
@@ -2225,8 +2447,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
     l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_var');
     -- Note a variable 
   BEGIN
-    ms_logger.note(l_node,'i_var' ,i_var);
-    ms_logger.note(l_node,'i_type',i_type);
+    ms_logger.param(l_node,'i_var' ,i_var);
+    ms_logger.param(l_node,'i_type',i_type);
     IF i_type = 'CLOB' THEN
       inject( i_new_code   => 'ms_logger.note_clob(l_node,'''||i_var||''','||i_var||');'
              ,i_indent     => i_indent
@@ -2248,17 +2470,17 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
         IF l_var_list.EXISTS(l_var) THEN
           --This variable exists in the list of scoped variables with compatible types    
           ms_logger.comment(l_node, 'Scoped Var');
-          ms_logger.note(l_node,'l_var_list(l_var)',l_var_list(l_var));
-          IF  regex_match(l_var_list(l_var) , G_REGEX_PREDEFINED_TYPES) THEN
+          ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type);
+          IF  regex_match(l_var_list(l_var).type , G_REGEX_PREDEFINED_TYPES) THEN
             --Data type is supported.
             ms_logger.comment(l_node, 'Data type is supported');
             --So we can write a note for it.
-            note_var(i_var  => i_var --Use the original case
-                    ,i_type => l_var_list(l_var));
+            note_var(i_var  => l_var_list(l_var).name  
+                    ,i_type => l_var_list(l_var).type);
 
 
-          ELSIF  identifier_exists(i_signature => l_var_list(l_var)) THEN
-            ms_logger.comment(l_node, 'Data type is known signature');
+          ELSIF  identifier_exists(i_signature => l_var_list(l_var).signature) THEN
+            ms_logger.comment(l_node, 'Signature is known');
             
             
             --Find columns for this signature.
@@ -2266,7 +2488,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
               l_type_defn_tab identifier_tab;
               l_index binary_integer;
             BEGIN
-              l_type_defn_tab := get_type_defn(i_signature => l_var_list(l_var));
+              l_type_defn_tab := get_type_defn(i_signature => l_var_list(l_var).signature);
               l_index := l_type_defn_tab.FIRST;
               WHILE l_index is not null loop
                 
@@ -2279,22 +2501,20 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                 l_index := l_type_defn_tab.NEXT(l_index);
               END LOOP;
             END;
-
-    
-  
-
+ 
           ELSE
             ms_logger.comment(l_node, 'Data type assumed to be a TABLE_NAME');
+            ms_logger.note(l_node,'Assumed Table',l_var_list(l_var).type);
             --Data type is unsupported so it is the name of a table instead.
             --Now write a note for each supported column.
             ms_logger.comment(l_node, 'Data type is supported');
             --Also need to add 1 var def for each valid componant of the record type.
-            l_table_owner := table_owner(i_table_name => l_var_list(l_var));
+            l_table_owner := table_owner(i_table_name => l_var_list(l_var).type);
             FOR l_column IN 
               (select lower(column_name) column_name
                      ,data_type
                from all_tab_columns
-               where table_name = l_var_list(l_var) 
+               where table_name = l_var_list(l_var).type 
                and   owner      = l_table_owner  ) LOOP
 
                IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
@@ -2319,8 +2539,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
  
     IF l_var_list.EXISTS(l_var) THEN
       --Tab Column rec variable exists 
-      note_var(i_var  => i_var --Use the original case
-              ,i_type => l_var_list(l_var));
+      note_var(i_var  => l_var_list(l_var).name
+              ,i_type => l_var_list(l_var).type);
        
    ELSE 
       ms_logger.warning(l_node, 'Var not known');
@@ -2517,14 +2737,18 @@ BEGIN
              EXIT;
            END IF;
            ms_logger.info(l_node, 'Adding a variable');
-           l_into_var_list (l_into_var_list.COUNT+1) := l_var;  
+           --l_into_var_list (l_into_var_list.COUNT+1) := l_var;  
+           store_var_list(i_var       => create_var_rec(i_param_name  => l_var
+                                                       ,i_param_type  => 'SELECT_INTO' --Unable to derive the datatype
+                                                       ,i_lim_var     => true)
+                         ,io_var_list => l_into_var_list);
  
         END LOOP; 
  
         --Loop thru the variables after all have been found.
         l_index := l_into_var_list.FIRST;
         WHILE l_index IS NOT NULL LOOP
-          l_var := l_into_var_list(l_index);
+          l_var := l_into_var_list(l_index).name;
           --Note the variable
           CASE 
             WHEN regex_match(l_var ,G_REGEX_BIND_VAR) THEN note_var(i_var  => l_var
@@ -2596,20 +2820,20 @@ END AOP_block;
 *     to trap, note and re-raise errors from the original block.
 * @param  i_prog_unit_name Name of program unit
 * @param  i_indent    Current indent count
-* @param  i_param_list  List of parameter names (indexed by integer)
-* @param  i_param_types List of parameter types (indexed by integer)
-* @param  i_var_list  List of scoped variables
+* @param  i_param_list  List of parameters (indexed by integer)
+* @param  i_var_list    List of scoped variables
 */
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
                       ,i_indent         IN INTEGER
                       ,i_param_list     IN param_list_typ
-                      ,i_param_types    IN param_list_typ
                       ,i_var_list       IN var_list_typ ) IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_block');
   
   l_var_list              var_list_typ := i_var_list;
   l_index                 BINARY_INTEGER;
   l_param_padding         integer;
+
+  l_expanded_param_list   param_list_typ;
  
 BEGIN
  
@@ -2617,15 +2841,17 @@ BEGIN
   ms_logger.param(l_node, 'i_indent        '     ,i_indent             );
  
 
+  l_expanded_param_list := get_expanded_param_list(i_param_list => i_param_list);
+
   --Calculate optimal param padding to line them up nicely.
   l_param_padding := 0;
-  l_index := i_param_list.FIRST;
+  l_index := l_expanded_param_list.FIRST;
   WHILE l_index IS NOT NULL LOOP
 
     --Find the length of the longest parameter name
-    l_param_padding := GREATEST(l_param_padding, LENGTH(i_param_list(l_index))+2, G_MIN_PARAM_NAME_PADDING);
+    l_param_padding := GREATEST(l_param_padding, LENGTH(l_expanded_param_list(l_index).name)+2, G_MIN_PARAM_NAME_PADDING);
  
-    l_index := i_param_list.NEXT(l_index);    
+    l_index := l_expanded_param_list.NEXT(l_index);    
  
   END LOOP;
 
@@ -2638,19 +2864,19 @@ BEGIN
           ,i_indent   => i_indent - g_indent_spaces
           ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
   --Add the params (if any)
-  l_index := i_param_list.FIRST;
+  l_index := l_expanded_param_list.FIRST;
   WHILE l_index IS NOT NULL LOOP
-    IF i_param_types(l_index) = 'CLOB' THEN
-      inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||i_param_list(l_index)||'''',l_param_padding)||','||i_param_list(l_index)||');'
+    IF l_expanded_param_list(l_index).type = 'CLOB' THEN
+      inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||l_expanded_param_list(l_index).name||'''',l_param_padding)||','||l_expanded_param_list(l_index).name||');'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_PARAM);
     ELSE
-      inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||i_param_list(l_index)||'''',l_param_padding)||','||i_param_list(l_index)||');'
+      inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||l_expanded_param_list(l_index).name||'''',l_param_padding)||','||l_expanded_param_list(l_index).name||');'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_PARAM);
   END IF;
            
-    l_index := i_param_list.NEXT(l_index);    
+    l_index := l_expanded_param_list.NEXT(l_index);    
  
   END LOOP;
 
@@ -3182,13 +3408,26 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
       IF  regex_match(l_var.data_type , G_REGEX_PREDEFINED_TYPES) THEN
           ms_logger.comment(l_node, 'Found predefined type variable in Package Spec');
-          l_var_list(l_var.name) := l_var.data_type;  
+          --l_var_list(l_var.name) := l_var; 
+          --@TODO check that this info is used correctly later.
+          store_var_list(i_var        => create_var_rec(i_param_name => lower(l_var.name)
+                                                       ,i_param_type => l_var.data_type
+                                                       ,i_signature  => l_var.signature
+                                                       ,i_lex_var     => true)
+                        ,io_var_list  => l_var_list);
+           
           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
 
       ELSIF l_var.data_class = 'RECORD' THEN
           ms_logger.comment(l_node, 'Found a Package Spec variable of record type, type defined in the package?');
-          ms_logger.comment(l_node, 'Add the record variable with the signature as the type');
-          l_var_list(l_var.name) := l_var.signature; --Add the Record 
+          ms_logger.comment(l_node, 'Add the record variable with the signature as the signature');
+          --l_var_list(l_var.name) := l_var; --Add the Record 
+          --@TODO check that this info is used correctly later.
+          store_var_list(i_var        => create_var_rec(i_param_name => lower(l_var.name)
+                                                       ,i_param_type => l_var.data_type
+                                                       ,i_signature  => l_var.signature
+                                                       ,i_lex_var    => true)
+                        ,io_var_list  => l_var_list);
           --Add all the componants
           DECLARE
             l_type_defn_tab identifier_tab;
@@ -3202,7 +3441,14 @@ and   t.usage_context_id = v.usage_id ) LOOP
                 --@TODO This needs to be able to recursively search lower levels.
                 ms_logger.note(l_node, l_type_defn_tab(l_index).col_name ,l_type_defn_tab(l_index).data_type);
                 --Add the Record Type
-                l_var_list(l_var.name||'.'||l_type_defn_tab(l_index).col_name) := l_type_defn_tab(l_index).data_type; 
+
+                --@TODO check that this info is used correctly later.
+                store_var_list(i_var        => create_var_rec(i_param_name => lower(l_var.name||'.'||l_type_defn_tab(l_index).col_name)
+                                                             ,i_param_type => l_type_defn_tab(l_index).data_type
+                                                             ,i_signature  => l_var.signature
+                                                             ,i_lex_var    => true)
+                              ,io_var_list  => l_var_list);
+                --l_var_list(l_var.name||'.'||l_type_defn_tab(l_index).col_name) := l_type_defn_tab(l_index).data_type; 
  
               END IF;
 
@@ -3779,8 +4025,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
  
 end aop_processor;
 /
-show error;
-
+ 
 set define on;
 
 alter trigger aop_processor_trg enable;

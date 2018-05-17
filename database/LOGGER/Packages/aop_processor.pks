@@ -48,11 +48,29 @@ TYPE identifier_tab IS table of identifier_rec index by BINARY_INTEGER;
   G_COLOUR_VAR              CONSTANT VARCHAR2(10) := '#99FF66';
   G_COLOUR_NOTE             CONSTANT VARCHAR2(10) := '#00FF99';
   G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
-
-  TYPE var_list_typ IS TABLE OF VARCHAR2(32) INDEX BY VARCHAR2(106);  
-
-  TYPE param_list_typ IS TABLE OF VARCHAR2(106) INDEX BY BINARY_INTEGER;  
  
+  --@TODO consider turning this into a db object type to promote use in a hierachical object.
+  TYPE var_rec_typ is record(name      varchar2(30)
+                            ,usage     varchar2(5)  --in, out, lex (local explicit declare), lim (local implicit eg FOR LOOP)
+                            ,in_var    boolean      --in  param implcit or explicit
+                            ,out_var   boolean      --out param            explicit
+                            ,lex_var   boolean      --lex locally declared explicit
+                            ,lim_var   boolean      --lim locally declared implicit (eg FOR LOOP)
+                            --,owner   --current scope
+                            --,scope   --program hierachy
+                            ,type      varchar2(106) --type name
+                            ,rowtype   varchar2(30)  --rowtype variable
+                            ,signature varchar2(32)  --PLScope changes every time the package is recompiled.
+                            );
+
+  TYPE var_list_typ   IS TABLE OF var_rec_typ INDEX BY VARCHAR2(106);  --indexed by name
+  TYPE param_list_typ IS TABLE OF var_rec_typ INDEX BY BINARY_INTEGER; --indexed by order of appearance in a PU spec
+ 
+
+  --TYPE var_list_typ IS TABLE OF VARCHAR2(32) INDEX BY VARCHAR2(106);  
+  --TYPE param_list_typ IS TABLE OF VARCHAR2(106) INDEX BY BINARY_INTEGER;  
+  --TYPE type_list_typ IS TABLE OF VARCHAR2(32) INDEX BY VARCHAR2(106);
+
   --------------------------------------------------------------------
   -- source_weave_now
 ----------------------------------------------------------------------------------------------- 
