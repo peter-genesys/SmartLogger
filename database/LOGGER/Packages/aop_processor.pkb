@@ -1827,6 +1827,8 @@ BEGIN
   END;
  
   END LOOP; 
+
+  log_var_list(i_var_list => io_var_list);
  
 exception
   when others then
@@ -1985,6 +1987,8 @@ BEGIN
     END CASE;
   
   END LOOP;
+
+  log_var_list(i_var_list => l_var_list);
 
   RETURN l_var_list;
  

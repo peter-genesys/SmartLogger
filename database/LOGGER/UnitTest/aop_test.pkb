@@ -1,3 +1,7 @@
+ALTER SESSION SET 
+plscope_settings='IDENTIFIERS:ALL'
+/
+
 CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
   --@AOP_LOG
 
@@ -77,6 +81,7 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
       f# integer;
       l_unit ms_unit%ROWTYPE;
       l_unit_name ms_unit.unit_name%TYPE;
+      l_test1 test_typ;
 
     begin
       l_unit_name := 'X';
@@ -303,6 +308,7 @@ where max_event_date >= :i_min_qa_date
 
 
   FUNCTION test5 RETURN VARCHAR2 is
+  -- This is a test to see if logger interferes with use of SQL%ROWCOUNT
     l_insert_count number;
     l_delete_count number;
     l_update_count number;
@@ -332,8 +338,12 @@ where max_event_date >= :i_min_qa_date
 
   procedure test_param_of_spec_type(i_test  in out aop_test.test_typ
                                    ,i_test2 in out aop_test.test_typ2 ) is
+    l_test aop_test.test_typ;
 
   BEGIN
+    l_test.num := 2;
+    l_test     := g_test1;
+
     i_test.num := 2;
     i_test     := g_test1;
 
@@ -345,7 +355,7 @@ where max_event_date >= :i_min_qa_date
 
   BEGIN
     g_test1.num := 2;
-    g_test1     := i_test;.
+    g_test1     := i_test;
 
   END;
 
@@ -402,4 +412,44 @@ select aop_test.test5 from dual;
 
 SELECT PLSCOPE_SETTINGS
 FROM USER_PLSQL_OBJECT_SETTINGS
- WHERE NAME='AOP_TEST' AND TYPE='PACKAGE';
+WHERE NAME='AOP_TEST' AND TYPE='PACKAGE BODY';
+
+/*
+I used this test to show that variables declared in anonymous blocks do not appear in all_identifiers.
+Thus PLscope will be limited its usefulness to track vars as it will NOT work 
+to link vars in anonymous blocks to there definitions whether they are also in the anon block or elsewhere.
+So will definately still need to be able to read vars and types, and work out the links myself, 
+but may be able to match those against details in PLscope.
+
+
+drop table all_identifiers_bak;
+create table all_identifiers_bak as 
+SELECT  name
+      , TYPE
+      , usage
+ FROM all_identifiers
+FROM all_identifiers;
+       
+             
+(select 'ADDED' op,  name
+      , TYPE
+      , usage  from  all_identifiers a
+minus
+SELECT 'ADDED' op,  name
+      , TYPE
+      , usage  FROM all_identifiers_bak  a)
+UNION ALL
+(select 'REMOVED' op,  name
+      , TYPE
+      , usage from all_identifiers_bak a
+minus
+SELECT 'REMOVED' op,  name
+      , TYPE
+      , usage from all_identifiers      a)
+
+TYPES:
+Will need to be able to read type definitions in anon blocks, but in procs and functions will be able to look 
+at the full hierarchy.
+Tip - if you define complex vars in anon blocks, will have to write more logging.
+
+*/

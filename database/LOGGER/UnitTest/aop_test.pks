@@ -6,12 +6,15 @@ create or replace package aop_test is
   --@AOP_LOG
 
 
+ 
+
     TYPE test_typ IS RECORD (
        num      number
       ,name     varchar2(50));
 
     TYPE test_typ2 IS TABLE OF ms_message%ROWTYPE INDEX BY BINARY_INTEGER;  
 
+    TYPE test_tab_typ IS TABLE of test_typ;
 
 
     g_test1 test_typ;
