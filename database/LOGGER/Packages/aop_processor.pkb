@@ -177,6 +177,7 @@ create or replace package body aop_processor is
   G_REGEX_NOTE               CONSTANT VARCHAR2(50) := '--\^\^';  
 
 
+
 --------------------------------------------------------------------
 -- regex_match
 --------------------------------------------------------------------
@@ -264,6 +265,94 @@ create or replace package body aop_processor is
  
   END;
 
+
+
+--------------------------------------------------------------------
+-- push_pu - push a program unit onto the pu stack
+-------------------------------------------------------------------- 
+procedure push_pu(i_name       in varchar2
+                 ,i_type       in varchar2
+                 ,i_signature  in varchar2
+                 ,io_pu_stack IN OUT pu_stack_typ ) is
+    l_pu_rec pu_rec_typ;
+BEGIN
+
+  l_pu_rec.name      := i_name;
+  l_pu_rec.type      := i_type;
+  l_pu_rec.signature := i_signature;
+  l_pu_rec.level     := io_pu_stack.COUNT+1; 
+
+  io_pu_stack(l_pu_rec.level) := l_pu_rec; 
+END;
+
+
+
+--------------------------------------------------------------------
+-- f_push_pu - push a program unit onto the pu stack
+-------------------------------------------------------------------- 
+function f_push_pu(i_name       in varchar2
+                  ,i_type       in varchar2
+                  ,i_signature  in varchar2
+                  ,i_pu_stack   IN pu_stack_typ ) return pu_stack_typ is
+ 
+    l_pu_stack   pu_stack_typ := i_pu_stack;
+BEGIN
+ 
+  push_pu(i_name      => i_name
+         ,i_type      => i_type
+         ,i_signature => i_signature
+         ,io_pu_stack => l_pu_stack);
+
+  return l_pu_stack;
+ 
+END;
+
+/*
+--=====================================================================
+
+
+--------------------------------------------------------------------
+-- f_push_pu - push a program unit onto the pu stack
+-------------------------------------------------------------------- 
+fucntion f_push_pu(i_name       in varchar2
+                  ,i_type       in varchar2
+                  ,i_signature  in varchar2
+                  ,i_pu_stack   IN pu_stack_typ ) is
+    l_pu_rec     pu_rec_typ;
+    l_pu_stack   pu_stack_typ := i_pu_stack;
+BEGIN
+
+  l_pu_rec.name      := i_name;
+  l_pu_rec.type      := i_type;
+  l_pu_rec.signature := i_signature;
+  l_pu_rec.level     := l_pu_stack.COUNT+1; 
+
+  l_pu_stack(l_pu_rec.level) := l_pu_rec; 
+
+  return l_pu_stack;
+
+END;
+
+
+--------------------------------------------------------------------
+-- push_pu - push a program unit onto the pu stack
+-------------------------------------------------------------------- 
+procedure push_pu(i_name       in varchar2
+                 ,i_type       in varchar2
+                 ,i_signature  in varchar2
+                 ,io_pu_stack  IN OUT pu_stack_typ ) is
+ 
+BEGIN
+
+  io_pu_stack := f_push_pu(i_name      => i_name
+                          ,i_type      => i_type
+                          ,i_signature => i_signature
+                          ,i_pu_stack  => io_pu_stack);
+ 
+END;
+
+*/
+
 --------------------------------------------------------------------
 -- log_var_list - Log the var list
 --------------------------------------------------------------------
@@ -285,7 +374,7 @@ create or replace package body aop_processor is
 --------------------------------------------------------------------
   procedure log_param_list(i_param_list in param_list_typ) is
     l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'log_param_list'); 
-    l_index varchar2(200);
+    l_index BINARY_INTEGER;
   BEGIN
     l_index := i_param_list.FIRST;
     
@@ -364,23 +453,65 @@ create or replace package body aop_processor is
  
 
 --------------------------------------------------------------------
--- store_param - Store variable in paramlist in order of appearance
+-- store_param_list - Store variable in paramlist in order of appearance
 --------------------------------------------------------------------
-  procedure store_param(i_param       in     var_rec_typ
-                       ,io_param_list in out param_list_typ ) is
+  procedure store_param_list(i_param       in     var_rec_typ
+                            ,io_param_list in out param_list_typ ) is
   BEGIN
     io_param_list(io_param_list.COUNT+1) := i_param; 
   END;
 
  
-
 --------------------------------------------------------------------
 -- store_var_list - Store variable in variable list, index by upper of name
+-- Put multiple entries in the var list for a single var.
 --------------------------------------------------------------------
   procedure store_var_list(i_var        in     var_rec_typ
-                          ,io_var_list  in out var_list_typ ) is
+                          ,io_var_list  in out var_list_typ
+                          ,i_pu_stack   in     pu_stack_typ ) is
+    l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'store_var_list'); 
+    l_var   var_rec_typ := i_var;
+    l_index BINARY_INTEGER;
   BEGIN
-      io_var_list(UPPER(i_var.name)) := i_var;   
+    ms_logger.param(l_node,'i_var.name',i_var.name);
+    ms_logger.param(l_node,'i_var.type',i_var.type);
+
+    --Add the variable into variable list.
+    io_var_list(UPPER(l_var.name)) := l_var;   
+
+    --Then, in order to index the variable by all of it's possible names  
+    --we will step backwards thru the i_pu_stack adding names onto the var name 
+    --and adding it to the list again
+    --until we have fully qualified the variable name.
+   
+    l_index := i_pu_stack.LAST; --Find last entry in the pu stack
+    
+    WHILE l_index is not null loop
+      ms_logger.note(l_node,i_pu_stack(l_index).name,i_pu_stack(l_index).type);
+      l_var.name := lower(i_pu_stack(l_index).name||'.'||l_var.name);
+      ms_logger.param(l_node,'l_var.name',l_var.name);
+      io_var_list(UPPER(l_var.name)) := l_var;   
+      --Find previous name in the pu stack
+      l_index := i_pu_stack.PRIOR(l_index);
+    end loop;
+
+
+      --@TODO could store the same var in the list under different indexes..
+      --Eg VAR, USER.VAR, USER.PACKAGE.VAR
+      --Could expand the complex types.
+      --Or could just keep the type with its signature, and pull apart as needed.
+      --Would also need to change the i_var.name when indexing against a longer name.
+      --@TODO add a list representing the program unit stack. pu_stack
+      --This stack will be used for naming.
+      --The stack record will store
+      --PU NAME - required 
+      --PU TYPE FUNCTION|PROCEDURE|LABELLED_BLOCK 
+      --PU LEVEL integer
+      --list will be indexed by binary integer.
+      --List will be used to name variables, and find signatures. 
+
+
+
   END;
 
 --------------------------------------------------------------------
@@ -409,8 +540,8 @@ BEGIN
       --Check type of param
       WHEN regex_match(i_param_list(l_index).type,G_REGEX_PREDEFINED_TYPES,'i') THEN
         ms_logger.comment(l_node, 'Copy simple param to new list.');
-        store_param(i_param       => i_param_list(l_index)
-                   ,io_param_list => l_expanded_param_list);
+        store_param_list(i_param       => i_param_list(l_index)
+                        ,io_param_list => l_expanded_param_list);
 
       --Check for rowtype
       WHEN i_param_list(l_index).rowtype is not null then
@@ -436,8 +567,8 @@ BEGIN
              l_component_param.name    := l_component_param.name||'.'||l_column.column_name;
              l_component_param.type    := l_column.data_type;
 
-             store_param(i_param       => l_component_param
-                        ,io_param_list => l_expanded_param_list);
+             store_param_list(i_param       => l_component_param
+                             ,io_param_list => l_expanded_param_list);
 
           END LOOP;   
         end;
@@ -1564,7 +1695,8 @@ procedure restore_comments_and_strings;
 -- AOP_prog_units - Forward Declaration
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_prog_units(i_indent   IN INTEGER
-                        ,i_var_list IN var_list_typ);
+                        ,i_var_list IN var_list_typ
+                        ,i_pu_stack in pu_stack_typ );
 
 
 --------------------------------------------------------------------------------- 
@@ -1573,14 +1705,16 @@ PROCEDURE AOP_prog_units(i_indent   IN INTEGER
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
                       ,i_indent         IN INTEGER
                       ,i_param_list     IN param_list_typ
-                      ,i_var_list       IN var_list_typ );
+                      ,i_var_list       IN var_list_typ
+                      ,i_pu_stack       in pu_stack_typ  );
 
 --------------------------------------------------------------------------------- 
 -- AOP_block
 ---------------------------------------------------------------------------------
 PROCEDURE AOP_block(i_indent         IN INTEGER
                    ,i_regex_end      IN VARCHAR2
-                   ,i_var_list       IN var_list_typ );                      
+                   ,i_var_list       IN var_list_typ
+                   ,i_pu_stack       in pu_stack_typ  );                      
                       
 --------------------------------------------------------------------------------- 
 -- END FORWARD DECLARATIONS
@@ -1601,7 +1735,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 * @param io_var_list    List of variable names and types -(indexed by name) 
 */
 PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
-                       ,io_var_list    IN OUT var_list_typ ) is
+                       ,io_var_list    IN OUT var_list_typ
+                       ,i_pu_stack     IN     pu_stack_typ) is
 
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_params'); 
  
@@ -1679,13 +1814,14 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
                             ,i_out_var    => i_out_var   );
   
     IF l_var.in_var THEN
-      store_param(i_param       => l_var
+      store_param_list(i_param       => l_var
                  ,io_param_list => io_param_list);
     END IF;
 
     IF l_var.out_var THEN
       store_var_list(i_var        => l_var
-                    ,io_var_list  => io_var_list);
+                    ,io_var_list  => io_var_list
+                    ,i_pu_stack   => i_pu_stack);
 
     END IF;
 
@@ -1883,16 +2019,15 @@ BEGIN
                 --              ,i_param_type => l_package_name||'.'||l_type_name
                 --              ,io_var_list  => io_var_list );
                  --@TODO check this still works after change to proc used..
+                 --@TODO need to store signature
                  store_var_def(i_param_name => l_param_name
                               ,i_param_type => l_package_name||'.'||l_type_name
                               ,i_in_var     => l_in_var
                               ,i_out_var    => l_out_var );
-
-
-
-
+ 
                  ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
  
+ /*
                  --Only attempts to write out atomic vars, unless we start recursion..
                  --Also need to add 1 var def for each valid componant of the record type.
                  l_package_owner := 'PACMAN'; --package_owner(i_table_name => l_table_name);
@@ -1931,7 +2066,9 @@ BEGIN
                    if not l_param_found then
                      ms_logger.warning(l_node, 'Parameter NOT stored!');
                    end if;
+
                  end;
+*/
                    
                  go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE_2WD
                         ,i_colour => G_COLOUR_GO_PAST);
@@ -2053,7 +2190,8 @@ END AOP_pu_params;
 * @param  i_var_list list of scoped variables
 * @return total list of scoped variables
 */
-FUNCTION AOP_var_defs(i_var_list IN var_list_typ) RETURN var_list_typ IS
+FUNCTION AOP_var_defs(i_var_list IN var_list_typ
+                     ,i_pu_stack IN pu_stack_typ) RETURN var_list_typ IS
   l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'AOP_var_defs'); 
   
   l_var_list              var_list_typ := i_var_list;
@@ -2112,7 +2250,8 @@ BEGIN
         store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
                                                     ,i_param_type  => l_param_type
                                                     ,i_lex_var     => true)
-                     ,io_var_list  => l_var_list);
+                      ,io_var_list => l_var_list
+                      ,i_pu_stack  => i_pu_stack);
 
     
         --IF  regex_match(l_param_type , G_REGEX_PREDEFINED_TYPES) THEN
@@ -2140,7 +2279,8 @@ BEGIN
         store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
                                                     ,i_param_type  => l_table_name
                                                     ,i_lex_var     => true)
-                     ,io_var_list  => l_var_list);
+                     ,io_var_list  => l_var_list
+                     ,i_pu_stack   => i_pu_stack);
  
         ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);   
     
@@ -2160,7 +2300,8 @@ BEGIN
            store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name||'.'||l_column.column_name
                                                        ,i_param_type  => l_column.data_type
                                                        ,i_lex_var     => true)
-                        ,io_var_list  => l_var_list);
+                        ,io_var_list  => l_var_list
+                        ,i_pu_stack   => i_pu_stack);
 
 
            ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);       
@@ -2197,7 +2338,8 @@ BEGIN
            store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
                                                        ,i_param_type  => l_column.data_type
                                                        ,i_lex_var     => true)
-                         ,io_var_list  => l_var_list);
+                         ,io_var_list  => l_var_list
+                         ,i_pu_stack   => i_pu_stack);
 
           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
 
@@ -2237,7 +2379,8 @@ END AOP_var_defs;
 * @param  i_var_list list of scoped variables
 */
 PROCEDURE AOP_declare_block(i_indent   IN INTEGER
-                           ,i_var_list IN var_list_typ) IS
+                           ,i_var_list IN var_list_typ
+                           ,i_pu_stack IN pu_stack_typ) IS
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_declare_block'); 
   
   l_var_list          var_list_typ := i_var_list;
@@ -2248,21 +2391,24 @@ BEGIN
 
 
   --Find the vars defined in this block
-  l_var_list := AOP_var_defs( i_var_list => l_var_list);    
+  l_var_list := AOP_var_defs( i_var_list => l_var_list
+                             ,i_pu_stack => i_pu_stack);    
  
 
   --Search for nested PROCEDURE and FUNCTION within the declaration section of the block.
   --Pass in the scoped list of vars
   --Drop out when a BEGIN is reached.
   AOP_prog_units(i_indent   => i_indent + g_indent_spaces
-                ,i_var_list => l_var_list);
+                ,i_var_list => l_var_list
+                ,i_pu_stack => i_pu_stack);
   
   --Calc indent and consume BEGIN
   --Drop out when the corresponding END is reached.
   AOP_block(i_indent    => calc_indent(i_indent, get_next(i_srch_before => G_REGEX_BEGIN
                                                          ,i_colour => G_COLOUR_GO_PAST))
            ,i_regex_end => G_REGEX_END_BEGIN
-           ,i_var_list  => l_var_list);
+           ,i_var_list  => l_var_list
+           ,i_pu_stack => i_pu_stack);
  
 exception
   when others then
@@ -2285,11 +2431,13 @@ END AOP_declare_block;
 * @param  i_indent         Current indent count
 * @param  i_node_type      Type of Node
 * @param  i_var_list       List of scoped variables
+* @param  i_pu_stack
 */
 PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
                    ,i_indent         IN INTEGER
                    ,i_node_type      IN VARCHAR2
-                   ,i_var_list       IN var_list_typ) IS
+                   ,i_var_list       IN var_list_typ
+                   ,i_pu_stack       IN pu_stack_typ) IS
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_is_as'); 
  
   l_keyword               VARCHAR2(50);
@@ -2297,14 +2445,19 @@ PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
   l_inject_process        VARCHAR2(200);  
   l_param_list            param_list_typ;
   l_var_list              var_list_typ := i_var_list;
-  
+  l_pu_stack              pu_stack_typ := f_push_pu(i_name      => i_prog_unit_name
+                                                   ,i_type      => i_node_type
+                                                   ,i_signature => null
+                                                   ,i_pu_stack  => i_pu_stack);
+ 
 BEGIN
   ms_logger.param(l_node, 'i_prog_unit_name' ,i_prog_unit_name); 
   ms_logger.param(l_node, 'i_indent        ' ,i_indent        ); 
   ms_logger.param(l_node, 'i_node_type     ' ,i_node_type     ); 
  
   AOP_pu_params(io_param_list  => l_param_list          
-               ,io_var_list   => l_var_list);    
+               ,io_var_list    => l_var_list
+               ,i_pu_stack     => l_pu_stack);    
  
   --NEW PROCESS
   IF UPPER(i_prog_unit_name) = 'BEFOREPFORM' THEN
@@ -2321,10 +2474,12 @@ BEGIN
          ,i_indent     => i_indent
          ,i_colour     => G_COLOUR_NODE);   
        
-  l_var_list := AOP_var_defs( i_var_list => l_var_list);    
+  l_var_list := AOP_var_defs( i_var_list => l_var_list
+                             ,i_pu_stack => l_pu_stack);    
  
   AOP_prog_units(i_indent    => i_indent + g_indent_spaces
-                ,i_var_list  => l_var_list);
+                ,i_var_list  => l_var_list
+                ,i_pu_stack  => l_pu_stack);
   
   
   --If this is a package there may not be a BEGIN, just an END;
@@ -2349,7 +2504,8 @@ BEGIN
     AOP_pu_block(i_prog_unit_name  => i_prog_unit_name
                 ,i_indent          => i_indent
                 ,i_param_list      => l_param_list
-                ,i_var_list        => l_var_list);
+                ,i_var_list        => l_var_list
+                ,i_pu_stack        => l_pu_stack);
     
   END IF;
  
@@ -2377,7 +2533,8 @@ END AOP_is_as;
 */
 PROCEDURE AOP_block(i_indent         IN INTEGER
                    ,i_regex_end      IN VARCHAR2
-                   ,i_var_list       IN var_list_typ  )  IS
+                   ,i_var_list       IN var_list_typ
+                   ,i_pu_stack       IN pu_stack_typ  )  IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_block');
   
   l_keyword               CLOB;
@@ -2604,32 +2761,37 @@ BEGIN
       WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN     
           ms_logger.info(l_node, 'Declare');    
         AOP_declare_block(i_indent    => calc_indent(i_indent + g_indent_spaces,l_keyword)
-                   ,i_var_list  => l_var_list);    
+                         ,i_var_list  => l_var_list
+                         ,i_pu_stack  => i_pu_stack);    
         
       WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN    
         ms_logger.info(l_node, 'Begin');      
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_BEGIN
-                 ,i_var_list   => l_var_list);     
+                 ,i_var_list   => l_var_list
+                 ,i_pu_stack   => i_pu_stack);     
                  
       WHEN regex_match(l_keyword , G_REGEX_LOOP) THEN   
         ms_logger.info(l_node, 'Loop'); 
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_LOOP
-                 ,i_var_list   => l_var_list );                                
+                 ,i_var_list   => l_var_list
+                 ,i_pu_stack   => i_pu_stack );                                
              
       WHEN regex_match(l_keyword , G_REGEX_CASE) THEN   
         ms_logger.info(l_node, 'Case'); 
     --inc level +2 due to implied WHEN or ELSE
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword) +  g_indent_spaces
                  ,i_regex_end  => G_REGEX_END_CASE||'|'||G_REGEX_END_CASE_EXPR
-                 ,i_var_list   => l_var_list );      
+                 ,i_var_list   => l_var_list
+                 ,i_pu_stack   => i_pu_stack );      
    
       WHEN regex_match(l_keyword , G_REGEX_IF) THEN    
         ms_logger.info(l_node, 'If'); 
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_IF
-                 ,i_var_list   => l_var_list );
+                 ,i_var_list   => l_var_list
+                 ,i_pu_stack   => i_pu_stack );
 
       --BLOCK NEUTRAL - no further nesting/indenting
       WHEN regex_match(l_keyword , G_REGEX_EXCEPTION) THEN
@@ -2741,7 +2903,8 @@ BEGIN
            store_var_list(i_var       => create_var_rec(i_param_name  => l_var
                                                        ,i_param_type  => 'SELECT_INTO' --Unable to derive the datatype
                                                        ,i_lim_var     => true)
-                         ,io_var_list => l_into_var_list);
+                         ,io_var_list => l_into_var_list
+                         ,i_pu_stack  => i_pu_stack);
  
         END LOOP; 
  
@@ -2826,7 +2989,8 @@ END AOP_block;
 PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
                       ,i_indent         IN INTEGER
                       ,i_param_list     IN param_list_typ
-                      ,i_var_list       IN var_list_typ ) IS
+                      ,i_var_list       IN var_list_typ
+                      ,i_pu_stack       in pu_stack_typ  ) IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_block');
   
   l_var_list              var_list_typ := i_var_list;
@@ -2895,7 +3059,8 @@ BEGIN
   AOP_block(i_indent    => calc_indent(i_indent, get_next(i_srch_before => G_REGEX_BEGIN
                                                          ,i_colour => G_COLOUR_GO_PAST))
            ,i_regex_end  => G_REGEX_END_BEGIN
-           ,i_var_list   => l_var_list  );
+           ,i_var_list   => l_var_list
+           ,i_pu_stack   => i_pu_stack  );
   
   --Add extra exception handler
   --add the terminating exception handler of the new surrounding block
@@ -2939,7 +3104,8 @@ END AOP_pu_block;
 * @param  i_var_list list of scoped variables
 */
 PROCEDURE AOP_prog_units(i_indent   IN INTEGER
-                        ,i_var_list IN var_list_typ  ) IS
+                        ,i_var_list IN var_list_typ
+                        ,i_pu_stack in pu_stack_typ   ) IS
   l_node    ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_prog_units'); 
 
   l_keyword         VARCHAR2(50);
@@ -2949,7 +3115,6 @@ PROCEDURE AOP_prog_units(i_indent   IN INTEGER
   l_prog_unit_name  VARCHAR2(30);
   
   l_var_list        var_list_typ := i_var_list;
-  
   x_language_java_name EXCEPTION;
   x_forward_declare    EXCEPTION;
  
@@ -3030,7 +3195,8 @@ BEGIN
       AOP_is_as(i_prog_unit_name => l_prog_unit_name
                ,i_indent         => calc_indent(i_indent, l_keyword)
                ,i_node_type      => l_node_type
-               ,i_var_list       => l_var_list);
+               ,i_var_list       => l_var_list
+               ,i_pu_stack       => i_pu_stack);
       
     EXCEPTION 
       WHEN x_language_java_name THEN
@@ -3126,7 +3292,8 @@ END;
   function weave
   ( p_code         in out clob
   , p_package_name in varchar2
-  , p_var_list     in var_list_typ  
+  , p_var_list     in var_list_typ 
+  , p_pu_stack     in pu_stack_typ 
   , p_for_html     in boolean      default false
   , p_end_user     in varchar2     default null
   ) return boolean
@@ -3184,7 +3351,9 @@ END;
 
       declare
         l_keyword    varchar2(50);
-        l_var_list   var_list_typ := p_var_list;
+        l_var_list   var_list_typ := p_var_list; 
+        --l_pu_stack   pu_stack_typ := p_pu_stack; 
+     
       
       begin
         g_current_pos := 1;
@@ -3192,32 +3361,35 @@ END;
                                        ||'|'||G_REGEX_BEGIN  
                                        ||'|'||G_REGEX_PROG_UNIT 
                                        ||'|'||G_REGEX_CREATE
-                             ,i_upper      => TRUE
+                             ,i_upper       => TRUE
                              ,i_raise_error => TRUE  );
      
         ms_logger.note(l_node, 'l_keyword' ,l_keyword);
     
-        CASE 
+        CASE --@TODO might need to add a check for a <<NAME>> before a block
           WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN
             ms_logger.comment(l_node, 'Found Anonymous Block with declaration');
             --calc indent and consume DECLARE
             AOP_declare_block(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_DECLARE
-                                                                             ,i_colour => G_COLOUR_GO_PAST))
-                       ,i_var_list => l_var_list);
+                                                                                   ,i_colour      => G_COLOUR_GO_PAST))
+                             ,i_var_list  => l_var_list
+                             ,i_pu_stack  => p_pu_stack);
               
           WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN
             ms_logger.comment(l_node, 'Found Simple Anonymous Block');
             --calc indent and consume BEGIN
-            AOP_block(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_BEGIN
-                                                                           ,i_colour => G_COLOUR_GO_PAST))
+            AOP_block(i_indent     => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_BEGIN
+                                                                            ,i_colour      => G_COLOUR_GO_PAST))
                      ,i_regex_end  => G_REGEX_END_BEGIN
-                     ,i_var_list   => l_var_list);
+                     ,i_var_list   => l_var_list
+                     ,i_pu_stack   => p_pu_stack);
         
           WHEN regex_match(l_keyword , G_REGEX_PROG_UNIT
                                 ||'|'||G_REGEX_CREATE) THEN
             ms_logger.comment(l_node, 'Found Program Unit');
             AOP_prog_units(i_indent   => calc_indent(g_initial_indent,l_keyword)
-                          ,i_var_list => l_var_list      );
+                          ,i_var_list => l_var_list
+                          ,i_pu_stack => p_pu_stack);
     
         ELSE
           ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
@@ -3259,8 +3431,8 @@ END;
   
     IF g_for_aop_html then
         g_code := REPLACE(REPLACE(g_code,'<<','&lt;&lt;'),'>>','&gt;&gt;');
-        g_code := REGEXP_REPLACE(g_code,'(ms_logger)(.+)(;)','<B>\1\2\3</B>');
-        g_code := '<PRE>'||g_code||'</PRE>';
+        g_code := REGEXP_REPLACE(g_code,'(ms_logger)(.+)(;)','<B>\1\2\3</B>'); --BOLD all ms_logger calls
+        g_code := '<PRE>'||g_code||'</PRE>'; --@TODO - may be able to add this into the SmartLogger display page instead.
     END IF;  
  
     p_code := trim_clob(i_clob => g_code);
@@ -3339,10 +3511,11 @@ END;
 * @param i_name   Object Name 
 * @param i_owner  Object Owner
 */
-FUNCTION get_package_spec_vars(i_name  in varchar2
-                              ,i_owner in varchar2) return var_list_typ is
+FUNCTION get_package_spec_vars(i_name       in varchar2
+                              ,i_owner      in varchar2 ) return var_list_typ is
     l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_package_spec_vars');
     l_var_list    var_list_typ;
+    l_pu_stack    pu_stack_typ;
     l_source_code clob;
   begin --get_package_spec_vars
     ms_logger.param(l_node,'i_name' ,i_name);
@@ -3367,6 +3540,18 @@ FUNCTION get_package_spec_vars(i_name  in varchar2
       END IF;
      
     END IF;
+
+    push_pu(i_name        => i_owner
+           ,i_type        => 'OWNER'
+           ,i_signature   => null
+           ,io_pu_stack   => l_pu_stack);
+
+    push_pu(i_name       => i_name
+           ,i_type       => 'PACKAGE'
+           ,i_signature  => null
+           ,io_pu_stack  => l_pu_stack);
+
+
     
     --Now get the variables.
     For l_var in (
@@ -3414,7 +3599,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                                        ,i_param_type => l_var.data_type
                                                        ,i_signature  => l_var.signature
                                                        ,i_lex_var     => true)
-                        ,io_var_list  => l_var_list);
+                        ,io_var_list  => l_var_list
+                        ,i_pu_stack   => l_pu_stack);
            
           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
 
@@ -3427,7 +3613,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                                        ,i_param_type => l_var.data_type
                                                        ,i_signature  => l_var.signature
                                                        ,i_lex_var    => true)
-                        ,io_var_list  => l_var_list);
+                        ,io_var_list  => l_var_list
+                        ,i_pu_stack   => l_pu_stack);
           --Add all the componants
           DECLARE
             l_type_defn_tab identifier_tab;
@@ -3447,7 +3634,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                                              ,i_param_type => l_type_defn_tab(l_index).data_type
                                                              ,i_signature  => l_var.signature
                                                              ,i_lex_var    => true)
-                              ,io_var_list  => l_var_list);
+                              ,io_var_list  => l_var_list
+                              ,i_pu_stack   => l_pu_stack);
                 --l_var_list(l_var.name||'.'||l_type_defn_tab(l_index).col_name) := l_type_defn_tab(l_index).data_type; 
  
               END IF;
@@ -3548,6 +3736,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                  ) return boolean is
     l_var_list   var_list_typ;
     l_owner      varchar2(30) := p_end_user;
+    l_pu_stack   pu_stack_typ;
   BEGIN
 
     if p_package_name is not null then
@@ -3556,12 +3745,24 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
          l_owner := object_owner(i_object_name => p_package_name
                                 ,i_object_type => 'PACKAGE');
+
+   
+         push_pu(i_name       => l_owner
+                ,i_type       => 'OWNER'
+                ,i_signature  => null
+                ,io_pu_stack => l_pu_stack);
+
+         push_pu(i_name       => p_package_name
+                ,i_type       => 'PACKAGE BODY'
+                ,i_signature  => null
+                ,io_pu_stack => l_pu_stack);
+ 
  
       end if;  
  
       --Get a list of variables from the package spec
-      l_var_list := get_package_spec_vars(i_name  => p_package_name
-                                         ,i_owner => l_owner);
+      l_var_list := get_package_spec_vars(i_name     => p_package_name
+                                         ,i_owner    => l_owner );
  
     end if;  
     
@@ -3569,7 +3770,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
                 , p_package_name => p_package_name
                 , p_var_list     => l_var_list    
                 , p_for_html     => p_for_html    
-                , p_end_user     => p_end_user    
+                , p_end_user     => p_end_user 
+                , p_pu_stack     => l_pu_stack   
                 ) ;
   END;  
 
@@ -3598,6 +3800,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
     l_html_body  clob;
     l_woven      boolean := false;
     l_var_list   var_list_typ;
+    l_pu_stack   pu_stack_typ;
   begin 
   begin
     ms_logger.param(l_node, 'i_object_name'  ,i_object_name  );
@@ -3636,10 +3839,22 @@ and   t.usage_context_id = v.usage_id ) LOOP
       return;    
     end if;     
 
+    --Seed the PU Stack
+    push_pu(i_name       => i_object_owner
+           ,i_type       => 'OWNER'
+           ,i_signature  => null
+           ,io_pu_stack  => l_pu_stack);
+
+    push_pu(i_name       => i_object_name
+           ,i_type       => i_object_type
+           ,i_signature  => null  --@TODO add signature 
+           ,io_pu_stack  => l_pu_stack);
+ 
+
     IF i_object_type = 'PACKAGE BODY' THEN
       --Get a list of variables from the package spec
-      l_var_list := get_package_spec_vars(i_name  => i_object_name
-                                         ,i_owner => i_object_owner);
+      l_var_list := get_package_spec_vars(i_name     => i_object_name
+                                         ,i_owner    => i_object_owner);
     END IF;  
  
     if i_versions like 'HTML%' then
@@ -3650,6 +3865,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
         l_woven := weave( p_code         => l_html_body
                           , p_package_name => lower(i_object_name)
                           , p_var_list     => l_var_list
+                          , p_pu_stack     => l_pu_stack
                           , p_for_html     => true
                           , p_end_user     => i_object_owner);
  
@@ -3671,6 +3887,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
       l_woven := weave( p_code         => l_aop_body
                         , p_package_name => lower(i_object_name)
                         , p_var_list     => l_var_list
+                        , p_pu_stack     => l_pu_stack
                         , p_end_user     => i_object_owner        );
 
       -- (re)compile the source 
@@ -3710,6 +3927,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
         l_woven := weave( p_code         => l_html_body
                           , p_package_name => lower(i_object_name)
                           , p_var_list     => l_var_list
+                          , p_pu_stack     => l_pu_stack
                           , p_for_html     => true
                           , p_end_user     => i_object_owner);
  

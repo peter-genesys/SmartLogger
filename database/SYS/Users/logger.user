@@ -18,6 +18,8 @@ grant create synonym to logger;
 grant create sequence to logger;
 grant create view to logger;
 grant select any table to logger;
+--grant select_catalog_role to logger;   --verify that this helps
+--grant select any dictionary to logger; --verify that this helps
 
 --OBJECT PRIVILEGES 
 --grant select on DBA_TAB_COLUMNS to logger;

@@ -15,10 +15,11 @@ is
 --                              ,data_type     all_identifiers.name%TYPE 
 --                              ,data_class    all_identifiers.type%TYPE 
 --                              ,ref_signature all_identifiers.signature%TYPE);
-TYPE identifier_rec is record (col_name    varchar2(128) 
-                              ,data_type   varchar2(128) 
-                              ,data_class  varchar2(18)  
-                              ,signature   varchar2(32));
+TYPE identifier_rec is record (
+   col_name    varchar2(128) 
+  ,data_type   varchar2(128) 
+  ,data_class  varchar2(18)  
+  ,signature   varchar2(32));
 
 --TYPE identifier_tab IS table of all_identifiers%ROWTYPE;
 TYPE identifier_tab IS table of identifier_rec index by BINARY_INTEGER;
@@ -48,32 +49,50 @@ TYPE identifier_tab IS table of identifier_rec index by BINARY_INTEGER;
   G_COLOUR_VAR              CONSTANT VARCHAR2(10) := '#99FF66';
   G_COLOUR_NOTE             CONSTANT VARCHAR2(10) := '#00FF99';
   G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
+
+  g_max_qualified_name_length constant integer := 1000;
  
   --@TODO consider turning this into a db object type to promote use in a hierachical object.
-  TYPE var_rec_typ is record(name      varchar2(30)
-                            ,usage     varchar2(5)  --in, out, lex (local explicit declare), lim (local implicit eg FOR LOOP)
-                            ,in_var    boolean      --in  param implcit or explicit
-                            ,out_var   boolean      --out param            explicit
-                            ,lex_var   boolean      --lex locally declared explicit
-                            ,lim_var   boolean      --lim locally declared implicit (eg FOR LOOP)
-                            --,owner   --current scope
-                            --,scope   --program hierachy
-                            ,type      varchar2(106) --type name
-                            ,rowtype   varchar2(30)  --rowtype variable
-                            ,signature varchar2(32)  --PLScope changes every time the package is recompiled.
-                            );
+  TYPE var_rec_typ is record(
+     name      varchar2(1000) --g_max_qualified_name_length
+    ,in_var    boolean      --in  param implcit or explicit
+    ,out_var   boolean      --out param            explicit
+    ,lex_var   boolean      --lex locally declared explicit
+    ,lim_var   boolean      --lim locally declared implicit (eg FOR LOOP)
+    --,owner   --current scope
+    --,scope   --program hierachy
+    ,type      varchar2(106) --type name
+    ,rowtype   varchar2(30)  --rowtype variable
+    ,signature varchar2(32)  --PLScope signature changes every time the package is recompiled.
+    );
 
-  TYPE var_list_typ   IS TABLE OF var_rec_typ INDEX BY VARCHAR2(106);  --indexed by name
+  TYPE var_list_typ   IS TABLE OF var_rec_typ INDEX BY VARCHAR2(1000);  --indexed by name --g_max_qualified_name_length
   TYPE param_list_typ IS TABLE OF var_rec_typ INDEX BY BINARY_INTEGER; --indexed by order of appearance in a PU spec
  
 
+
+   --PU STACK
+   --A stacklist representing the program unit stack. 
+   --This stack will be used to name variables, and find signatures. 
+   --List will be indexed by binary integer.
+
+  TYPE pu_rec_typ is record(
+    name      varchar2(30) --Program Unit Name or Block Label
+   ,type      varchar2(20) --FUNCTION|PROCEDURE|LABELLED_BLOCK
+   ,signature varchar2(32) --plscope signature
+   ,level     integer      --Nesting level 0 is the owner, 1 is the package body, etc
+  );
+ 
+  TYPE pu_stack_typ IS TABLE OF pu_rec_typ INDEX BY BINARY_INTEGER; 
+ 
+ 
   --TYPE var_list_typ IS TABLE OF VARCHAR2(32) INDEX BY VARCHAR2(106);  
   --TYPE param_list_typ IS TABLE OF VARCHAR2(106) INDEX BY BINARY_INTEGER;  
   --TYPE type_list_typ IS TABLE OF VARCHAR2(32) INDEX BY VARCHAR2(106);
 
   --------------------------------------------------------------------
   -- source_weave_now
------------------------------------------------------------------------------------------------ 
+  ----------------------------------------------------------------------------------------------- 
 /** PUBLIC
 * Check existence of @AOP_LOG_WEAVE_NOW tag within the source text of an object
 * @param i_owner Object Owner 

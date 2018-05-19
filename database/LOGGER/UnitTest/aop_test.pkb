@@ -32,6 +32,8 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
 
   begin
 
+    AOP_TEST.g_test3 := 1;
+    AOP_TEST.g$ := 1;
     l_date_rec1.adate := SYSDATE;
     l_date_rec2 := l_date_rec1;
 
@@ -352,10 +354,11 @@ where max_event_date >= :i_min_qa_date
 
   procedure test_global_spec_var(i_test  in out aop_test.test_typ
                                 ,i_test2 in out aop_test.test_typ2 )  is
-
+    l_module ms_module%ROWTYPE;
   BEGIN
     g_test1.num := 2;
     g_test1     := i_test;
+    l_module.module_name := 'Johnny';
 
   END;
 
@@ -386,6 +389,19 @@ where max_event_date >= :i_min_qa_date
 
   END;
 
+  procedure name_resolution_simple_var is
+    aname varchar2(100);
+  BEGIN
+    
+    aname := 'name1';
+    name_resolution_simple_var.aname := 'name2';
+    aop_test.name_resolution_simple_var.aname := 'name3';
+    --pacman.aop_test.name_resolution_simple_var.aname := 'name4'; --reference is out of scope
+
+  END;
+
+ 
+
   procedure last is
 
     l_simple number;
@@ -406,7 +422,7 @@ where max_event_date >= :i_min_qa_date
 end;
 /
 show errors;
-execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST');
+execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST', i_versions => 'HTML,AOP');
 execute ms_api.set_module_debug(i_module_name => 'AOP_TEST');
 select aop_test.test5 from dual;
 

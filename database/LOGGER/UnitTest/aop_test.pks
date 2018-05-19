@@ -37,6 +37,8 @@ create or replace package aop_test is
  
   FUNCTION test5 RETURN VARCHAR2;
 
+  procedure name_resolution_simple_var;
+
 end; 
 /
 set pages 1000;
