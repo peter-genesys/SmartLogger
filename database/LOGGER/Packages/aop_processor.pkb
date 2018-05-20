@@ -403,11 +403,13 @@ END;
   BEGIN
     ms_logger.param(l_node, 'i_param_name' ,i_param_name); 
     ms_logger.param(l_node, 'i_param_type' ,i_param_type); 
-    ms_logger.param(l_node, 'i_rowtype'   , i_rowtype);
-    ms_logger.param(l_node, 'i_in_var    ' ,i_in_var    ); 
-    ms_logger.param(l_node, 'i_out_var   ' ,i_out_var   ); 
-    ms_logger.param(l_node, 'i_lex_var   ' ,i_lex_var    ); 
-    ms_logger.param(l_node, 'i_lim_var   ' ,i_lim_var   ); 
+    ms_logger.param(l_node, 'i_rowtype'    ,i_rowtype   );
+    ms_logger.param(l_node, 'i_in_var'     ,i_in_var    ); 
+    ms_logger.param(l_node, 'i_out_var'    ,i_out_var   ); 
+    ms_logger.param(l_node, 'i_lex_var'    ,i_lex_var   ); 
+    ms_logger.param(l_node, 'i_lim_var'    ,i_lim_var   ); 
+    ms_logger.param(l_node, 'i_signature'  ,i_signature ); 
+
 
     l_var.name    := i_param_name;
     l_var.type    := UPPER(i_param_type); --convert all types to UPPERCASE   
@@ -2624,77 +2626,96 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
     END IF;
   END;
  
-  PROCEDURE note_non_bind_var(i_var in varchar2 ) IS
+  PROCEDURE note_non_bind_var(i_var        in varchar2
+                             ,i_componant  in varchar2 default null) IS
     -- find assignment of non-bind variable and inject a note
     l_node      ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_non_bind_var');
-    l_var       varchar2(200) := upper(i_var);
+    l_var       varchar2(1000) := upper(i_var);
     
   BEGIN
- 
-        IF l_var_list.EXISTS(l_var) THEN
-          --This variable exists in the list of scoped variables with compatible types    
-          ms_logger.comment(l_node, 'Scoped Var');
-          ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type);
-          IF  regex_match(l_var_list(l_var).type , G_REGEX_PREDEFINED_TYPES) THEN
-            --Data type is supported.
-            ms_logger.comment(l_node, 'Data type is supported');
-            --So we can write a note for it.
-            note_var(i_var  => l_var_list(l_var).name  
-                    ,i_type => l_var_list(l_var).type);
+    ms_logger.param(l_node,'i_var'      ,i_var);
+    ms_logger.param(l_node,'i_componant',i_componant);
+    IF l_var_list.EXISTS(l_var) THEN
+      --This variable exists in the list of scoped variables with compatible types    
+      ms_logger.comment(l_node, 'Scoped Var');
+      ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type);
+      IF  regex_match(l_var_list(l_var).type , G_REGEX_PREDEFINED_TYPES) THEN
+        --Data type is supported.
+        ms_logger.comment(l_node, 'Data type is supported');
+        --So we can write a note for it.
+        note_var(i_var  => l_var_list(l_var).name  
+                ,i_type => l_var_list(l_var).type);
 
 
-          ELSIF  identifier_exists(i_signature => l_var_list(l_var).signature) THEN
-            ms_logger.comment(l_node, 'Signature is known');
+      ELSIF  identifier_exists(i_signature => l_var_list(l_var).signature) THEN
+        ms_logger.comment(l_node, 'Signature is known');
+        
+        
+        --Find columns for this signature.
+        DECLARE
+          l_type_defn_tab identifier_tab;
+          l_index binary_integer;
+        BEGIN
+          l_type_defn_tab := get_type_defn(i_signature => l_var_list(l_var).signature);
+          l_index := l_type_defn_tab.FIRST;
+          WHILE l_index is not null loop
             
-            
-            --Find columns for this signature.
-            DECLARE
-              l_type_defn_tab identifier_tab;
-              l_index binary_integer;
-            BEGIN
-              l_type_defn_tab := get_type_defn(i_signature => l_var_list(l_var).signature);
-              l_index := l_type_defn_tab.FIRST;
-              WHILE l_index is not null loop
-                
-                IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
-                  --@TODO This needs to be able to recursively search lower levels.
-                   note_var(i_var  => lower(i_var||'.'||l_type_defn_tab(l_index).col_name)
-                           ,i_type => l_type_defn_tab(l_index).data_type);
-                END IF;
+            IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
+              --@TODO This needs to be able to recursively search lower levels.
+               note_var(i_var  => lower(i_var||'.'||l_type_defn_tab(l_index).col_name)
+                       ,i_type => l_type_defn_tab(l_index).data_type);
+            END IF;
 
-                l_index := l_type_defn_tab.NEXT(l_index);
-              END LOOP;
-            END;
+            l_index := l_type_defn_tab.NEXT(l_index);
+          END LOOP;
+        END;
  
-          ELSE
-            ms_logger.comment(l_node, 'Data type assumed to be a TABLE_NAME');
-            ms_logger.note(l_node,'l_var_list(l_var).type',l_var_list(l_var).type);
-            ms_logger.note(l_node,'l_var_list(l_var).rowtype',l_var_list(l_var).rowtype);
-            --Data type is unsupported so it is the name of a table instead.
-            --Now write a note for each supported column.
-            ms_logger.comment(l_node, 'Data type is supported');
-            --Also need to add 1 var def for each valid componant of the record type.
-            l_table_owner := table_owner(i_table_name => l_var_list(l_var).rowtype);
-            FOR l_column IN 
-              (select lower(column_name) column_name
-                     ,data_type
-               from all_tab_columns
-               where table_name = l_var_list(l_var).rowtype 
-               and   owner      = l_table_owner  ) LOOP
+      ELSE
+        ms_logger.comment(l_node, 'Data type assumed to be a TABLE_NAME');
+        ms_logger.note(l_node,'l_var_list(l_var).type',l_var_list(l_var).type);
+        ms_logger.note(l_node,'l_var_list(l_var).rowtype',l_var_list(l_var).rowtype);
+        --Data type is unsupported so it is the name of a table instead.
+        --Now write a note for each supported column.
+        ms_logger.comment(l_node, 'Data type is supported');
+        --Also need to add 1 var def for each valid componant of the record type.
+        l_table_owner := table_owner(i_table_name => l_var_list(l_var).rowtype);
+        FOR l_column IN 
+          (select lower(column_name) column_name
+                 ,data_type
+           from all_tab_columns
+           where table_name = l_var_list(l_var).rowtype 
+           and   owner      = l_table_owner  ) LOOP
 
-               IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
-                 note_var(i_var  => i_var||'.'||l_column.column_name --Use the original case
-                         ,i_type => l_column.data_type);
-               END IF;
+           IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
+             note_var(i_var  => i_var||'.'||l_column.column_name --Use the original case
+                     ,i_type => l_column.data_type);
+           END IF;
 
-            END LOOP;  
+        END LOOP;  
  
-          END IF;
+      END IF;
 
-        ELSE 
-          ms_logger.warning(l_node, 'Var not known '||i_var);
-          log_var_list(i_var_list => l_var_list);
-        END IF;
+    ELSE 
+ 
+      if l_var like '%.%' then
+        ms_logger.comment(l_node, 'Let us remove the last componant and try again');
+        declare
+          l_componant varchar2(1000);
+        begin
+           l_componant  := REGEXP_SUBSTR(l_var,G_REGEX_WORD||'$',1,1,'i');
+           ms_logger.note(l_node,'l_componant',l_componant);
+           l_var        := REGEXP_REPLACE(l_var,'.'||G_REGEX_WORD||'$',''); --remove the last word
+           ms_logger.note(l_node,'l_var',l_var);
+
+           note_non_bind_var(i_var       => l_var
+                            ,i_componant => i_componant||'.'||l_componant );
+        end;
+      else
+        ms_logger.warning(l_node, 'Var not known '||i_var||'.'||i_componant); --RTRIM(i_var||'.'||i_componant,'.');
+        log_var_list(i_var_list => l_var_list);
+      end if;
+
+    END IF;
   END;
 
   PROCEDURE note_rec_col_var(i_var  in varchar2) IS
@@ -3516,51 +3537,55 @@ END;
 
 
 --------------------------------------------------------------------
--- get_package_spec_vars
+-- get_vars_from_compiled_object
 --------------------------------------------------------------------  
 /** PRIVATE
-* Use PLScope to find variables in the spec
+* Use PLScope to find variables in the compiled_object - package or package body
 * recompile spec if needed
 * @param i_name   Object Name 
 * @param i_owner  Object Owner
+* @param i_type   Object Type
 */
-FUNCTION get_package_spec_vars(i_name       in varchar2
-                              ,i_owner      in varchar2 ) return var_list_typ is
-    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_package_spec_vars');
-    l_var_list    var_list_typ;
+FUNCTION get_vars_from_compiled_object(i_name       in varchar2
+                                      ,i_owner      in varchar2
+                                      ,i_type       in varchar2 
+                                      ,i_var_list   in var_list_typ) return var_list_typ is
+    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_vars_from_compiled_object');
+    l_var_list    var_list_typ := i_var_list;
     l_pu_stack    pu_stack_typ;
     l_source_code clob;
-  begin --get_package_spec_vars
+  begin --get_vars_from_compiled_object
     ms_logger.param(l_node,'i_name' ,i_name);
     ms_logger.param(l_node,'i_owner',i_owner);
+    ms_logger.param(l_node,'i_type' ,i_type);
   BEGIN
     IF is_PLScoped(i_name => i_name
-                      ,i_type => 'PACKAGE') THEN
+                  ,i_type => i_type) THEN
       ms_logger.info(l_node,'Package is already PLScoped');
     ELSE
       ms_logger.comment(l_node,'Package is not currently PLScoped');
       --Need to recompile the package spec with plscope set
       l_source_code := get_plsql( i_object_name    => i_name
                                 , i_object_owner   => i_owner
-                                , i_object_type    => 'PACKAGE'   );
+                                , i_object_type    => i_type   );
       ms_logger.note_clob(l_node,'l_source_code',l_source_code);
       compile_with_plscope(i_text => l_source_code);
 
       IF NOT is_PLScoped(i_name => i_name
-                        ,i_type => 'PACKAGE') THEN
+                        ,i_type => i_type) THEN
         ms_logger.warning(l_node,'Package Spec could not be compiled with PLSCOPE');
         null;
       END IF;
      
     END IF;
 
-    push_pu(i_name        => i_owner
+    push_pu(i_name        => i_owner  --@TODO - figure out if own is needed as a PU level
            ,i_type        => 'OWNER'
            ,i_signature   => null
            ,io_pu_stack   => l_pu_stack);
 
     push_pu(i_name       => i_name
-           ,i_type       => 'PACKAGE'
+           ,i_type       => i_type
            ,i_signature  => null
            ,io_pu_stack  => l_pu_stack);
 
@@ -3580,7 +3605,7 @@ WITH plscope_hierarchy
               FROM all_identifiers
              WHERE owner       = i_owner
                AND object_name = i_name
-               AND object_type = 'PACKAGE')
+               AND object_type = i_type)
 select v.name
       ,v.type
       ,v.usage
@@ -3596,7 +3621,7 @@ and   v.type  = 'VARIABLE'
 and   v.usage = 'DECLARATION'
 and   t.usage_context_id = v.usage_id ) LOOP
 
---NB - Could use the original hierarchiacal query 
+--NB - Could use the original hierarchical query 
 --Or could just use a recursive proc/function to store what ever it need with recursive calls 
 --to the same query..
 
@@ -3671,7 +3696,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                       FROM all_identifiers
                      WHERE owner       = i_owner
                      AND   object_name = 'AOP_TEST'
-                     AND   object_type = 'PACKAGE')
+                     AND   object_type = i_type)
                 select v.name
                       ,v.type
                       ,v.usage
@@ -3724,7 +3749,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
     when others then
       ms_logger.warn_error(l_node);
       raise;
-  end; --get_package_spec_vars
+  end; --get_vars_from_compiled_object
 
 
 
@@ -3759,24 +3784,31 @@ and   t.usage_context_id = v.usage_id ) LOOP
          l_owner := object_owner(i_object_name => p_package_name
                                 ,i_object_type => 'PACKAGE');
 
-   
-         push_pu(i_name       => l_owner
-                ,i_type       => 'OWNER'
-                ,i_signature  => null
-                ,io_pu_stack => l_pu_stack);
+      end if;     
 
-         push_pu(i_name       => p_package_name
-                ,i_type       => 'PACKAGE BODY'
-                ,i_signature  => null
-                ,io_pu_stack => l_pu_stack);
- 
- 
-      end if;  
- 
       --Get a list of variables from the package spec
-      l_var_list := get_package_spec_vars(i_name     => p_package_name
-                                         ,i_owner    => l_owner );
- 
+      l_var_list := get_vars_from_compiled_object(i_name     => p_package_name
+                                                 ,i_owner    => l_owner 
+                                                 ,i_type     =>  'PACKAGE'
+                                                 ,i_var_list => l_var_list   );
+
+      --Get a list of variables from the package body
+      l_var_list := get_vars_from_compiled_object(i_name     => p_package_name
+                                                 ,i_owner    => l_owner 
+                                                 ,i_type     =>  'PACKAGE BODY' 
+                                                 ,i_var_list => l_var_list   );
+
+      push_pu(i_name       => l_owner
+             ,i_type       => 'OWNER'
+             ,i_signature  => null
+             ,io_pu_stack => l_pu_stack);
+
+      push_pu(i_name       => p_package_name
+             ,i_type       => 'PACKAGE BODY'
+             ,i_signature  => null
+             ,io_pu_stack => l_pu_stack);
+  
+
     end if;  
     
     RETURN weave( p_code         => p_code        
@@ -3866,8 +3898,12 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
     IF i_object_type = 'PACKAGE BODY' THEN
       --Get a list of variables from the package spec
-      l_var_list := get_package_spec_vars(i_name     => i_object_name
-                                         ,i_owner    => i_object_owner);
+      l_var_list := get_vars_from_compiled_object(i_name     => i_object_name
+                                                 ,i_owner    => i_object_owner 
+                                                 ,i_type     =>  'PACKAGE'
+                                                 ,i_var_list => l_var_list   );
+
+
     END IF;  
  
     if i_versions like 'HTML%' then
