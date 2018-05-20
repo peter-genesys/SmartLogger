@@ -76,6 +76,9 @@ create or replace package body aop_processor is
   --Word is at least 1 Word Char
   G_REGEX_WORD           CONSTANT VARCHAR2(50) := G_REGEX_WORD_CHAR||'+';  
   G_REGEX_2WORDS         CONSTANT VARCHAR2(50) := G_REGEX_WORD||'\.'||G_REGEX_WORD;
+
+  G_REGEX_ANY_WORDS      CONSTANT VARCHAR2(50) := '(\w|\#|\$)+(\.(\w|\#|\$)+)*'; --Eg 'abd.dfg.hij'
+
   G_REGEX_2_QUOTED_WORDS CONSTANT VARCHAR2(50) := '"*'||G_REGEX_WORD||'"*\."*'||G_REGEX_WORD||'"*'; --quotes are optional    
 
   G_REGEX_NON_WORD_CHAR  CONSTANT VARCHAR2(50) := '[^\w\#\$]'; 
@@ -2553,14 +2556,18 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 
   l_exception_section     BOOLEAN :=FALSE;
 
+  G_REGEX_VAR_ASSIGN          CONSTANT VARCHAR2(50) :=  '\s*?:=';
+ 
+  G_REGEX_ASSIGN_TO_ANY_WORDS   CONSTANT VARCHAR2(50) :=  G_REGEX_ANY_WORDS||G_REGEX_VAR_ASSIGN;
   
-  G_REGEX_ASSIGN_TO_REC_COL   CONSTANT VARCHAR2(50) :=  G_REGEX_2WORDS||'\s*?:=';
+  G_REGEX_ASSIGN_TO_REC_COL   CONSTANT VARCHAR2(50) :=  G_REGEX_2WORDS     ||'\s*?:=';
 
-  --matches on both G_REGEX_ASSIGN_TO_VAR and G_REGEX_ASSIGN_TO_BIND_VAR 
-  G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  ':*?'||G_REGEX_WORD||'?\s*?:='; 
+  --matches on both G_REGEX_ASSIGN_TO_BIND_VAR andG_REGEX_ASSIGN_TO_ANY_WORDS
+  G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  ':*?'||G_REGEX_ASSIGN_TO_ANY_WORDS;
+ -- G_REGEX_ASSIGN_TO_VARS      CONSTANT VARCHAR2(50) :=  ':*?'||G_REGEX_ASSIGN_TO_ANY_WORDS||'?\s*?:=';
 
-  G_REGEX_ASSIGN_TO_VAR       CONSTANT VARCHAR2(50) :=  G_REGEX_WORD||'\s*?:=';  
-  G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) :=  ':'||G_REGEX_WORD||'\s*?:=';
+  G_REGEX_ASSIGN_TO_VAR       CONSTANT VARCHAR2(50) :=  G_REGEX_WORD       ||'\s*?:=';  
+  G_REGEX_ASSIGN_TO_BIND_VAR  CONSTANT VARCHAR2(50) :=  ':'||G_REGEX_WORD  ||'\s*?:=';
   
   G_REGEX_VAR                 CONSTANT VARCHAR2(50) := G_REGEX_WORD;
   G_REGEX_REC_COL             CONSTANT VARCHAR2(50) := G_REGEX_WORD||'.'||G_REGEX_WORD;
@@ -2661,17 +2668,18 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
  
           ELSE
             ms_logger.comment(l_node, 'Data type assumed to be a TABLE_NAME');
-            ms_logger.note(l_node,'Assumed Table',l_var_list(l_var).type);
+            ms_logger.note(l_node,'l_var_list(l_var).type',l_var_list(l_var).type);
+            ms_logger.note(l_node,'l_var_list(l_var).rowtype',l_var_list(l_var).rowtype);
             --Data type is unsupported so it is the name of a table instead.
             --Now write a note for each supported column.
             ms_logger.comment(l_node, 'Data type is supported');
             --Also need to add 1 var def for each valid componant of the record type.
-            l_table_owner := table_owner(i_table_name => l_var_list(l_var).type);
+            l_table_owner := table_owner(i_table_name => l_var_list(l_var).rowtype);
             FOR l_column IN 
               (select lower(column_name) column_name
                      ,data_type
                from all_tab_columns
-               where table_name = l_var_list(l_var).type 
+               where table_name = l_var_list(l_var).rowtype 
                and   owner      = l_table_owner  ) LOOP
 
                IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
@@ -2726,7 +2734,7 @@ BEGIN
                                        --||'|'||G_REGEX_DML               
                                        --||'|'||G_REGEX_SELECT_FETCH_INTO          
                           ,i_stop          => G_REGEX_START_ANNOTATION --don't colour it
-                                       ||'|'||G_REGEX_ASSIGN_TO_REC_COL
+                                       --||'|'||G_REGEX_ASSIGN_TO_REC_COL
                                        ||'|'||G_REGEX_ASSIGN_TO_VARS
                           ,i_upper        => TRUE
                           ,i_colour       => G_COLOUR_BLOCK
@@ -2864,12 +2872,17 @@ BEGIN
         l_var := find_var(i_search => G_REGEX_BIND_VAR);
         note_var(i_var  => l_var
                 ,i_type => NULL);
- 
-      WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
-        ms_logger.info(l_node, 'Assign Record.Column');
 
-        l_var := find_var(i_search => G_REGEX_REC_COL);
-        note_rec_col_var(i_var => l_var);
+      WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_ANY_WORDS) THEN  
+        ms_logger.info(l_node, 'Assign Any number of words');
+        l_var := find_var(i_search => G_REGEX_ANY_WORDS);
+        note_non_bind_var(i_var => l_var);
+ 
+      --WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
+      --  ms_logger.info(l_node, 'Assign Record.Column');
+
+      --  l_var := find_var(i_search => G_REGEX_REC_COL);
+      --  note_rec_col_var(i_var => l_var);
 
       WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN  
         ms_logger.info(l_node, 'Assign Var');  
