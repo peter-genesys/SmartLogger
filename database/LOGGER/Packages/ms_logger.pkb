@@ -1606,6 +1606,7 @@ END debug_error;
  
 PROCEDURE create_ref ( i_name      IN VARCHAR2
                       ,i_value     IN CLOB
+                      ,i_descr     IN CLOB     default null
                       ,i_msg_type  IN VARCHAR2
                       ,i_node      IN ms_logger.node_typ ) IS
 
@@ -1616,6 +1617,7 @@ BEGIN
       --Short, single line value, so just put it in the value column
       create_message ( i_name      => i_name
                       ,i_value     => i_value
+                      ,i_message   => i_descr
                       ,i_msg_type  => i_msg_type
                       ,i_msg_level => G_MSG_LEVEL_COMMENT
 	         ,i_node    => i_node);      
@@ -1980,15 +1982,17 @@ END warn_error;
 --overloaded name, value | [id, descr] 
 PROCEDURE note    ( i_node      IN ms_logger.node_typ   
                    ,i_name      IN VARCHAR2
-                   ,i_value     IN VARCHAR2 )
+                   ,i_value     IN VARCHAR2
+                   ,i_descr     IN VARCHAR2 DEFAULT NULL )
 IS
 
 BEGIN
 
   create_ref ( i_name       => i_name
               ,i_value      => i_value
+              ,i_descr      => i_descr
               ,i_msg_type   => G_MSG_TYPE_NOTE
-        ,i_node            => i_node);      
+              ,i_node       => i_node);      
  
 END note   ;
 
@@ -2020,7 +2024,7 @@ BEGIN
   create_ref ( i_name       => i_name
               ,i_value      => i_value
               ,i_msg_type   => G_MSG_TYPE_NOTE
-        ,i_node            => i_node);      
+              ,i_node       => i_node);      
  
 END note_clob   ;
 
@@ -2050,9 +2054,9 @@ IS
 BEGIN
 
   create_ref ( i_name       => i_name
-           ,i_value      => TO_CHAR(ROUND(i_num_value,15))
-           ,i_msg_type   => G_MSG_TYPE_NOTE
-           ,i_node     => i_node);
+              ,i_value      => TO_CHAR(ROUND(i_num_value,15))
+              ,i_msg_type   => G_MSG_TYPE_NOTE
+              ,i_node       => i_node);
 
 END note   ;
 
@@ -2075,7 +2079,7 @@ END param;
 
 ------------------------------------------------------------------------
 --overloaded name, date_value , descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 
+PROCEDURE note    ( i_node       IN ms_logger.node_typ 
                    ,i_name       IN VARCHAR2
                    ,i_date_value IN DATE )
 IS
@@ -2174,7 +2178,7 @@ BEGIN
 END note_rowcount;
 ------------------------------------------------------------------------
 FUNCTION f_note_rowcount( i_node      IN ms_logger.node_typ 
-                         ,i_name      IN VARCHAR2  ) RETURN NUMBER IS
+                         ,i_name      IN VARCHAR2   ) RETURN NUMBER IS
   l_rowcount NUMBER := SQL%ROWCOUNT;
 BEGIN
       create_message ( i_name      => 'SQL%ROWCOUNT'

@@ -79,7 +79,7 @@ TYPE identifier_tab IS table of identifier_rec index by BINARY_INTEGER;
   TYPE pu_rec_typ is record(
     name      varchar2(30) --Program Unit Name or Block Label
    ,type      varchar2(20) --FUNCTION|PROCEDURE|LABELLED_BLOCK
-   ,signature varchar2(32) --plscope signature
+   ,signature varchar2(32) --plscope signature (LABELLED_BLOCK will not have a signature)
    ,level     integer      --Nesting level 0 is the owner, 1 is the package body, etc
   );
  

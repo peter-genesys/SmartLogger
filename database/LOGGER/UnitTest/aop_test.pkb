@@ -100,7 +100,8 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
       --hello:= 23;
       f#:=3;
       g$:= 4 ;
-
+      anon1.f#:=3;
+    
     end anon1;
 
     <<anon2>>
@@ -109,6 +110,7 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
 
       procedure testz(i_paramz in varchar2 ) is
         l_var varchar2(32000);
+ 
       begin
 
         --x:= 4 ;
@@ -165,12 +167,16 @@ where max_event_date >= :i_min_qa_date
 
         null;
         --""testz is nested in anon block2
+
+
+        anon2.l_temp := 'HI'; --name resolution labelled block.
+
       end testz;
 
     begin
       null;
       --""anon block2
-
+ 
       testz(i_paramz => 'Z');
 
       declare

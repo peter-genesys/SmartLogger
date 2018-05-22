@@ -163,7 +163,8 @@ PROCEDURE warn_error( i_node            IN ms_logger.node_typ
 --overloaded name, value | [id, descr] 
 PROCEDURE note    ( i_node      IN ms_logger.node_typ 
                    ,i_name      IN VARCHAR2
-                   ,i_value     IN VARCHAR2 );
+                   ,i_value     IN VARCHAR2
+                   ,i_descr     IN VARCHAR2 DEFAULT NULL  );
  
 ------------------------------------------------------------------------
 
@@ -197,22 +198,22 @@ PROCEDURE param ( i_node      IN ms_logger.node_typ
                  ,i_num_value IN NUMBER    );
 ------------------------------------------------------------------------
 --overloaded name, date_value , descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 
+PROCEDURE note    ( i_node       IN ms_logger.node_typ 
                    ,i_name       IN VARCHAR2
                    ,i_date_value IN DATE );
 ------------------------------------------------------------------------
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
+PROCEDURE param ( i_node       IN ms_logger.node_typ 
                  ,i_name       IN VARCHAR2
                  ,i_date_value IN DATE   );
 
 ------------------------------------------------------------------------
 --overloaded name, bool_value 
-PROCEDURE note   (i_node      IN ms_logger.node_typ 
+PROCEDURE note   (i_node       IN ms_logger.node_typ 
                  ,i_name       IN VARCHAR2
                  ,i_bool_value IN BOOLEAN );
 ------------------------------------------------------------------------
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
-                 , i_name      IN VARCHAR2
+PROCEDURE param ( i_node       IN ms_logger.node_typ 
+                 ,i_name      IN VARCHAR2
                  ,i_bool_value IN BOOLEAN  );
 ------------------------------------------------------------------------
 --overloaded name

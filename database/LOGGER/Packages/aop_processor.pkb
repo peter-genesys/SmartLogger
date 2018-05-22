@@ -270,6 +270,77 @@ create or replace package body aop_processor is
 
 
 
+FUNCTION get_object_signature(i_object_name         IN varchar2
+                             ,i_object_type         IN varchar2) return varchar2 is
+l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_object_signature'); 
+
+   CURSOR cu_plscope_var is
+   select  o.*
+    from   all_identifiers o
+    where o.object_name      = UPPER(i_object_name)
+    and   o.object_type      = UPPER(i_object_type)
+    and   o.usage            = decode(UPPER(i_object_type), 'PACKAGE'     ,'DECLARATION'
+                                                          , 'PACKAGE BODY','DEFINITION')
+    and   o.type             = decode(UPPER(i_object_type), 'PACKAGE'     ,'PACKAGE'
+                                                          , 'PACKAGE BODY','PACKAGE');
+
+    l_plscope_var cu_plscope_var%ROWTYPE; 
+BEGIN
+  ms_logger.param(l_node, 'i_object_name'  ,i_object_name ); 
+  ms_logger.param(l_node, 'i_object_type'  ,i_object_type ); 
+ 
+  OPEN cu_plscope_var;
+  FETCH cu_plscope_var into l_plscope_var;
+  CLOSE cu_plscope_var;
+
+  ms_logger.note(l_node, 'l_plscope_var.signature'          ,l_plscope_var.signature );
+
+  RETURN l_plscope_var.signature;
+ 
+END get_object_signature;  
+
+ 
+FUNCTION get_pu_signature(i_parent_signature IN varchar2
+                         ,i_pu_name          IN varchar2
+                         ,i_pu_type          IN varchar2) return varchar2 is
+l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_pu_signature'); 
+   CURSOR cu_plscope_var is
+   select  p.name        parent_name
+          ,c.name        child_name
+          ,c.type        child_type
+          ,c.signature   signature
+    from   all_identifiers p
+          ,all_identifiers c
+          --,all_identifiers t
+    where p.usage            = 'DEFINITION'
+    and   p.signature        = i_parent_signature
+    and   c.usage_context_id = p.usage_id
+    and   c.owner            = p.owner
+    and   c.object_name      = p.object_name
+    and   c.object_type      = p.object_type
+    and   c.type             = i_pu_type
+    and   c.usage            = 'DECLARATION';
+
+ 
+    l_plscope_var cu_plscope_var%ROWTYPE; 
+BEGIN
+  ms_logger.param(l_node, 'i_parent_signature'  ,i_parent_signature ); 
+  ms_logger.param(l_node, 'i_pu_name'          ,i_pu_name ); 
+  ms_logger.param(l_node, 'i_pu_type'          ,i_pu_type ); 
+  
+  OPEN cu_plscope_var;
+  FETCH cu_plscope_var into l_plscope_var;
+  CLOSE cu_plscope_var;
+
+  ms_logger.note(l_node, 'l_plscope_var.signature'          ,l_plscope_var.signature );
+
+  RETURN l_plscope_var.signature;
+ 
+END get_pu_signature;  
+
+
+
+
 --------------------------------------------------------------------
 -- push_pu - push a program unit onto the pu stack
 -------------------------------------------------------------------- 
@@ -277,12 +348,27 @@ procedure push_pu(i_name       in varchar2
                  ,i_type       in varchar2
                  ,i_signature  in varchar2
                  ,io_pu_stack IN OUT pu_stack_typ ) is
-    l_pu_rec pu_rec_typ;
+  l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'push_pu'); 
+  l_pu_rec pu_rec_typ;
 BEGIN
+  ms_logger.param(l_node, 'i_name'          ,i_name ); 
+  ms_logger.param(l_node, 'i_type'          ,i_type ); 
+  ms_logger.param(l_node, 'i_signature'          ,i_signature ); 
 
   l_pu_rec.name      := i_name;
   l_pu_rec.type      := i_type;
-  l_pu_rec.signature := i_signature;
+  
+  --@TODO - Signatures cannot be used for the QUICK WEAVE since the program is not compiles PLScope does not exist.
+  IF i_type IN ('PACKAGE','PACKAGE BODY') THEN
+    --Get signature for the root of the package.
+    l_pu_rec.signature := get_object_signature(i_object_name  => i_name
+                                              ,i_object_type  => i_type);
+  ELSif io_pu_stack.COUNT > 0 THEN
+    l_pu_rec.signature := get_pu_signature(i_parent_signature => io_pu_stack(io_pu_stack.LAST).signature
+                                          ,i_pu_name          => i_name
+                                          ,i_pu_type          => i_type);
+  END IF;
+
   l_pu_rec.level     := io_pu_stack.COUNT+1; 
 
   io_pu_stack(l_pu_rec.level) := l_pu_rec; 
@@ -366,7 +452,7 @@ END;
     l_index := i_var_list.FIRST;
     
     WHILE l_index is not null loop
-      ms_logger.note(l_node,i_var_list(l_index).name,i_var_list(l_index).type);
+      ms_logger.note(l_node,i_var_list(l_index).name,i_var_list(l_index).type,i_var_list(l_index).signature);
       l_index := i_var_list.NEXT(l_index);
     end loop;
   END;
@@ -382,13 +468,251 @@ END;
     l_index := i_param_list.FIRST;
     
     WHILE l_index is not null loop
-      ms_logger.note(l_node,i_param_list(l_index).name,i_param_list(l_index).type);
+      ms_logger.note(l_node,i_param_list(l_index).name,i_param_list(l_index).type,i_param_list(l_index).signature);
       l_index := i_param_list.NEXT(l_index);
     end loop;
   END;
 
+
+
+FUNCTION get_type_signature(i_parent_signature IN varchar2
+                           ,i_var_name         IN varchar2
+                           ,i_var_type         IN varchar2) return varchar2 is
+l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_signature'); 
+   CURSOR cu_plscope_var is
+   select  p.name        parent_name
+          ,c.name        child_name
+          ,c.type        child_type
+          ,t.name        data_type
+          ,t.type        data_class 
+          ,t.signature   type_signature
+    from   all_identifiers p
+          ,all_identifiers c
+          ,all_identifiers t
+    where p.usage            = 'DEFINITION'
+    and   p.signature        = i_parent_signature
+    and   c.usage_context_id = p.usage_id
+    and   c.owner            = p.owner
+    and   c.object_name      = p.object_name
+    and   c.object_type      = p.object_type
+    and   c.type             = 'VARIABLE'
+    and   c.usage            = 'DECLARATION'
+    and   c.name             = UPPER(i_var_name)
+    and   t.usage_context_id = c.usage_id
+    and   t.owner            = c.owner
+    and   t.object_name      = c.object_name
+    and   t.object_type      = c.object_type
+    and   t.name             = i_var_type;
+
+    l_plscope_var cu_plscope_var%ROWTYPE; 
+BEGIN
+  ms_logger.param(l_node, 'i_parent_signature'  ,i_parent_signature ); 
+  ms_logger.param(l_node, 'i_var_name'          ,i_var_name ); 
+  ms_logger.param(l_node, 'i_var_type'          ,i_var_type ); 
+  
+  OPEN cu_plscope_var;
+  FETCH cu_plscope_var into l_plscope_var;
+  CLOSE cu_plscope_var;
+
+  ms_logger.note(l_node, 'l_plscope_var.type_signature'          ,l_plscope_var.type_signature );
+
+  RETURN l_plscope_var.type_signature;
+ 
+END get_type_signature;  
+
+
+
+--------------------------------------------------------------------
+-- identifier_exists
+--------------------------------------------------------------------  
+/** PRIVATE
+* Does this signature exist?
+* @param i_signature   Signature of a DECLARATION
+*/
+FUNCTION identifier_exists(i_signature   in varchar2) return boolean is
+ 
+  --Query to identify a simple reference
+  CURSOR cu_identifier is
+    SELECT 1
+    FROM all_identifiers 
+    where signature = i_signature 
+    and usage = 'DECLARATION';
+ 
+   l_dummy  number;
+   l_result boolean;
+ BEGIN
+   
+   OPEN cu_identifier;
+   FETCH cu_identifier INTO l_dummy;
+   l_result := cu_identifier%FOUND;
+   CLOSE cu_identifier;
+
+   RETURN l_result;
+
+ END; 
+
+/*
+--------------------------------------------------------------------
+-- get_type_defn_piped
+--------------------------------------------------------------------  
+  PRIVATE
+* Find the type definition, and componants
+* @param i_signature   Signature of a DECLARATION
+ 
+FUNCTION get_type_defn_piped(--i_object_name in varchar2
+                       --i_object_type in varchar2
+                       i_signature   in varchar2) return identifier_tab pipelined is
+
+  --CURSOR cu_identifier
+  --  WITH plscope_hierarchy
+  --          AS (SELECT *
+  --                FROM all_identifiers
+  --               WHERE     owner = USER
+  --                     AND object_name = i_object_name
+  --                    AND object_type  = i_object_type
+  --               )
+  --  select v.name      col_name
+  --        ,t.name      data_type
+  --        ,t.type      data_class
+  --        ,t.signature signature
+  --  from   plscope_hierarchy v
+  --        ,plscope_hierarchy t
+  --  where v.usage            = 'DECLARATION'
+  --  and   v.signature        = i_signature
+  --  and   t.usage_context_id = v.usage_id;
+
+  CURSOR cu_identifier is
+    select v.name      col_name
+          ,t.name      data_type
+          ,t.type      data_class
+          ,t.signature signature
+    from   all_identifiers v
+          ,all_identifiers t
+    where v.usage            = 'DECLARATION'
+    and   v.signature        = i_signature
+    and   t.usage_context_id = v.usage_id
+    and   t.owner            = v.owner
+    and   t.object_name      = v.object_name
+    and   t.object_type      = v.object_type;
+
+
+  --Query to identify a simple reference
+  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
+ 
+ BEGIN
+   
+   FOR l_identifier_rec IN cu_identifier LOOP
+     PIPE ROW (l_identifier_rec);
+   END LOOP;
+
+   RETURN;
+
+ END get_type_defn_piped; 
+*/
+
+--------------------------------------------------------------------
+-- get_type_defn
+--------------------------------------------------------------------  
+/** PRIVATE
+* Find the type definition, and componants
+* @param i_signature   Signature of a DECLARATION
+*/
+/*
+FUNCTION get_type_defn(--i_object_name in varchar2
+                       --i_object_type in varchar2
+                       i_signature   in varchar2) return identifier_tab is
+
+ 
+  CURSOR cu_identifier is
+    select v.name      col_name
+          ,t.name      data_type
+          ,t.type      data_class
+          ,t.signature signature
+    from   all_identifiers v
+          ,all_identifiers t
+    where v.usage            = 'DECLARATION'
+    and   v.signature        = i_signature
+    and   t.usage_context_id = v.usage_id
+    and   t.owner            = v.owner
+    and   t.object_name      = v.object_name
+    and   t.object_type      = v.object_type;
+
+
+  --Query to identify a simple reference
+  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
+
+   l_identifier_tab   identifier_tab;
+   l_index            number := 0;
+ 
+ BEGIN
+   
+   FOR l_identifier_rec IN cu_identifier LOOP
+     l_index := l_index + 1;
+     l_identifier_tab(l_index) := l_identifier_rec;
+   END LOOP;
+
+   RETURN l_identifier_tab;
+
+ END; 
+ */
+
+FUNCTION get_type_defn( i_signature   in varchar2) return identifier_tab is
+  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_type_defn');
+
+ 
+  CURSOR cu_identifier is
+   select  c.name        col_name
+          ,t.name        data_type
+          ,t.type        data_class 
+          ,t.signature   signature
+    from   all_identifiers d
+          ,all_identifiers c
+          ,all_identifiers t
+    where d.usage            = 'DECLARATION'
+    and   d.signature        = i_signature
+    and   c.usage_context_id = d.usage_id
+    and   c.owner            = d.owner
+    and   c.object_name      = d.object_name
+    and   c.object_type      = d.object_type
+    and   t.usage_context_id = c.usage_id
+    and   t.owner            = c.owner
+    and   t.object_name      = c.object_name
+    and   t.object_type      = c.object_type;
+
+  --Query to identify a simple reference
+  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
+
+   l_identifier_tab   identifier_tab;
+   l_index            number := 0;
+ 
+begin --get_type_defn
+  ms_logger.param(l_node,'i_signature',i_signature);
+ BEGIN
+   
+   FOR l_identifier_rec IN cu_identifier LOOP
+     l_index := l_index + 1;
+     ms_logger.note(l_node,'l_index',l_index);
+     l_identifier_tab(l_index) := l_identifier_rec;
+     ms_logger.note(l_node,'l_identifier_rec.col_name',l_identifier_rec.col_name);
+   END LOOP;
+
+   ms_logger.note(l_node,'l_identifier_tab.count',l_identifier_tab.count);
+
+   RETURN l_identifier_tab;
+
+ END;
+exception
+  when others then
+    ms_logger.warn_error(l_node);
+    raise;
+end; --get_type_defn
+
+
+
 --------------------------------------------------------------------
 -- create_var_rec - smart constructor for var_rec
+-- @TODO param_name may not be simple at all
+--       need to be able to cope with complex names..
 --------------------------------------------------------------------
  FUNCTION create_var_rec(i_param_name IN VARCHAR2
                         ,i_param_type IN VARCHAR2 default null
@@ -397,9 +721,12 @@ END;
                         ,i_out_var    IN BOOLEAN  default false
                         ,i_lex_var    in BOOLEAN  default false 
                         ,i_lim_var    in BOOLEAN  default false
-                        ,i_signature   in varchar2 default null ) return var_rec_typ is
+                        ,i_signature  in varchar2 default null 
+                        ,i_pu_stack   in pu_stack_typ
+                       ) return var_rec_typ is
     l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'create_var_rec'); 
     l_var      var_rec_typ;
+    l_index    binary_integer;
   BEGIN
     ms_logger.param(l_node, 'i_param_name' ,i_param_name); 
     ms_logger.param(l_node, 'i_param_type' ,i_param_type); 
@@ -414,8 +741,145 @@ END;
     l_var.name    := i_param_name;
     l_var.type    := UPPER(i_param_type); --convert all types to UPPERCASE   
     l_var.rowtype := i_rowtype;
-    IF l_var.type is null and l_var.rowtype is not null then 
-      l_var.type := 'ROWTYPE';
+    if l_var.type is null then
+      if  l_var.rowtype is not null then 
+        l_var.type := 'ROWTYPE'; --BEWARE %rowtype is also used with cursors.
+      end if;
+    else
+      if regex_match(l_var.type,G_REGEX_PREDEFINED_TYPES,'i') then
+        ms_logger.comment(l_node, 'Found predefined Type'); 
+      else
+        if i_signature is not null then
+          ms_logger.comment(l_node, 'Create with known signature'); 
+          l_var.signature := i_signature;
+        else
+ 
+          l_index := i_pu_stack.LAST; --last pu on the stack has the parent signature
+          --Find the siganture of the variable's type.
+          l_var.signature := get_type_signature(i_parent_signature => i_pu_stack(l_index).signature
+                                               ,i_var_name         => i_param_name
+                                               ,i_var_type         => i_param_type );
+          if l_var.signature is not null then
+            ms_logger.info(l_node, 'Found type signature'); 
+            ms_logger.note(l_node, 'l_var.signature'  ,l_var.signature ); 
+          else
+            ms_logger.warning(l_node, 'Unable to find type signature'); 
+          end if;  
+
+          --ms_logger.comment(l_node, 'Searching for Type'); 
+
+          --DONT FORGET A GOOD WAY TO FIGURE THIS OUT IS TO LOOK AT THE PLSCOPE 
+          --GIVEN THAT WE KNOW THE CONTEXT WE FIND THE VARIABLE OR PARAM IN
+
+          --Could demand a rethink about whether we search through objects and recompile with plscope.
+          --or can we just get from plscope.
+
+          --1.  Find the signature of this variable.
+      
+          --May need to already know the signature of the enclosing procedure to be able to search for the variable!!
+          --Lets do some testing of this..
+
+          --I know the name of the variable and the type (and potentially where i am upto in the source file)
+          --Should be able to find the variable in PLScope by looking up its var name and type name and getting the 
+          --signature to store.
+          --May also need the parent procedure - but not sure about this.
+          --Other variables of the same name and type may exist in other procedures - 
+          --so will need either parent proc (signature) or location in code.
+          
+          --Let us assume we have already got the parent signature..
+                 
+          --From AOP_TEST       
+          --   PROCEDURE TEST99 (DECLARATION) - F89279D140926C817730D2187C7F2570
+          --     PROCEDURE TEST99 (DEFINITION) - F89279D140926C817730D2187C7F2570
+          --       VARIABLE L_TEST (DECLARATION) - 70FFE2B593CA200C0C5A61FAE273283E
+          --         RECORD TEST_TYP (REFERENCE) - 8E8A2905C526B95322C8C0560108A24A
+
+/*
+--Find the variables declared in a given proc known by its signature.
+
+Also look at the query construct used in functions get_type_defn
+
+WITH plscope_hierarchy
+        AS (SELECT line
+                 , col
+                 , name
+                 , TYPE
+                 , usage
+                 , usage_id
+                 , usage_context_id
+                 , signature
+              FROM all_identifiers
+             WHERE owner       = 'PACMAN'
+               AND object_name = 'AOP_TEST'
+               AND object_type = 'PACKAGE BODY')
+select v.name
+      ,v.type
+      ,v.usage
+      ,t.name      data_type
+      ,t.type      data_class
+      ,t.signature signature
+from  plscope_hierarchy p
+     ,plscope_hierarchy v
+     ,plscope_hierarchy t
+where p.signature  = 'F89279D140926C817730D2187C7F2570' --known signature of the enclosing PU.
+and   p.usage      = 'DEFINITION'
+and   v.usage_context_id = p.usage_id
+and   v.type  = 'VARIABLE'
+and   v.usage = 'DECLARATION'
+and   t.usage_context_id = v.usage_id
+*/
+
+
+
+          
+
+          
+
+
+
+        --Search in type list first. @TODO - harvest package level types in the same routine that harvests vars.
+        --Prob should store in a separate list, but could be the same, as long as we ignore that the names could
+        --collide, or find a way to stop that happening.
+
+
+        --Then go looking for other types.
+
+        --Create a regex for users 
+        --G_REGEX_USERS - lists all users db_objects with packages (specs).
+        
+        --Package Types
+        -------------------
+        --User.Package.Type
+        --     Package.Type
+
+        --DB Types
+        ------------
+        --User.Type
+        --     Type
+        
+
+
+
+
+     -- if l_var like '%.%' then
+     --   ms_logger.comment(l_node, 'Let us remove the last componant and try again');
+     --   declare
+     --     l_componant varchar2(1000);
+     --   begin
+     --      l_componant  := REGEXP_SUBSTR(l_var,G_REGEX_WORD||'$',1,1,'i');
+     --      ms_logger.note(l_node,'l_componant',l_componant);
+     --      l_var        := REGEXP_REPLACE(l_var,'.'||G_REGEX_WORD||'$',''); --remove the last word
+     --      ms_logger.note(l_node,'l_var',l_var);
+--
+     --      note_non_bind_var(i_var       => l_var
+     --                       ,i_componant => i_componant||'.'||l_componant );
+     --   end;
+     -- else
+     --   ms_logger.warning(l_node, 'Var not known '||i_var||'.'||i_componant); --RTRIM(i_var||'.'||i_componant,'.');
+     --   log_var_list(i_var_list => l_var_list);
+     -- end if;
+        END IF;
+      END IF;
     END IF;
 
     l_var.in_var  := i_in_var OR (NOT i_out_var and NOT i_lex_var and NOT i_lim_var);  --in  param implcit or explicit
@@ -424,8 +888,7 @@ END;
     l_var.lim_var := i_lim_var;  --lim locally declared implicit (eg FOR LOOP)
     --,owner                     --current scope    @FUTURE USE
     --,scope                     --program hierachy @FUTURE USE
-    l_var.signature := i_signature;   --@TODO Populate this. PLScope changes every time the package is recompiled.
- 
+
     RETURN l_var;
   END;
 
@@ -597,191 +1060,6 @@ END;
 
 
 
-
---------------------------------------------------------------------
--- identifier_exists
---------------------------------------------------------------------  
-/** PRIVATE
-* Does this signature exist?
-* @param i_signature   Signature of a DECLARATION
-*/
-FUNCTION identifier_exists(i_signature   in varchar2) return boolean is
- 
-  --Query to identify a simple reference
-  CURSOR cu_identifier is
-    SELECT 1
-    FROM all_identifiers 
-    where signature = i_signature 
-    and usage = 'DECLARATION';
- 
-   l_dummy  number;
-   l_result boolean;
- BEGIN
-   
-   OPEN cu_identifier;
-   FETCH cu_identifier INTO l_dummy;
-   l_result := cu_identifier%FOUND;
-   CLOSE cu_identifier;
-
-   RETURN l_result;
-
- END; 
-
-/*
---------------------------------------------------------------------
--- get_type_defn_piped
---------------------------------------------------------------------  
-  PRIVATE
-* Find the type definition, and componants
-* @param i_signature   Signature of a DECLARATION
- 
-FUNCTION get_type_defn_piped(--i_object_name in varchar2
-                       --i_object_type in varchar2
-                       i_signature   in varchar2) return identifier_tab pipelined is
-
-  --CURSOR cu_identifier
-  --  WITH plscope_hierarchy
-  --          AS (SELECT *
-  --                FROM all_identifiers
-  --               WHERE     owner = USER
-  --                     AND object_name = i_object_name
-  --                    AND object_type  = i_object_type
-  --               )
-  --  select v.name      col_name
-  --        ,t.name      data_type
-  --        ,t.type      data_class
-  --        ,t.signature signature
-  --  from   plscope_hierarchy v
-  --        ,plscope_hierarchy t
-  --  where v.usage            = 'DECLARATION'
-  --  and   v.signature        = i_signature
-  --  and   t.usage_context_id = v.usage_id;
-
-  CURSOR cu_identifier is
-    select v.name      col_name
-          ,t.name      data_type
-          ,t.type      data_class
-          ,t.signature signature
-    from   all_identifiers v
-          ,all_identifiers t
-    where v.usage            = 'DECLARATION'
-    and   v.signature        = i_signature
-    and   t.usage_context_id = v.usage_id
-    and   t.owner            = v.owner
-    and   t.object_name      = v.object_name
-    and   t.object_type      = v.object_type;
-
-
-  --Query to identify a simple reference
-  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
- 
- BEGIN
-   
-   FOR l_identifier_rec IN cu_identifier LOOP
-     PIPE ROW (l_identifier_rec);
-   END LOOP;
-
-   RETURN;
-
- END get_type_defn_piped; 
-*/
-
---------------------------------------------------------------------
--- get_type_defn
---------------------------------------------------------------------  
-/** PRIVATE
-* Find the type definition, and componants
-* @param i_signature   Signature of a DECLARATION
-*/
-/*
-FUNCTION get_type_defn(--i_object_name in varchar2
-                       --i_object_type in varchar2
-                       i_signature   in varchar2) return identifier_tab is
-
- 
-  CURSOR cu_identifier is
-    select v.name      col_name
-          ,t.name      data_type
-          ,t.type      data_class
-          ,t.signature signature
-    from   all_identifiers v
-          ,all_identifiers t
-    where v.usage            = 'DECLARATION'
-    and   v.signature        = i_signature
-    and   t.usage_context_id = v.usage_id
-    and   t.owner            = v.owner
-    and   t.object_name      = v.object_name
-    and   t.object_type      = v.object_type;
-
-
-  --Query to identify a simple reference
-  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
-
-   l_identifier_tab   identifier_tab;
-   l_index            number := 0;
- 
- BEGIN
-   
-   FOR l_identifier_rec IN cu_identifier LOOP
-     l_index := l_index + 1;
-     l_identifier_tab(l_index) := l_identifier_rec;
-   END LOOP;
-
-   RETURN l_identifier_tab;
-
- END; 
- */
-
-FUNCTION get_type_defn( i_signature   in varchar2) return identifier_tab is
-  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_type_defn');
-
- 
-  CURSOR cu_identifier is
-   select  c.name        col_name
-          ,t.name        data_type
-          ,t.type        data_class 
-          ,t.signature signature
-    from   all_identifiers d
-          ,all_identifiers c
-          ,all_identifiers t
-    where d.usage            = 'DECLARATION'
-    and   d.signature        = i_signature
-    and   c.usage_context_id = d.usage_id
-    and   c.owner            = d.owner
-    and   c.object_name      = d.object_name
-    and   c.object_type      = d.object_type
-    and   t.usage_context_id = c.usage_id
-    and   t.owner            = c.owner
-    and   t.object_name      = c.object_name
-    and   t.object_type      = c.object_type;
-
-  --Query to identify a simple reference
-  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
-
-   l_identifier_tab   identifier_tab;
-   l_index            number := 0;
- 
-begin --get_type_defn
-  ms_logger.param(l_node,'i_signature',i_signature);
- BEGIN
-   
-   FOR l_identifier_rec IN cu_identifier LOOP
-     l_index := l_index + 1;
-     ms_logger.note(l_node,'l_index',l_index);
-     l_identifier_tab(l_index) := l_identifier_rec;
-     ms_logger.note(l_node,'l_identifier_rec.col_name',l_identifier_rec.col_name);
-   END LOOP;
-
-   ms_logger.note(l_node,'l_identifier_tab.count',l_identifier_tab.count);
-
-   RETURN l_identifier_tab;
-
- END;
-exception
-  when others then
-    ms_logger.warn_error(l_node);
-    raise;
-end; --get_type_defn
 
 --------------------------------------------------------------------
 -- source_has_tag
@@ -1816,11 +2094,12 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
                             ,i_param_type => i_param_type
                             ,i_rowtype    => i_rowtype
                             ,i_in_var     => i_in_var    
-                            ,i_out_var    => i_out_var   );
+                            ,i_out_var    => i_out_var
+                            ,i_pu_stack   => i_pu_stack   );
   
     IF l_var.in_var THEN
       store_param_list(i_param       => l_var
-                 ,io_param_list => io_param_list);
+                      ,io_param_list => io_param_list);
     END IF;
 
     IF l_var.out_var THEN
@@ -1942,6 +2221,7 @@ BEGIN
                  --              ,i_param_type => l_table_name
                  --              ,io_var_list  => io_var_list );
                  --@TODO check this still works after change to proc used..
+                 --@TODO Rowtype is not always a table/view could realate to a cursor.
                  store_var_def(i_param_name => l_param_name
                               ,i_rowtype    => l_table_name
                               ,i_in_var     => l_in_var
@@ -2095,12 +2375,17 @@ BEGIN
 
 
                  l_param_name      := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',1));
-                 l_package_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',5));
-                 l_type_name       := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',7));
+                 l_param_type    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',5));
+                 --l_type_name       := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',7));
 
                  ms_logger.note(l_node, 'l_param_name' ,l_param_name);
-                 ms_logger.note(l_node, 'l_package_name' ,l_package_name);
-                 ms_logger.note(l_node, 'l_type_name',l_type_name);
+                 --ms_logger.note(l_node, 'l_package_name' ,l_package_name);
+                 ms_logger.note(l_node, 'l_param_type',l_param_type);
+
+                 store_var_def(i_param_name => l_param_name
+                              ,i_param_type => l_param_type
+                              ,i_in_var     => l_in_var
+                              ,i_out_var    => l_out_var );
 
 
                 go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE_1WD
@@ -2254,7 +2539,8 @@ BEGIN
 
         store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
                                                     ,i_param_type  => l_param_type
-                                                    ,i_lex_var     => true)
+                                                    ,i_lex_var     => true
+                                                    ,i_pu_stack    => i_pu_stack)
                       ,io_var_list => l_var_list
                       ,i_pu_stack  => i_pu_stack);
 
@@ -2283,7 +2569,8 @@ BEGIN
 
         store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
                                                     ,i_param_type  => l_table_name
-                                                    ,i_lex_var     => true)
+                                                    ,i_lex_var     => true
+                                                    ,i_pu_stack    => i_pu_stack)
                      ,io_var_list  => l_var_list
                      ,i_pu_stack   => i_pu_stack);
  
@@ -2304,7 +2591,8 @@ BEGIN
            --              ,io_var_list  => l_var_list );
            store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name||'.'||l_column.column_name
                                                        ,i_param_type  => l_column.data_type
-                                                       ,i_lex_var     => true)
+                                                       ,i_lex_var     => true
+                                                       ,i_pu_stack    => i_pu_stack)
                         ,io_var_list  => l_var_list
                         ,i_pu_stack   => i_pu_stack);
 
@@ -2342,7 +2630,8 @@ BEGIN
 
            store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
                                                        ,i_param_type  => l_column.data_type
-                                                       ,i_lex_var     => true)
+                                                       ,i_lex_var     => true
+                                                       ,i_pu_stack    => i_pu_stack)
                          ,io_var_list  => l_var_list
                          ,i_pu_stack   => i_pu_stack);
 
@@ -2936,7 +3225,8 @@ BEGIN
            --l_into_var_list (l_into_var_list.COUNT+1) := l_var;  
            store_var_list(i_var       => create_var_rec(i_param_name  => l_var
                                                        ,i_param_type  => 'SELECT_INTO' --Unable to derive the datatype
-                                                       ,i_lim_var     => true)
+                                                       ,i_lim_var     => true
+                                                       ,i_pu_stack    => i_pu_stack)
                          ,io_var_list => l_into_var_list
                          ,i_pu_stack  => i_pu_stack);
  
@@ -3561,9 +3851,9 @@ FUNCTION get_vars_from_compiled_object(i_name       in varchar2
   BEGIN
     IF is_PLScoped(i_name => i_name
                   ,i_type => i_type) THEN
-      ms_logger.info(l_node,'Package is already PLScoped');
+      ms_logger.info(l_node,'Object is already PLScoped');
     ELSE
-      ms_logger.comment(l_node,'Package is not currently PLScoped');
+      ms_logger.comment(l_node,'Object is not currently PLScoped');
       --Need to recompile the package spec with plscope set
       l_source_code := get_plsql( i_object_name    => i_name
                                 , i_object_owner   => i_owner
@@ -3573,7 +3863,7 @@ FUNCTION get_vars_from_compiled_object(i_name       in varchar2
 
       IF NOT is_PLScoped(i_name => i_name
                         ,i_type => i_type) THEN
-        ms_logger.warning(l_node,'Package Spec could not be compiled with PLSCOPE');
+        ms_logger.warning(l_node,'Object could not be compiled with PLSCOPE');
         null;
       END IF;
      
@@ -3636,7 +3926,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
           store_var_list(i_var        => create_var_rec(i_param_name => lower(l_var.name)
                                                        ,i_param_type => l_var.data_type
                                                        ,i_signature  => l_var.signature
-                                                       ,i_lex_var     => true)
+                                                       ,i_lex_var     => true
+                                                       ,i_pu_stack    => l_pu_stack)
                         ,io_var_list  => l_var_list
                         ,i_pu_stack   => l_pu_stack);
            
@@ -3650,7 +3941,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
           store_var_list(i_var        => create_var_rec(i_param_name => lower(l_var.name)
                                                        ,i_param_type => l_var.data_type
                                                        ,i_signature  => l_var.signature
-                                                       ,i_lex_var    => true)
+                                                       ,i_lex_var    => true
+                                                       ,i_pu_stack    => l_pu_stack)
                         ,io_var_list  => l_var_list
                         ,i_pu_stack   => l_pu_stack);
           --Add all the componants
@@ -3671,7 +3963,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
                 store_var_list(i_var        => create_var_rec(i_param_name => lower(l_var.name||'.'||l_type_defn_tab(l_index).col_name)
                                                              ,i_param_type => l_type_defn_tab(l_index).data_type
                                                              ,i_signature  => l_var.signature
-                                                             ,i_lex_var    => true)
+                                                             ,i_lex_var    => true
+                                                             ,i_pu_stack    => l_pu_stack)
                               ,io_var_list  => l_var_list
                               ,i_pu_stack   => l_pu_stack);
                 --l_var_list(l_var.name||'.'||l_type_defn_tab(l_index).col_name) := l_type_defn_tab(l_index).data_type; 
@@ -3775,6 +4068,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
     l_var_list   var_list_typ;
     l_owner      varchar2(30) := p_end_user;
     l_pu_stack   pu_stack_typ;
+    l_package_body_signature varchar2(32);
   BEGIN
 
     if p_package_name is not null then
@@ -3803,12 +4097,14 @@ and   t.usage_context_id = v.usage_id ) LOOP
              ,i_signature  => null
              ,io_pu_stack => l_pu_stack);
 
+      l_package_body_signature := get_object_signature(i_object_name => p_package_name
+                                                      ,i_object_type => 'PACKAGE BODY');
+ 
       push_pu(i_name       => p_package_name
              ,i_type       => 'PACKAGE BODY'
-             ,i_signature  => null
+             ,i_signature  => l_package_body_signature
              ,io_pu_stack => l_pu_stack);
-  
-
+   
     end if;  
     
     RETURN weave( p_code         => p_code        
@@ -3846,6 +4142,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
     l_woven      boolean := false;
     l_var_list   var_list_typ;
     l_pu_stack   pu_stack_typ;
+    l_package_body_signature varchar2(32);
   begin 
   begin
     ms_logger.param(l_node, 'i_object_name'  ,i_object_name  );
@@ -3890,9 +4187,12 @@ and   t.usage_context_id = v.usage_id ) LOOP
            ,i_signature  => null
            ,io_pu_stack  => l_pu_stack);
 
+    l_package_body_signature := get_object_signature(i_object_name => i_object_name
+                                                    ,i_object_type => i_object_type);
+
     push_pu(i_name       => i_object_name
            ,i_type       => i_object_type
-           ,i_signature  => null  --@TODO add signature 
+           ,i_signature  => l_package_body_signature
            ,io_pu_stack  => l_pu_stack);
  
 
