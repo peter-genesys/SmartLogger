@@ -293,7 +293,10 @@ BEGIN
   FETCH cu_plscope_var into l_plscope_var;
   CLOSE cu_plscope_var;
 
-  ms_logger.note(l_node, 'l_plscope_var.signature'          ,l_plscope_var.signature );
+  ms_logger.note(l_node, 'l_plscope_var.name'         ,l_plscope_var.name );
+  ms_logger.note(l_node, 'l_plscope_var.type'         ,l_plscope_var.type );
+  ms_logger.note(l_node, 'l_plscope_var.signature'    ,l_plscope_var.signature );
+ 
 
   RETURN l_plscope_var.signature;
  
@@ -318,7 +321,8 @@ l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_pu_signa
     and   c.owner            = p.owner
     and   c.object_name      = p.object_name
     and   c.object_type      = p.object_type
-    and   c.type             = i_pu_type
+    and   c.name             = UPPER(i_pu_name)
+    and   c.type             = UPPER(i_pu_type)
     and   c.usage            = 'DECLARATION';
 
  
@@ -332,6 +336,9 @@ BEGIN
   FETCH cu_plscope_var into l_plscope_var;
   CLOSE cu_plscope_var;
 
+
+  ms_logger.note(l_node, 'l_plscope_var.child_name'         ,l_plscope_var.child_name );
+  ms_logger.note(l_node, 'l_plscope_var.child_type'         ,l_plscope_var.child_type );
   ms_logger.note(l_node, 'l_plscope_var.signature'          ,l_plscope_var.signature );
 
   RETURN l_plscope_var.signature;
@@ -346,14 +353,16 @@ END get_pu_signature;
 -------------------------------------------------------------------- 
 procedure push_pu(i_name       in varchar2
                  ,i_type       in varchar2
-                 ,i_signature  in varchar2
+                -- ,i_signature  in varchar2
                  ,io_pu_stack IN OUT pu_stack_typ ) is
   l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'push_pu'); 
   l_pu_rec pu_rec_typ;
 BEGIN
   ms_logger.param(l_node, 'i_name'          ,i_name ); 
   ms_logger.param(l_node, 'i_type'          ,i_type ); 
-  ms_logger.param(l_node, 'i_signature'          ,i_signature ); 
+  --ms_logger.param(l_node, 'i_signature'     ,i_signature ); 
+  ms_logger.note(l_node, 'io_pu_stack.COUNT'          ,io_pu_stack.COUNT ); 
+  
 
   l_pu_rec.name      := i_name;
   l_pu_rec.type      := i_type;
@@ -381,7 +390,7 @@ END;
 -------------------------------------------------------------------- 
 function f_push_pu(i_name       in varchar2
                   ,i_type       in varchar2
-                  ,i_signature  in varchar2
+                 -- ,i_signature  in varchar2
                   ,i_pu_stack   IN pu_stack_typ ) return pu_stack_typ is
  
     l_pu_stack   pu_stack_typ := i_pu_stack;
@@ -389,7 +398,7 @@ BEGIN
  
   push_pu(i_name      => i_name
          ,i_type      => i_type
-         ,i_signature => i_signature
+        -- ,i_signature => i_signature
          ,io_pu_stack => l_pu_stack);
 
   return l_pu_stack;
@@ -502,7 +511,7 @@ l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_sig
     and   t.owner            = c.owner
     and   t.object_name      = c.object_name
     and   t.object_type      = c.object_type
-    and   t.name             = i_var_type;
+    and   t.name             = UPPER(i_var_type);
 
     l_plscope_var cu_plscope_var%ROWTYPE; 
 BEGIN
@@ -2739,15 +2748,32 @@ PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
   l_inject_process        VARCHAR2(200);  
   l_param_list            param_list_typ;
   l_var_list              var_list_typ := i_var_list;
-  l_pu_stack              pu_stack_typ := f_push_pu(i_name      => i_prog_unit_name
-                                                   ,i_type      => i_node_type
-                                                   ,i_signature => null
-                                                   ,i_pu_stack  => i_pu_stack);
+  l_pu_stack              pu_stack_typ := i_pu_stack;
  
 BEGIN
   ms_logger.param(l_node, 'i_prog_unit_name' ,i_prog_unit_name); 
   ms_logger.param(l_node, 'i_indent        ' ,i_indent        ); 
   ms_logger.param(l_node, 'i_node_type     ' ,i_node_type     ); 
+
+  if i_node_type = 'new_pkg'  then
+ 
+    push_pu(i_name       => i_prog_unit_name
+           ,i_type       => 'PACKAGE BODY' 
+           ,io_pu_stack  => l_pu_stack);
+
+  elsif i_node_type = 'new_proc'  then
+ 
+    push_pu(i_name       => i_prog_unit_name
+           ,i_type       => 'PROCEDURE' 
+           ,io_pu_stack  => l_pu_stack);
+
+  elsif i_node_type = 'new_funct'  then
+ 
+    push_pu(i_name       => i_prog_unit_name
+           ,i_type       => 'FUNCTION' 
+           ,io_pu_stack  => l_pu_stack);
+
+  end if;
  
   AOP_pu_params(io_param_list  => l_param_list          
                ,io_var_list    => l_var_list
@@ -2997,7 +3023,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
            ms_logger.note(l_node,'l_var',l_var);
 
            note_non_bind_var(i_var       => l_var
-                            ,i_componant => i_componant||'.'||l_componant );
+                            --,i_componant => i_componant||'.'||l_componant );
+                            ,i_componant => RTRIM(l_componant||'.'||i_componant ,'.'));
         end;
       else
         ms_logger.warning(l_node, 'Var not known '||i_var||'.'||i_componant); --RTRIM(i_var||'.'||i_componant,'.');
@@ -3444,7 +3471,7 @@ PROCEDURE AOP_prog_units(i_indent   IN INTEGER
  
 BEGIN
 
-  ms_logger.param(l_node, 'i_indent        '     ,i_indent             );
+  ms_logger.param(l_node, 'i_indent'     ,i_indent );
  
   LOOP
     BEGIN
@@ -3459,7 +3486,7 @@ BEGIN
       CASE 
         WHEN regex_match(l_keyword,G_REGEX_PKG_BODY) THEN
           l_node_type := 'new_pkg';
-          l_prog_unit_name := 'Initialise';
+         -- l_prog_unit_name := 'Initialise';
         WHEN regex_match(l_keyword,G_REGEX_PROCEDURE) THEN
           l_node_type := 'new_proc';
           l_prog_unit_name := NULL;
@@ -3869,18 +3896,20 @@ FUNCTION get_vars_from_compiled_object(i_name       in varchar2
      
     END IF;
 
-    push_pu(i_name        => i_owner  --@TODO - figure out if own is needed as a PU level
-           ,i_type        => 'OWNER'
-           ,i_signature   => null
-           ,io_pu_stack   => l_pu_stack);
+    
+    IF i_type = 'PACKAGE' THEN
+      --Variables in the spec may be named by their owner.package.varname
+      push_pu(i_name        => i_owner  --@TODO - figure out if own is needed as a PU level
+             ,i_type        => 'OWNER'
+             --,i_signature   => null
+             ,io_pu_stack   => l_pu_stack);
+    END IF;  
 
     push_pu(i_name       => i_name
            ,i_type       => i_type
-           ,i_signature  => null
+          -- ,i_signature  => null
            ,io_pu_stack  => l_pu_stack);
-
-
-    
+ 
     --Now get the variables.
     For l_var in (
 WITH plscope_hierarchy
@@ -4092,18 +4121,18 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                                  ,i_type     =>  'PACKAGE BODY' 
                                                  ,i_var_list => l_var_list   );
 
-      push_pu(i_name       => l_owner
-             ,i_type       => 'OWNER'
-             ,i_signature  => null
-             ,io_pu_stack => l_pu_stack);
-
-      l_package_body_signature := get_object_signature(i_object_name => p_package_name
-                                                      ,i_object_type => 'PACKAGE BODY');
- 
-      push_pu(i_name       => p_package_name
-             ,i_type       => 'PACKAGE BODY'
-             ,i_signature  => l_package_body_signature
-             ,io_pu_stack => l_pu_stack);
+   --   push_pu(i_name       => l_owner
+   --          ,i_type       => 'OWNER'
+   --         -- ,i_signature  => null
+   --          ,io_pu_stack => l_pu_stack);
+--
+   --  -- l_package_body_signature := get_object_signature(i_object_name => p_package_name
+   --  --                                                 ,i_object_type => 'PACKAGE BODY');
+ --
+   --   push_pu(i_name       => p_package_name
+   --          ,i_type       => 'PACKAGE BODY'
+   --         -- ,i_signature  => l_package_body_signature
+   --          ,io_pu_stack => l_pu_stack);
    
     end if;  
     
@@ -4180,22 +4209,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
 	  ms_logger.info(l_node, 'Original Source is invalid.  AOP_PROCESSOR skipping this request' );
       return;    
     end if;     
-
-    --Seed the PU Stack
-    push_pu(i_name       => i_object_owner
-           ,i_type       => 'OWNER'
-           ,i_signature  => null
-           ,io_pu_stack  => l_pu_stack);
-
-    l_package_body_signature := get_object_signature(i_object_name => i_object_name
-                                                    ,i_object_type => i_object_type);
-
-    push_pu(i_name       => i_object_name
-           ,i_type       => i_object_type
-           ,i_signature  => l_package_body_signature
-           ,io_pu_stack  => l_pu_stack);
  
-
     IF i_object_type = 'PACKAGE BODY' THEN
       --Get a list of variables from the package spec
       l_var_list := get_vars_from_compiled_object(i_name     => i_object_name
@@ -4203,8 +4217,30 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                                  ,i_type     =>  'PACKAGE'
                                                  ,i_var_list => l_var_list   );
 
+      --Get a list of variables from the package body (EXPERIMENTAL) Need to verify that this is a good addition.
+      l_var_list := get_vars_from_compiled_object(i_name     => i_object_name
+                                                 ,i_owner    => i_object_owner 
+                                                 ,i_type     =>  'PACKAGE BODY' 
+                                                 ,i_var_list => l_var_list   );
+
 
     END IF;  
+
+   -- --Seed the PU Stack
+   -- push_pu(i_name       => i_object_owner
+   --        ,i_type       => 'OWNER'
+   --        --,i_signature  => null
+   --        ,io_pu_stack  => l_pu_stack);
+--
+   ---- l_package_body_signature := get_object_signature(i_object_name => i_object_name
+   -- --                                                ,i_object_type => i_object_type);
+--
+   -- --?? Should this be done here or in the as is routine.??
+   -- push_pu(i_name       => i_object_name
+   --        ,i_type       => i_object_type
+   --       -- ,i_signature  => l_package_body_signature
+   --        ,io_pu_stack  => l_pu_stack);
+--
  
     if i_versions like 'HTML%' then
       --Reweave with html - even if the AOP failed.

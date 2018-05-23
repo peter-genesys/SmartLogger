@@ -90,6 +90,39 @@ TYPE identifier_tab IS table of identifier_rec index by BINARY_INTEGER;
   --TYPE param_list_typ IS TABLE OF VARCHAR2(106) INDEX BY BINARY_INTEGER;  
   --TYPE type_list_typ IS TABLE OF VARCHAR2(32) INDEX BY VARCHAR2(106);
 
+
+------------------------------------------------------------------------
+-- TESTING ONLY..
+------------------------------------------------------------------------
+
+FUNCTION get_type_signature(i_parent_signature IN varchar2
+                           ,i_var_name         IN varchar2
+                           ,i_var_type         IN varchar2) return varchar2;
+
+FUNCTION get_pu_signature(i_parent_signature IN varchar2
+                         ,i_pu_name          IN varchar2
+                         ,i_pu_type          IN varchar2) return varchar2;
+
+FUNCTION get_object_signature(i_object_name         IN varchar2
+                             ,i_object_type         IN varchar2) return varchar2;
+
+
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   --------------------------------------------------------------------
   -- source_weave_now
   ----------------------------------------------------------------------------------------------- 
