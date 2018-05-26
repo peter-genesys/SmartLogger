@@ -268,11 +268,20 @@ create or replace package body aop_processor is
  
   END;
 
+--------------------------------------------------------------------
+-- get_db_object_signature
+--------------------------------------------------------------------
+/** PRIVATE
+* Get the signature of the db object
+* Declaration and definition use the same signature
+* @param i_object_name        Db object name
+* @param i_object_type        Db object ntype
+* @return signature of the db object
+*/
 
-
-FUNCTION get_object_signature(i_object_name         IN varchar2
-                             ,i_object_type         IN varchar2) return varchar2 is
-l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_object_signature'); 
+FUNCTION get_db_object_signature(i_object_name         IN varchar2
+                                ,i_object_type         IN varchar2) return varchar2 is
+l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_db_object_signature'); 
 
    CURSOR cu_plscope_var is
    select  o.*
@@ -283,6 +292,8 @@ l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_object_s
                                                           , 'PACKAGE BODY','DEFINITION')
     and   o.type             = decode(UPPER(i_object_type), 'PACKAGE'     ,'PACKAGE'
                                                           , 'PACKAGE BODY','PACKAGE');
+    --Since Declaration and definition use the same signature, 
+    --it will be necesary to specify usage when using the signature later.
 
     l_plscope_var cu_plscope_var%ROWTYPE; 
 BEGIN
@@ -300,13 +311,31 @@ BEGIN
 
   RETURN l_plscope_var.signature;
  
-END get_object_signature;  
+END get_db_object_signature;  
 
- 
+
+
+--------------------------------------------------------------------
+-- get_pu_signature
+--------------------------------------------------------------------
+/** PRIVATE
+* get the signature of the program unit
+* @param i_parent_signature   Signature of the parent block declaration
+* @param i_pu_name            Program Unit name
+* @param i_pu_type            Program Unit type
+* @return signature of the program unit
+*/
+
 FUNCTION get_pu_signature(i_parent_signature IN varchar2
                          ,i_pu_name          IN varchar2
                          ,i_pu_type          IN varchar2) return varchar2 is
-l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_pu_signature'); 
+  l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_pu_signature'); 
+
+
+   --Start at the definition of the parent block and jump down 1 level to declaration of the child.
+   --(@refactor - could use a std 3 level query and go to the definition of the child, instead.)
+
+
    CURSOR cu_plscope_var is
    select  p.name        parent_name
           ,c.name        child_name
@@ -350,6 +379,7 @@ END get_pu_signature;
 
 --------------------------------------------------------------------
 -- push_pu - push a program unit onto the pu stack
+--         - find the plscope identifier for the PU too.
 -------------------------------------------------------------------- 
 procedure push_pu(i_name       in varchar2
                  ,i_type       in varchar2
@@ -370,8 +400,8 @@ BEGIN
   --@TODO - Signatures cannot be used for the QUICK WEAVE since the program is not compiles PLScope does not exist.
   IF i_type IN ('PACKAGE','PACKAGE BODY') THEN
     --Get signature for the root of the package.
-    l_pu_rec.signature := get_object_signature(i_object_name  => i_name
-                                              ,i_object_type  => i_type);
+    l_pu_rec.signature := get_db_object_signature(i_object_name  => i_name
+                                                 ,i_object_type  => i_type);
   ELSif io_pu_stack.COUNT > 0 THEN
     l_pu_rec.signature := get_pu_signature(i_parent_signature => io_pu_stack(io_pu_stack.LAST).signature
                                           ,i_pu_name          => i_name
@@ -405,51 +435,6 @@ BEGIN
  
 END;
 
-/*
---=====================================================================
-
-
---------------------------------------------------------------------
--- f_push_pu - push a program unit onto the pu stack
--------------------------------------------------------------------- 
-fucntion f_push_pu(i_name       in varchar2
-                  ,i_type       in varchar2
-                  ,i_signature  in varchar2
-                  ,i_pu_stack   IN pu_stack_typ ) is
-    l_pu_rec     pu_rec_typ;
-    l_pu_stack   pu_stack_typ := i_pu_stack;
-BEGIN
-
-  l_pu_rec.name      := i_name;
-  l_pu_rec.type      := i_type;
-  l_pu_rec.signature := i_signature;
-  l_pu_rec.level     := l_pu_stack.COUNT+1; 
-
-  l_pu_stack(l_pu_rec.level) := l_pu_rec; 
-
-  return l_pu_stack;
-
-END;
-
-
---------------------------------------------------------------------
--- push_pu - push a program unit onto the pu stack
--------------------------------------------------------------------- 
-procedure push_pu(i_name       in varchar2
-                 ,i_type       in varchar2
-                 ,i_signature  in varchar2
-                 ,io_pu_stack  IN OUT pu_stack_typ ) is
- 
-BEGIN
-
-  io_pu_stack := f_push_pu(i_name      => i_name
-                          ,i_type      => i_type
-                          ,i_signature => i_signature
-                          ,i_pu_stack  => io_pu_stack);
- 
-END;
-
-*/
 
 --------------------------------------------------------------------
 -- log_var_list - Log the var list
@@ -482,7 +467,16 @@ END;
     end loop;
   END;
 
-
+--------------------------------------------------------------------
+-- get_type_signature
+--------------------------------------------------------------------
+/** PRIVATE
+* get the signature of the type
+* @param i_parent_signature   Signature of the parent block declaration
+* @param i_var_name           Variable name
+* @param i_var_type           Variable type
+* @return signature of the type
+*/
 
 FUNCTION get_type_signature(i_parent_signature IN varchar2
                            ,i_var_name         IN varchar2
@@ -498,8 +492,11 @@ l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_sig
     from   all_identifiers p
           ,all_identifiers c
           ,all_identifiers t
-    where p.usage            = 'DEFINITION'
+    where 
+    --PARENT
+          p.usage            = 'DEFINITION'
     and   p.signature        = i_parent_signature
+    --CHILD
     and   c.usage_context_id = p.usage_id
     and   c.owner            = p.owner
     and   c.object_name      = p.object_name
@@ -507,6 +504,7 @@ l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_sig
     and   c.type             = 'VARIABLE'
     and   c.usage            = 'DECLARATION'
     and   c.name             = UPPER(i_var_name)
+    --TYPE
     and   t.usage_context_id = c.usage_id
     and   t.owner            = c.owner
     and   t.object_name      = c.object_name
@@ -528,6 +526,50 @@ BEGIN
   RETURN l_plscope_var.type_signature;
  
 END get_type_signature;  
+
+--------------------------------------------------------------------
+-- get_type_signature
+--------------------------------------------------------------------
+/** PRIVATE
+* get the signature of the type
+* @param i_var_signature   Signature of the variable declaration
+* @return signature of the type
+*/
+FUNCTION get_type_signature(i_var_signature IN varchar2 ) return varchar2 is
+l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_signature'); 
+   CURSOR cu_plscope_var is
+   select  c.name        child_name
+          ,c.type        child_type
+          ,t.name        data_type
+          ,t.type        data_class 
+          ,t.signature   type_signature
+    from   all_identifiers c
+          ,all_identifiers t
+    where 
+    --CHILD
+          c.type             = 'VARIABLE'
+    and   c.usage            = 'DECLARATION'
+    and   c.signature        = i_var_signature
+    --TYPE
+    and   t.usage_context_id = c.usage_id
+    and   t.owner            = c.owner
+    and   t.object_name      = c.object_name
+    and   t.object_type      = c.object_type;
+
+    l_plscope_var cu_plscope_var%ROWTYPE; 
+BEGIN
+  ms_logger.param(l_node, 'i_var_signature'  ,i_var_signature ); 
+ 
+  OPEN cu_plscope_var;
+  FETCH cu_plscope_var into l_plscope_var;
+  CLOSE cu_plscope_var;
+
+  ms_logger.note(l_node, 'l_plscope_var.type_signature'          ,l_plscope_var.type_signature );
+
+  RETURN l_plscope_var.type_signature;
+ 
+END get_type_signature;  
+
 
 
 
@@ -665,6 +707,47 @@ FUNCTION get_type_defn(--i_object_name in varchar2
  END; 
  */
 
+
+--------------------------------------------------------------------
+-- get_declaration_type
+--------------------------------------------------------------------  
+/** PRIVATE
+* Find the type of a declaration.
+* @param i_signature Signature of a DECLARATION
+* @returns all_identifiers%rowtype The REFERENCE row subordinate to the DECLARATION row.
+*/
+FUNCTION get_declaration_type(i_signature in varchar2) return all_identifiers%rowtype is
+
+  cursor cu_declaration_type(c_signature varchar2) is
+  SELECT * from (
+    SELECT *
+    FROM all_identifiers
+    START WITH  signature = i_signature 
+            and usage     = 'DECLARATION' 
+    CONNECT BY PRIOR usage_id    = usage_context_id 
+           and prior owner       = owner
+           and prior object_name = object_name
+           and prior object_type = object_type
+    ORDER SIBLINGS BY line, col
+    )
+  where usage = 'REFERENCE';
+
+  l_all_identifiers all_identifiers%rowtype;
+
+BEGIN
+
+  open cu_declaration_type(c_signature => i_signature);
+  fetch cu_declaration_type into l_all_identifiers;
+  close cu_declaration_type;
+
+  return l_all_identifiers;
+ 
+END;  
+
+
+
+
+
 FUNCTION get_type_defn( i_signature   in varchar2) return identifier_tab is
   l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_type_defn');
 
@@ -726,16 +809,18 @@ end; --get_type_defn
  FUNCTION create_var_rec(i_param_name IN VARCHAR2
                         ,i_param_type IN VARCHAR2 default null
                         ,i_rowtype    IN VARCHAR2 default null
-                        ,i_in_var     IN BOOLEAN  default false
-                        ,i_out_var    IN BOOLEAN  default false
-                        ,i_lex_var    in BOOLEAN  default false 
-                        ,i_lim_var    in BOOLEAN  default false
+                        ,i_in_var     IN BOOLEAN  default false --in  param implcit or explicit
+                        ,i_out_var    IN BOOLEAN  default false --out param            explicit
+                        ,i_lex_var    in BOOLEAN  default false --lex locally declared explicit
+                        ,i_lim_var    in BOOLEAN  default false --lim locally declared implicit (eg FOR LOOP)
+                        ,i_assign_var in BOOLEAN  default false --plscope var assignment
                         ,i_signature  in varchar2 default null 
                         ,i_pu_stack   in pu_stack_typ
                        ) return var_rec_typ is
     l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'create_var_rec'); 
     l_var      var_rec_typ;
     l_index    binary_integer;
+    l_declaration_type all_identifiers%rowtype;
   BEGIN
     ms_logger.param(l_node, 'i_param_name' ,i_param_name); 
     ms_logger.param(l_node, 'i_param_type' ,i_param_type); 
@@ -744,12 +829,42 @@ end; --get_type_defn
     ms_logger.param(l_node, 'i_out_var'    ,i_out_var   ); 
     ms_logger.param(l_node, 'i_lex_var'    ,i_lex_var   ); 
     ms_logger.param(l_node, 'i_lim_var'    ,i_lim_var   ); 
+    ms_logger.param(l_node, 'i_assign_var' ,i_assign_var   ); 
     ms_logger.param(l_node, 'i_signature'  ,i_signature ); 
 
 
     l_var.name    := i_param_name;
     l_var.type    := UPPER(i_param_type); --convert all types to UPPERCASE   
     l_var.rowtype := i_rowtype;
+    l_var.level   := i_pu_stack.count;
+
+    l_var.in_var  := i_in_var OR (NOT i_out_var and NOT i_lex_var and NOT i_lim_var and NOT i_assign_var);  --in  param implcit or explicit
+    l_var.out_var := i_out_var;  --out param            explicit
+    l_var.lex_var := i_lex_var;  --lex locally declared explicit
+    l_var.lim_var := i_lim_var;  --lim locally declared implicit (eg FOR LOOP)
+    l_var.assign_var := i_assign_var;
+    --,owner                     --current scope    @FUTURE USE
+    --,scope                     --program hierachy @FUTURE USE
+
+
+    if i_assign_var Then
+      --This variable was discovered from a plscoped ASSIGNMENT
+      --Every assignment should therefore turn up later when parsing the source.
+
+      l_declaration_type := get_declaration_type(i_signature => i_signature);
+
+      --Use the declaration info
+      l_var.type       := l_declaration_type.name;
+      l_var.data_class := l_declaration_type.type;
+      l_var.signature  := l_declaration_type.signature;
+
+      ms_logger.note(l_node, 'l_var.type      '    ,l_var.type       ); 
+      ms_logger.note(l_node, 'l_var.data_class'    ,l_var.data_class ); 
+      ms_logger.note(l_node, 'l_var.signature '    ,l_var.signature  ); 
+
+    else
+      
+ 
     if l_var.type is null then
       if  l_var.rowtype is not null then 
         l_var.type := 'ROWTYPE'; --BEWARE %rowtype is also used with cursors.
@@ -890,13 +1005,9 @@ and   t.usage_context_id = v.usage_id
         END IF;
       END IF;
     END IF;
+    END IF;
 
-    l_var.in_var  := i_in_var OR (NOT i_out_var and NOT i_lex_var and NOT i_lim_var);  --in  param implcit or explicit
-    l_var.out_var := i_out_var;  --out param            explicit
-    l_var.lex_var := i_lex_var;  --lex locally declared explicit
-    l_var.lim_var := i_lim_var;  --lim locally declared implicit (eg FOR LOOP)
-    --,owner                     --current scope    @FUTURE USE
-    --,scope                     --program hierachy @FUTURE USE
+
 
     RETURN l_var;
   END;
@@ -950,12 +1061,26 @@ and   t.usage_context_id = v.usage_id
     l_var   var_rec_typ := i_var;
     l_index BINARY_INTEGER;
   BEGIN
-    ms_logger.param(l_node,'i_var.name',i_var.name);
-    ms_logger.param(l_node,'i_var.type',i_var.type);
+    ms_logger.param(l_node,'i_var.name' ,i_var.name);
+    ms_logger.param(l_node,'i_var.type' ,i_var.type);
+    ms_logger.param(l_node,'i_var.level',i_var.level);
+
+    IF io_var_list.EXISTS(UPPER(l_var.name)) then
+      IF io_var_list(UPPER(l_var.name)).level = i_var.level then
+        ms_logger.warning(l_node, 'This variable already exists at this scoping level.  New version overwriting it.');
+      ELSE 
+        ms_logger.comment(l_node, 'A variable of the same name exists at a higher scoped level.');
+        ms_logger.comment(l_node, 'The new variable now has scope at this level.');
+      END IF;  
+    END IF;  
+ 
 
     --Add the variable into variable list.
     io_var_list(UPPER(l_var.name)) := l_var;   
 
+/*
+    --@TODO - review whether this is needed anymore since we already check all actual uses of a variable from pl/scope.
+    -- TEMPORARILLY COMMENT THIS SECTION - ASSUMING WE NO LONGER NEED IT.
     --Then, in order to index the variable by all of it's possible names  
     --we will step backwards thru the i_pu_stack adding names onto the var name 
     --and adding it to the list again
@@ -971,7 +1096,7 @@ and   t.usage_context_id = v.usage_id
       --Find previous name in the pu stack
       l_index := i_pu_stack.PRIOR(l_index);
     end loop;
-
+*/
 
       --@TODO could store the same var in the list under different indexes..
       --Eg VAR, USER.VAR, USER.PACKAGE.VAR
@@ -2479,6 +2604,208 @@ exception
 END AOP_pu_params;    
 
  
+ 
+--------------------------------------------------------------------------------- 
+-- PLS_pu_assign    
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Read PLScope for all of the assigned variables in the current program unit or named block 
+* @NB There may be hidden issues around the fact that plscope does NOT create a name/ref for an unnamed block
+*     But i do process unnamed blocks as a new scoping level WRT to the varlist.
+* Trace these back to determine the type
+* @param  i_var_list list of scoped variables
+* @param  i_pu_stack stack of program units
+* @return total list of scoped variables
+*/
+FUNCTION PLS_pu_assign(i_var_list IN var_list_typ
+                      ,i_pu_stack IN pu_stack_typ) RETURN var_list_typ IS
+  l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'PLS_pu_assign'); 
+
+
+--This query give a qualified list of assigments within a procedure
+--does not yet give as a link to the type.
+--we still need to know the type of the assigment.
+ 
+  CURSOR cu_plscope_assign(c_parent_signature in varchar2) is
+    select * from (
+      SELECT  name
+             ,type
+             ,signature
+             ,usage
+             ,sys_connect_by_path( name, '.' ) connect_by_name
+             ,sys_connect_by_path(type, '.')   connect_by_type
+      FROM all_identifiers 
+      START WITH  signature = c_parent_signature 
+              and usage = 'DEFINITION' 
+      CONNECT BY PRIOR usage_id    = usage_context_id 
+             and prior owner       = owner
+             and prior object_name = object_name
+             and prior object_type = object_type
+     ORDER SIBLINGS BY line, col
+     )
+     where usage = 'ASSIGNMENT'
+     --THIS FEATURE COMMENTED OUT (FOR NOW)
+     --remove variable assignments that are not direct descendents of the pu definition
+     --and   REGEXP_COUNT( connect_by_type, 'PACKAGE|PROCEDURE|FUNCTION') = 1
+     --Purpose was to stop indirect assigments from being collected.
+     --Side effect is that variables qualified with a procedure name were also ignored.
+     ;
+
+ 
+
+  --for now, lets just assume the lowest level is a NUMBER and enter it as such.
+
+
+
+--   CURSOR cu_plscope_assign(c_parent_signature in varchar2) is
+--   select  p.name        parent_name
+--          ,c.name        child_name
+--          ,c.type        child_type
+--          ,c.signature   child_signature
+--    from   all_identifiers p
+--          ,all_identifiers c
+--    where p.usage            = 'DEFINITION'
+--    and   p.signature        = c_parent_signature
+--    and   c.usage_context_id = p.usage_id
+--    and   c.owner            = p.owner
+--    and   c.object_name      = p.object_name
+--    and   c.object_type      = p.object_type
+--    and   c.type             = 'VARIABLE'
+--    and   c.usage            in ('REFERENCE','ASSIGNMENT');
+
+
+
+--SELECT    LPAD (' ', 3 * (LEVEL - 1))
+--       || TYPE
+--       || ' '
+--       || name
+--       || ' ('
+--       || usage
+--       || ') - '||signature
+--          identifier_hierarchy,
+--          sys_connect_by_path( name, '.' ) full_name
+--        ,type
+--  FROM plscope_hierarchy
+--START WITH 
+--    usage = 'DEFINITION' 
+--and signature = 
+--CONNECT BY PRIOR 
+--    usage_id = usage_context_id
+--and 
+--ORDER SIBLINGS BY line, col
+
+ 
+
+--select * from (
+--SELECT    LPAD (' ', 3 * (LEVEL - 1))
+--       || TYPE
+--       || ' '
+--       || name
+--       || ' ('
+--       || usage
+--       || ') - '||signature
+--          identifier_hierarchy,
+--          sys_connect_by_path( name, '.' ) long_name
+--        ,type
+--        ,usage
+--  FROM all_identifiers
+--START WITH  signature = '1152CAD74D1ED194261A08B060D55A98' 
+--        and usage = 'DEFINITION' 
+--CONNECT BY PRIOR usage_id    = usage_context_id 
+--       and prior owner       = owner
+--       and prior object_name = object_name
+--       and prior object_type = object_type
+--ORDER SIBLINGS BY line, col
+--)
+--where usage = 'ASSIGNMENT'
+--;
+
+
+  l_var_list              var_list_typ := i_var_list;
+  x_no_stack exception;
+BEGIN
+  if i_pu_stack.count = 0 then
+    raise x_no_stack;
+  end if;
+  ms_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).name',i_pu_stack(i_pu_stack.last).name);
+
+  --Loop thru each variable assigned within this procedure, or named block.
+  FOR l_plscope in cu_plscope_assign(c_parent_signature => i_pu_stack(i_pu_stack.last).signature) LOOP
+ 
+    ms_logger.note(l_node, 'l_plscope.name'            , l_plscope.name);
+    ms_logger.note(l_node, 'l_plscope.type'            , l_plscope.type);
+    ms_logger.note(l_node, 'l_plscope.signature'       , l_plscope.signature);
+    ms_logger.note(l_node, 'l_plscope.connect_by_name' , l_plscope.connect_by_name);
+
+    l_plscope.name := REGEXP_REPLACE(l_plscope.connect_by_name,'^.'||i_pu_stack(i_pu_stack.last).name||'.','',1,1,'i'); --Remove leading proc name (case insensitive)
+    ms_logger.note(l_node, 'l_plscope.name'     , l_plscope.name);
+ 
+    --Add the plscode variable assignment to the var list, 
+    --so that later when same variable assignment is found in the source, it can be easilly identified.
+     store_var_list(i_var       => create_var_rec(i_param_name  => lower(l_plscope.name)
+                                                 ,i_param_type  => l_plscope.type
+                                                 ,i_assign_var  => true
+                                                 ,i_signature   => l_plscope.signature
+                                                 ,i_pu_stack    => i_pu_stack)
+                   ,io_var_list => l_var_list
+                   ,i_pu_stack  => i_pu_stack);
+ 
+    --Loop thru the first segment of each assigned var.
+    --@TODO candidate for later refactoring..
+
+    --What we are looking for is a sequence of identifiers that have been used in the source code
+    --to identify the variable or one of its componants in an assignment statement.
+    --Need to find the whole chain of names down to the final one which will have a usage of ASSIGNMENT
+    --Also need to determine which name componant leads to a variable declaration.
+    --IE the signature of that name componant will match a variable declaration.
+    --This signature can be used to find the type of the variable, and then the declaration of that type.
+    --Then need to trace down thru the declaration of the variable type to identify the type and signature of the 
+    --corresponding ASSIGNMENT componant (lowest level)
+
+    --Finally will insert into val_list a record that has the concatonated var name
+    --EG user.package.procedure.var.col with the type of col eg NUMBER and no signature
+    --     user.package.procedure.var   with the type of RECORD rec_typ and its signature.
+
+    --This then allows us to 
+    --  Search directly for the identified variable as read from the source.
+    --  Immediately find the relevant type or signature from the varlist
+    --  Create the Note for PREDEFINED TYPES or 
+    --  Keep decomposing the COMPLEX TYPE retrieve TAB from get_type_defn( i_signature )
+    --    Use the tab to Create the Note for each column.  
+    --    Recursively process as many columns as needed.
+ 
+  
+--!! becareful looking up the next level.  MUST include full join information, when looking for a reference line
+--CANNOT just use the signature
+
+--    and   p.signature        = c_parent_signature
+--    and   c.usage_context_id = p.usage_id
+--    and   c.owner            = p.owner
+--    and   c.object_name      = p.object_name
+--    and   c.object_type      = p.object_type
+--
+--select name, signature, type, usage_id, count(*), min(usage) min_usage, max(usage) max_usage 
+--from all_identifiers
+--group by name, signature, type , usage_id
+--having count(*) > 1
+--
+--When looking up the definition by signature_id MUST specify usage='DEFINITION'
+
+--May need to add a feature to discover whether referenced packages were already compiled with plscope.
+--If not compile them and then recompile and reweave this package.
+
+
+  END LOOP;
+
+  return l_var_list;
+
+EXCEPTION
+  WHEN x_no_stack THEN
+    ms_logger.fatal(l_node,'Illegal state: There are no program units on the Stack.');
+    return l_var_list;
+ 
+END;  
+
 
 --------------------------------------------------------------------------------- 
 -- AOP_var_defs    
@@ -2793,7 +3120,12 @@ BEGIN
   inject( i_new_code  =>  l_inject_node
          ,i_indent     => i_indent
          ,i_colour     => G_COLOUR_NODE);   
-       
+
+  --Read all of the assigned variables from plscope
+  --add them into the var list
+  l_var_list := PLS_pu_assign( i_var_list => l_var_list
+                             ,i_pu_stack => l_pu_stack);    
+ 
   l_var_list := AOP_var_defs( i_var_list => l_var_list
                              ,i_pu_stack => l_pu_stack);    
  
@@ -2940,6 +3272,11 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
              ,i_colour     => G_COLOUR_NOTE);
     END IF;
   END;
+
+
+
+
+
  
   PROCEDURE note_non_bind_var(i_var        in varchar2
                              ,i_componant  in varchar2 default null) IS
@@ -2947,6 +3284,37 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
     l_node      ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_non_bind_var');
     l_var       varchar2(1000) := upper(i_var);
     
+
+      procedure note_record(i_name_prefix in varchar2
+                           ,i_signature   in varchar2) is
+      --This procedure is modular, but currently only called by note_non_bind_var
+
+       --Find columns for this signature.
+ 
+         l_type_defn_tab identifier_tab;
+         l_index binary_integer;
+         l_col_name varchar2(1000);
+       BEGIN
+         l_type_defn_tab := get_type_defn(i_signature => i_signature);
+         l_index := l_type_defn_tab.FIRST;
+         WHILE l_index is not null loop
+           
+           l_col_name := lower(i_name_prefix||'.'||l_type_defn_tab(l_index).col_name);
+           IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
+
+              note_var(i_var  => l_col_name
+                      ,i_type => l_type_defn_tab(l_index).data_type);
+           ELSE 
+               --recursively search lower levels.
+               note_record(i_name_prefix => l_col_name
+                          ,i_signature   => l_type_defn_tab(l_index).signature);
+           END IF;
+
+           l_index := l_type_defn_tab.NEXT(l_index);
+         END LOOP;
+       END;
+
+
   BEGIN
     ms_logger.param(l_node,'i_var'      ,i_var);
     ms_logger.param(l_node,'i_componant',i_componant);
@@ -2964,34 +3332,38 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 
       ELSIF  identifier_exists(i_signature => l_var_list(l_var).signature) THEN
         ms_logger.comment(l_node, 'Signature is known');
-        
-        
-        --Find columns for this signature.
-        DECLARE
-          l_type_defn_tab identifier_tab;
-          l_index binary_integer;
-        BEGIN
-          l_type_defn_tab := get_type_defn(i_signature => l_var_list(l_var).signature);
-          l_index := l_type_defn_tab.FIRST;
-          WHILE l_index is not null loop
-            
-            IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
-              --@TODO This needs to be able to recursively search lower levels.
-               note_var(i_var  => lower(i_var||'.'||l_type_defn_tab(l_index).col_name)
-                       ,i_type => l_type_defn_tab(l_index).data_type);
-            END IF;
 
-            l_index := l_type_defn_tab.NEXT(l_index);
-          END LOOP;
-        END;
+        note_record(i_name_prefix  => lower(i_var)
+                   ,i_signature    => l_var_list(l_var).signature);
+        
+        
+        ----Find columns for this signature.
+        --DECLARE
+        --  l_type_defn_tab identifier_tab;
+        --  l_index binary_integer;
+        --BEGIN
+        --  l_type_defn_tab := get_type_defn(i_signature => l_var_list(l_var).signature);
+        --  l_index := l_type_defn_tab.FIRST;
+        --  WHILE l_index is not null loop
+        --    
+        --    IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
+        --      --@TODO This needs to be able to recursively search lower levels.
+        --       note_var(i_var  => lower(i_var||'.'||l_type_defn_tab(l_index).col_name)
+        --               ,i_type => l_type_defn_tab(l_index).data_type);
+        --    END IF;
+--
+        --    l_index := l_type_defn_tab.NEXT(l_index);
+        --  END LOOP;
+        --END;
  
       ELSE
+        ms_logger.comment(l_node, 'Data type is unsupported, but it is in the list of scoped vars.');
         ms_logger.comment(l_node, 'Data type assumed to be a TABLE_NAME');
         ms_logger.note(l_node,'l_var_list(l_var).type',l_var_list(l_var).type);
         ms_logger.note(l_node,'l_var_list(l_var).rowtype',l_var_list(l_var).rowtype);
         --Data type is unsupported so it is the name of a table instead.
         --Now write a note for each supported column.
-        ms_logger.comment(l_node, 'Data type is supported');
+        --
         --Also need to add 1 var def for each valid componant of the record type.
         l_table_owner := table_owner(i_table_name => l_var_list(l_var).rowtype);
         FOR l_column IN 
@@ -3607,6 +3979,7 @@ END;
 
     l_code:= dbms_metadata.get_ddl(REPLACE(i_object_type,' ','_'), i_object_name, i_object_owner);
 
+    --@PAB ??WHAT DOES THIS DO??  Does it remove an alter trigger statement?
     IF i_object_type = 'TRIGGER' THEN
       l_code:= regexp_replace(l_code 
                             ,'(CREATE OR REPLACE TRIGGER )(.+)(ALTER TRIGGER .+)', 
@@ -4126,7 +4499,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
    --         -- ,i_signature  => null
    --          ,io_pu_stack => l_pu_stack);
 --
-   --  -- l_package_body_signature := get_object_signature(i_object_name => p_package_name
+   --  -- l_package_body_signature := get_db_object_signature(i_object_name => p_package_name
    --  --                                                 ,i_object_type => 'PACKAGE BODY');
  --
    --   push_pu(i_name       => p_package_name
@@ -4232,7 +4605,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
    --        --,i_signature  => null
    --        ,io_pu_stack  => l_pu_stack);
 --
-   ---- l_package_body_signature := get_object_signature(i_object_name => i_object_name
+   ---- l_package_body_signature := get_db_object_signature(i_object_name => i_object_name
    -- --                                                ,i_object_type => i_object_type);
 --
    -- --?? Should this be done here or in the as is routine.??

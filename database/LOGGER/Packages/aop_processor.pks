@@ -55,14 +55,17 @@ TYPE identifier_tab IS table of identifier_rec index by BINARY_INTEGER;
   --@TODO consider turning this into a db object type to promote use in a hierachical object.
   TYPE var_rec_typ is record(
      name      varchar2(1000) --g_max_qualified_name_length
-    ,in_var    boolean      --in  param implcit or explicit
-    ,out_var   boolean      --out param            explicit
-    ,lex_var   boolean      --lex locally declared explicit
-    ,lim_var   boolean      --lim locally declared implicit (eg FOR LOOP)
+    ,in_var    boolean        --in  param implcit or explicit
+    ,out_var   boolean        --out param            explicit
+    ,lex_var   boolean        --lex locally declared explicit
+    ,lim_var   boolean        --lim locally declared implicit (eg FOR LOOP)
+    ,assign_var boolean       --plscope var assignment
     --,owner   --current scope
     --,scope   --program hierachy
+    ,level   integer         --program unit level
     ,type      varchar2(106) --type name
     ,rowtype   varchar2(30)  --rowtype variable
+    ,data_class varchar2(30)
     ,signature varchar2(32)  --PLScope signature changes every time the package is recompiled.
     );
 
@@ -103,8 +106,8 @@ FUNCTION get_pu_signature(i_parent_signature IN varchar2
                          ,i_pu_name          IN varchar2
                          ,i_pu_type          IN varchar2) return varchar2;
 
-FUNCTION get_object_signature(i_object_name         IN varchar2
-                             ,i_object_type         IN varchar2) return varchar2;
+FUNCTION get_db_object_signature(i_object_name         IN varchar2
+                                ,i_object_type         IN varchar2) return varchar2;
 
 
 ------------------------------------------------------------------------
