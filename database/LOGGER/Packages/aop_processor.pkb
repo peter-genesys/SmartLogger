@@ -43,7 +43,7 @@ create or replace package body aop_processor is
   INDEX BY BINARY_INTEGER;
 
   g_comment_stack clob_stack_typ;
-  g_quote_stack   clob_stack_typ;
+  g_string_stack  clob_stack_typ;
  
   --@TODO could change this into a record type 
   --Then attempt to do both AOP and HTML versions at once. - or that could be just making it too hard.
@@ -172,7 +172,7 @@ create or replace package body aop_processor is
   
   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##|\^\^)';
   
-  G_REGEX_STASHED_COMMENT    CONSTANT VARCHAR2(50) := '<<comment\d+>>';
+  G_REGEX_STASHED_COMMENT    CONSTANT VARCHAR2(50) := '{{comment:\d+}}';
   G_REGEX_COMMENT            CONSTANT VARCHAR2(50) := '--""';
   G_REGEX_INFO               CONSTANT VARCHAR2(50) := '--\?\?';
   G_REGEX_WARNING            CONSTANT VARCHAR2(50) := '--!!';
@@ -4055,7 +4055,7 @@ END;
     
       set_weave_timeout;
         
-      --Remove all comments and quoted strings, so they can be ignored by the weaver.  
+      --Remove all comments and string constants, so they can be ignored by the weaver.  
       stash_comments_and_strings;
    
       --Reset the processing pointer.
@@ -4767,27 +4767,27 @@ and   t.usage_context_id = v.usage_id ) LOOP
       l_temp_code := g_code;
       l_text := f_colour(i_text   => g_comment_stack(l_index)
                         ,i_colour => G_COLOUR_COMMENT);
-      g_code := REPLACE(g_code,'<<comment'||l_index||'>>',l_text);
+      g_code := REPLACE(g_code,'{{comment:'||l_index||'}}',l_text);
 
       IF l_temp_code = g_code THEN
-         ms_logger.warning(l_node, 'Did not find '||'<<comment'||l_index||'>>');
-         wedge( i_new_code => 'LOOKING FOR '||'<<comment'||l_index||'>>'
+         ms_logger.warning(l_node, 'Did not find '||'{{comment:'||l_index||'}}');
+         wedge( i_new_code => 'LOOKING FOR '||'{{comment:'||l_index||'}}'
                 ,i_colour  => G_COLOUR_ERROR);
         RAISE x_restore_failed;
       END IF; 
  
     END LOOP;
   
-    FOR l_index in 1..g_quote_stack.count loop
-      ms_logger.note(l_node, 'quote', l_index);
+    FOR l_index in 1..g_string_stack.count loop
+      ms_logger.note(l_node, 'string', l_index);
       l_temp_code := g_code;
-      l_text := f_colour(i_text   => g_quote_stack(l_index)
-                        ,i_colour => G_COLOUR_QUOTE);
-      g_code := REPLACE(g_code,'<<quote'||l_index||'>>',l_text);
+      l_text := f_colour(i_text   => g_string_stack(l_index)
+                        ,i_colour => G_COLOUR_STRING);
+      g_code := REPLACE(g_code,'{{string:'||l_index||'}}',l_text);
 
       IF l_temp_code = g_code THEN
-         ms_logger.warning(l_node, 'Did not find '||'<<quote'||l_index||'>>');
-         wedge( i_new_code => 'LOOKING FOR '||'<<quote'||l_index||'>>'
+         ms_logger.warning(l_node, 'Did not find '||'{{string:'||l_index||'}}');
+         wedge( i_new_code => 'LOOKING FOR '||'{{string:'||l_index||'}}'
                 ,i_colour  => G_COLOUR_ERROR);
         RAISE x_restore_failed;
       END IF; 
@@ -4824,23 +4824,23 @@ and   t.usage_context_id = v.usage_id ) LOOP
       ms_logger.note_clob(l_node, 'l_comment', l_comment);
       g_comment_stack(g_comment_stack.count+1) := l_comment; --Put another comment on the stack
       ms_logger.note(l_node, 'g_comment_stack.count', g_comment_stack.count);
-      g_code := REGEXP_REPLACE(g_code, i_mask, '<<comment'||g_comment_stack.count||'>>',g_current_pos, 1, i_modifier);
-      go_past(i_search => '<<comment'||g_comment_stack.count||'>>'
+      g_code := REGEXP_REPLACE(g_code, i_mask, '{{comment:'||g_comment_stack.count||'}}',g_current_pos, 1, i_modifier);
+      go_past(i_search => '{{comment:'||g_comment_stack.count||'}}'
              ,i_colour => NULL);
         
     END;
   
     procedure extract_strings(i_mask     IN VARCHAR2
                                  ,i_modifier IN VARCHAR2 DEFAULT 'in') IS
-      l_quote              CLOB;
+      l_string              CLOB;
     BEGIN
-      l_quote := get_next(i_stop     => i_mask
+      l_string := get_next(i_stop     => i_mask
                          ,i_modifier => i_modifier ); --multi-line, lazy
-      ms_logger.note(l_node, 'l_quote', l_quote);
-      g_quote_stack(g_quote_stack.count+1) := l_quote; --Put another quote on the stack
-      ms_logger.note(l_node, 'g_quote_stack.count', g_quote_stack.count);
-      g_code := REGEXP_REPLACE(g_code, i_mask, '<<quote'||g_quote_stack.count||'>>',g_current_pos, 1, i_modifier);
-      go_past(i_search => '<<quote'||g_quote_stack.count||'>>'
+      ms_logger.note(l_node, 'l_string', l_string);
+      g_string_stack(g_string_stack.count+1) := l_string; --Put another string on the stack
+      ms_logger.note(l_node, 'g_string_stack.count', g_string_stack.count);
+      g_code := REGEXP_REPLACE(g_code, i_mask, '{{string:'||g_string_stack.count||'}}',g_current_pos, 1, i_modifier);
+      go_past(i_search => '{{string:'||g_string_stack.count||'}}'
              ,i_colour => NULL);
     END;
  
@@ -4848,10 +4848,10 @@ and   t.usage_context_id = v.usage_id ) LOOP
  
     g_current_pos   := 1;
   
-    --initialise comments and quotes
+    --initialise comments and strings
     
     g_comment_stack.DELETE;  
-    g_quote_stack.DELETE;
+    g_string_stack.DELETE;
  
  
     LOOP
@@ -4860,27 +4860,27 @@ and   t.usage_context_id = v.usage_id ) LOOP
    
         G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--..'    ;
         G_REGEX_START_MULTI_COMMENT   CONSTANT VARCHAR2(50) :=  '/\*'    ;
-        G_REGEX_START_QUOTE           CONSTANT VARCHAR2(50) :=  '\'''    ;
-        G_REGEX_START_ADV_QUOTE       CONSTANT VARCHAR2(50) :=  'Q\''\S' ;
+        G_REGEX_START_STRING           CONSTANT VARCHAR2(50) :=  '\'''    ;
+        G_REGEX_START_ADV_STRING       CONSTANT VARCHAR2(50) :=  'Q\''\S' ;
      
         G_REGEX_SHOW_ME               CONSTANT VARCHAR2(50) :=  '--(\@\@)';
         G_REGEX_ROW_COUNT             CONSTANT VARCHAR2(50) :=  '--(RC)';
       
-        G_REGEX_START_COMMENT_OR_QUOTE CONSTANT VARCHAR2(200) := G_REGEX_START_SINGLE_COMMENT  
+        G_REGEX_START_COMMENT_OR_STR CONSTANT VARCHAR2(200) := G_REGEX_START_SINGLE_COMMENT  
                                                           ||'|'||G_REGEX_START_MULTI_COMMENT
-                                                          ||'|'||G_REGEX_START_QUOTE
-                                                          ||'|'||G_REGEX_START_ADV_QUOTE;
+                                                          ||'|'||G_REGEX_START_STRING
+                                                          ||'|'||G_REGEX_START_ADV_STRING;
       
         G_REGEX_SINGLE_LINE_ANNOTATION   CONSTANT VARCHAR2(50)  :=    '.*';
         G_REGEX_SINGLE_LINE_COMMENT      CONSTANT VARCHAR2(50)  :=    '--.*';
         G_REGEX_MULTI_LINE_COMMENT       CONSTANT VARCHAR2(50)  :=    '/\*.*?\*/'; --'/\*(\s|\S)*?\*/';
-        G_REGEX_MULTI_LINE_QUOTE         CONSTANT VARCHAR2(50)  :=    '\''.*?\''';
-        G_REGEX_MULTI_LINE_ADV_QUOTE     CONSTANT VARCHAR2(100) :=    'Q\''\[.*?\]\''|Q\''\{.*?\}\''|Q\''\(.*?\)\''|Q\''\<.*?\>\''|Q\''(\S).*?\1\''';
+        G_REGEX_MULTI_LINE_STRING         CONSTANT VARCHAR2(50)  :=    '\''.*?\''';
+        G_REGEX_MULTI_LINE_ADV_STRING     CONSTANT VARCHAR2(100) :=    'Q\''\[.*?\]\''|Q\''\{.*?\}\''|Q\''\(.*?\)\''|Q\''\<.*?\>\''|Q\''(\S).*?\1\''';
    
       BEGIN
  
-        --Searching for the start of a comment or quote
-        l_keyword :=  get_next(i_stop       => G_REGEX_START_COMMENT_OR_QUOTE
+        --Searching for the start of a comment or string
+        l_keyword :=  get_next(i_stop       => G_REGEX_START_COMMENT_OR_STR
                               ,i_upper      => TRUE   );
    
         ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
@@ -4932,17 +4932,17 @@ and   t.usage_context_id = v.usage_id ) LOOP
             extract_comment(i_mask => G_REGEX_MULTI_LINE_COMMENT);
                             -- ,i_modifier => 'i');
  
-          WHEN regex_match(l_keyword , G_REGEX_START_ADV_QUOTE)  THEN  
+          WHEN regex_match(l_keyword , G_REGEX_START_ADV_STRING)  THEN  
             ms_logger.info(l_node, 'Multi Line Adv Quote');  
-            --REMOVE ADVANCED QUOTES - MULTI_LINE
+            --REMOVE ADVANCED STRINGS - MULTI_LINE
             --Find "q'[" and remove to next "]'", variations in clude [] {} <> () and any single printable char.
-            extract_strings(i_mask => G_REGEX_MULTI_LINE_ADV_QUOTE);
+            extract_strings(i_mask => G_REGEX_MULTI_LINE_ADV_STRING);
               
-          WHEN regex_match(l_keyword , G_REGEX_START_QUOTE)  THEN  
+          WHEN regex_match(l_keyword , G_REGEX_START_STRING)  THEN  
             ms_logger.info(l_node, 'Multi Line Simple Quote');
-            --REMOVE SIMPLE QUOTES - MULTI_LINE
+            --REMOVE SIMPLE STRINGS - MULTI_LINE
             --Find "'" and remove to next "'"     
-            extract_strings(i_mask => G_REGEX_MULTI_LINE_QUOTE);
+            extract_strings(i_mask => G_REGEX_MULTI_LINE_STRING);
           
  
           ELSE 
@@ -4955,7 +4955,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
   
     END LOOP; 
   
-    ms_logger.comment(l_node, 'No more comments or quotes.'); 
+    ms_logger.comment(l_node, 'No more comments or strings.'); 
   
   EXCEPTION
     WHEN OTHERS THEN
