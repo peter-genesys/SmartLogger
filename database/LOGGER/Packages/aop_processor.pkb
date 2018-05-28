@@ -17,6 +17,10 @@ create or replace package body aop_processor is
   -- @AOP_NEVER
  
   --GREAT regex tesing resource => https://www.regextester.com/
+
+  g_last_label          varchar2(100);
+
+  g_use_plscope         constant boolean := true;
  
   g_package_name        CONSTANT VARCHAR2(30) := 'aop_processor'; 
  
@@ -326,7 +330,9 @@ END get_db_object_signature;
 * @return signature of the program unit
 */
 
-FUNCTION get_pu_signature(i_parent_signature IN varchar2
+FUNCTION get_pu_signature(--i_pu_stack         IN pu_stack_typ
+                          i_parent_signature in varchar2
+                         ,i_parent_type      in varchar2
                          ,i_pu_name          IN varchar2
                          ,i_pu_type          IN varchar2) return varchar2 is
   l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_pu_signature'); 
@@ -336,7 +342,8 @@ FUNCTION get_pu_signature(i_parent_signature IN varchar2
    --(@refactor - could use a std 3 level query and go to the definition of the child, instead.)
 
 
-   CURSOR cu_plscope_var is
+   CURSOR cu_plscope_var(c_parent_signature in varchar2
+                        ,c_parent_type      in varchar2)  is
    select  p.name        parent_name
           ,c.name        child_name
           ,c.type        child_type
@@ -344,8 +351,8 @@ FUNCTION get_pu_signature(i_parent_signature IN varchar2
     from   all_identifiers p
           ,all_identifiers c
           --,all_identifiers t
-    where p.usage            = 'DEFINITION'
-    and   p.signature        = i_parent_signature
+    where p.usage            = decode(c_parent_type,'LABEL','DECLARATION','DEFINITION') --For Labels - search from DECLARATION
+    and   p.signature        = c_parent_signature
     and   c.usage_context_id = p.usage_id
     and   c.owner            = p.owner
     and   c.object_name      = p.object_name
@@ -357,11 +364,13 @@ FUNCTION get_pu_signature(i_parent_signature IN varchar2
  
     l_plscope_var cu_plscope_var%ROWTYPE; 
 BEGIN
-  ms_logger.param(l_node, 'i_parent_signature'  ,i_parent_signature ); 
+  ms_logger.param(l_node, 'i_parent_signature' ,i_parent_signature ); 
+  ms_logger.param(l_node, 'i_parent_type'      ,i_parent_type ); 
   ms_logger.param(l_node, 'i_pu_name'          ,i_pu_name ); 
   ms_logger.param(l_node, 'i_pu_type'          ,i_pu_type ); 
   
-  OPEN cu_plscope_var;
+  OPEN cu_plscope_var(c_parent_signature => i_parent_signature
+                     ,c_parent_type      => i_parent_type );
   FETCH cu_plscope_var into l_plscope_var;
   CLOSE cu_plscope_var;
 
@@ -404,6 +413,7 @@ BEGIN
                                                  ,i_object_type  => i_type);
   ELSif io_pu_stack.COUNT > 0 THEN
     l_pu_rec.signature := get_pu_signature(i_parent_signature => io_pu_stack(io_pu_stack.LAST).signature
+                                          ,i_parent_type      => io_pu_stack(io_pu_stack.LAST).type
                                           ,i_pu_name          => i_name
                                           ,i_pu_type          => i_type);
   END IF;
@@ -2626,17 +2636,18 @@ FUNCTION PLS_pu_assign(i_var_list IN var_list_typ
 --does not yet give as a link to the type.
 --we still need to know the type of the assigment.
  
-  CURSOR cu_plscope_assign(c_parent_signature in varchar2) is
+  CURSOR cu_plscope_assign(c_parent_signature in varchar2
+                          ,c_parent_type      in varchar2 ) is
     select * from (
       SELECT  name
              ,type
              ,signature
              ,usage
-             ,sys_connect_by_path( name, '.' ) connect_by_name
-             ,sys_connect_by_path(type, '.')   connect_by_type
+             ,ltrim(sys_connect_by_path( decode(level,1,null,name), '.' ), '.' ) scoped_name
+             --,sys_connect_by_path(type, '.')  connect_by_type
       FROM all_identifiers 
       START WITH  signature = c_parent_signature 
-              and usage = 'DEFINITION' 
+              and usage = decode(c_parent_type,'LABEL','DECLARATION','DEFINITION') --For Labels - search from DECLARATION
       CONNECT BY PRIOR usage_id    = usage_context_id 
              and prior owner       = owner
              and prior object_name = object_name
@@ -2730,19 +2741,17 @@ BEGIN
   ms_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).name',i_pu_stack(i_pu_stack.last).name);
 
   --Loop thru each variable assigned within this procedure, or named block.
-  FOR l_plscope in cu_plscope_assign(c_parent_signature => i_pu_stack(i_pu_stack.last).signature) LOOP
+  FOR l_plscope in cu_plscope_assign(c_parent_signature => i_pu_stack(i_pu_stack.last).signature
+                                    ,c_parent_type      => i_pu_stack(i_pu_stack.last).type) LOOP
  
     ms_logger.note(l_node, 'l_plscope.name'            , l_plscope.name);
     ms_logger.note(l_node, 'l_plscope.type'            , l_plscope.type);
     ms_logger.note(l_node, 'l_plscope.signature'       , l_plscope.signature);
-    ms_logger.note(l_node, 'l_plscope.connect_by_name' , l_plscope.connect_by_name);
+    ms_logger.note(l_node, 'l_plscope.scoped_name'     , l_plscope.scoped_name);
 
-    l_plscope.name := REGEXP_REPLACE(l_plscope.connect_by_name,'^.'||i_pu_stack(i_pu_stack.last).name||'.','',1,1,'i'); --Remove leading proc name (case insensitive)
-    ms_logger.note(l_node, 'l_plscope.name'     , l_plscope.name);
- 
     --Add the plscode variable assignment to the var list, 
     --so that later when same variable assignment is found in the source, it can be easilly identified.
-     store_var_list(i_var       => create_var_rec(i_param_name  => lower(l_plscope.name)
+     store_var_list(i_var       => create_var_rec(i_param_name  => lower(l_plscope.scoped_name)
                                                  ,i_param_type  => l_plscope.type
                                                  ,i_assign_var  => true
                                                  ,i_signature   => l_plscope.signature
@@ -3014,15 +3023,30 @@ PROCEDURE AOP_declare_block(i_indent   IN INTEGER
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_declare_block'); 
   
   l_var_list          var_list_typ := i_var_list;
+  l_pu_stack          pu_stack_typ := i_pu_stack;
   
 BEGIN
 
   ms_logger.param(l_node, 'i_indent' ,i_indent); 
 
+ -- --Labelled block.
+ -- if g_last_label is not null then
+ --   --There is a current label, so we'll add it to the pu stack, to help identify variables.
+ --   push_pu(i_name       => g_last_label
+ --          ,i_type       => 'LABEL' 
+ --          ,io_pu_stack  => l_pu_stack);         
+ --   g_last_label := null;
+--
+ --   --Read all of the assigned variables from plscope
+ --   --add them into the var list
+ --   l_var_list := PLS_pu_assign( i_var_list => l_var_list
+ --                               ,i_pu_stack => l_pu_stack);   
+ -- end if;  
+
 
   --Find the vars defined in this block
   l_var_list := AOP_var_defs( i_var_list => l_var_list
-                             ,i_pu_stack => i_pu_stack);    
+                             ,i_pu_stack => l_pu_stack);    
  
 
   --Search for nested PROCEDURE and FUNCTION within the declaration section of the block.
@@ -3030,7 +3054,7 @@ BEGIN
   --Drop out when a BEGIN is reached.
   AOP_prog_units(i_indent   => i_indent + g_indent_spaces
                 ,i_var_list => l_var_list
-                ,i_pu_stack => i_pu_stack);
+                ,i_pu_stack => l_pu_stack);
   
   --Calc indent and consume BEGIN
   --Drop out when the corresponding END is reached.
@@ -3038,7 +3062,7 @@ BEGIN
                                                          ,i_colour => G_COLOUR_GO_PAST))
            ,i_regex_end => G_REGEX_END_BEGIN
            ,i_var_list  => l_var_list
-           ,i_pu_stack => i_pu_stack);
+           ,i_pu_stack => l_pu_stack);
  
 exception
   when others then
@@ -3188,6 +3212,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                    ,i_var_list       IN var_list_typ
                    ,i_pu_stack       IN pu_stack_typ  )  IS
   l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_block');
+
+  l_pu_stack              pu_stack_typ := i_pu_stack;
   
   l_keyword               CLOB;
   l_stashed_comment       VARCHAR2(50);
@@ -3240,6 +3266,9 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                                                   ||'|'|| G_REGEX_DELETE
                                                   ||'|'|| G_REGEX_INSERT_INTO
                                                   ||'|'|| G_REGEX_UPDATE;
+
+  G_REGEX_LABEL               CONSTANT VARCHAR2(50) := '(<<)('||G_REGEX_WORD||')(>>)';
+
  
   FUNCTION find_var(i_search in varchar2) RETURN VARCHAR2 IS   
     -- Note a variable (type not important)   
@@ -3431,12 +3460,27 @@ BEGIN
   ms_logger.param(l_node, 'i_indent    '      ,i_indent     );
   ms_logger.param(l_node, 'i_regex_end '     ,i_regex_end  );
 
+  --Labelled block.
+  if g_last_label is not null then
+    --There is a current label, so we'll add it to the pu stack, to help identify variables.
+    push_pu(i_name       => g_last_label
+           ,i_type       => 'LABEL' 
+           ,io_pu_stack  => l_pu_stack);         
+    g_last_label := null;
+
+    --Read all of the assigned variables from plscope
+    --add them into the var list
+    l_var_list := PLS_pu_assign( i_var_list => l_var_list
+                                ,i_pu_stack => l_pu_stack);   
+  end if;  
+
  
   loop
  
   l_keyword := get_next(  i_srch_before  =>   G_REGEX_OPEN
                                        ||'|'||G_REGEX_NEUTRAL
                                        ||'|'||G_REGEX_CLOSE
+                                       ||'|'||G_REGEX_LABEL
                           ,i_srch_after       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
                                        ||'|'||G_REGEX_SHOW_ME_LINE 
                                        --||'|'||G_REGEX_ROW_COUNT_LINE
@@ -3445,6 +3489,7 @@ BEGIN
                           ,i_stop          => G_REGEX_START_ANNOTATION --don't colour it
                                        --||'|'||G_REGEX_ASSIGN_TO_REC_COL
                                        ||'|'||G_REGEX_ASSIGN_TO_VARS
+                                       
                           ,i_upper        => TRUE
                           ,i_colour       => G_COLOUR_BLOCK
                           ,i_raise_error  => TRUE
@@ -3479,21 +3524,21 @@ BEGIN
           ms_logger.info(l_node, 'Declare');    
         AOP_declare_block(i_indent    => calc_indent(i_indent + g_indent_spaces,l_keyword)
                          ,i_var_list  => l_var_list
-                         ,i_pu_stack  => i_pu_stack);    
+                         ,i_pu_stack  => l_pu_stack);    
         
       WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN    
         ms_logger.info(l_node, 'Begin');      
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_BEGIN
                  ,i_var_list   => l_var_list
-                 ,i_pu_stack   => i_pu_stack);     
+                 ,i_pu_stack   => l_pu_stack);     
                  
       WHEN regex_match(l_keyword , G_REGEX_LOOP) THEN   
         ms_logger.info(l_node, 'Loop'); 
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_LOOP
                  ,i_var_list   => l_var_list
-                 ,i_pu_stack   => i_pu_stack );                                
+                 ,i_pu_stack   => l_pu_stack );                                
              
       WHEN regex_match(l_keyword , G_REGEX_CASE) THEN   
         ms_logger.info(l_node, 'Case'); 
@@ -3501,14 +3546,14 @@ BEGIN
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword) +  g_indent_spaces
                  ,i_regex_end  => G_REGEX_END_CASE||'|'||G_REGEX_END_CASE_EXPR
                  ,i_var_list   => l_var_list
-                 ,i_pu_stack   => i_pu_stack );      
+                 ,i_pu_stack   => l_pu_stack );      
    
       WHEN regex_match(l_keyword , G_REGEX_IF) THEN    
         ms_logger.info(l_node, 'If'); 
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_IF
                  ,i_var_list   => l_var_list
-                 ,i_pu_stack   => i_pu_stack );
+                 ,i_pu_stack   => l_pu_stack );
 
       --BLOCK NEUTRAL - no further nesting/indenting
       WHEN regex_match(l_keyword , G_REGEX_EXCEPTION) THEN
@@ -3564,6 +3609,14 @@ BEGIN
               ||''');'
                ,i_indent   => i_indent
                ,i_colour   => G_COLOUR_COMMENT);
+
+      WHEN regex_match(l_keyword ,G_REGEX_LABEL) THEN
+        ms_logger.info(l_node, 'Label');
+ 
+        g_last_label := REGEXP_SUBSTR(l_keyword,G_REGEX_LABEL,1,1,'i',2);
+        ms_logger.note(l_node, 'g_last_label',g_last_label);
+
+ 
  
      -- WHEN regex_match(l_keyword ,G_REGEX_ROW_COUNT_LINE) THEN
      -- ms_logger.info(l_node, 'Rowcount');
@@ -3625,9 +3678,9 @@ BEGIN
            store_var_list(i_var       => create_var_rec(i_param_name  => l_var
                                                        ,i_param_type  => 'SELECT_INTO' --Unable to derive the datatype
                                                        ,i_lim_var     => true
-                                                       ,i_pu_stack    => i_pu_stack)
+                                                       ,i_pu_stack    => l_pu_stack)
                          ,io_var_list => l_into_var_list
-                         ,i_pu_stack  => i_pu_stack);
+                         ,i_pu_stack  => l_pu_stack);
  
         END LOOP; 
  

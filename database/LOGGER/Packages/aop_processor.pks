@@ -102,7 +102,8 @@ FUNCTION get_type_signature(i_parent_signature IN varchar2
                            ,i_var_name         IN varchar2
                            ,i_var_type         IN varchar2) return varchar2;
 
-FUNCTION get_pu_signature(i_parent_signature IN varchar2
+FUNCTION get_pu_signature(i_parent_signature in varchar2
+                         ,i_parent_type      in varchar2
                          ,i_pu_name          IN varchar2
                          ,i_pu_type          IN varchar2) return varchar2;
 
