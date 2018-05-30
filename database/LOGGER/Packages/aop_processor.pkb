@@ -18,7 +18,14 @@ create or replace package body aop_processor is
  
   --GREAT regex tesing resource => https://www.regextester.com/
 
-  g_last_label          varchar2(100);
+
+  g_node_type_package    CONSTANT VARCHAR2(30) := 'new_pkg'; 
+  g_node_type_function   CONSTANT VARCHAR2(30) := 'new_func';  
+  g_node_type_procedure  CONSTANT VARCHAR2(30) := 'new_proc'; 
+  g_node_type_trigger    CONSTANT VARCHAR2(30) := 'new_trig'; 
+  
+ 
+  g_recent_label          varchar2(100);
 
   g_use_plscope         constant boolean := true;
  
@@ -340,26 +347,29 @@ FUNCTION get_pu_signature(--i_pu_stack         IN pu_stack_typ
 
    --Start at the definition of the parent block and jump down 1 level to declaration of the child.
    --(@refactor - could use a std 3 level query and go to the definition of the child, instead.)
-
+   --NB For a label there will be a declaration only.
 
    CURSOR cu_plscope_var(c_parent_signature in varchar2
-                        ,c_parent_type      in varchar2)  is
+                        ,c_parent_type      in varchar2
+                        ,c_pu_name          in varchar2
+                        ,c_pu_type          in varchar2 )  is
    select  p.name        parent_name
           ,c.name        child_name
           ,c.type        child_type
           ,c.signature   signature
     from   all_identifiers p
           ,all_identifiers c
-          --,all_identifiers t
     where p.usage            = decode(c_parent_type,'LABEL','DECLARATION','DEFINITION') --For Labels - search from DECLARATION
     and   p.signature        = c_parent_signature
     and   c.usage_context_id = p.usage_id
     and   c.owner            = p.owner
     and   c.object_name      = p.object_name
     and   c.object_type      = p.object_type
-    and   c.name             = UPPER(i_pu_name)
-    and   c.type             = UPPER(i_pu_type)
-    and   c.usage            = 'DECLARATION';
+    and   c.name             = c_pu_name
+    and   c.type             = c_pu_type
+    and   c.usage            IN ('DECLARATION','DEFINITION'); 
+    --Could be a declaration or definition, depending on whether the pu is declared in the package spec.
+    --Luckilly it doesn't matter which is retrieved, since they have the same signature.
 
  
     l_plscope_var cu_plscope_var%ROWTYPE; 
@@ -370,7 +380,9 @@ BEGIN
   ms_logger.param(l_node, 'i_pu_type'          ,i_pu_type ); 
   
   OPEN cu_plscope_var(c_parent_signature => i_parent_signature
-                     ,c_parent_type      => i_parent_type );
+                     ,c_parent_type      => i_parent_type 
+                     ,c_pu_name          => UPPER(i_pu_name)
+                     ,c_pu_type          => UPPER(i_pu_type)); 
   FETCH cu_plscope_var into l_plscope_var;
   CLOSE cu_plscope_var;
 
@@ -417,8 +429,11 @@ BEGIN
                                           ,i_pu_name          => i_name
                                           ,i_pu_type          => i_type);
   END IF;
-
+ 
   l_pu_rec.level     := io_pu_stack.COUNT+1; 
+
+  ms_logger.note(l_node, 'l_pu_rec.signature'      ,l_pu_rec.signature ); 
+  ms_logger.note(l_node, 'l_pu_rec.level'          ,l_pu_rec.level ); 
 
   io_pu_stack(l_pu_rec.level) := l_pu_rec; 
 END;
@@ -1070,12 +1085,18 @@ and   t.usage_context_id = v.usage_id
     l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'store_var_list'); 
     l_var   var_rec_typ := i_var;
     l_index BINARY_INTEGER;
+    x_assign_var_exists exception;
   BEGIN
     ms_logger.param(l_node,'i_var.name' ,i_var.name);
     ms_logger.param(l_node,'i_var.type' ,i_var.type);
     ms_logger.param(l_node,'i_var.level',i_var.level);
 
     IF io_var_list.EXISTS(UPPER(l_var.name)) then
+      IF io_var_list(UPPER(l_var.name)).assign_var then
+        raise x_assign_var_exists;
+      end if;
+
+
       IF io_var_list(UPPER(l_var.name)).level = i_var.level then
         ms_logger.warning(l_node, 'This variable already exists at this scoping level.  New version overwriting it.');
       ELSE 
@@ -1121,7 +1142,9 @@ and   t.usage_context_id = v.usage_id
       --PU LEVEL integer
       --list will be indexed by binary integer.
       --List will be used to name variables, and find signatures. 
-
+  EXCEPTION
+    WHEN x_assign_var_exists THEN
+      ms_logger.comment(l_node, 'An ASSIGNMENT variable is already stored for this name and scoping level.  Ignoring this instance');
 
 
   END;
@@ -2738,7 +2761,9 @@ BEGIN
   if i_pu_stack.count = 0 then
     raise x_no_stack;
   end if;
-  ms_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).name',i_pu_stack(i_pu_stack.last).name);
+  ms_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).name'     ,i_pu_stack(i_pu_stack.last).name);
+  ms_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).signature',i_pu_stack(i_pu_stack.last).signature);
+  ms_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).type'     ,i_pu_stack(i_pu_stack.last).type);
 
   --Loop thru each variable assigned within this procedure, or named block.
   FOR l_plscope in cu_plscope_assign(c_parent_signature => i_pu_stack(i_pu_stack.last).signature
@@ -2805,6 +2830,8 @@ BEGIN
 
 
   END LOOP;
+
+  log_var_list(i_var_list     => l_var_list);
 
   return l_var_list;
 
@@ -3030,12 +3057,12 @@ BEGIN
   ms_logger.param(l_node, 'i_indent' ,i_indent); 
 
  -- --Labelled block.
- -- if g_last_label is not null then
+ -- if g_recent_label is not null then
  --   --There is a current label, so we'll add it to the pu stack, to help identify variables.
- --   push_pu(i_name       => g_last_label
+ --   push_pu(i_name       => g_recent_label
  --          ,i_type       => 'LABEL' 
  --          ,io_pu_stack  => l_pu_stack);         
- --   g_last_label := null;
+ --   g_recent_label := null;
 --
  --   --Read all of the assigned variables from plscope
  --   --add them into the var list
@@ -3106,19 +3133,19 @@ BEGIN
   ms_logger.param(l_node, 'i_indent        ' ,i_indent        ); 
   ms_logger.param(l_node, 'i_node_type     ' ,i_node_type     ); 
 
-  if i_node_type = 'new_pkg'  then
+  if i_node_type = g_node_type_package  then
  
     push_pu(i_name       => i_prog_unit_name
            ,i_type       => 'PACKAGE BODY' 
            ,io_pu_stack  => l_pu_stack);
 
-  elsif i_node_type = 'new_proc'  then
+  elsif i_node_type = g_node_type_procedure  then
  
     push_pu(i_name       => i_prog_unit_name
            ,i_type       => 'PROCEDURE' 
            ,io_pu_stack  => l_pu_stack);
 
-  elsif i_node_type = 'new_funct'  then
+  elsif i_node_type = g_node_type_function  then
  
     push_pu(i_name       => i_prog_unit_name
            ,i_type       => 'FUNCTION' 
@@ -3163,7 +3190,7 @@ BEGIN
                         ,i_upper       => TRUE
                         ,i_raise_error => TRUE                              );
  
-  IF regex_match(l_keyword , G_REGEX_END_BEGIN) and i_node_type = 'new_pkg' THEN
+  IF regex_match(l_keyword , G_REGEX_END_BEGIN) and i_node_type = g_node_type_package THEN
     --Packages don't need to have BEGIN. 
     --Reached the final END.  Highlight it.
     go_past(i_search => G_REGEX_END_BEGIN
@@ -3344,7 +3371,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
        END;
 
 
-  BEGIN
+  BEGIN --note_non_bind_var 
     ms_logger.param(l_node,'i_var'      ,i_var);
     ms_logger.param(l_node,'i_componant',i_componant);
     IF l_var_list.EXISTS(l_var) THEN
@@ -3455,18 +3482,18 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
  
 
  
-BEGIN
+BEGIN --AOP_block
 
   ms_logger.param(l_node, 'i_indent    '      ,i_indent     );
   ms_logger.param(l_node, 'i_regex_end '     ,i_regex_end  );
 
-  --Labelled block.
-  if g_last_label is not null then
-    --There is a current label, so we'll add it to the pu stack, to help identify variables.
-    push_pu(i_name       => g_last_label
+  --Labelled block. (Not needed for an unnamed block as these assignments are picked up in the parent block.)
+  if g_recent_label is not null then
+    --There is a recent label, so we'll add it to the pu stack, to help identify variables.
+    push_pu(i_name       => g_recent_label
            ,i_type       => 'LABEL' 
            ,io_pu_stack  => l_pu_stack);         
-    g_last_label := null;
+    g_recent_label := null;
 
     --Read all of the assigned variables from plscope
     --add them into the var list
@@ -3613,8 +3640,8 @@ BEGIN
       WHEN regex_match(l_keyword ,G_REGEX_LABEL) THEN
         ms_logger.info(l_node, 'Label');
  
-        g_last_label := REGEXP_SUBSTR(l_keyword,G_REGEX_LABEL,1,1,'i',2);
-        ms_logger.note(l_node, 'g_last_label',g_last_label);
+        g_recent_label := REGEXP_SUBSTR(l_keyword,G_REGEX_LABEL,1,1,'i',2);
+        ms_logger.note(l_node, 'g_recent_label',g_recent_label);
 
  
  
@@ -3910,16 +3937,16 @@ BEGIN
       ms_logger.note(l_node, 'l_keyword' ,l_keyword);   
       CASE 
         WHEN regex_match(l_keyword,G_REGEX_PKG_BODY) THEN
-          l_node_type := 'new_pkg';
+          l_node_type := g_node_type_package;
          -- l_prog_unit_name := 'Initialise';
         WHEN regex_match(l_keyword,G_REGEX_PROCEDURE) THEN
-          l_node_type := 'new_proc';
+          l_node_type := g_node_type_procedure;
           l_prog_unit_name := NULL;
         WHEN regex_match(l_keyword,G_REGEX_FUNCTION) THEN
-          l_node_type := 'new_func';
+          l_node_type := g_node_type_function;
           l_prog_unit_name := NULL;
         WHEN regex_match(l_keyword,G_REGEX_TRIGGER) THEN
-          l_node_type := 'new_trig';
+          l_node_type := g_node_type_trigger;
           l_prog_unit_name := NULL;
       WHEN regex_match(l_keyword,G_REGEX_BEGIN) OR l_keyword IS NULL THEN
         EXIT;

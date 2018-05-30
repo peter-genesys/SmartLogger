@@ -135,6 +135,22 @@ create or replace package body aop_test2 is
 
  
   END;
+
+
+  procedure test_nulls_in_block is
+  BEGIN
+
+    <<test_label>> 
+    declare
+      l_dog varchar2(20);
+    BEGIN
+      null;
+      test_label.l_dog := 'SPANIEL';
+    END;
+
+ 
+  END;
+
  
 BEGIN
   

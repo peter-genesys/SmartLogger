@@ -72,7 +72,7 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
 
   function test3(i_param31 in varchar2 ) return varchar2  RESULT_CACHE RELIES_ON (dual)  is
   begin
-    null;
+    --null;
     --""Eg of debugging message added by a developer
 
 
@@ -89,7 +89,7 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
       l_unit_name := 'X';
       l_unit.unit_name := 'X';
       l_unit := l_unit;
-      null;
+      --null;
       --""anon block1
       --:x:= 1;
       --:x := 1;
@@ -165,7 +165,7 @@ where max_event_date >= :i_min_qa_date
 )
 ]';
 
-        null;
+        --null;
         --""testz is nested in anon block2
 
 
