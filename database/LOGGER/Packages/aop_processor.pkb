@@ -471,7 +471,8 @@ END;
     l_index := i_var_list.FIRST;
     
     WHILE l_index is not null loop
-      ms_logger.note(l_node,i_var_list(l_index).name,i_var_list(l_index).type,i_var_list(l_index).signature);
+      --ms_logger.note(l_node,i_var_list(l_index).name,i_var_list(l_index).type,i_var_list(l_index).signature);
+      ms_logger.note(l_node,l_index,i_var_list(l_index).type,i_var_list(l_index).signature); --show the index
       l_index := i_var_list.NEXT(l_index);
     end loop;
   END;
@@ -1075,6 +1076,14 @@ and   t.usage_context_id = v.usage_id
   END;
 
  
+
+
+
+
+
+
+
+
 --------------------------------------------------------------------
 -- store_var_list - Store variable in variable list, index by upper of name
 -- Put multiple entries in the var list for a single var.
@@ -1084,148 +1093,82 @@ and   t.usage_context_id = v.usage_id
                           ,i_pu_stack   in     pu_stack_typ ) is
     l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'store_var_list'); 
     l_var   var_rec_typ := i_var;
-
-    x_assign_var_exists exception;
-    --x_owner_missing     exception;
+ 
+    procedure add_var(i_var        in     var_rec_typ ) is
+  
+      l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'add_var'); 
+   
+      x_assign_var_exists exception;
+   
+    BEGIN
+      ms_logger.param(l_node,'i_var.name' ,i_var.name);
+      ms_logger.param(l_node,'i_var.type' ,i_var.type);
+      ms_logger.param(l_node,'i_var.level',i_var.level);
+  
+      IF io_var_list.EXISTS(UPPER(i_var.name)) then
+        IF io_var_list(UPPER(l_var.name)).assign_var then
+          raise x_assign_var_exists;
+        end if;
+  
+  
+        IF io_var_list(UPPER(i_var.name)).level = i_var.level then
+          ms_logger.warning(l_node, 'This variable already exists at this scoping level.  New version overwriting it.');
+        ELSE 
+          ms_logger.comment(l_node, 'A variable of the same name exists at a higher scoped level.');
+          ms_logger.comment(l_node, 'The new variable now has scope at this level.');
+        END IF;  
+      END IF;  
+  
+      --Add the variable into variable list.
+      io_var_list(UPPER(i_var.name)) := i_var;  
+  
+    EXCEPTION
+      WHEN x_assign_var_exists THEN
+        ms_logger.comment(l_node, 'An ASSIGNMENT variable is already stored for this name and scoping level.  Ignoring this instance');
+   
+    END;
+ 
   BEGIN
     ms_logger.param(l_node,'i_var.name' ,i_var.name);
     ms_logger.param(l_node,'i_var.type' ,i_var.type);
     ms_logger.param(l_node,'i_var.level',i_var.level);
 
-    IF io_var_list.EXISTS(UPPER(l_var.name)) then
-      IF io_var_list(UPPER(l_var.name)).assign_var then
-        raise x_assign_var_exists;
-      end if;
+    add_var(i_var  => l_var );
 
-
-      IF io_var_list(UPPER(l_var.name)).level = i_var.level then
-        ms_logger.warning(l_node, 'This variable already exists at this scoping level.  New version overwriting it.');
-      ELSE 
-        ms_logger.comment(l_node, 'A variable of the same name exists at a higher scoped level.');
-        ms_logger.comment(l_node, 'The new variable now has scope at this level.');
-      END IF;  
-    END IF;  
- 
-
-    --Add the variable into variable list.
-    io_var_list(UPPER(l_var.name)) := l_var;   
-
-   
-    --ADDITIONAL NAMED VERSIONS - FOR PACKAGE SPEC VARS
+    --ADDITIONAL NAMED VERSIONS 
     --This section pre-dated the usage of PLScope in SmartLogger.
-    --It should not longer be needed at all, except it is being used as a workaround for the folllowing issue.
+    --It should not longer be needed at all, except it is being used as a workaround for the following issues.
      
-    --Variables in the package spec, these can be addressed in by OWNER.PACKAGE.VARNAME
-    --But PLScope only records PACKAGE.VARNAME in the ASSIGNMENT entry.
-    --So this routine is used to supply the OWNER.PACKAGE.VARNAME version of the variable.
+    --PLScope LIMITATION - Variables in the package spec, these can be addressed in by OWNER.PACKAGE.VARNAME
+    --  But PLScope only records PACKAGE.VARNAME in the ASSIGNMENT entry.
+    --  So this routine is used to supply the OWNER.PACKAGE.VARNAME version of the variable.
 
+    --PLScope BUG        -Null statements in a PLSQL block illcit a bug in PLScope, where it does not register ASSIGNMENTS.
+    --  When this happens in conjunction with qualified naming of variables, variable names are not recognised.
+
+    --Hence the routine below, now reinstated for storing every type of var
+ 
     declare
        l_index        BINARY_INTEGER;
     begin   
       l_index := i_pu_stack.LAST; --Find last entry in the pu stack
-      if i_pu_stack(l_index).type = 'PACKAGE' then
-        --Specifically for variables harvested from the package spec using PLScope.
+
         --These variables may need to be addressed by a rollup of their names.
-        --Then, in order to index the variable by all of it's possible names  
+        --In order to index the variable by all of it's possible names  
         --we will step backwards thru the i_pu_stack adding names onto the var name 
         --and adding it to the list again
         --until we have fully qualified the variable name.
         WHILE l_index is not null loop
           ms_logger.note(l_node,i_pu_stack(l_index).name,i_pu_stack(l_index).type);
           l_var.name := lower(i_pu_stack(l_index).name||'.'||l_var.name);
-          ms_logger.param(l_node,'l_var.name',l_var.name);
-          io_var_list(UPPER(l_var.name)) := l_var;   
+
+          add_var(i_var  => l_var );
           --Find previous name in the pu stack
           l_index := i_pu_stack.PRIOR(l_index);
         end loop;
-      end if;
+
     end;
-    
-/*
---LOGIC to add an owner.package entry
---This is specifically for variables harvested from the package spec using PLScope.
---These variables may need to be addressed by a rollup of there names.
-
---If this is a package level var, then add a owner.package version.
---To determine this expect pu_stack to contain OWNER.PACKAGE only
---Also expect the current vars first segment to equal PACKAGE name eg
---PACKAGE.PROC.VAR
-  declare
-     l_index        BINARY_INTEGER;
-     l_package_name varchar2(30);
-     l_owner_name   varchar2(30);
-  begin
-    l_index := i_pu_stack.LAST; --Find last entry in the pu stack
-    if i_pu_stack(l_index).type = 'PACKAGE' then
-        l_package_name := i_pu_stack(l_index).name;
-        ms_logger.note(l_node,'l_package_name',l_package_name);
-        --Currently adding vars from a Package Spec, so we want a owner version too.
-        --Find previous name in the pu stack
-        l_index := i_pu_stack.PRIOR(l_index);
-        if l_index is null or i_pu_stack(l_index).type <> 'OWNER' then
-          raise x_owner_missing;
-        end if;
-        l_owner_name := i_pu_stack(l_index).name;
-        ms_logger.note(l_node,'l_owner_name',l_owner_name);
-
-        --Get the owner from the previous pu entry
-        l_var.name := lower(l_owner_name||'.'||l_package_name||'.'||l_var.name);
-        --add the extra copy of the var
-        io_var_list(UPPER(l_var.name)) := l_var; 
-    end if;
-   end;
-*/
-
-/*
---LOGIC to add an owner entry
---If this is a package level var, then add a owner.package version.
---To determine this expect pu_stack to contain OWNER.PACKAGE only
---Also expect the current vars first segment to equal PACKAGE name eg
---PACKAGE.PROC.VAR
  
-    l_index := i_pu_stack.LAST; --Find last entry in the pu stack
-    ms_logger.note(l_node,i_pu_stack(l_index).name,i_pu_stack(l_index).type);
-    if i_pu_stack(l_index).type = 'PACKAGE' then
-      --Currently adding vars from a Package Spec
-      if UPPER(l_var.name) like i_pu_stack(l_index).name||'%' then
-        --The current var is prefixed by the package name, so we want a owner version too.
-        --Find previous name in the pu stack
-        l_index := i_pu_stack.PRIOR(l_index);
-        if l_index is null or i_pu_stack(l_index).type <> 'OWNER' then
-          raise x_owner_missing;
-        end if;
-        ms_logger.note(l_node,i_pu_stack(l_index).name,i_pu_stack(l_index).type);
-        --Get the owner from the previous pu entry
-        l_var.name := lower(i_pu_stack(l_index).name||'.'||l_var.name);
-        --add the extra copy of the var
-        io_var_list(UPPER(l_var.name)) := l_var; 
-      end if;    
-    end if;
-
-*/
-
-
-
-
-
-      --@TODO could store the same var in the list under different indexes..
-      --Eg VAR, USER.VAR, USER.PACKAGE.VAR
-      --Could expand the complex types.
-      --Or could just keep the type with its signature, and pull apart as needed.
-      --Would also need to change the i_var.name when indexing against a longer name.
-      --@TODO add a list representing the program unit stack. pu_stack
-      --This stack will be used for naming.
-      --The stack record will store
-      --PU NAME - required 
-      --PU TYPE FUNCTION|PROCEDURE|LABELLED_BLOCK 
-      --PU LEVEL integer
-      --list will be indexed by binary integer.
-      --List will be used to name variables, and find signatures. 
-  EXCEPTION
-    WHEN x_assign_var_exists THEN
-      ms_logger.comment(l_node, 'An ASSIGNMENT variable is already stored for this name and scoping level.  Ignoring this instance');
-    --WHEN x_owner_missing THEN
-    --  ms_logger.fatal(l_node,'OWNER missing from PU Stack.');
 
   END;
 
@@ -3112,6 +3055,46 @@ exception
  
 END AOP_var_defs;
 
+
+
+
+--------------------------------------------------------------------------------- 
+-- labelled_block_extras
+---------------------------------------------------------------------------------
+/** PRIVATE
+* For labelled blocks
+*   Called from either declaration or main block, which comes first
+*   Add label to pu_stack
+*   Find PLScope ASSIGNMENTs and record as vars
+* @param  io_var_list list of scoped variables
+* @param  io_pu_stack program_unit stack
+*/
+PROCEDURE labelled_block_extras(io_var_list IN OUT var_list_typ
+                               ,io_pu_stack IN OUT pu_stack_typ) IS
+  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'labelled_block_extras'); 
+
+begin  
+
+  --Labelled block. (Not needed for an unnamed block as these assignments are picked up in the parent block.)
+  if g_recent_label is not null then
+    --There is a recent label, so we'll add it to the pu stack, to help identify variables.
+    push_pu(i_name       => g_recent_label
+           ,i_type       => 'LABEL' 
+           ,io_pu_stack  => io_pu_stack);         
+    g_recent_label := null;
+
+    --Read all of the assigned variables from plscope
+    --add them into the var list
+    io_var_list := PLS_pu_assign( i_var_list => io_var_list
+                                 ,i_pu_stack => io_pu_stack);   
+  end if;  
+
+end;
+
+
+
+
+
     
 --------------------------------------------------------------------------------- 
 -- AOP_declare_block
@@ -3136,21 +3119,10 @@ BEGIN
 
   ms_logger.param(l_node, 'i_indent' ,i_indent); 
 
- -- --Labelled block.
- -- if g_recent_label is not null then
- --   --There is a current label, so we'll add it to the pu stack, to help identify variables.
- --   push_pu(i_name       => g_recent_label
- --          ,i_type       => 'LABEL' 
- --          ,io_pu_stack  => l_pu_stack);         
- --   g_recent_label := null;
---
- --   --Read all of the assigned variables from plscope
- --   --add them into the var list
- --   l_var_list := PLS_pu_assign( i_var_list => l_var_list
- --                               ,i_pu_stack => l_pu_stack);   
- -- end if;  
-
-
+  --Called here and in AOP_block 
+  labelled_block_extras(io_var_list => l_var_list
+                       ,io_pu_stack => l_pu_stack);
+ 
   --Find the vars defined in this block
   l_var_list := AOP_var_defs( i_var_list => l_var_list
                              ,i_pu_stack => l_pu_stack);    
@@ -3454,6 +3426,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   BEGIN --note_non_bind_var 
     ms_logger.param(l_node,'i_var'      ,i_var);
     ms_logger.param(l_node,'i_componant',i_componant);
+    ms_logger.note(l_node,'l_var'       ,l_var);
     IF l_var_list.EXISTS(l_var) THEN
       --This variable exists in the list of scoped variables with compatible types    
       ms_logger.comment(l_node, 'Scoped Var');
@@ -3567,20 +3540,9 @@ BEGIN --AOP_block
   ms_logger.param(l_node, 'i_indent    '      ,i_indent     );
   ms_logger.param(l_node, 'i_regex_end '     ,i_regex_end  );
 
-  --Labelled block. (Not needed for an unnamed block as these assignments are picked up in the parent block.)
-  if g_recent_label is not null then
-    --There is a recent label, so we'll add it to the pu stack, to help identify variables.
-    push_pu(i_name       => g_recent_label
-           ,i_type       => 'LABEL' 
-           ,io_pu_stack  => l_pu_stack);         
-    g_recent_label := null;
-
-    --Read all of the assigned variables from plscope
-    --add them into the var list
-    l_var_list := PLS_pu_assign( i_var_list => l_var_list
-                                ,i_pu_stack => l_pu_stack);   
-  end if;  
-
+  --Called here and in AOP_declare_block
+  labelled_block_extras(io_var_list => l_var_list
+                       ,io_pu_stack => l_pu_stack);
  
   loop
  
