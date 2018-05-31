@@ -1084,8 +1084,9 @@ and   t.usage_context_id = v.usage_id
                           ,i_pu_stack   in     pu_stack_typ ) is
     l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'store_var_list'); 
     l_var   var_rec_typ := i_var;
-    l_index BINARY_INTEGER;
+
     x_assign_var_exists exception;
+    --x_owner_missing     exception;
   BEGIN
     ms_logger.param(l_node,'i_var.name' ,i_var.name);
     ms_logger.param(l_node,'i_var.type' ,i_var.type);
@@ -1109,25 +1110,103 @@ and   t.usage_context_id = v.usage_id
     --Add the variable into variable list.
     io_var_list(UPPER(l_var.name)) := l_var;   
 
-/*
-    --@TODO - review whether this is needed anymore since we already check all actual uses of a variable from pl/scope.
-    -- TEMPORARILLY COMMENT THIS SECTION - ASSUMING WE NO LONGER NEED IT.
-    --Then, in order to index the variable by all of it's possible names  
-    --we will step backwards thru the i_pu_stack adding names onto the var name 
-    --and adding it to the list again
-    --until we have fully qualified the variable name.
    
-    l_index := i_pu_stack.LAST; --Find last entry in the pu stack
+    --ADDITIONAL NAMED VERSIONS - FOR PACKAGE SPEC VARS
+    --This section pre-dated the usage of PLScope in SmartLogger.
+    --It should not longer be needed at all, except it is being used as a workaround for the folllowing issue.
+     
+    --Variables in the package spec, these can be addressed in by OWNER.PACKAGE.VARNAME
+    --But PLScope only records PACKAGE.VARNAME in the ASSIGNMENT entry.
+    --So this routine is used to supply the OWNER.PACKAGE.VARNAME version of the variable.
+
+    declare
+       l_index        BINARY_INTEGER;
+    begin   
+      l_index := i_pu_stack.LAST; --Find last entry in the pu stack
+      if i_pu_stack(l_index).type = 'PACKAGE' then
+        --Specifically for variables harvested from the package spec using PLScope.
+        --These variables may need to be addressed by a rollup of their names.
+        --Then, in order to index the variable by all of it's possible names  
+        --we will step backwards thru the i_pu_stack adding names onto the var name 
+        --and adding it to the list again
+        --until we have fully qualified the variable name.
+        WHILE l_index is not null loop
+          ms_logger.note(l_node,i_pu_stack(l_index).name,i_pu_stack(l_index).type);
+          l_var.name := lower(i_pu_stack(l_index).name||'.'||l_var.name);
+          ms_logger.param(l_node,'l_var.name',l_var.name);
+          io_var_list(UPPER(l_var.name)) := l_var;   
+          --Find previous name in the pu stack
+          l_index := i_pu_stack.PRIOR(l_index);
+        end loop;
+      end if;
+    end;
     
-    WHILE l_index is not null loop
-      ms_logger.note(l_node,i_pu_stack(l_index).name,i_pu_stack(l_index).type);
-      l_var.name := lower(i_pu_stack(l_index).name||'.'||l_var.name);
-      ms_logger.param(l_node,'l_var.name',l_var.name);
-      io_var_list(UPPER(l_var.name)) := l_var;   
-      --Find previous name in the pu stack
-      l_index := i_pu_stack.PRIOR(l_index);
-    end loop;
+/*
+--LOGIC to add an owner.package entry
+--This is specifically for variables harvested from the package spec using PLScope.
+--These variables may need to be addressed by a rollup of there names.
+
+--If this is a package level var, then add a owner.package version.
+--To determine this expect pu_stack to contain OWNER.PACKAGE only
+--Also expect the current vars first segment to equal PACKAGE name eg
+--PACKAGE.PROC.VAR
+  declare
+     l_index        BINARY_INTEGER;
+     l_package_name varchar2(30);
+     l_owner_name   varchar2(30);
+  begin
+    l_index := i_pu_stack.LAST; --Find last entry in the pu stack
+    if i_pu_stack(l_index).type = 'PACKAGE' then
+        l_package_name := i_pu_stack(l_index).name;
+        ms_logger.note(l_node,'l_package_name',l_package_name);
+        --Currently adding vars from a Package Spec, so we want a owner version too.
+        --Find previous name in the pu stack
+        l_index := i_pu_stack.PRIOR(l_index);
+        if l_index is null or i_pu_stack(l_index).type <> 'OWNER' then
+          raise x_owner_missing;
+        end if;
+        l_owner_name := i_pu_stack(l_index).name;
+        ms_logger.note(l_node,'l_owner_name',l_owner_name);
+
+        --Get the owner from the previous pu entry
+        l_var.name := lower(l_owner_name||'.'||l_package_name||'.'||l_var.name);
+        --add the extra copy of the var
+        io_var_list(UPPER(l_var.name)) := l_var; 
+    end if;
+   end;
 */
+
+/*
+--LOGIC to add an owner entry
+--If this is a package level var, then add a owner.package version.
+--To determine this expect pu_stack to contain OWNER.PACKAGE only
+--Also expect the current vars first segment to equal PACKAGE name eg
+--PACKAGE.PROC.VAR
+ 
+    l_index := i_pu_stack.LAST; --Find last entry in the pu stack
+    ms_logger.note(l_node,i_pu_stack(l_index).name,i_pu_stack(l_index).type);
+    if i_pu_stack(l_index).type = 'PACKAGE' then
+      --Currently adding vars from a Package Spec
+      if UPPER(l_var.name) like i_pu_stack(l_index).name||'%' then
+        --The current var is prefixed by the package name, so we want a owner version too.
+        --Find previous name in the pu stack
+        l_index := i_pu_stack.PRIOR(l_index);
+        if l_index is null or i_pu_stack(l_index).type <> 'OWNER' then
+          raise x_owner_missing;
+        end if;
+        ms_logger.note(l_node,i_pu_stack(l_index).name,i_pu_stack(l_index).type);
+        --Get the owner from the previous pu entry
+        l_var.name := lower(i_pu_stack(l_index).name||'.'||l_var.name);
+        --add the extra copy of the var
+        io_var_list(UPPER(l_var.name)) := l_var; 
+      end if;    
+    end if;
+
+*/
+
+
+
+
 
       --@TODO could store the same var in the list under different indexes..
       --Eg VAR, USER.VAR, USER.PACKAGE.VAR
@@ -1145,7 +1224,8 @@ and   t.usage_context_id = v.usage_id
   EXCEPTION
     WHEN x_assign_var_exists THEN
       ms_logger.comment(l_node, 'An ASSIGNMENT variable is already stored for this name and scoping level.  Ignoring this instance');
-
+    --WHEN x_owner_missing THEN
+    --  ms_logger.fatal(l_node,'OWNER missing from PU Stack.');
 
   END;
 
@@ -4356,6 +4436,11 @@ FUNCTION get_vars_from_compiled_object(i_name       in varchar2
              ,i_type        => 'OWNER'
              --,i_signature   => null
              ,io_pu_stack   => l_pu_stack);
+
+      --What is in plscope for and assignment that uses a package spec var called by username??
+
+
+
     END IF;  
 
     push_pu(i_name       => i_name

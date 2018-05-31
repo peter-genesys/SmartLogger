@@ -139,22 +139,65 @@ create or replace package body aop_test2 is
 
   procedure test_nulls_in_block is
   BEGIN
+    --Labelled vars and nulls statements 
+    --Causes issues because PLScope seem to skip the rest of the block
+    --So misses the ASSIGNMENT to label.var
 
     <<test_label>> 
     declare
-      l_dog varchar2(20);
+      l_dog  varchar2(20);
+      l_cat  varchar2(20);
+      l_bird varchar2(20);
+      l_fish varchar2(20);
     BEGIN
-      null;
       test_label.l_dog := 'SPANIEL';
+      if true then
+        null;
+ 
+        <<inner_label>>
+        declare
+          l_plant varchar2(20);
+        BEGIN
+          inner_label.l_plant := 'LILLY';
+          l_plant := 'LILLY';
+        END;
+
+        test_label.l_fish := 'FLAKE';
+        l_fish := 'FLAKE';
+
+      end if;
+      test_label.l_cat := 'PUSSY';
+      null;
+      test_label.l_bird := 'CANARY';
+      l_bird := 'CANARY';
+
+    END;
+
+    declare
+      l_fish varchar2(20);
+    BEGIN
+      l_fish := 'TROUT';
     END;
 
  
+  END;
+
+
+  procedure test_nulls_in_block2 is
+    l_rock varchar2(20);
+  BEGIN
+    --Same effect with any sort of qualified variable name
+    null;
+    test_nulls_in_block2.l_rock := 'GRANITE';
+    l_rock := 'GRANITE';
   END;
 
  
 BEGIN
   
   body_simple_var1 := 1;
+
+  aop_test2.body_simple_var1 := 2;
 
 
 end aop_test2;
