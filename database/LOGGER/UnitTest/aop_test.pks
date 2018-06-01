@@ -1,5 +1,5 @@
 ALTER SESSION SET 
-plscope_settings='IDENTIFIERS:ALL'
+plscope_settings='IDENTIFIERS:NONE'
 /
 
 create or replace package aop_test is

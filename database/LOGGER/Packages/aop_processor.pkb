@@ -4092,6 +4092,7 @@ END;
   
     l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_plsql');     
     l_code clob;
+    l_object_type varchar2(30);
   begin
     ms_logger.param(l_node, 'i_object_name  '          ,i_object_name   );
     ms_logger.param(l_node, 'i_object_type  '          ,i_object_type   );
@@ -4099,7 +4100,14 @@ END;
  
     --dbms_metadata.set_transform_param( DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', TRUE );
 
-    l_code:= dbms_metadata.get_ddl(REPLACE(i_object_type,' ','_'), i_object_name, i_object_owner);
+    l_object_type := case 
+                       when i_object_type = 'PACKAGE'      then 'PACKAGE_SPEC'
+                       when i_object_type = 'PACKAGE BODY' then 'PACKAGE_BODY'
+                       else i_object_type
+                     end;
+    ms_logger.note(l_node, 'l_object_type '          ,l_object_type  );
+
+    l_code:= dbms_metadata.get_ddl(l_object_type, i_object_name, i_object_owner);
 
     --@PAB ??WHAT DOES THIS DO??  Does it remove an alter trigger statement?
     IF i_object_type = 'TRIGGER' THEN
@@ -4621,6 +4629,27 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                                  ,i_type     =>  'PACKAGE BODY' 
                                                  ,i_var_list => l_var_list   );
 
+
+      for l_referenced_object in (  select * 
+                                    from  all_dependencies  
+                                    where name  = p_package_name
+                                    and   owner = l_owner
+                                    and   type in ('PACKAGE','PACKAGE BODY') --Get refs of both the spec and body
+                                    and referenced_type = 'PACKAGE' 
+                                    and referenced_owner <> 'SYS'
+                                    and referenced_name not in ('MS_LOGGER','AOP_PROCESSOR',p_package_name)) LOOP
+
+        --Get a list of variables from any package spec directly referenced from the spec or body of this package.
+        l_var_list := get_vars_from_compiled_object(i_name     => l_referenced_object.referenced_name
+                                                   ,i_owner    => l_referenced_object.referenced_owner 
+                                                   ,i_type     => l_referenced_object.referenced_type 
+                                                   ,i_var_list => l_var_list   );
+
+  
+      end loop;
+
+ 
+
    --   push_pu(i_name       => l_owner
    --          ,i_type       => 'OWNER'
    --         -- ,i_signature  => null
@@ -4722,6 +4751,27 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                                  ,i_owner    => i_object_owner 
                                                  ,i_type     =>  'PACKAGE BODY' 
                                                  ,i_var_list => l_var_list   );
+
+
+      for l_referenced_object in (  select * 
+                                    from  all_dependencies  
+                                    where name  = i_object_name
+                                    and   owner = i_object_owner
+                                    and   type in ('PACKAGE','PACKAGE BODY') --Get refs of both the spec and body
+                                    and referenced_type = 'PACKAGE' 
+                                    and referenced_owner <> 'SYS'
+                                    and referenced_name not in ('MS_LOGGER','AOP_PROCESSOR',i_object_name)) LOOP
+
+        --Get a list of variables from any package spec directly referenced from the spec or body of this package.
+        l_var_list := get_vars_from_compiled_object(i_name     => l_referenced_object.referenced_name
+                                                   ,i_owner    => l_referenced_object.referenced_owner 
+                                                   ,i_type     => l_referenced_object.referenced_type 
+                                                   ,i_var_list => l_var_list   );
+
+  
+      end loop;
+
+      
 
 
     END IF;  

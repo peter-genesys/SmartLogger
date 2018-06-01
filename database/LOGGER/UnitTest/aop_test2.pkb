@@ -1,5 +1,5 @@
---ALTER SESSION SET plscope_settings='IDENTIFIERS:ALL'
---/
+ALTER SESSION SET plscope_settings='IDENTIFIERS:NONE'
+/
 create or replace package body aop_test2 is
   --@AOP_LOG
   type body_rec_typ is record (adate   date
@@ -37,7 +37,7 @@ create or replace package body aop_test2 is
 
     l_nested_rec body_nested_rec_typ;
 
-    l_tab   aop_test.test_tab_typ; --from spec
+    l_tab   aop_test.test_tab_typ; --from spec of another package
 
   begin
     io_var.anum  := 1;
@@ -178,7 +178,6 @@ create or replace package body aop_test2 is
     BEGIN
       l_fish := 'TROUT';
     END;
-
  
   END;
 
@@ -190,6 +189,18 @@ create or replace package body aop_test2 is
     null;
     test_nulls_in_block2.l_rock := 'GRANITE';
     l_rock := 'GRANITE';
+  END;
+
+
+
+  procedure test_ref_to_unscoped_package is
+  --Test compilation with PLScope when reference package is not yet compiled with PLScope.
+  --Requires separate step to ensure the precondition...
+    l_dummy number;
+  BEGIN
+    l_dummy := 1;
+    aop_test.g_test3 := 1;
+ 
   END;
 
  

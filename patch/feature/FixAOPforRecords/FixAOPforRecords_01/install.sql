@@ -74,9 +74,11 @@ PROMPT ms_api.pks
 @&&patch_path.ms_api.pks;
 Show error;
 
+WHENEVER SQLERROR CONTINUE
 PROMPT aop_processor.pks 
 @&&patch_path.aop_processor.pks;
 Show error;
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 PROMPT aop_test.pks 
 @&&patch_path.aop_test.pks;
@@ -102,9 +104,11 @@ PROMPT ms_api.pkb
 @&&patch_path.ms_api.pkb;
 Show error;
 
+WHENEVER SQLERROR CONTINUE
 PROMPT aop_processor.pkb 
 @&&patch_path.aop_processor.pkb;
 Show error;
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 PROMPT aop_test.pkb 
 @&&patch_path.aop_test.pkb;
