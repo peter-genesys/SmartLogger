@@ -1,3 +1,4 @@
+WHENEVER SQLERROR CONTINUE
 alter trigger aop_processor_trg disable;
 
 create or replace package aop_processor AUTHID CURRENT_USER 
@@ -210,3 +211,4 @@ end aop_processor;
 show error;
 
 alter trigger aop_processor_trg enable;
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK;

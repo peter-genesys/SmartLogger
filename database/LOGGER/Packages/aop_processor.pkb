@@ -1,4 +1,7 @@
+WHENEVER SQLERROR CONTINUE
 alter trigger aop_processor_trg disable;
+
+
 
 --Ensure no inlining so ms_logger can be used
 alter session set plsql_optimize_level = 1;
@@ -5182,3 +5185,4 @@ end aop_processor;
 set define on;
 
 alter trigger aop_processor_trg enable;
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
