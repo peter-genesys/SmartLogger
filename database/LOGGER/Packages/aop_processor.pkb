@@ -1511,6 +1511,49 @@ END;
     return g_during_advise;
   end during_advise;
 
+--------------------------------------------------------------------
+-- compile_plsql
+--------------------------------------------------------------------  
+/** PRIVATE
+* Recompile the source code with compiler directives.
+* @param i_text         Source Code
+* @param i_with_plscope plscope for AOP
+* @param i_for_logger   optimiser level 1 for ms_logger
+*/
+PROCEDURE compile_plsql(i_text         in clob
+                       ,i_with_plscope in boolean default true
+                       ,i_for_logger   in boolean default true) is
+  --PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN     
+
+  IF i_with_plscope then
+    --IDENTIFIERS:ALL
+    --recompile with plscope set to identifiers:all to ensure any references to this package are captured.
+    execute immediate q'[alter session set plscope_settings='IDENTIFIERS:ALL']';
+
+  end if;  
+
+  IF i_for_logger then
+    --optimiser level 1
+    --MS_LOGGER relies on packages compiled in optimiser level 1, to correcly determine execution tree.
+    --This prevents the optimiser from rewriting sub-procedures as inline macros.
+
+    --https://docs.oracle.com/cd/B28359_01/server.111/b28320/initparams184.htm#REFRN10255
+    --PLSQL_OPTIMIZE_LEVEL specifies the optimization level that will be used to compile PL/SQL library units. 
+    --The higher the setting of this parameter, the more effort the compiler makes to optimize PL/SQL library units.
+    --Applies a wide range of optimizations to PL/SQL programs including the elimination of unnecessary computations and exceptions, 
+    --but generally does not move source code out of its original source order.
+
+    execute immediate 'alter session set plsql_optimize_level = 1';
+
+  end if;
+ 
+  execute immediate i_text;  --11G CLOB OK
+  --commit;
+END;
+
+
+
  
 --------------------------------------------------------------------
 -- validate_source
@@ -1537,7 +1580,7 @@ END;
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'validate_source');              
                       
     l_aop_source    aop_source%ROWTYPE;    
-    PRAGMA AUTONOMOUS_TRANSACTION;
+   -- PRAGMA AUTONOMOUS_TRANSACTION;
  
   BEGIN     
  
@@ -1560,19 +1603,12 @@ END;
  
       begin
 
-        --It is important for the correct determination of execution tree (later), that the optimiser level is set to 1 while i_text is compiled. 
+        --NB Esp do not want PLScope when validating before the recompile of referenced packages
+        --Because these packages need to be compiled with PLScope in the right order.
+        compile_plsql(i_text         => i_text
+                     ,i_with_plscope => i_aop_ver = 'AOP'
+                     ,i_for_logger   => i_aop_ver = 'AOP');
 
-        --https://docs.oracle.com/cd/B28359_01/server.111/b28320/initparams184.htm#REFRN10255
-        --PLSQL_OPTIMIZE_LEVEL specifies the optimization level that will be used to compile PL/SQL library units. 
-        --The higher the setting of this parameter, the more effort the compiler makes to optimize PL/SQL library units.
-        --Applies a wide range of optimizations to PL/SQL programs including the elimination of unnecessary computations and exceptions, 
-        --but generally does not move source code out of its original source order.
-
-
-        execute immediate 'alter session set plsql_optimize_level = 1';
-        --execute immediate 'set scan off';
-      
-          execute immediate i_text;  --11G CLOB OK
           l_aop_source.valid_yn := 'Y';
       exception
           when others then
@@ -4367,21 +4403,6 @@ exception
     raise;
 end; --is_plscoped
  
---------------------------------------------------------------------
--- compile_with_plscope
---------------------------------------------------------------------  
-/** PRIVATE
-* Recompile the source code using the PLSCOPE directive.
-* @param i_text   Source Code
-*/
-PROCEDURE compile_with_plscope(i_text in clob) is
-  PRAGMA AUTONOMOUS_TRANSACTION;
-BEGIN     
-  execute immediate q'[alter session set plscope_settings='IDENTIFIERS:ALL']';
-  execute immediate i_text;  --11G CLOB OK
-  commit;
-END;
-
 
 
 --------------------------------------------------------------------
@@ -4417,7 +4438,7 @@ FUNCTION get_vars_from_compiled_object(i_name       in varchar2
                                 , i_object_owner   => i_owner
                                 , i_object_type    => i_type   );
       ms_logger.note_clob(l_node,'l_source_code',l_source_code);
-      compile_with_plscope(i_text => l_source_code);
+      compile_plsql(i_text         => l_source_code);
 
       IF NOT is_PLScoped(i_name => i_name
                         ,i_type => i_type) THEN

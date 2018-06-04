@@ -1,3 +1,6 @@
+ALTER SESSION SET 
+plscope_settings='IDENTIFIERS:NONE'
+/
 create or replace package aop_test2 is
 
   type spec_rec_typ is record (adate   date
