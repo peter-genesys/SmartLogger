@@ -480,6 +480,28 @@ END;
     end loop;
   END;
 
+  
+
+--------------------------------------------------------------------
+-- log_new_var_list - Log the new var list minus old var list
+--------------------------------------------------------------------
+  procedure log_new_var_list(i_old_var_list  in var_list_typ
+                            ,i_new_var_list  in var_list_typ) is
+    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'log_new_var_list'); 
+    l_index varchar2(200);
+  BEGIN
+    l_index := i_new_var_list.FIRST;
+    
+    WHILE l_index is not null loop
+      if NOT i_old_var_list.EXISTS(l_index) OR
+         NVL(i_old_var_list(l_index).signature,'X') <> NVL(i_new_var_list(l_index).signature,'X') OR
+         i_old_var_list(l_index).level <> i_new_var_list(l_index).level THEN
+        --This entry is not in the old list, or the signature is different, or level is different, so it's a new one.  Log it.
+        ms_logger.note(l_node,l_index,i_new_var_list(l_index).type,i_new_var_list(l_index).signature); --show the index
+      end if;
+      l_index := i_new_var_list.NEXT(l_index);
+    end loop;
+  END;
 
 --------------------------------------------------------------------
 -- log_param_list - Log the param list
@@ -2856,9 +2878,12 @@ BEGIN
 
 
   END LOOP;
+ 
 
-  log_var_list(i_var_list     => l_var_list);
+  log_new_var_list(i_old_var_list => i_var_list
+                  ,i_new_var_list => l_var_list);
 
+ 
   return l_var_list;
 
 EXCEPTION
@@ -4574,7 +4599,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
     END LOOP;
 
-    log_var_list(i_var_list => l_var_list);
+    log_new_var_list(i_old_var_list => i_var_list
+                    ,i_new_var_list => l_var_list);
  
     return l_var_list;
   END;
@@ -4620,19 +4646,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
       end if;     
 
-      --Get a list of variables from the package spec
-      l_var_list := get_vars_from_compiled_object(i_name     => p_package_name
-                                                 ,i_owner    => l_owner 
-                                                 ,i_type     =>  'PACKAGE'
-                                                 ,i_var_list => l_var_list   );
-
-      --Get a list of variables from the package body
-      l_var_list := get_vars_from_compiled_object(i_name     => p_package_name
-                                                 ,i_owner    => l_owner 
-                                                 ,i_type     =>  'PACKAGE BODY' 
-                                                 ,i_var_list => l_var_list   );
-
-
+      --Recompile all referenced packages with PLScope before compiling this package with PLScope
       for l_referenced_object in (  select * 
                                     from  all_dependencies  
                                     where name  = p_package_name
@@ -4650,6 +4664,20 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
   
       end loop;
+
+
+      --Compile this package spec and body with PLScope
+      --Get a list of variables from the package spec
+      l_var_list := get_vars_from_compiled_object(i_name     => p_package_name
+                                                 ,i_owner    => l_owner 
+                                                 ,i_type     =>  'PACKAGE'
+                                                 ,i_var_list => l_var_list   );
+
+      --Get a list of variables from the package body
+      l_var_list := get_vars_from_compiled_object(i_name     => p_package_name
+                                                 ,i_owner    => l_owner 
+                                                 ,i_type     =>  'PACKAGE BODY' 
+                                                 ,i_var_list => l_var_list   );
 
  
 
@@ -4743,17 +4771,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
     end if;     
  
     IF i_object_type = 'PACKAGE BODY' THEN
-      --Get a list of variables from the package spec
-      l_var_list := get_vars_from_compiled_object(i_name     => i_object_name
-                                                 ,i_owner    => i_object_owner 
-                                                 ,i_type     =>  'PACKAGE'
-                                                 ,i_var_list => l_var_list   );
-
-      --Get a list of variables from the package body (EXPERIMENTAL) Need to verify that this is a good addition.
-      l_var_list := get_vars_from_compiled_object(i_name     => i_object_name
-                                                 ,i_owner    => i_object_owner 
-                                                 ,i_type     =>  'PACKAGE BODY' 
-                                                 ,i_var_list => l_var_list   );
+      --Recompile all referenced packages with PLScope before compiling this package with PLScope
 
 
       for l_referenced_object in (  select * 
@@ -4774,9 +4792,19 @@ and   t.usage_context_id = v.usage_id ) LOOP
   
       end loop;
 
-      
+      --Compile this package spec and body with PLScope
+      --Get a list of variables from the package spec
+      l_var_list := get_vars_from_compiled_object(i_name     => i_object_name
+                                                 ,i_owner    => i_object_owner 
+                                                 ,i_type     =>  'PACKAGE'
+                                                 ,i_var_list => l_var_list   );
 
-
+      --Get a list of variables from the package body (EXPERIMENTAL) Need to verify that this is a good addition.
+      l_var_list := get_vars_from_compiled_object(i_name     => i_object_name
+                                                 ,i_owner    => i_object_owner 
+                                                 ,i_type     =>  'PACKAGE BODY' 
+                                                 ,i_var_list => l_var_list   );
+ 
     END IF;  
 
    -- --Seed the PU Stack
