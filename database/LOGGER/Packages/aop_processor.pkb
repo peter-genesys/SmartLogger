@@ -1131,7 +1131,8 @@ and   t.usage_context_id = v.usage_id
       ms_logger.param(l_node,'i_var.level',i_var.level);
   
       IF io_var_list.EXISTS(UPPER(i_var.name)) then
-        IF io_var_list(UPPER(l_var.name)).assign_var then
+        IF io_var_list(UPPER(l_var.name)).assign_var            and  
+           io_var_list(UPPER(l_var.name)).signature is not null then
           raise x_assign_var_exists;
         end if;
   
@@ -3107,7 +3108,8 @@ BEGIN
   
   END LOOP;
 
-  log_var_list(i_var_list => l_var_list);
+  log_new_var_list(i_old_var_list => i_var_list
+                  ,i_new_var_list => l_var_list);
 
   RETURN l_var_list;
  
@@ -3527,10 +3529,10 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
         --    l_index := l_type_defn_tab.NEXT(l_index);
         --  END LOOP;
         --END;
- 
-      ELSE
-        ms_logger.comment(l_node, 'Data type is unsupported, but it is in the list of scoped vars.');
-        ms_logger.comment(l_node, 'Data type assumed to be a TABLE_NAME');
+  
+      ELSIF l_var_list(l_var).type = 'ROWTYPE' then
+
+        ms_logger.comment(l_node, 'RowType should be a TABLE_NAME');
         ms_logger.note(l_node,'l_var_list(l_var).type',l_var_list(l_var).type);
         ms_logger.note(l_node,'l_var_list(l_var).rowtype',l_var_list(l_var).rowtype);
         --Data type is unsupported so it is the name of a table instead.
@@ -3545,12 +3547,17 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
            where table_name = l_var_list(l_var).rowtype 
            and   owner      = l_table_owner  ) LOOP
 
-           IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
-             note_var(i_var  => i_var||'.'||l_column.column_name --Use the original case
+           IF  l_column.column_name like lower(i_componant)||'%' and -- only show componants that match the search.
+              --This is NOT a perfect solution if original search was for TABLE.COL.X (if that is even possible)
+               regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
+             note_var(i_var  => lower(i_var)||'.'||l_column.column_name --Use the original case
                      ,i_type => l_column.data_type);
            END IF;
 
         END LOOP;  
+
+      ELSE  
+        ms_logger.warning(l_node, 'Data type is unsupported, but it was in the list of scoped vars.');
  
       END IF;
 

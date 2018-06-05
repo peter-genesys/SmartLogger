@@ -11,9 +11,11 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
   l_date_rec1 date_typ_rec;
   l_date_rec2 date_typ_rec;
  
-  function test4$(i_module ms_module%ROWTYPE
+  function test4$(i_module      ms_module%ROWTYPE
+                ,i_module_name  ms_module.module_name%TYPE
                 ,i_name_array  in OWA.vc_arr
-                ,o_unit      out ms_unit%ROWTYPE) return varchar2 is
+                ,o_unit        out ms_unit%ROWTYPE
+                ,o_unit_name   out ms_unit.unit_name%TYPE) return varchar2 is
     l_var number;
 
     cursor cu_user_tables is
@@ -67,6 +69,7 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
     end if;
  
     o_unit.unit_name := 'X';
+    o_unit_name := 'Y';
   end test4$;
 
 
