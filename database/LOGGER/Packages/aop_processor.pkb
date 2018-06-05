@@ -1523,7 +1523,7 @@ END;
 PROCEDURE compile_plsql(i_text         in clob
                        ,i_with_plscope in boolean default true
                        ,i_for_logger   in boolean default true) is
-  --PRAGMA AUTONOMOUS_TRANSACTION;
+  PRAGMA AUTONOMOUS_TRANSACTION;
 BEGIN     
 
   IF i_with_plscope then
@@ -1549,7 +1549,7 @@ BEGIN
   end if;
  
   execute immediate i_text;  --11G CLOB OK
-  --commit;
+  commit;
 END;
 
 
@@ -1580,7 +1580,6 @@ END;
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'validate_source');              
                       
     l_aop_source    aop_source%ROWTYPE;    
-   -- PRAGMA AUTONOMOUS_TRANSACTION;
  
   BEGIN     
  
