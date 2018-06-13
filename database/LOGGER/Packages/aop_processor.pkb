@@ -187,7 +187,7 @@ create or replace package body aop_processor is
   G_REGEX_RETURN_IS_AS_DECLARE    CONSTANT VARCHAR2(50) := '(\)|\s)\s*(RETURN|IS|AS|DECLARE)\s';
   G_REGEX_DEFAULT         CONSTANT VARCHAR2(20) := '(DEFAULT|:=)';
   
-  G_REGEX_PREDEFINED_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER'
+  G_REGEX_ATOMIC_TYPES CONSTANT VARCHAR2(200) := '(NUMBER|INTEGER|POSITIVE|BINARY_INTEGER|PLS_INTEGER'
                                                   ||'|DATE|VARCHAR2|VARCHAR|CHAR|BOOLEAN|CLOB)';
   
   G_REGEX_START_ANNOTATION      CONSTANT VARCHAR2(50) :=  '--(""|\?\?|!!|##|\^\^)';
@@ -198,6 +198,32 @@ create or replace package body aop_processor is
   G_REGEX_WARNING            CONSTANT VARCHAR2(50) := '--!!';
   G_REGEX_FATAL              CONSTANT VARCHAR2(50) := '--##';  
   G_REGEX_NOTE               CONSTANT VARCHAR2(50) := '--\^\^';  
+
+
+  FUNCTION is_atomic_type(i_type varchar2) return boolean is
+  BEGIN
+    --Various inaccurate ways to use the regex.  
+    --return regex_match(i_type,G_REGEX_ATOMIC_TYPES,'i')
+    --return G_REGEX_ATOMIC_TYPES like '%'||i_type||'%';
+    --return i_type is not null and
+    --       REGEXP_REPLACE(i_type,G_REGEX_ATOMIC_TYPES,'') is null
+
+    --Better just to do a simple IN and be accurate.
+    return i_type in ('NUMBER'
+                     ,'INTEGER'
+                     ,'POSITIVE'
+                     ,'BINARY_INTEGER'
+                     ,'PLS_INTEGER'
+                     ,'DATE'
+                     ,'VARCHAR2'
+                     ,'VARCHAR'
+                     ,'CHAR'
+                     ,'BOOLEAN'
+                     ,'CLOB');     
+  END;
+
+
+
 
 
 
@@ -804,13 +830,17 @@ END;
 
 
 
-
+--@TODO - does this ever return more than 1 record? yes - if looking at a record declaration.
 FUNCTION get_type_defn( i_signature   in varchar2) return identifier_tab is
   l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_type_defn');
 
  
   CURSOR cu_identifier is
-   select  c.name        col_name
+   select  d.name        defn_name
+          ,d.type        defn_type
+          ,c.name        col_name
+          ,c.type        col_type
+          ,c.signature   col_signature
           ,t.name        data_type
           ,t.type        data_class 
           ,t.signature   signature
@@ -837,12 +867,53 @@ FUNCTION get_type_defn( i_signature   in varchar2) return identifier_tab is
 begin --get_type_defn
   ms_logger.param(l_node,'i_signature',i_signature);
  BEGIN
+
+
+  --Find record details for a table.
+  --If d.type = 'INDEX TABLE' then look for the record defn 
+  --If c.type = 'RECORD' then return c.signature
+
+ 
    
    FOR l_identifier_rec IN cu_identifier LOOP
+
      l_index := l_index + 1;
      ms_logger.note(l_node,'l_index',l_index);
-     l_identifier_tab(l_index) := l_identifier_rec;
-     ms_logger.note(l_node,'l_identifier_rec.col_name',l_identifier_rec.col_name);
+
+     IF l_identifier_rec.defn_type = 'INDEX TABLE' THEN
+       --@TODO need to check whether there was an index in the record name or not...
+        IF l_identifier_rec.col_type  = 'RECORD' then
+          l_identifier_tab :=  get_type_defn( i_signature => l_identifier_rec.col_signature);
+          --exit; --@TODO test whether this works with tables in records...
+        ELSIF l_identifier_rec.col_type  like '%DATATYPE' then
+          ms_logger.comment(l_node,'INDEX TABLE of atomic data type.');
+ 
+          l_identifier_tab(l_index).col_name   := null;
+          l_identifier_tab(l_index).data_type  := l_identifier_rec.col_name;
+          l_identifier_tab(l_index).data_class := l_identifier_rec.col_type;
+          l_identifier_tab(l_index).signature  := l_identifier_rec.col_signature;
+
+        ELSE
+          ms_logger.note(l_node,'l_identifier_rec.col_type',l_identifier_rec.col_type);
+          ms_logger.fatal(l_node,'INDEX TABLE found but unexpected col_type');
+          --exit;
+        END IF;
+ 
+     ELSE
+
+       l_identifier_tab(l_index).col_name   := l_identifier_rec.col_name;
+       l_identifier_tab(l_index).data_type  := l_identifier_rec.data_type;
+       l_identifier_tab(l_index).data_class := l_identifier_rec.data_class;
+       l_identifier_tab(l_index).signature  := l_identifier_rec.signature;
+
+     END IF;   
+
+     ms_logger.note(l_node,'l_identifier_tab(l_index).col_name' ,l_identifier_tab(l_index).col_name);
+     ms_logger.note(l_node,'l_identifier_tab(l_index).data_type',l_identifier_tab(l_index).data_type);
+     ms_logger.note(l_node,'l_identifier_tab(l_index).data_class',l_identifier_tab(l_index).data_class);
+     ms_logger.note(l_node,'l_identifier_tab(l_index).signature',l_identifier_tab(l_index).signature);
+ 
+
    END LOOP;
 
    ms_logger.note(l_node,'l_identifier_tab.count',l_identifier_tab.count);
@@ -927,8 +998,8 @@ end; --get_type_defn
         l_var.type := 'ROWTYPE'; --BEWARE %rowtype is also used with cursors.
       end if;
     else
-      if regex_match(l_var.type,G_REGEX_PREDEFINED_TYPES,'i') then
-        ms_logger.comment(l_node, 'Found predefined Type'); 
+      if is_atomic_type(i_type => l_var.type ) then
+        ms_logger.comment(l_node, 'Found Atomic Type'); 
       else
         if i_signature is not null then
           ms_logger.comment(l_node, 'Create with known signature'); 
@@ -1228,7 +1299,7 @@ BEGIN
     
     CASE
       --Check type of param
-      WHEN regex_match(i_param_list(l_index).type,G_REGEX_PREDEFINED_TYPES,'i') THEN
+      WHEN is_atomic_type(i_type => i_param_list(l_index).type) THEN
         ms_logger.comment(l_node, 'Copy simple param to new list.');
         store_param_list(i_param       => i_param_list(l_index)
                         ,io_param_list => l_expanded_param_list);
@@ -2331,7 +2402,7 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
  
     
   l_var_def                      CLOB;
-  G_REGEX_PARAM_PREDEFINED       CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_PREDEFINED_TYPES;
+  G_REGEX_PARAM_PREDEFINED       CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||G_REGEX_ATOMIC_TYPES;
   G_REGEX_PARAM_ROWTYPE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')%ROWTYPE';                     --Table row type
   G_REGEX_PARAM_COLTYPE          CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')\.('||G_REGEX_WORD||')%TYPE'; --Table column Type
   G_REGEX_CUSTOM_PLSQL_TYPE_2WD  CONSTANT VARCHAR2(200) := G_REGEX_NAME_IN_OUT||'('||G_REGEX_WORD||')\.('||G_REGEX_WORD||')';
@@ -2385,7 +2456,7 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
 
 
  /*
-    IF regex_match(i_param_type,G_REGEX_PREDEFINED_TYPES,'i') THEN
+    IF regex_match(i_param_type,G_REGEX_ATOMIC_TYPES,'i') THEN
  
       IF i_in_var OR NOT i_out_var THEN
           --IN and IN OUT and (implicit IN) included in the param input list.
@@ -2417,7 +2488,7 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
 
     ELSE
     
-      ms_logger.warning(l_node, 'Not a predefined type. '||G_REGEX_PREDEFINED_TYPES);      
+      ms_logger.warning(l_node, 'Not a predefined type. '||G_REGEX_ATOMIC_TYPES);      
  
     END IF;
     */
@@ -2606,10 +2677,8 @@ BEGIN
                      ms_logger.note(l_node, 'l_column.data_type',l_column.data_type);
                       
                       --Restrict to atomic types.
-                      IF G_REGEX_PREDEFINED_TYPES like '%'||l_column.data_type||'%' THEN
-
-                        --regex_match(l_column.data_type,G_REGEX_PREDEFINED_TYPES,'i')
-
+                      IF is_atomic_type(i_type => l_column.data_type) THEN
+ 
                           l_param_found := TRUE;
                           store_var_def(i_param_name  => l_param_name||'.'||l_column.column_name
                                        ,i_param_type  => l_column.data_type
@@ -2971,7 +3040,7 @@ FUNCTION AOP_var_defs(i_var_list IN var_list_typ
 
   G_REGEX_NAME     CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?';
 
-  G_REGEX_PARAM_PREDEFINED    CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?'||G_REGEX_PREDEFINED_TYPES||'\W';
+  G_REGEX_PARAM_PREDEFINED    CONSTANT VARCHAR2(200) := '\s('||G_REGEX_WORD||'?)\s+?'||G_REGEX_ATOMIC_TYPES||'\W';
   G_REGEX_PARAM_ROWTYPE       CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?%ROWTYPE';
   G_REGEX_PARAM_COLTYPE       CONSTANT VARCHAR2(200) := '\s'||G_REGEX_WORD||'?\s+?'||G_REGEX_WORD||'?\.'||G_REGEX_WORD||'?%TYPE';
   
@@ -3027,7 +3096,7 @@ BEGIN
                       ,i_pu_stack  => i_pu_stack);
 
     
-        --IF  regex_match(l_param_type , G_REGEX_PREDEFINED_TYPES) THEN
+        --IF  regex_match(l_param_type , G_REGEX_ATOMIC_TYPES) THEN
         ----Supported data type so store in the var list.
         --  store_var_list(i_var  _name => l_param_name
         --                ,i_param_type => l_param_type
@@ -3067,7 +3136,7 @@ BEGIN
        where table_name = l_table_name 
        and   owner      = l_table_owner  ) LOOP
 
-         IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
+         IF is_atomic_type(i_type => l_column.data_type) THEN
            --store_var_list(i_var  _name => l_param_name||'.'||l_column.column_name
            --              ,i_param_type => l_column.data_type
            --              ,io_var_list  => l_var_list );
@@ -3104,7 +3173,7 @@ BEGIN
        and   column_name = l_column_name 
        and   owner       = l_table_owner  ) LOOP
 
-         IF  regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
+         IF  is_atomic_type(i_type => l_column.data_type) THEN
        
           --store_var_list(i_var  _name => l_param_name
           --              ,i_param_type => l_column.data_type
@@ -3395,7 +3464,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_into_var_list         var_list_typ;
   l_index                 binary_integer;
   l_var                   VARCHAR2(100);
-  l_var_no_brackets       VARCHAR2(100);
+  l_var_name              VARCHAR2(100);
 
   l_exception_section     BOOLEAN :=FALSE;
 
@@ -3471,18 +3540,34 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                     ,i_type in varchar2) IS   
     l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_var');
     -- Note a variable 
+    Q_Open  varchar2(3);
+    Q_Close varchar2(3);
   BEGIN
     ms_logger.param(l_node,'i_var' ,i_var);
     ms_logger.param(l_node,'i_type',i_type);
+    if i_var like '%{{string:%}}%' then
+      --var name contains a string constant
+      --so need to wrap the var in special quotes
+      -- "q'[" and "]'"
+        Q_Open  := 'q''[';
+        Q_Close := ']''';
+    else
+      --otherwise just use the simple version
+      -- "'" and "'"
+        Q_Open  := '''';
+        Q_Close := '''';
+    end if;
+      
     IF i_type = 'CLOB' THEN
-      inject( i_new_code   => 'ms_logger.note_clob(l_node,'''||i_var||''','||i_var||');'
+      inject( i_new_code   => 'ms_logger.note_clob(l_node,'||Q_Open||i_var||Q_Close||','||i_var||');'
              ,i_indent     => i_indent
              ,i_colour     => G_COLOUR_NOTE);
     ELSE
-      inject( i_new_code   => 'ms_logger.note(l_node,'''||i_var||''','||i_var||');'
+      inject( i_new_code   => 'ms_logger.note(l_node,'||Q_Open||i_var||Q_Close||','||i_var||');'
              ,i_indent     => i_indent
              ,i_colour     => G_COLOUR_NOTE);
     END IF;
+
   END;
 
 
@@ -3497,33 +3582,36 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 
       procedure note_record(i_name_prefix in varchar2
                            ,i_signature   in varchar2) is
+      l_node      ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_record');
       --This procedure is modular, but currently only called by note_complex_var
 
        --Find columns for this signature.
  
          l_type_defn_tab identifier_tab;
-         l_index binary_integer;
-         l_col_name varchar2(1000);
+         l_index         binary_integer;
+         l_col_name      varchar2(1000);
        BEGIN
          l_type_defn_tab := get_type_defn(i_signature => i_signature);
          l_index := l_type_defn_tab.FIRST;
          WHILE l_index is not null loop
            
-           if regex_match(l_type_defn_tab(l_index).col_name , G_REGEX_PREDEFINED_TYPES) THEN 
-             --Record is just a single unnamed column
+           if l_type_defn_tab(l_index).col_name is null  THEN 
+              ms_logger.comment(l_node,'Record is just a single unnamed column');
               note_var(i_var  => i_name_prefix
-                      ,i_type => l_type_defn_tab(l_index).col_name);
+                      ,i_type => l_type_defn_tab(l_index).data_type);
            else   
 
              l_col_name := lower(i_name_prefix||'.'||l_type_defn_tab(l_index).col_name);
-             IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
-
+             IF  is_atomic_type(i_type => l_type_defn_tab(l_index).data_type) THEN 
+                ms_logger.comment(l_node,'Record.Column is an atomic type');
                 note_var(i_var  => l_col_name
                         ,i_type => l_type_defn_tab(l_index).data_type);
-             ELSE 
-                 --recursively search lower levels.
+             ELSIF   l_type_defn_tab(l_index).data_class = 'RECORD' then
+                 ms_logger.comment(l_node,'Record.Column is another record, recursively search lower record.');
                  note_record(i_name_prefix => l_col_name
                             ,i_signature   => l_type_defn_tab(l_index).signature);
+             ELSE
+                 ms_logger.fatal(l_node,'Record.Column is unrecognised type');    
              END IF;    
            END IF;
 
@@ -3542,7 +3630,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
       ms_logger.comment(l_node, 'Scoped Var');
       --ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type);
       ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type);
-      IF  regex_match(l_var_list(l_var).type , G_REGEX_PREDEFINED_TYPES) THEN
+      IF is_atomic_type(i_type => l_var_list(l_var).type)   THEN
         --Data type is supported.
         ms_logger.comment(l_node, 'Data type is supported');
         --So we can write a note for it.
@@ -3566,7 +3654,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
         --  l_index := l_type_defn_tab.FIRST;
         --  WHILE l_index is not null loop
         --    
-        --    IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
+        --    IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_ATOMIC_TYPES) THEN 
         --      --@TODO This needs to be able to recursively search lower levels.
         --       note_var(i_var  => lower(i_var||'.'||l_type_defn_tab(l_index).col_name)
         --               ,i_type => l_type_defn_tab(l_index).data_type);
@@ -3595,7 +3683,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 
            IF  l_column.column_name like lower(i_componant)||'%' and -- only show componants that match the search.
               --This is NOT a perfect solution if original search was for TABLE.COL.X (if that is even possible)
-               regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
+               is_atomic_type(i_type => l_column.data_type) THEN
              note_var(--i_var  => lower(i_var)||'.'||l_column.column_name --Use the original case
                       i_var    => i_var_name||'.'||l_column.column_name --Use the original case
                      ,i_type => l_column.data_type);
@@ -3873,26 +3961,26 @@ BEGIN --AOP_block
         l_var := REGEXP_REPLACE(l_var,'{{comment:\w*}}',''); --Remove {{comment:1}} entirely
         ms_logger.note(l_node, 'l_var',l_var);
 
-        --Set l_var_no_brackets from l_var, Removing all bracketed subterms
-        l_var_no_brackets := l_var;
+        --Remember l_var_name, then remove all bracketed subterms from l_var
+        l_var_name := l_var;
         declare
           l_prev varchar2(100) := l_var;
         begin
-          while l_var_no_brackets like '%(%)%' LOOP
+          while l_var like '%(%)%' LOOP
             --contains bracketed term that needs to be removed.
-            l_var_no_brackets := REGEXP_REPLACE(l_var_no_brackets,'\([^()]*\)',''); --remove any set of brackets containing non-brackets
-            ms_logger.note(l_node, 'l_var_no_brackets',l_var_no_brackets);
-            if l_var_no_brackets = l_prev then
+            l_var := REGEXP_REPLACE(l_var,'\([^()]*\)',''); --remove any set of brackets containing non-brackets
+            ms_logger.note(l_node, 'l_var',l_var);
+            if l_var = l_prev then
               ms_logger.fatal(l_node, 'Unable to remove bracketed term.');
               exit;
             end if;
-            l_prev := l_var_no_brackets;
+            l_prev := l_var;
           end loop;
         end;
   
         --note the complex var with both var full name and var index name
-        note_complex_var(i_var_name   => l_var
-                        ,i_var        => l_var_no_brackets);
+        note_complex_var(i_var_name   => l_var_name
+                        ,i_var        => l_var);
 
 /*
         --G_REGEX_ASSIGN_COMPLEX_TYPE   CONSTANT VARCHAR2(50) :=  '(THEN|>>|;|BEGIN|ELSE)+([\s\w().]*)(:=)'; --supports arrays
@@ -4675,7 +4763,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
       ms_logger.note(l_node, 'l_var.name'     ,l_var.name);
       ms_logger.note(l_node, 'l_var.data_type',l_var.data_type);
 
-      IF  regex_match(l_var.data_type , G_REGEX_PREDEFINED_TYPES) THEN
+      IF  is_atomic_type(i_type => l_var.data_type)  THEN
           ms_logger.comment(l_node, 'Found predefined type variable in Package Spec');
           --l_var_list(l_var.name) := l_var; 
           --@TODO check that this info is used correctly later.
@@ -4710,7 +4798,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
             l_index := l_type_defn_tab.FIRST;
             WHILE l_index is not null loop
               
-              IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
+              IF  is_atomic_type(i_type => l_type_defn_tab(l_index).data_type) THEN 
                 --@TODO This needs to be able to recursively search lower levels.
                 ms_logger.note(l_node, l_type_defn_tab(l_index).col_name ,l_type_defn_tab(l_index).data_type);
                 --Add the Record Type
@@ -5335,7 +5423,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
           WHEN regex_match(l_keyword , G_REGEX_START_ADV_STRING)  THEN  
             ms_logger.info(l_node, 'Multi Line Adv Quote');  
             --REMOVE ADVANCED STRINGS - MULTI_LINE
-            --Find "q'[" and remove to next "]'", variations in clude [] {} <> () and any single printable char.
+            --Find "q'[" and remove to next "]'", variations include [] {} <> () and any single printable char.
             extract_strings(i_mask => G_REGEX_MULTI_LINE_ADV_STRING);
               
           WHEN regex_match(l_keyword , G_REGEX_START_STRING)  THEN  

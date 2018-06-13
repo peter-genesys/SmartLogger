@@ -246,8 +246,9 @@ create or replace package body aop_test2 is
     test_array.l_nam_tab := l_nam_tab2;
 
     l_tab_of_rec(1).anum := 1;
+    l_tab_of_rec('1').anum := 1;
     l_tab_of_rec(1) := l_rec;
-    l_tab_of_rec := l_tab_of_rec;
+    l_tab_of_rec := l_tab_of_rec; --notes are not supported for whole tables.
  
   END;
 
