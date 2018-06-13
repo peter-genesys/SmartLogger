@@ -16,6 +16,8 @@ create or replace package body aop_test2 is
 
   body_simple_var1 number;
 
+  type body_rec_tab_typ is table of body_rec_typ index by binary_integer;
+
 
   procedure scope_test is
     l_var number;
@@ -202,6 +204,54 @@ create or replace package body aop_test2 is
     aop_test.g_test3 := 1;
  
   END;
+
+  procedure test_comment_within_formatting is
+  BEGIN
+    aop_test. --comment within term (not supported)
+             g_test3 := 1;
+
+    aop_test.  
+             g_test3 := 1; --line break within term (not supported)
+
+    aop_test.g_test3  := 1; --term on one line (supported)
+
+    aop_test.g_test3  
+                      := 1; --assignment on a different line (supported)
+
+    aop_test.g_test3 --comment between term and assign (supported)
+                     --comment between term and assign (supported)
+                     := 1;
+
+  END;
+
+
+
+  procedure test_array is
+
+   
+    type name_tab_typ is table of varchar2(100) index by binary_integer;
+    l_nam_tab    name_tab_typ;
+    l_nam_tab2   name_tab_typ;
+    l_tab_of_rec body_rec_tab_typ;
+    l_rec        body_rec_typ;
+    x number;
+
+  BEGIN
+    if x = 1 then 
+      null;
+    end if;
+    l_nam_tab(2) := 'MARY';
+    l_nam_tab := l_nam_tab2;
+    
+    test_array.l_nam_tab := l_nam_tab2;
+
+    l_tab_of_rec(1).anum := 1;
+    l_tab_of_rec(1) := l_rec;
+    l_tab_of_rec := l_tab_of_rec;
+ 
+  END;
+
+
 
  
 BEGIN

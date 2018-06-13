@@ -91,7 +91,13 @@ create or replace package body aop_processor is
   G_REGEX_WORD           CONSTANT VARCHAR2(50) := G_REGEX_WORD_CHAR||'+';  
   G_REGEX_2WORDS         CONSTANT VARCHAR2(50) := G_REGEX_WORD||'\.'||G_REGEX_WORD;
 
-  G_REGEX_ANY_WORDS      CONSTANT VARCHAR2(50) := '(\w|\#|\$)+(\.(\w|\#|\$)+)*'; --Eg 'abd.dfg.hij'
+  G_REGEX_ANY_WORDS      CONSTANT VARCHAR2(50) := '(\w|\#|\$|\(|\))+(\.(\w|\#|\$)+)*'; --Eg 'abd.dfg.hij'  works with l_nam_tab(2)
+  --G_REGEX_ANY_WORDS      CONSTANT VARCHAR2(50) := '(\w|\#|\$|\(|\))+(\.(\w|\#|\$|\(|\))+)*'; --Eg 'abd.dfg.hij' --fails with l_nam_tab(2).rec(1) 
+
+  --G_REGEX_ANY_WORDS      CONSTANT VARCHAR2(50) := '(\.|\w|\#|\$|\(|\))+'; loops
+
+  --G_REGEX_ANY_WORDS      CONSTANT VARCHAR2(50) :='[a-zA-Z0-9.() $_]+'; This works fine is regextester, but not here.  just disappears.
+
 
   G_REGEX_2_QUOTED_WORDS CONSTANT VARCHAR2(50) := '"*'||G_REGEX_WORD||'"*\."*'||G_REGEX_WORD||'"*'; --quotes are optional    
 
@@ -1046,7 +1052,7 @@ and   t.usage_context_id = v.usage_id
      --      l_var        := REGEXP_REPLACE(l_var,'.'||G_REGEX_WORD||'$',''); --remove the last word
      --      ms_logger.note(l_node,'l_var',l_var);
 --
-     --      note_non_bind_var(i_var       => l_var
+     --      note_complex_var(i_var       => l_var
      --                       ,i_componant => i_componant||'.'||l_componant );
      --   end;
      -- else
@@ -1818,6 +1824,20 @@ BEGIN
   RETURN REGEXP_REPLACE(i_words,G_REGEX_WHITE,' ');
 END;
 
+--------------------------------------------------------------------
+-- shrink
+--------------------------------------------------------------------
+/** PRIVATE
+* Use REGEXP_REPLACE to remove all whitespace in i_words
+* @param i_words Source Text to be trimmed.
+* @return Source Text with no whitespace
+*/
+FUNCTION shrink(i_words IN VARCHAR2) RETURN VARCHAR2 IS
+  G_REGEX_WHITE CONSTANT VARCHAR2(20) := '\s';
+BEGIN
+  RETURN REGEXP_REPLACE(i_words,G_REGEX_WHITE,'');
+END;
+
 
 --------------------------------------------------------------------
 -- REGEXP_INSTR_NOT0
@@ -1966,12 +1986,15 @@ BEGIN --GET_NEXT
 
     ms_logger.comment(l_node, 'Choosing search param');
  
+ --@TODO May be useful to test the after pos, instead of the before position esp WRT '.*:='
+    --Find out which seach terms (i_srch_before or i_srch_after) find the first result.
     l_srch_before_pos  := REGEXP_INSTR_NOT0(io_code,i_srch_before,io_current_pos,1,0,i_modifier);
     l_srch_after_pos   := REGEXP_INSTR_NOT0(io_code,i_srch_after ,io_current_pos,1,0,i_modifier);
 
     ms_logger.note(l_node, 'l_srch_before_pos',l_srch_before_pos);
     ms_logger.note(l_node, 'l_srch_after_pos',l_srch_after_pos);
  
+    --Use search before, if that term yields the first (earliest) result.  Otherwise search after.
     l_use_srch_before := l_srch_before_pos < l_srch_after_pos;
  
   end if;
@@ -3139,7 +3162,7 @@ PROCEDURE labelled_block_extras(io_var_list IN OUT var_list_typ
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'labelled_block_extras'); 
 
 begin  
-
+  --@TODO This cannot remain a global value (g_recent_label)
   --Labelled block. (Not needed for an unnamed block as these assignments are picked up in the parent block.)
   if g_recent_label is not null then
     --There is a recent label, so we'll add it to the pu stack, to help identify variables.
@@ -3372,13 +3395,29 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   l_into_var_list         var_list_typ;
   l_index                 binary_integer;
   l_var                   VARCHAR2(100);
+  l_var_no_brackets       VARCHAR2(100);
 
   l_exception_section     BOOLEAN :=FALSE;
 
   G_REGEX_VAR_ASSIGN          CONSTANT VARCHAR2(50) :=  '\s*?:=';
+
+  --Capture term prior to the assignment, but the term must be on one line
+  --G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '.*\s*:='; 
+  --G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '(.|\s)*:='; --Capture everything prior to the assignment
+  --G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '(.|\s)*:='; --Capture everything prior to the assignment
+
+  --Capture everything prior to the assignment, including newlines, but excluding ;
+  --G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '[^;\n]*:=';  
+ 
+  --Capture term prior to the assignment, but the term must be on one line.
+  --Allows for comments on lines between term and :=
+  G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '.*(\s*{{comment:\w*}})*\s*:='; 
+
  
   G_REGEX_ASSIGN_TO_ANY_WORDS   CONSTANT VARCHAR2(50) :=  G_REGEX_ANY_WORDS||G_REGEX_VAR_ASSIGN;
   
+  --G_REGEX_ASSIGN_COMPLEX_TYPE   CONSTANT VARCHAR2(50) :=  '(THEN|>>|;|BEGIN|ELSE)+[\s\w().]*:='; --supports arrays
+ 
   G_REGEX_ASSIGN_TO_REC_COL   CONSTANT VARCHAR2(50) :=  G_REGEX_2WORDS     ||'\s*?:=';
 
   --matches on both G_REGEX_ASSIGN_TO_BIND_VAR andG_REGEX_ASSIGN_TO_ANY_WORDS
@@ -3447,20 +3486,18 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   END;
 
 
-
-
-
  
-  PROCEDURE note_non_bind_var(i_var        in varchar2
-                             ,i_componant  in varchar2 default null) IS
+  PROCEDURE note_complex_var(i_var_name   in varchar2
+                            ,i_var        in varchar2
+                            ,i_componant  in varchar2 default null) IS
     -- find assignment of non-bind variable and inject a note
-    l_node      ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_non_bind_var');
+    l_node      ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_complex_var');
     l_var       varchar2(1000) := upper(i_var);
     
 
       procedure note_record(i_name_prefix in varchar2
                            ,i_signature   in varchar2) is
-      --This procedure is modular, but currently only called by note_non_bind_var
+      --This procedure is modular, but currently only called by note_complex_var
 
        --Find columns for this signature.
  
@@ -3472,15 +3509,22 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
          l_index := l_type_defn_tab.FIRST;
          WHILE l_index is not null loop
            
-           l_col_name := lower(i_name_prefix||'.'||l_type_defn_tab(l_index).col_name);
-           IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
+           if regex_match(l_type_defn_tab(l_index).col_name , G_REGEX_PREDEFINED_TYPES) THEN 
+             --Record is just a single unnamed column
+              note_var(i_var  => i_name_prefix
+                      ,i_type => l_type_defn_tab(l_index).col_name);
+           else   
 
-              note_var(i_var  => l_col_name
-                      ,i_type => l_type_defn_tab(l_index).data_type);
-           ELSE 
-               --recursively search lower levels.
-               note_record(i_name_prefix => l_col_name
-                          ,i_signature   => l_type_defn_tab(l_index).signature);
+             l_col_name := lower(i_name_prefix||'.'||l_type_defn_tab(l_index).col_name);
+             IF  regex_match(l_type_defn_tab(l_index).data_type , G_REGEX_PREDEFINED_TYPES) THEN 
+
+                note_var(i_var  => l_col_name
+                        ,i_type => l_type_defn_tab(l_index).data_type);
+             ELSE 
+                 --recursively search lower levels.
+                 note_record(i_name_prefix => l_col_name
+                            ,i_signature   => l_type_defn_tab(l_index).signature);
+             END IF;    
            END IF;
 
            l_index := l_type_defn_tab.NEXT(l_index);
@@ -3488,26 +3532,28 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
        END;
 
 
-  BEGIN --note_non_bind_var 
+  BEGIN --note_complex_var 
+    ms_logger.param(l_node,'i_var_name' ,i_var_name);
     ms_logger.param(l_node,'i_var'      ,i_var);
     ms_logger.param(l_node,'i_componant',i_componant);
     ms_logger.note(l_node,'l_var'       ,l_var);
     IF l_var_list.EXISTS(l_var) THEN
       --This variable exists in the list of scoped variables with compatible types    
       ms_logger.comment(l_node, 'Scoped Var');
+      --ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type);
       ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type);
       IF  regex_match(l_var_list(l_var).type , G_REGEX_PREDEFINED_TYPES) THEN
         --Data type is supported.
         ms_logger.comment(l_node, 'Data type is supported');
         --So we can write a note for it.
-        note_var(i_var  => l_var_list(l_var).name  
+        note_var(i_var  => i_var_name --l_var_list(l_var).name  
                 ,i_type => l_var_list(l_var).type);
 
 
       ELSIF  identifier_exists(i_signature => l_var_list(l_var).signature) THEN
         ms_logger.comment(l_node, 'Signature is known');
 
-        note_record(i_name_prefix  => lower(i_var)
+        note_record(i_name_prefix  => lower(i_var_name)
                    ,i_signature    => l_var_list(l_var).signature);
         
         
@@ -3550,7 +3596,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
            IF  l_column.column_name like lower(i_componant)||'%' and -- only show componants that match the search.
               --This is NOT a perfect solution if original search was for TABLE.COL.X (if that is even possible)
                regex_match(l_column.data_type , G_REGEX_PREDEFINED_TYPES) THEN
-             note_var(i_var  => lower(i_var)||'.'||l_column.column_name --Use the original case
+             note_var(--i_var  => lower(i_var)||'.'||l_column.column_name --Use the original case
+                      i_var    => i_var_name||'.'||l_column.column_name --Use the original case
                      ,i_type => l_column.data_type);
            END IF;
 
@@ -3567,15 +3614,19 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
         ms_logger.comment(l_node, 'Let us remove the last componant and try again');
         declare
           l_componant varchar2(1000);
+          l_new_var   varchar2(1000);
         begin
            l_componant  := REGEXP_SUBSTR(l_var,G_REGEX_WORD||'$',1,1,'i');
            ms_logger.note(l_node,'l_componant',l_componant);
-           l_var        := REGEXP_REPLACE(l_var,'.'||G_REGEX_WORD||'$',''); --remove the last word
-           ms_logger.note(l_node,'l_var',l_var);
-
-           note_non_bind_var(i_var       => l_var
-                            --,i_componant => i_componant||'.'||l_componant );
-                            ,i_componant => RTRIM(l_componant||'.'||i_componant ,'.'));
+           l_new_var    := REGEXP_REPLACE(l_var,'.'||G_REGEX_WORD||'$',''); --remove the last word
+           ms_logger.note(l_node,'l_new_var',l_new_var);
+           if length(l_new_var) < length(l_var) then
+             note_complex_var(i_var_name  => i_var_name
+                             ,i_var       => l_new_var
+                             ,i_componant => RTRIM(l_componant||'.'||i_componant ,'.'));
+           else 
+             ms_logger.fatal(l_node, 'Unable to remove last componant.');
+           end if;
         end;
       else
         ms_logger.warning(l_node, 'Var not known '||i_var||'.'||i_componant); --RTRIM(i_var||'.'||i_componant,'.');
@@ -3616,6 +3667,9 @@ BEGIN --AOP_block
  
   loop
  
+    --The first match attempts to get the next keyword.  It includes a range of general search terms.
+    --From this we get the keywords, but will use the another search of the keywords to determine what we have found.
+ 
   l_keyword := get_next(  i_srch_before  =>   G_REGEX_OPEN
                                        ||'|'||G_REGEX_NEUTRAL
                                        ||'|'||G_REGEX_CLOSE
@@ -3627,7 +3681,8 @@ BEGIN --AOP_block
                                        --||'|'||G_REGEX_SELECT_FETCH_INTO          
                           ,i_stop          => G_REGEX_START_ANNOTATION --don't colour it
                                        --||'|'||G_REGEX_ASSIGN_TO_REC_COL
-                                       ||'|'||G_REGEX_ASSIGN_TO_VARS
+                                       --||'|'||G_REGEX_ASSIGN_TO_ANY_WORDS
+                                       ||'|'||G_REGEX_ASSIGNMENT
                                        
                           ,i_upper        => TRUE
                           ,i_colour       => G_COLOUR_BLOCK
@@ -3774,10 +3829,116 @@ BEGIN --AOP_block
         note_var(i_var  => l_var
                 ,i_type => NULL);
 
-      WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_ANY_WORDS) THEN  
-        ms_logger.info(l_node, 'Assign Any number of words');
-        l_var := find_var(i_search => G_REGEX_ANY_WORDS);
-        note_non_bind_var(i_var => l_var);
+      --WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_VARS) THEN  
+        --Need to clean the l_keyword
+        --ms_logger.note(l_node, 'l_keyword',l_keyword);
+        
+       -- ms_logger.info(l_node, 'Assign Complex words');
+       --   l_var := find_var(i_search => G_REGEX_ASSIGN_TO_VARS);
+          
+      --  --Clean the string
+      --  l_var := REGEXP_REPLACE(l_var,'{{\w*:\w*}}',''); --Remove {{comment:1}} entirely
+      --  ms_logger.note(l_node, 'l_var',l_var);
+--
+      --  --strip all whitespace
+      --  l_var := shrink(i_words => l_var);
+      --  ms_logger.note(l_node, 'l_var',l_var);
+--
+--
+      --  l_var_no_brackets := l_var;
+      --  --while l_var_no_brackets like '%(%)%' LOOP --THOUGHT THIS CAUSED infinit loop but no, thats not it.
+      --    l_var_no_brackets := REGEXP_REPLACE(l_var_no_brackets,'\([^()]*\)','');
+      --    ms_logger.note(l_node, 'l_var_no_brackets',l_var_no_brackets);
+      --  --end loop;
+--
+      --  --then note what is left
+      --   --note_complex_var(i_var => l_var_no_brackets);
+ 
+      WHEN regex_match(l_keyword ,G_REGEX_ASSIGNMENT) THEN  
+        ms_logger.info(l_node, 'General Assignment');
+  
+        --using G_REGEX_ASSIGNMENT to highlight the original text
+        l_var := find_var(i_search => G_REGEX_ASSIGNMENT);
+        ms_logger.note(l_node, 'l_var',l_var);
+
+        --remove trailing :=
+        l_var := REGEXP_REPLACE(l_var,':=$',''); 
+        ms_logger.note(l_node, 'l_var',l_var);
+
+        --strip all whitespace
+        l_var := shrink(i_words => l_var);
+        ms_logger.note(l_node, 'l_var',l_var);
+
+        --remove any comment tags, but keep string tags
+        l_var := REGEXP_REPLACE(l_var,'{{comment:\w*}}',''); --Remove {{comment:1}} entirely
+        ms_logger.note(l_node, 'l_var',l_var);
+
+        --Set l_var_no_brackets from l_var, Removing all bracketed subterms
+        l_var_no_brackets := l_var;
+        declare
+          l_prev varchar2(100) := l_var;
+        begin
+          while l_var_no_brackets like '%(%)%' LOOP
+            --contains bracketed term that needs to be removed.
+            l_var_no_brackets := REGEXP_REPLACE(l_var_no_brackets,'\([^()]*\)',''); --remove any set of brackets containing non-brackets
+            ms_logger.note(l_node, 'l_var_no_brackets',l_var_no_brackets);
+            if l_var_no_brackets = l_prev then
+              ms_logger.fatal(l_node, 'Unable to remove bracketed term.');
+              exit;
+            end if;
+            l_prev := l_var_no_brackets;
+          end loop;
+        end;
+  
+        --note the complex var with both var full name and var index name
+        note_complex_var(i_var_name   => l_var
+                        ,i_var        => l_var_no_brackets);
+
+/*
+        --G_REGEX_ASSIGN_COMPLEX_TYPE   CONSTANT VARCHAR2(50) :=  '(THEN|>>|;|BEGIN|ELSE)+([\s\w().]*)(:=)'; --supports arrays
+
+        l_var := find_var(i_search => G_REGEX_ASSIGN_COMPLEX_TYPE);
+        ms_logger.note(l_node, 'l_var',l_var);
+        l_var := REGEXP_REPLACE(l_var,G_REGEX_ASSIGN_COMPLEX_TYPE,'/3') ;
+        ms_logger.note(l_node, 'l_var',l_var);
+
+        --remove the leading operator - (THEN|>>|;|BEGIN|ELSE)
+        --select REGEXP_REPLACE('BEGIN ; tab(x(1.2.3)).col {{comment:12}}X ','(THEN|>>|;|BEGIN|ELSE)','',1,1) from dual
+        --Or could use the leading operator ^
+        --REGEXP_REPLACE(' BEGIN ; tab(x(1.2.3)).col {{comment:12}}X ','^(THEN|>>|;|BEGIN|ELSE)','') 
+
+        --Clean the string
+        l_var := REGEXP_REPLACE(l_var,'{{\w*:\w*}}','') --Remove {{comment:1}} entirely
+        ms_logger.note(l_node, 'l_var',l_var);
+
+        --strip all whitespace
+        l_var := shrink(i_words => l_var);
+        ms_logger.note(l_node, 'l_var',l_var);
+
+        l_var_no_brackets := l_var;
+        while l_var_no_brackets like '%(%)%' LOOP
+          l_var_no_brackets := REGEXP_REPLACE(l_var_no_brackets,'\([^()]*\)','');
+          ms_logger.note(l_node, 'l_var',l_var);
+        end loop;
+
+
+
+ 
+          --Remove ()   but keep for later
+          --@TODO - new version of find_var - can match on G_REGEX_ANY_WORDS but store orgin name too. (or perhaps write that on return)
+          --        and note_complex_var
+
+
+        
+          ms_logger.info(l_node, 'Assign Any number of words');
+          l_var := find_var(i_search => G_REGEX_ANY_WORDS);
+          note_complex_var(i_var => l_var);
+         */
+
+      --WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_ANY_WORDS) THEN  
+      --  ms_logger.info(l_node, 'Assign Any number of words');
+      --  l_var := find_var(i_search => G_REGEX_ANY_WORDS);
+      --  note_complex_var(i_var => l_var);
  
       --WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
       --  ms_logger.info(l_node, 'Assign Record.Column');
@@ -3785,11 +3946,12 @@ BEGIN --AOP_block
       --  l_var := find_var(i_search => G_REGEX_REC_COL);
       --  note_rec_col_var(i_var => l_var);
 
-      WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN  
-        ms_logger.info(l_node, 'Assign Var');  
-
-        l_var := find_var(i_search => G_REGEX_VAR);
-        note_non_bind_var(i_var => l_var);
+      --PAB No longer needed - covered by the general case G_REGEX_ANY_WORDS
+      --WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN  
+      --  ms_logger.info(l_node, 'Assign Var');  
+      --
+      --  l_var := find_var(i_search => G_REGEX_VAR);
+      --  note_complex_var(i_var => l_var);
 
  
       WHEN regex_match(l_keyword ,G_REGEX_SELECT_FETCH_INTO  ) THEN   
@@ -3831,7 +3993,9 @@ BEGIN --AOP_block
           CASE 
             WHEN regex_match(l_var ,G_REGEX_BIND_VAR) THEN note_var(i_var  => l_var
                                                                    ,i_type => NULL);
-            WHEN regex_match(l_var ,G_REGEX_VAR)      THEN note_non_bind_var(i_var => l_var );
+            --@TODO this will need to match properly on complex vars too.
+            WHEN regex_match(l_var ,G_REGEX_VAR)      THEN note_complex_var(i_var_name => l_var 
+                                                                           ,i_var      => l_var );
             WHEN regex_match(l_var ,G_REGEX_REC_COL)  THEN note_rec_col_var(i_var => l_var );
             ELSE 
               ms_logger.fatal(l_node, 'AOP G_REGEX_FETCH_INTO BUG - REGEX Mismatch');
@@ -5008,7 +5172,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
          ms_logger.warning(l_node, 'Did not find '||'{{comment:'||l_index||'}}');
          wedge( i_new_code => 'LOOKING FOR '||'{{comment:'||l_index||'}}'
                 ,i_colour  => G_COLOUR_ERROR);
-        RAISE x_restore_failed;
+        RAISE x_restore_failed; 
+        --Eg sometimes in HTML mode, cannot find {{comment:x}} if a html tag has been written in the middle of it.
       END IF; 
  
     END LOOP;
