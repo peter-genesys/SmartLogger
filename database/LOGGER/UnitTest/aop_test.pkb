@@ -350,13 +350,18 @@ where max_event_date >= :i_min_qa_date
   procedure test_param_of_spec_type(i_test  in out aop_test.test_typ
                                    ,i_test2 in out aop_test.test_typ2 ) is
     l_test aop_test.test_typ;
+    l_test2         test_typ;
 
   BEGIN
     l_test.num := 2;
     l_test     := g_test1;
+    l_test2    := g_test1;
+    
+
 
     i_test.num := 2;
     i_test     := g_test1;
+
 
   END;
 
@@ -386,6 +391,16 @@ where max_event_date >= :i_min_qa_date
     l_selector      VARCHAR2(50);  
     l_test          test_typ;
     l_rule_set      rule_set_typ;
+
+    procedure test_proc_typ(io_proc_typ  in out test99.rule_set_typ
+                           ,io_proc_typ2 in out  rule_set_typ) is
+      l_proc_typ test99.rule_set_typ;
+    BEGIN
+      io_proc_typ  := l_proc_typ;
+      io_proc_typ2 := l_proc_typ;
+ 
+    END;
+
 
   BEGIN
     l_test.num := 1;

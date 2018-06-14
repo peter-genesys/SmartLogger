@@ -976,12 +976,13 @@ end; --get_type_defn
 
 
     if i_assign_var Then
+      ms_logger.comment(l_node, 'PLScope ASSIGNMENT');
       --This variable was discovered from a plscoped ASSIGNMENT
       --Every assignment should therefore turn up later when parsing the source.
 
       l_declaration_type := get_declaration_type(i_signature => i_signature);
 
-      --Use the declaration info
+      ms_logger.comment(l_node, 'Use the declaration info');
       l_var.type       := l_declaration_type.name;
       l_var.data_class := l_declaration_type.type;
       l_var.signature  := l_declaration_type.signature;
@@ -3119,7 +3120,7 @@ BEGIN
         --              ,io_var_list  => l_var_list );
 
         store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
-                                                    ,i_param_type  => l_table_name
+                                                    ,i_rowtype     => l_table_name
                                                     ,i_lex_var     => true
                                                     ,i_pu_stack    => i_pu_stack)
                      ,io_var_list  => l_var_list
@@ -3718,8 +3719,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
            IF  l_column.column_name like lower(i_componant)||'%' and -- only show componants that match the search.
               --This is NOT a perfect solution if original search was for TABLE.COL.X (if that is even possible)
                is_atomic_type(i_type => l_column.data_type) THEN
-             note_var(--i_var  => lower(i_var)||'.'||l_column.column_name --Use the original case
-                      i_var    => i_var_name||'.'||l_column.column_name --Use the original case
+             note_var(i_var  => lower(i_var)||'.'||l_column.column_name --Use the original case
+                      --i_var    => i_var_name||'.'||l_column.column_name --Use the original case
                      ,i_type => l_column.data_type);
            END IF;
 
