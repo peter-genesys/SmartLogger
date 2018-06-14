@@ -3428,6 +3428,22 @@ exception
  
 END AOP_is_as;
 
+--------------------------------------------------------------------------------- 
+-- is_record
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Deterine whether last segment of the name originally contained a bracketed term.
+* To be used when the data class is 'INDEX TABLE'
+* @param  i_original_name  clean version of var name, before bracketed terms were removed.
+* @return true when final
+* 
+*/
+FUNCTION is_record(i_original_name in varchar2) return boolean is
+BEGIN
+  
+  return i_original_name like '%)';
+
+END;
   
         
 --------------------------------------------------------------------------------- 
@@ -3624,12 +3640,11 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
     ms_logger.param(l_node,'i_var_name' ,i_var_name);
     ms_logger.param(l_node,'i_var'      ,i_var);
     ms_logger.param(l_node,'i_componant',i_componant);
-    ms_logger.note(l_node,'l_var'       ,l_var);
+    ms_logger.note(l_node ,'l_var'      ,l_var);
     IF l_var_list.EXISTS(l_var) THEN
       --This variable exists in the list of scoped variables with compatible types    
       ms_logger.comment(l_node, 'Scoped Var');
-      --ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type);
-      ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type);
+      ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type||' '||l_var_list(l_var).data_class);
       IF is_atomic_type(i_type => l_var_list(l_var).type)   THEN
         --Data type is supported.
         ms_logger.comment(l_node, 'Data type is supported');
@@ -3641,8 +3656,27 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
       ELSIF  identifier_exists(i_signature => l_var_list(l_var).signature) THEN
         ms_logger.comment(l_node, 'Signature is known');
 
-        note_record(i_name_prefix  => lower(i_var_name)
-                   ,i_signature    => l_var_list(l_var).signature);
+        if l_var_list(l_var).data_class = 'RECORD' then
+          ms_logger.comment(l_node, 'Record class detected from PLScope');
+          note_record(i_name_prefix  => lower(i_var_name)
+                     ,i_signature    => l_var_list(l_var).signature);
+
+        elsif l_var_list(l_var).data_class = 'INDEX TABLE' then
+          ms_logger.comment(l_node, 'Index Table class detected from PLScope');
+            
+          --Need to determine where at index is associated with this table
+          --Compare the original fullname i_var_name with the bracket-free i_var
+          --If NO index was associated with this table then DO NOT create a note
+          if is_record(i_original_name => i_var_name) then
+            note_record(i_name_prefix  => lower(i_var_name)
+                       ,i_signature    => l_var_list(l_var).signature);
+          else
+            --This is a table not a record.
+            ms_logger.warning(l_node, 'Ignoring assignment to an entire table.');
+          end if;  
+        else
+          ms_logger.fatal(l_node, 'Data class is unexpected.');
+        end if;  
         
         
         ----Find columns for this signature.
@@ -3692,7 +3726,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
         END LOOP;  
 
       ELSE  
-        ms_logger.warning(l_node, 'Data type is unsupported, but it was in the list of scoped vars.');
+        ms_logger.fatal(l_node, 'Data type is unsupported, but it was in the list of scoped vars.');
  
       END IF;
 

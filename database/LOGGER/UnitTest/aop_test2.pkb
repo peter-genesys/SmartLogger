@@ -207,11 +207,13 @@ create or replace package body aop_test2 is
 
   procedure test_comment_within_formatting is
   BEGIN
+    /*SYNTAX IN THIS SECTION IS NOT SUPPORTED
     aop_test. --comment within term (not supported)
              g_test3 := 1;
 
     aop_test.  
              g_test3 := 1; --line break within term (not supported)
+    */         
 
     aop_test.g_test3  := 1; --term on one line (supported)
 
@@ -246,8 +248,9 @@ create or replace package body aop_test2 is
     test_array.l_nam_tab := l_nam_tab2;
 
     l_tab_of_rec(1).anum := 1;
-    l_tab_of_rec('1').anum := 1;
+    l_tab_of_rec('1').anum := 1; --supports string constants within index
     l_tab_of_rec(1) := l_rec;
+    l_rec := l_tab_of_rec(1);
     l_tab_of_rec := l_tab_of_rec; --notes are not supported for whole tables.
  
   END;
