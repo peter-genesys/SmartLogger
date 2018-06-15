@@ -1,4 +1,4 @@
-ALTER SESSION SET plscope_settings='IDENTIFIERS:NONE'
+ALTER SESSION SET plscope_settings='IDENTIFIERS:ALL'
 /
 create or replace package body aop_test2 is
   --@AOP_LOG
@@ -57,6 +57,10 @@ create or replace package body aop_test2 is
     test.l_nested_rec := l_nested_rec;
 
     l_tab(1).num := 1;
+
+    io_var  := io_var2;
+    io_var2 := io_var;
+
 
   end;
 
@@ -268,5 +272,5 @@ BEGIN
 end aop_test2;
 /
 
-execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST2', i_versions => 'HTML,AOP');
+execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST2', i_versions => 'HTML');
 execute ms_api.set_module_debug(i_module_name => 'AOP_TEST2');

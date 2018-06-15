@@ -550,6 +550,45 @@ END;
     end loop;
   END;
 
+
+--------------------------------------------------------------------
+-- get_declaration_type
+--------------------------------------------------------------------  
+/** PRIVATE
+* Find the type of a declaration.
+* @param i_signature Signature of a DECLARATION
+* @returns all_identifiers%rowtype The last row subordinate to the DECLARATION row.
+*/
+FUNCTION get_declaration_type(i_signature in varchar2) return all_identifiers%rowtype is
+
+  cursor cu_declaration_type(c_signature varchar2) is
+  --SELECT * from (
+    SELECT *
+    FROM all_identifiers
+    START WITH  signature = i_signature 
+            and usage     = 'DECLARATION' 
+    CONNECT BY PRIOR usage_id    = usage_context_id 
+           and prior owner       = owner
+           and prior object_name = object_name
+           and prior object_type = object_type
+    ORDER SIBLINGS BY line, col;
+  -- )
+  --where usage = 'REFERENCE';
+
+  l_all_identifiers all_identifiers%rowtype;
+
+BEGIN
+   
+  --Maybe more than two records in the hierachy - get the last one.  
+  FOR l_declaration_type IN cu_declaration_type(c_signature => i_signature) LOOP
+    l_all_identifiers := l_declaration_type;
+  END LOOP;
+ 
+  return l_all_identifiers;
+ 
+END;  
+
+
 --------------------------------------------------------------------
 -- get_type_signature
 --------------------------------------------------------------------
@@ -569,12 +608,13 @@ l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_sig
    select  p.name        parent_name
           ,c.name        child_name
           ,c.type        child_type
-          ,t.name        data_type
-          ,t.type        data_class 
-          ,t.signature   type_signature
+          ,c.signature   var_decl_signature
+       --   ,t.name        data_type
+       --   ,t.type        data_class 
+       --   ,t.signature   type_signature
     from   all_identifiers p
           ,all_identifiers c
-          ,all_identifiers t
+         -- ,all_identifiers t
     where 
     --PARENT
           p.usage            = 'DEFINITION'
@@ -584,17 +624,18 @@ l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_sig
     and   c.owner            = p.owner
     and   c.object_name      = p.object_name
     and   c.object_type      = p.object_type
-    and   c.type             = 'VARIABLE'
+    and   REGEXP_LIKE(c.type,'VARIABLE|FORM','i')
     and   c.usage            = 'DECLARATION'
-    and   c.name             = UPPER(i_var_name)
-    --TYPE
-    and   t.usage_context_id = c.usage_id
-    and   t.owner            = c.owner
-    and   t.object_name      = c.object_name
-    and   t.object_type      = c.object_type
-    and   t.name             = UPPER(i_var_type);
+    and   c.name             = UPPER(i_var_name);
+ --  --TYPE
+ --  and   t.usage_context_id = c.usage_id
+ --  and   t.owner            = c.owner
+ --  and   t.object_name      = c.object_name
+ --  and   t.object_type      = c.object_type
+ --  and   t.name             = UPPER(i_var_type);
 
     l_plscope_var cu_plscope_var%ROWTYPE; 
+    l_type_signature varchar2(32);
 BEGIN
   ms_logger.param(l_node, 'i_parent_signature'  ,i_parent_signature ); 
   ms_logger.param(l_node, 'i_var_name'          ,i_var_name ); 
@@ -604,14 +645,18 @@ BEGIN
   FETCH cu_plscope_var into l_plscope_var;
   CLOSE cu_plscope_var;
 
-  ms_logger.note(l_node, 'l_plscope_var.type_signature'          ,l_plscope_var.type_signature );
+  ms_logger.note(l_node, 'l_plscope_var.var_decl_signature'          ,l_plscope_var.var_decl_signature );
 
-  RETURN l_plscope_var.type_signature;
+  l_type_signature := get_declaration_type(i_signature => l_plscope_var.var_decl_signature).signature;
+
+  ms_logger.note(l_node, 'l_type_signature'          ,l_type_signature );
+ 
+  RETURN l_type_signature;
  
 END get_type_signature;  
 
 --------------------------------------------------------------------
--- get_type_signature
+-- get_type_signature @TODO - is this used?
 --------------------------------------------------------------------
 /** PRIVATE
 * get the signature of the type
@@ -790,42 +835,6 @@ FUNCTION get_type_defn(--i_object_name in varchar2
  END; 
  */
 
-
---------------------------------------------------------------------
--- get_declaration_type
---------------------------------------------------------------------  
-/** PRIVATE
-* Find the type of a declaration.
-* @param i_signature Signature of a DECLARATION
-* @returns all_identifiers%rowtype The REFERENCE row subordinate to the DECLARATION row.
-*/
-FUNCTION get_declaration_type(i_signature in varchar2) return all_identifiers%rowtype is
-
-  cursor cu_declaration_type(c_signature varchar2) is
-  SELECT * from (
-    SELECT *
-    FROM all_identifiers
-    START WITH  signature = i_signature 
-            and usage     = 'DECLARATION' 
-    CONNECT BY PRIOR usage_id    = usage_context_id 
-           and prior owner       = owner
-           and prior object_name = object_name
-           and prior object_type = object_type
-    ORDER SIBLINGS BY line, col
-    )
-  where usage = 'REFERENCE';
-
-  l_all_identifiers all_identifiers%rowtype;
-
-BEGIN
-
-  open cu_declaration_type(c_signature => i_signature);
-  fetch cu_declaration_type into l_all_identifiers;
-  close cu_declaration_type;
-
-  return l_all_identifiers;
- 
-END;  
 
 
 
@@ -3363,6 +3372,12 @@ BEGIN
 
   end if;
  
+  --Read all of the assigned variables from plscope
+  --add them into the var list
+  l_var_list := PLS_pu_assign( i_var_list => l_var_list
+                              ,i_pu_stack => l_pu_stack);  
+
+
   AOP_pu_params(io_param_list  => l_param_list          
                ,io_var_list    => l_var_list
                ,i_pu_stack     => l_pu_stack);    
@@ -3382,10 +3397,6 @@ BEGIN
          ,i_indent     => i_indent
          ,i_colour     => G_COLOUR_NODE);   
 
-  --Read all of the assigned variables from plscope
-  --add them into the var list
-  l_var_list := PLS_pu_assign( i_var_list => l_var_list
-                             ,i_pu_stack => l_pu_stack);    
  
   l_var_list := AOP_var_defs( i_var_list => l_var_list
                              ,i_pu_stack => l_pu_stack);    
