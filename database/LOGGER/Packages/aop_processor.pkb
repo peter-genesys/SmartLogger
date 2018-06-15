@@ -968,6 +968,7 @@ end; --get_type_defn
     ms_logger.param(l_node, 'i_lim_var'    ,i_lim_var   ); 
     ms_logger.param(l_node, 'i_assign_var' ,i_assign_var   ); 
     ms_logger.param(l_node, 'i_signature'  ,i_signature ); 
+    ms_logger.param(l_node, 'i_pu_stack.count'  ,i_pu_stack.count ); 
 
 
     l_var.name    := i_param_name;
@@ -991,14 +992,20 @@ end; --get_type_defn
 
       l_declaration_type := get_declaration_type(i_signature => i_signature);
 
-      ms_logger.comment(l_node, 'Use the declaration info');
-      l_var.type       := l_declaration_type.name;
-      l_var.data_class := l_declaration_type.type;
-      l_var.signature  := l_declaration_type.signature;
+      if l_declaration_type.type = 'VARIABLE' then
+         ms_logger.warning(l_node, 'VARIABLE type from PLScope is not supported.  Ignoring this Assignment.');
 
-      ms_logger.note(l_node, 'l_var.type      '    ,l_var.type       ); 
-      ms_logger.note(l_node, 'l_var.data_class'    ,l_var.data_class ); 
-      ms_logger.note(l_node, 'l_var.signature '    ,l_var.signature  ); 
+      else
+
+         ms_logger.comment(l_node, 'Use the declaration info');
+         l_var.type       := l_declaration_type.name;
+         l_var.data_class := l_declaration_type.type;
+         l_var.signature  := l_declaration_type.signature;
+   
+         ms_logger.note(l_node, 'l_var.type      '    ,l_var.type       ); 
+         ms_logger.note(l_node, 'l_var.data_class'    ,l_var.data_class ); 
+         ms_logger.note(l_node, 'l_var.signature '    ,l_var.signature  ); 
+      end if;   
 
     else
       
@@ -2399,6 +2406,9 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
   
   l_in_var               BOOLEAN;
   l_out_var              BOOLEAN;
+
+  l_var_list_in          var_list_typ := io_var_list; --Keep copy for the end.
+
   
   --This should be expanded to cover G_REGEX_2WORDS etc - PAB DOING ...
   G_REGEX_NAME_IN_OUT     CONSTANT VARCHAR2(200) := '('||G_REGEX_WORD||')\s+(IN\s+)?(OUT\s+)?';
@@ -2811,8 +2821,11 @@ BEGIN
   END;
  
   END LOOP; 
-
-  log_var_list(i_var_list     => io_var_list);
+ 
+  --Log just the new vars
+  log_new_var_list(i_old_var_list => l_var_list_in
+                  ,i_new_var_list => io_var_list);
+  --Log all params
   log_param_list(i_param_list => io_param_list);
  
 exception
@@ -2861,6 +2874,7 @@ FUNCTION PLS_pu_assign(i_var_list IN var_list_typ
              and prior owner       = owner
              and prior object_name = object_name
              and prior object_type = object_type
+             and  usage <> 'DECLARATION'  --Ensure we only find assignments related directly to the parent.
      ORDER SIBLINGS BY line, col
      )
      where usage = 'ASSIGNMENT'
@@ -2962,6 +2976,10 @@ BEGIN
 
     --Add the plscode variable assignment to the var list, 
     --so that later when same variable assignment is found in the source, it can be easilly identified.
+    --if l_plscope.type = 'VARIABLE' then
+    --  ms_logger.warning(l_node, 'VARIABLE type from PLScope is not supported.  Ignoring this Assignment.');
+
+    --else
      store_var_list(i_var       => create_var_rec(i_param_name  => lower(l_plscope.scoped_name)
                                                  ,i_param_type  => l_plscope.type
                                                  ,i_assign_var  => true
@@ -2969,7 +2987,8 @@ BEGIN
                                                  ,i_pu_stack    => i_pu_stack)
                    ,io_var_list => l_var_list
                    ,i_pu_stack  => i_pu_stack);
- 
+    --end if;
+
     --Loop thru the first segment of each assigned var.
     --@TODO candidate for later refactoring..
 
@@ -3029,7 +3048,7 @@ EXCEPTION
     ms_logger.fatal(l_node,'Illegal state: There are no program units on the Stack.');
     return l_var_list;
  
-END;  
+END PLS_pu_assign;  
 
 
 --------------------------------------------------------------------------------- 
@@ -3666,8 +3685,11 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
     ms_logger.note(l_node ,'l_var'      ,l_var);
     IF l_var_list.EXISTS(l_var) THEN
       --This variable exists in the list of scoped variables with compatible types    
-      ms_logger.comment(l_node, 'Scoped Var');
-      ms_logger.note(l_node,l_var_list(l_var).name,l_var_list(l_var).type||' '||l_var_list(l_var).data_class);
+      ms_logger.comment(l_node, 'Scoped Var Found');
+      ms_logger.note(l_node,'l_var_list(l_var).name',l_var_list(l_var).name);
+      ms_logger.note(l_node,'l_var_list(l_var).type',l_var_list(l_var).type);
+      ms_logger.note(l_node,'l_var_list(l_var).data_class',l_var_list(l_var).data_class);
+
       IF is_atomic_type(i_type => l_var_list(l_var).type)   THEN
         --Data type is supported.
         ms_logger.comment(l_node, 'Data type is supported');

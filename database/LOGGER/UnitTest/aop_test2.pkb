@@ -272,5 +272,5 @@ BEGIN
 end aop_test2;
 /
 
-execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST2', i_versions => 'HTML');
+execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST2', i_versions => 'HTML,AOP');
 execute ms_api.set_module_debug(i_module_name => 'AOP_TEST2');
