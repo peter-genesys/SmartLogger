@@ -3445,8 +3445,33 @@ BEGIN
   return i_original_name like '%)';
 
 END;
-  
-        
+
+--------------------------------------------------------------------------------- 
+-- quoted_var_name
+---------------------------------------------------------------------------------
+/** PRIVATE
+* If var name contains a string placeholder or any single quotes then wrap the var in special quotes
+* Otherwise wrap it in normal single quotes.
+* @param  i_var_name  variable identifier
+* @return i_var_name wrapped in quotes or special quotes.
+* 
+*/
+  function quoted_var_name(i_var_name in varchar2) return varchar2 is
+  BEGIN
+    if i_var_name like '%{{%}}%' OR --like '%{{string:%}}%' OR  ?? why was this originally just string?
+       i_var_name like '%''%'              then
+      --var name contains a string constant
+      --so need to wrap the var in special quotes
+      -- "q'[" and "]'"
+      return 'q''['||i_var_name||']''';
+    else
+      --otherwise just use the simple version
+      -- "'" and "'"
+      return ''''||i_var_name||'''';
+    end if;
+  END; 
+
+
 --------------------------------------------------------------------------------- 
 -- AOP_block
 ---------------------------------------------------------------------------------
@@ -3557,30 +3582,16 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                     ,i_type in varchar2) IS   
     l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_var');
     -- Note a variable 
-    Q_Open  varchar2(3);
-    Q_Close varchar2(3);
   BEGIN
     ms_logger.param(l_node,'i_var' ,i_var);
     ms_logger.param(l_node,'i_type',i_type);
-    if i_var like '%{{string:%}}%' then
-      --var name contains a string constant
-      --so need to wrap the var in special quotes
-      -- "q'[" and "]'"
-        Q_Open  := 'q''[';
-        Q_Close := ']''';
-    else
-      --otherwise just use the simple version
-      -- "'" and "'"
-        Q_Open  := '''';
-        Q_Close := '''';
-    end if;
       
     IF i_type = 'CLOB' THEN
-      inject( i_new_code   => 'ms_logger.note_clob(l_node,'||Q_Open||i_var||Q_Close||','||i_var||');'
+      inject( i_new_code   => 'ms_logger.note_clob(l_node,'||quoted_var_name(i_var)||','||i_var||');'
              ,i_indent     => i_indent
              ,i_colour     => G_COLOUR_NOTE);
     ELSE
-      inject( i_new_code   => 'ms_logger.note(l_node,'||Q_Open||i_var||Q_Close||','||i_var||');'
+      inject( i_new_code   => 'ms_logger.note(l_node,'||quoted_var_name(i_var)||','||i_var||');'
              ,i_indent     => i_indent
              ,i_colour     => G_COLOUR_NOTE);
     END IF;
@@ -3901,21 +3912,18 @@ BEGIN --AOP_block
          l_stashed_comment := get_next( i_stop        => G_REGEX_STASHED_COMMENT
                                        ,i_raise_error => TRUE);
          ms_logger.note(l_node, 'l_stashed_comment',l_stashed_comment);
-
+ 
          if l_function = 'note' then
            g_code := REPLACE(g_code
                            , l_keyword||l_stashed_comment
-                           , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'''
-                           , i_colour => G_COLOUR_NOTE)
-               ||l_stashed_comment||''','||l_stashed_comment||');');
+                           , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'||quoted_var_name(l_stashed_comment)||','||l_stashed_comment||');'
+                                    , i_colour => G_COLOUR_NOTE) );
          else 
   
            g_code := REPLACE(g_code
                            , l_keyword||l_stashed_comment
-                           , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'''
-                           , i_colour => G_COLOUR_ANNOTATION)
-               ||l_stashed_comment||''');');
-
+                           , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'||quoted_var_name(l_stashed_comment)||');'
+                                    , i_colour => G_COLOUR_NOTE) );
          end if;
  
       WHEN regex_match(l_keyword ,G_REGEX_SHOW_ME_LINE) THEN
@@ -4967,7 +4975,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                     and   owner = l_owner
                                     and   type in ('PACKAGE','PACKAGE BODY') --Get refs of both the spec and body
                                     and referenced_type = 'PACKAGE' 
-                                    and referenced_owner <> 'SYS'
+                                    and referenced_owner NOT IN ( 'SYS' ,'APEX_050100')
                                     and referenced_name not in ('MS_LOGGER','AOP_PROCESSOR',p_package_name)) LOOP
 
         --Get a list of variables from any package spec directly referenced from the spec or body of this package.
@@ -5094,7 +5102,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                     and   owner = i_object_owner
                                     and   type in ('PACKAGE','PACKAGE BODY') --Get refs of both the spec and body
                                     and referenced_type = 'PACKAGE' 
-                                    and referenced_owner <> 'SYS'
+                                    and referenced_owner NOT IN ( 'SYS' ,'APEX_050100')
                                     and referenced_name not in ('MS_LOGGER','AOP_PROCESSOR',i_object_name)) LOOP
 
         --Get a list of variables from any package spec directly referenced from the spec or body of this package.
@@ -5524,7 +5532,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
  
 end aop_processor;
 /
- 
+show error;
+
 set define on;
 
 alter trigger aop_processor_trg enable;
