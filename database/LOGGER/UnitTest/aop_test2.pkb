@@ -211,14 +211,13 @@ create or replace package body aop_test2 is
 
   procedure test_comment_within_formatting is
   BEGIN
-    /*SYNTAX IN THIS SECTION IS NOT SUPPORTED
-    aop_test. --comment within term (not supported)
+
+    aop_test. --comment within term (supported)
              g_test3 := 1;
 
     aop_test.  
-             g_test3 := 1; --line break within term (not supported)
-    */         
-
+             g_test3 := 1; --line break within term (supported)
+ 
     aop_test.g_test3  := 1; --term on one line (supported)
 
     aop_test.g_test3  

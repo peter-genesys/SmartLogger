@@ -199,6 +199,9 @@ create or replace package body aop_processor is
   G_REGEX_FATAL              CONSTANT VARCHAR2(50) := '--##';  
   G_REGEX_NOTE               CONSTANT VARCHAR2(50) := '--\^\^';  
 
+  G_REGEX_BRACKETED_TERM     CONSTANT VARCHAR2(50) := '\([^()]*\)'; --that contains no brackets
+  G_REGEX_STASHED_TERM       CONSTANT VARCHAR2(50) := '{{term:(\d+)}}'; --term with index, used to find index
+
 
   FUNCTION is_atomic_type(i_type varchar2) return boolean is
   BEGIN
@@ -2260,7 +2263,7 @@ END;
 -- go_upto
 ---------------------------------------------------------------------------------
 /** PRIVATE
-* Use go_upto to advance upto i_stop
+* Advance upto i_stop
 * Discard result, raise error if no match
 * If i_stop is null then simply goto the position g_upto_pos found during last get_next
 * @param i_stop            pass to get_next
@@ -2274,22 +2277,93 @@ PROCEDURE go_upto(i_stop          IN VARCHAR2 DEFAULT NULL
                  ) IS
   l_dummy CLOB;
 BEGIN
+ 
+  if i_stop is not null then
 
-  IF i_stop is null then
-    --just goto the position found during last get_next
-    g_current_pos := g_upto_pos;
-  ELSE
      l_dummy := get_next(i_stop           => i_stop       
                         ,i_modifier       => i_modifier   
                         ,i_trim_pointers  => i_trim_pointers     
                         ,i_raise_error    => TRUE );
-  
-     g_current_pos := g_upto_pos;
- 
-  END IF;
- 
+  --else
+     --just goto the position found during last get_next
+
+  end if;   
+
+  g_current_pos := g_upto_pos;
  
 END;
+
+
+--------------------------------------------------------------------------------- 
+-- grab_upto
+---------------------------------------------------------------------------------
+/** PRIVATE
+* Get chars upto i_stop
+* Find i_stop, Discard result.  Then grab chars from current to i_stop, raise error if no match
+* If i_stop is null then simply goto the position g_upto_pos found during last get_next
+* @param i_stop            pass to get_next
+* @param i_modifier        pass to get_next
+* @param i_trim_pointers   pass to get_next
+* @param i_colour          pass to get_next
+* @param i_lower           returns result in lowercase
+* @param i_upper           returns result in uppercase
+* @throws x_string_not_found
+*/
+FUNCTION grab_upto(i_stop          IN VARCHAR2 DEFAULT NULL
+                  ,i_modifier      IN VARCHAR2 DEFAULT 'i'
+                  ,i_trim_pointers IN BOOLEAN  DEFAULT FALSE
+                  ,i_colour        IN VARCHAR2 DEFAULT G_COLOUR_GO_PAST
+                  ,i_lower         IN BOOLEAN  DEFAULT FALSE
+                  ,i_upper         IN BOOLEAN  DEFAULT FALSE
+                  ) return varchar2 is
+l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'grab_upto'); 
+  l_dummy  CLOB;
+  l_result CLOB;
+  l_colour_result CLOB;
+BEGIN
+
+  if i_stop is not null then
+
+     l_dummy := get_next(i_stop           => i_stop       
+                        ,i_modifier       => i_modifier   
+                        ,i_trim_pointers  => i_trim_pointers   
+                        ,i_colour         => i_colour   
+                        ,i_raise_error    => TRUE );
+  --else
+     --just goto the position found during last get_next
+
+  end if;  
+
+  l_result := SUBSTR(g_code,g_current_pos,g_upto_pos-g_current_pos);
+
+  if i_lower then
+    l_result := LOWER(l_result);
+  end if;  
+  if i_upper then
+    l_result := UPPER(l_result);
+  end if;  
+
+  --colour the result
+  l_colour_result := f_colour(i_text   => l_result  
+                             ,i_colour => i_colour);
+ 
+  g_code := SUBSTR(g_code,1,g_current_pos-1)
+          ||l_colour_result
+          ||SUBSTR(g_code,g_upto_pos)  ;
+     
+  --Now advance the upto pos  
+  g_upto_pos := g_current_pos + LENGTH(l_colour_result);
+  
+  --Current pos is now the pto pos 
+  g_current_pos := g_upto_pos;
+
+  return l_result;
+ 
+END;
+
+
+
+
 
 --------------------------------------------------------------------------------- 
 -- get_next_object_name
@@ -3535,8 +3609,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 
   l_into_var_list         var_list_typ;
   l_index                 binary_integer;
-  l_var                   VARCHAR2(100);
-  l_var_name              VARCHAR2(100);
+  l_var                   VARCHAR2(1000);
+  l_var_name              VARCHAR2(1000);
 
   l_exception_section     BOOLEAN :=FALSE;
 
@@ -3552,8 +3626,9 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
  
   --Capture term prior to the assignment, but the term must be on one line.
   --Allows for comments on lines between term and :=
-  G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '.*(\s*{{comment:\w*}})*\s*:='; 
+  --G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '.*(\s*{{comment:\w*}})*\s*:='; 
 
+   G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   ':=';  
  
   G_REGEX_ASSIGN_TO_ANY_WORDS   CONSTANT VARCHAR2(50) :=  G_REGEX_ANY_WORDS||G_REGEX_VAR_ASSIGN;
   
@@ -3585,6 +3660,11 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
  
   
   G_REGEX_SELECT_FETCH_INTO   CONSTANT VARCHAR2(50) := '\s(SELECT|FETCH)\s+?(\s|\S)+?\s+?INTO\s';
+
+  --G_REGEX_INTO_VARS          CONSTANT VARCHAR2(50) :=   '.*(\s*{{comment:\w*}})*\s*(;|\sFROM\s)'; 
+  G_REGEX_INTO_VARS          CONSTANT VARCHAR2(50) :=  '(.|\s)*(;|\sFROM\s)'; --mulitple lines
+  G_REGEX_END_SELECT_FETCH_INTO   CONSTANT VARCHAR2(50) :=  G_REGEX_SEMI_COL
+                                                     ||'|'||G_REGEX_FROM;  
 
   G_REGEX_DML                 CONSTANT VARCHAR2(200) :=   G_REGEX_DELETE_FROM 
                                                   ||'|'|| G_REGEX_DELETE
@@ -3845,7 +3925,7 @@ BEGIN --AOP_block
                                        ||'|'||G_REGEX_SHOW_ME_LINE 
                                        --||'|'||G_REGEX_ROW_COUNT_LINE
                                        --||'|'||G_REGEX_DML               
-                                       --||'|'||G_REGEX_SELECT_FETCH_INTO          
+                                       ||'|'||G_REGEX_SELECT_FETCH_INTO          
                           ,i_stop          => G_REGEX_START_ANNOTATION --don't colour it
                                        --||'|'||G_REGEX_ASSIGN_TO_REC_COL
                                        --||'|'||G_REGEX_ASSIGN_TO_ANY_WORDS
@@ -4011,7 +4091,7 @@ BEGIN --AOP_block
 --
       --  l_var_no_brackets := l_var;
       --  --while l_var_no_brackets like '%(%)%' LOOP --THOUGHT THIS CAUSED infinit loop but no, thats not it.
-      --    l_var_no_brackets := REGEXP_REPLACE(l_var_no_brackets,'\([^()]*\)','');
+      --    l_var_no_brackets := REGEXP_REPLACE(l_var_no_brackets,G_REGEX_BRACKETED_TERM,'');
       --    ms_logger.note(l_node, 'l_var_no_brackets',l_var_no_brackets);
       --  --end loop;
 --
@@ -4021,13 +4101,22 @@ BEGIN --AOP_block
       WHEN regex_match(l_keyword ,G_REGEX_ASSIGNMENT) THEN  
         ms_logger.info(l_node, 'General Assignment');
   
+
+
         --using G_REGEX_ASSIGNMENT to highlight the original text
-        l_var := find_var(i_search => G_REGEX_ASSIGNMENT);
+        --l_var := find_var(i_search => G_REGEX_ASSIGNMENT);
+ 
+        l_var := grab_upto(i_stop   => G_REGEX_ASSIGNMENT
+                          ,i_colour => G_COLOUR_VAR
+                          ,i_lower  => TRUE);
+        go_past(G_REGEX_SEMI_COL); 
+
+
         ms_logger.note(l_node, 'l_var',l_var);
 
-        --remove trailing :=
-        l_var := REGEXP_REPLACE(l_var,':=$',''); 
-        ms_logger.note(l_node, 'l_var',l_var);
+        ----remove trailing :=
+        --l_var := REGEXP_REPLACE(l_var,':=$',''); 
+        --ms_logger.note(l_node, 'l_var',l_var);
 
         --strip all whitespace
         l_var := shrink(i_words => l_var);
@@ -4044,7 +4133,7 @@ BEGIN --AOP_block
         begin
           while l_var like '%(%)%' LOOP
             --contains bracketed term that needs to be removed.
-            l_var := REGEXP_REPLACE(l_var,'\([^()]*\)',''); --remove any set of brackets containing non-brackets
+            l_var := REGEXP_REPLACE(l_var,G_REGEX_BRACKETED_TERM,''); --remove any set of brackets containing non-brackets
             ms_logger.note(l_node, 'l_var',l_var);
             if l_var = l_prev then
               ms_logger.fatal(l_node, 'Unable to remove bracketed term.');
@@ -4081,7 +4170,7 @@ BEGIN --AOP_block
 
         l_var_no_brackets := l_var;
         while l_var_no_brackets like '%(%)%' LOOP
-          l_var_no_brackets := REGEXP_REPLACE(l_var_no_brackets,'\([^()]*\)','');
+          l_var_no_brackets := REGEXP_REPLACE(l_var_no_brackets,G_REGEX_BRACKETED_TERM,'');
           ms_logger.note(l_node, 'l_var',l_var);
         end loop;
 
@@ -4121,6 +4210,145 @@ BEGIN --AOP_block
       WHEN regex_match(l_keyword ,G_REGEX_SELECT_FETCH_INTO  ) THEN   
         ms_logger.info(l_node, 'Select/Fetch Into');
 
+        --@REWRITE Needed
+        --Must grab everything upto the ; or FROM.
+        --Then dissect it removing whitespace and bracketed terms. (but must be able to put bracketed terms back.)
+        --Need to then separate into distinct variables by breaking based on semi-colons.
+        declare
+          --l_into_vars varchar2(1000);
+          --l_dummy      varchar2(10);
+          g_term_stack clob_stack_typ;
+        begin
+
+          l_var := grab_upto(i_stop   => G_REGEX_END_SELECT_FETCH_INTO 
+                            ,i_colour => G_COLOUR_INTO_VARS);
+ 
+          ms_logger.note(l_node, 'l_var',l_var);
+
+          --removing whitespace and bracketed terms
+            
+          --strip all whitespace
+          l_var := shrink(i_words => l_var);
+          ms_logger.note(l_node, 'l_var',l_var);
+
+          --remove any comment tags, but keep string tags
+          l_var := REGEXP_REPLACE(l_var,'{{comment:\w*}}',''); --Remove {{comment:1}} entirely
+          ms_logger.note(l_node, 'l_var',l_var);
+
+          ----Remember l_var_name, then remove all bracketed subterms from l_var
+          --l_var_name := l_var;
+          --declare
+          --  l_prev varchar2(100) := l_var;
+          --begin
+          --  while l_var like '%(%)%' LOOP
+          --    --contains bracketed term that needs to be removed.
+          --    l_var := REGEXP_REPLACE(l_var,G_REGEX_BRACKETED_TERM,''); --remove any set of brackets containing non-brackets
+          --    ms_logger.note(l_node, 'l_var',l_var);
+          --    if l_var = l_prev then
+          --      ms_logger.fatal(l_node, 'Unable to remove bracketed term.');
+          --      exit;
+          --    end if;
+          --    l_prev := l_var;
+          --  end loop;
+          --end;
+        
+          --STASH BRACKETED TERMS
+          --Iteratively replace each bracketed term with a placeholder until no bracketed terms remain.
+          --create an empty term list.
+          l_var_name := l_var;
+          declare
+            l_prev varchar2(1000) := l_var;
+          begin
+            while l_var like '%(%)%' LOOP
+              --contains bracketed term that needs to be removed.
+              g_term_stack(g_term_stack.count+1) :=  REGEXP_SUBSTR(l_var,G_REGEX_BRACKETED_TERM,1,1,'i');
+              l_var := REGEXP_REPLACE(l_var,G_REGEX_BRACKETED_TERM,'{{term:'||g_term_stack.count||'}}',1,1); --remove any set of brackets containing non-brackets
+              ms_logger.note(l_node, 'l_var',l_var);
+              if l_var = l_prev then
+                ms_logger.fatal(l_node, 'Unable to remove bracketed term.');
+                exit;
+              end if;
+              l_prev := l_var;
+            end loop;
+          end;
+ 
+          --Should now have a simple csv list of terms, which may contain placeholders.
+
+          --Once we've finished advance to the terminator so show where we were.
+          --advance past..
+          go_past(G_REGEX_SEMI_COL); 
+
+          --LOOP THRU VARS, NOTING EACH VAR
+          declare
+            l_var_array APEX_APPLICATION_GLOBAL.VC_ARR2;
+            l_into_var       varchar2(1000);
+            l_into_var_name  varchar2(1000);
+         begin
+        
+           l_var_array := APEX_UTIL.STRING_TO_TABLE(l_var,',');
+           FOR l_index IN 1..l_var_array.count LOOP
+
+               if l_var_array(l_index) is not null then --ignore any nulls that may be in the list.
+             
+                 --Create a clean var for searching.
+                 l_into_var := l_var_array(l_index);
+                 l_into_var := REGEXP_REPLACE(l_into_var,G_REGEX_STASHED_TERM,''); --Remove stashed term
+                 ms_logger.note(l_node, 'l_into_var',l_into_var);
+                 
+                 --Restore original var name for the note.
+                 --interatively restore the stashed terms
+                 l_into_var_name  := l_var_array(l_index);
+           
+                 declare
+                   l_prev             varchar2(1000) := l_into_var_name;
+                   l_term_placeholder varchar2(20);
+                   l_term_index       integer;
+                 begin
+                   while l_into_var_name like '%{{term:%}}%' LOOP
+                     --contains stashed term that needs to be restored
+
+                     --find a placeholder
+                     l_term_placeholder := REGEXP_SUBSTR(l_into_var_name,G_REGEX_STASHED_TERM,1,1,'i');
+                     ms_logger.note(l_node, 'l_term_placeholder',l_term_placeholder);
+
+                     --determine the index
+                     l_term_index := REGEXP_REPLACE(l_term_placeholder,G_REGEX_STASHED_TERM,'\1');
+                     ms_logger.note(l_node, 'l_term_index',l_term_index);    
+
+                     --Restore the bracketed term as indicated by the index
+                     l_into_var_name := REGEXP_REPLACE(l_into_var_name,G_REGEX_STASHED_TERM,g_term_stack(l_term_index),1,1);
+
+                     ms_logger.note(l_node, 'l_into_var_name',l_into_var_name);
+                     if l_into_var_name = l_prev then
+                       ms_logger.fatal(l_node, 'Unable to restore bracketed term.');
+                       exit;
+                     end if;
+                     l_prev := l_into_var_name;
+                   end loop;
+                 end;
+       
+                 --Note the variable
+                 CASE 
+                   WHEN regex_match(l_into_var ,G_REGEX_BIND_VAR) THEN 
+                     note_var(i_var  => l_into_var
+                             ,i_type => NULL);
+                   ELSE 
+                     note_complex_var(i_var_name => l_into_var_name 
+                                     ,i_var      => l_into_var );
+                     --ms_logger.fatal(l_node, 'AOP G_REGEX_FETCH_INTO BUG - REGEX Mismatch');
+                     --RAISE x_invalid_keyword;
+                 END CASE;
+ 
+               end if;
+           END LOOP;
+
+ 
+        end;
+      end;  
+
+/*
+
+ 
         --Find each variable until a ";" is reached.
         l_into_var_list.DELETE;
         LOOP
@@ -4170,7 +4398,7 @@ BEGIN --AOP_block
           l_index := l_into_var_list.NEXT(l_index);
         END LOOP;
  
-
+*/
   
       WHEN regex_match(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
         ms_logger.info(l_node, 'WHEN OTHERS THEN');   
@@ -4507,11 +4735,11 @@ END;
 
     l_code:= dbms_metadata.get_ddl(l_object_type, i_object_name, i_object_owner);
 
-    --@PAB ??WHAT DOES THIS DO??  Does it remove an alter trigger statement?
+    --Remove alter trigger statement
     IF i_object_type = 'TRIGGER' THEN
       l_code:= regexp_replace(l_code 
                             ,'(CREATE OR REPLACE TRIGGER )(.+)(ALTER TRIGGER .+)', 
-                     '\1\2', 1, 0, 'n');
+                     '\1\2', 1, 0, 'n'); --omit the third componant
     END IF;
  
     return trim_clob(i_clob => l_code);
@@ -5384,7 +5612,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
       l_comment              CLOB;
     BEGIN
       l_comment := get_next(i_stop     => i_mask
-                             ,i_modifier => i_modifier ); --multi-line, lazy
+                           ,i_modifier => i_modifier ); --multi-line, lazy
       ms_logger.note_clob(l_node, 'l_comment', l_comment);
       g_comment_stack(g_comment_stack.count+1) := l_comment; --Put another comment on the stack
       ms_logger.note(l_node, 'g_comment_stack.count', g_comment_stack.count);
@@ -5422,7 +5650,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
      
       DECLARE
    
-        G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--..'    ;
+        G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--'    ;
         G_REGEX_START_MULTI_COMMENT   CONSTANT VARCHAR2(50) :=  '/\*'    ;
         G_REGEX_START_STRING           CONSTANT VARCHAR2(50) :=  '\'''    ;
         G_REGEX_START_ADV_STRING       CONSTANT VARCHAR2(50) :=  'Q\''\S' ;

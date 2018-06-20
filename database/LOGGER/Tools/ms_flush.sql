@@ -1,11 +1,26 @@
 prompt $Id: ms_flush.sql 422 2007-11-17 02:47:50Z Peter $
-delete from  ms_reference;
-delete from  ms_message;
-delete from  ms_traversal;
-delete from  ms_process;
+
+alter table MS_MESSAGE disable constraint MESS_TRAV_FK;
+truncate table ms_message;
+
+alter table MS_TRAVERSAL disable constraint TRAV_UNIT_FK;
+alter table MS_TRAVERSAL disable constraint TRAV_TRAV_FK;
+alter table MS_TRAVERSAL disable constraint TRAV_PROCESS_FK;
+truncate table ms_traversal;
+
+truncate table ms_process;
+
 delete from  ms_unit;
 delete from  ms_module;
-delete from ms_internal_error;
+
+--Re-enable constraints
+alter table MS_MESSAGE enable constraint MESS_TRAV_FK;
+alter table MS_TRAVERSAL enable constraint TRAV_UNIT_FK;
+alter table MS_TRAVERSAL enable constraint TRAV_TRAV_FK;
+alter table MS_TRAVERSAL enable constraint TRAV_PROCESS_FK;
+
+
+ 
 
 DROP SEQUENCE MS_PROCESS_SEQ;
 DROP SEQUENCE MS_MESSAGE_SEQ;
@@ -28,7 +43,7 @@ CREATE SEQUENCE MS_MESSAGE_SEQ
 START WITH 1
 INCREMENT BY 1
 MINVALUE 1
-CACHE 20
+NOCACHE
 NOCYCLE
 NOORDER
 /
@@ -38,7 +53,7 @@ CREATE SEQUENCE MS_TRAVERSAL_SEQ
 START WITH 1
 INCREMENT BY 1
 MINVALUE 1
-CACHE 20
+NOCACHE
 NOCYCLE
 NOORDER
 /

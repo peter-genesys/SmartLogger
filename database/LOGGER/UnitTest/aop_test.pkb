@@ -10,6 +10,45 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
   type date_typ_rec is record (adate date);
   l_date_rec1 date_typ_rec;
   l_date_rec2 date_typ_rec;
+
+
+procedure test_select_fetch_into is
+
+  cursor cu_user_tables is
+  select column_name, table_name 
+  from   user_tab_columns;
+
+  cursor cu_unit is
+  select * from ms_unit;
+
+  l_column_name varchar2(100);
+  l_table_name varchar2(100);
+  type int_tab_typ is table of integer index by varchar2(100);
+  a int_tab_typ;
+  b int_tab_typ;
+  c number;
+ 
+  l_user_tables cu_user_tables%ROWTYPE;
+  l_unit cu_unit%ROWTYPE;
+ 
+begin
+    open cu_user_tables;
+    fetch cu_user_tables into l_column_name  
+                            , l_table_name;
+    fetch cu_user_tables into l_user_tables;                      
+    close cu_user_tables;
+
+    open cu_unit;
+    fetch cu_unit into l_unit;                      
+    close cu_unit;
+   
+    select 1,2,3
+    into a(to_char(sysdate, 'D'))  --
+       , b(to_char(sysdate, 'YYYY'))   --b
+       , c        --sd
+    from dual;
+end;
+
  
   function test4$(i_module      ms_module%ROWTYPE
                 ,i_module_name  ms_module.module_name%TYPE
