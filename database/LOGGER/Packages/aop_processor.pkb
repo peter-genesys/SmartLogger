@@ -3626,9 +3626,9 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
  
   --Capture term prior to the assignment, but the term must be on one line.
   --Allows for comments on lines between term and :=
-  --G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '.*(\s*{{comment:\w*}})*\s*:='; 
+  G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '.*(\s*{{comment:\w*}})*\s*:='; 
 
-   G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   ':=';  
+   --G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   ':=';  
  
   G_REGEX_ASSIGN_TO_ANY_WORDS   CONSTANT VARCHAR2(50) :=  G_REGEX_ANY_WORDS||G_REGEX_VAR_ASSIGN;
   
@@ -4101,8 +4101,15 @@ BEGIN --AOP_block
       WHEN regex_match(l_keyword ,G_REGEX_ASSIGNMENT) THEN  
         ms_logger.info(l_node, 'General Assignment');
   
+        --using G_REGEX_ASSIGNMENT to highlight the original text
+        l_var := find_var(i_search => G_REGEX_ASSIGNMENT);
+        ms_logger.note(l_node, 'l_var',l_var);
 
+        --remove trailing :=
+        l_var := REGEXP_REPLACE(l_var,':=$',''); 
+        ms_logger.note(l_node, 'l_var',l_var);
 
+/*
         --using G_REGEX_ASSIGNMENT to highlight the original text
         --l_var := find_var(i_search => G_REGEX_ASSIGNMENT);
  
@@ -4117,7 +4124,7 @@ BEGIN --AOP_block
         ----remove trailing :=
         --l_var := REGEXP_REPLACE(l_var,':=$',''); 
         --ms_logger.note(l_node, 'l_var',l_var);
-
+*/
         --strip all whitespace
         l_var := shrink(i_words => l_var);
         ms_logger.note(l_node, 'l_var',l_var);
@@ -5605,7 +5612,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
      
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'stash_comments_and_strings');  
   
-    l_keyword              VARCHAR2(50);  
+    l_keyword              VARCHAR2(1000);  
 
     procedure extract_comment(i_mask     IN VARCHAR2
                              ,i_modifier IN VARCHAR2 DEFAULT 'in') IS
@@ -5650,7 +5657,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
      
       DECLARE
    
-        G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--'    ;
+        G_REGEX_START_SINGLE_COMMENT  CONSTANT VARCHAR2(50) :=  '--.{0,2}';  -- double-dash + upto 2 chars
         G_REGEX_START_MULTI_COMMENT   CONSTANT VARCHAR2(50) :=  '/\*'    ;
         G_REGEX_START_STRING           CONSTANT VARCHAR2(50) :=  '\'''    ;
         G_REGEX_START_ADV_STRING       CONSTANT VARCHAR2(50) :=  'Q\''\S' ;
