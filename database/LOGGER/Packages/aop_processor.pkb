@@ -733,64 +733,6 @@ FUNCTION identifier_exists(i_signature   in varchar2) return boolean is
 
  END; 
 
-/*
---------------------------------------------------------------------
--- get_type_defn_piped
---------------------------------------------------------------------  
-  PRIVATE
-* Find the type definition, and componants
-* @param i_signature   Signature of a DECLARATION
- 
-FUNCTION get_type_defn_piped(--i_object_name in varchar2
-                       --i_object_type in varchar2
-                       i_signature   in varchar2) return identifier_tab pipelined is
-
-  --CURSOR cu_identifier
-  --  WITH plscope_hierarchy
-  --          AS (SELECT *
-  --                FROM all_identifiers
-  --               WHERE     owner = USER
-  --                     AND object_name = i_object_name
-  --                    AND object_type  = i_object_type
-  --               )
-  --  select v.name      col_name
-  --        ,t.name      data_type
-  --        ,t.type      data_class
-  --        ,t.signature signature
-  --  from   plscope_hierarchy v
-  --        ,plscope_hierarchy t
-  --  where v.usage            = 'DECLARATION'
-  --  and   v.signature        = i_signature
-  --  and   t.usage_context_id = v.usage_id;
-
-  CURSOR cu_identifier is
-    select v.name      col_name
-          ,t.name      data_type
-          ,t.type      data_class
-          ,t.signature signature
-    from   all_identifiers v
-          ,all_identifiers t
-    where v.usage            = 'DECLARATION'
-    and   v.signature        = i_signature
-    and   t.usage_context_id = v.usage_id
-    and   t.owner            = v.owner
-    and   t.object_name      = v.object_name
-    and   t.object_type      = v.object_type;
-
-
-  --Query to identify a simple reference
-  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
- 
- BEGIN
-   
-   FOR l_identifier_rec IN cu_identifier LOOP
-     PIPE ROW (l_identifier_rec);
-   END LOOP;
-
-   RETURN;
-
- END get_type_defn_piped; 
-*/
 
 --------------------------------------------------------------------
 -- get_type_defn
@@ -799,50 +741,7 @@ FUNCTION get_type_defn_piped(--i_object_name in varchar2
 * Find the type definition, and componants
 * @param i_signature   Signature of a DECLARATION
 */
-/*
-FUNCTION get_type_defn(--i_object_name in varchar2
-                       --i_object_type in varchar2
-                       i_signature   in varchar2) return identifier_tab is
 
- 
-  CURSOR cu_identifier is
-    select v.name      col_name
-          ,t.name      data_type
-          ,t.type      data_class
-          ,t.signature signature
-    from   all_identifiers v
-          ,all_identifiers t
-    where v.usage            = 'DECLARATION'
-    and   v.signature        = i_signature
-    and   t.usage_context_id = v.usage_id
-    and   t.owner            = v.owner
-    and   t.object_name      = v.object_name
-    and   t.object_type      = v.object_type;
-
-
-  --Query to identify a simple reference
-  --SELECT *  FROM all_identifiers where signature = '8E8A2905C526B95322C8C0560108A24A' and usage = 'DECLARATION'
-
-   l_identifier_tab   identifier_tab;
-   l_index            number := 0;
- 
- BEGIN
-   
-   FOR l_identifier_rec IN cu_identifier LOOP
-     l_index := l_index + 1;
-     l_identifier_tab(l_index) := l_identifier_rec;
-   END LOOP;
-
-   RETURN l_identifier_tab;
-
- END; 
- */
-
-
-
-
-
---@TODO - does this ever return more than 1 record? yes - if looking at a record declaration.
 FUNCTION get_type_defn( i_signature   in varchar2) return identifier_tab is
   l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_type_defn');
 
@@ -2322,6 +2221,8 @@ l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'grab_upto');
   l_colour_result CLOB;
 BEGIN
 
+  ms_logger.param(l_node, 'i_stop' ,i_stop); 
+
   if i_stop is not null then
 
      l_dummy := get_next(i_stop           => i_stop       
@@ -2356,6 +2257,8 @@ BEGIN
   
   --Current pos is now the pto pos 
   g_current_pos := g_upto_pos;
+
+  ms_logger.note(l_node, 'l_result' ,l_result); 
 
   return l_result;
  
@@ -3398,7 +3301,7 @@ BEGIN
   --Calc indent and consume BEGIN
   --Drop out when the corresponding END is reached.
   AOP_block(i_indent    => calc_indent(i_indent, get_next(i_srch_before => G_REGEX_BEGIN
-                                                         ,i_colour => G_COLOUR_GO_PAST))
+                                                         ,i_colour      => G_COLOUR_GO_PAST))
            ,i_regex_end => G_REGEX_END_BEGIN
            ,i_var_list  => l_var_list
            ,i_pu_stack => l_pu_stack);
@@ -3626,9 +3529,9 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
  
   --Capture term prior to the assignment, but the term must be on one line.
   --Allows for comments on lines between term and :=
-  G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '.*(\s*{{comment:\w*}})*\s*:='; 
+  --G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   '.*(\s*{{comment:\w*}})*\s*:='; 
 
-   --G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   ':=';  
+   G_REGEX_ASSIGNMENT          CONSTANT VARCHAR2(50) :=   ':=';  
  
   G_REGEX_ASSIGN_TO_ANY_WORDS   CONSTANT VARCHAR2(50) :=  G_REGEX_ANY_WORDS||G_REGEX_VAR_ASSIGN;
   
@@ -3672,6 +3575,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                                                   ||'|'|| G_REGEX_UPDATE;
 
   G_REGEX_LABEL               CONSTANT VARCHAR2(50) := '(<<)('||G_REGEX_WORD||')(>>)';
+
+  G_REGEX_EOL                 CONSTANT VARCHAR2(50) := '.*';  --End of line, any chars to EOL.
 
  
   FUNCTION find_var(i_search in varchar2) RETURN VARCHAR2 IS   
@@ -3921,6 +3826,8 @@ BEGIN --AOP_block
                                        ||'|'||G_REGEX_NEUTRAL
                                        ||'|'||G_REGEX_CLOSE
                                        ||'|'||G_REGEX_LABEL
+                                       ||'|'||G_REGEX_SEMI_COL
+
                           ,i_srch_after       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
                                        ||'|'||G_REGEX_SHOW_ME_LINE 
                                        --||'|'||G_REGEX_ROW_COUNT_LINE
@@ -4038,6 +3945,8 @@ BEGIN --AOP_block
                            , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'||quoted_var_name(l_stashed_comment)||');'
                                     , i_colour => G_COLOUR_NOTE) );
          end if;
+         go_past(i_search => G_REGEX_EOL --advance to after the new logger message EOL
+                ,i_colour => null);      --no colour
  
       WHEN regex_match(l_keyword ,G_REGEX_SHOW_ME_LINE) THEN
       ms_logger.info(l_node, 'Show Me');
@@ -4101,15 +4010,8 @@ BEGIN --AOP_block
       WHEN regex_match(l_keyword ,G_REGEX_ASSIGNMENT) THEN  
         ms_logger.info(l_node, 'General Assignment');
   
-        --using G_REGEX_ASSIGNMENT to highlight the original text
-        l_var := find_var(i_search => G_REGEX_ASSIGNMENT);
-        ms_logger.note(l_node, 'l_var',l_var);
 
-        --remove trailing :=
-        l_var := REGEXP_REPLACE(l_var,':=$',''); 
-        ms_logger.note(l_node, 'l_var',l_var);
 
-/*
         --using G_REGEX_ASSIGNMENT to highlight the original text
         --l_var := find_var(i_search => G_REGEX_ASSIGNMENT);
  
@@ -4124,7 +4026,7 @@ BEGIN --AOP_block
         ----remove trailing :=
         --l_var := REGEXP_REPLACE(l_var,':=$',''); 
         --ms_logger.note(l_node, 'l_var',l_var);
-*/
+
         --strip all whitespace
         l_var := shrink(i_words => l_var);
         ms_logger.note(l_node, 'l_var',l_var);
@@ -4433,6 +4335,9 @@ BEGIN --AOP_block
       --         ,i_indent   => i_indent
       --         ,i_colour   => G_COLOUR_NOTE); 
 
+      WHEN regex_match(l_keyword ,G_REGEX_SEMI_COL) THEN 
+        ms_logger.info(l_node, 'Any other statement');
+        --go_past(G_REGEX_SEMI_COL); 
  
       ELSE 
           ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
