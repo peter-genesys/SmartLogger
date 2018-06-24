@@ -312,7 +312,7 @@ where max_event_date >= :i_min_qa_date
       when l_dummy = 2 then
         null;
       else
-        null;
+        l_dummy := 3;
     end case;    
 
 

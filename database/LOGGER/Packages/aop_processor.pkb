@@ -162,7 +162,7 @@ create or replace package body aop_processor is
   G_REGEX_NEUTRAL      CONSTANT VARCHAR2(200) :=   G_REGEX_ELSE         
                                             ||'|'||G_REGEX_ELSIF
   --                                          ||'|'||G_REGEX_WHEN
-  --                                          ||'|'||G_REGEX_THEN     
+                                            ||'|'||G_REGEX_THEN     
                                             ||'|'||G_REGEX_EXCEPTION                                            
                                             ;      
   G_REGEX_WHEN_OTHERS_THEN          CONSTANT VARCHAR2(50) := '\sWHEN\s+?OTHERS\s+?THEN\s';
