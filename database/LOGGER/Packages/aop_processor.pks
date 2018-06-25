@@ -51,6 +51,7 @@ TYPE identifier_tab IS table of identifier_rec index by BINARY_INTEGER;
   G_COLOUR_NOTE             CONSTANT VARCHAR2(10) := '#00FF99';
   G_COLOUR_VAR_LINE         CONSTANT VARCHAR2(10) := '#00CCFF';
   G_COLOUR_INTO_VARS        CONSTANT VARCHAR2(10) := '#42F4C2';
+  G_COLOUR_RETURN_LOG       CONSTANT VARCHAR2(10) := '#B92AD6'; --#D62CA9
 
   g_max_qualified_name_length constant integer := 1000;
  

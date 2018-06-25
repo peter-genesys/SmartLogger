@@ -4444,6 +4444,16 @@ BEGIN
  
   END LOOP;
 
+  --Return a pointer to the log
+  if l_var_list.exists('O_LOG_PROCESS_ID')                   and
+     l_var_list('O_LOG_PROCESS_ID').level = i_pu_stack.count and
+     l_var_list('O_LOG_PROCESS_ID').out_var                  then
+      inject( i_new_code  => 'o_log_process_id := l_node.traversal.process_id;'
+             ,i_indent    => i_indent
+             ,i_colour    => G_COLOUR_RETURN_LOG);
+
+  end if;
+ 
   IF i_prog_unit_name = 'beforepform' THEN
     inject( i_new_code  => 'ms_logger.info(l_node,''Starting Report ''||'||g_aop_module_name||');'
            ,i_indent   => i_indent+1

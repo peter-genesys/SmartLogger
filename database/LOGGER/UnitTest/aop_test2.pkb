@@ -259,6 +259,18 @@ create or replace package body aop_test2 is
   END;
 
 
+  procedure test_log_return_var (i_name           in  varchar2 
+                                ,o_log_process_id out integer) is 
+    procedure nested is
+    begin
+      null;
+    end;
+  
+  begin
+    null;
+  end;
+
+
 
  
 BEGIN
