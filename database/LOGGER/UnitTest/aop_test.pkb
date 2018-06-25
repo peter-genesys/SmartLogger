@@ -31,6 +31,9 @@ procedure test_select_fetch_into is
   l_user_tables cu_user_tables%ROWTYPE;
   l_unit cu_unit%ROWTYPE;
  
+  TYPE user_tables_tab_typ IS TABLE OF cu_user_tables%ROWTYPE;
+  l_user_tables_tab        user_tables_tab_typ;
+
 begin
     open cu_user_tables;
     fetch cu_user_tables into l_column_name  
@@ -47,6 +50,15 @@ begin
        , b(to_char(sysdate, 'YYYY'))   --b
        , c        --sd
     from dual;
+
+
+    open cu_user_tables;
+    LOOP
+      FETCH cu_user_tables BULK COLLECT INTO l_user_tables_tab LIMIT 1000;
+      EXIT WHEN l_user_tables_tab.COUNT = 0;
+    END LOOP;  
+
+
 end;
 
  

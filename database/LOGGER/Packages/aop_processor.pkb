@@ -3562,6 +3562,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   G_REGEX_FROM                CONSTANT VARCHAR2(50) := '\sFROM\s';
  
   
+  G_REGEX_BULK_FETCH_INTO     CONSTANT VARCHAR2(50) := '\s(FETCH)\s+?(\s|\S)+?\s+?BULK\s+COLLECT\s+INTO\s';
   G_REGEX_SELECT_FETCH_INTO   CONSTANT VARCHAR2(50) := '\s(SELECT|FETCH)\s+?(\s|\S)+?\s+?INTO\s';
 
   --G_REGEX_INTO_VARS          CONSTANT VARCHAR2(50) :=   '.*(\s*{{comment:\w*}})*\s*(;|\sFROM\s)'; 
@@ -3637,11 +3638,20 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
          l_type_defn_tab := get_type_defn(i_signature => i_signature);
          l_index := l_type_defn_tab.FIRST;
          WHILE l_index is not null loop
-           
-           if l_type_defn_tab(l_index).col_name is null  THEN 
-              ms_logger.comment(l_node,'Record is just a single unnamed column');
+
+           ms_logger.note(l_node,'l_type_defn_tab(l_index).col_name',l_type_defn_tab(l_index).col_name);
+           ms_logger.note(l_node,'l_type_defn_tab(l_index).data_type',l_type_defn_tab(l_index).data_type);
+           ms_logger.note(l_node,'l_type_defn_tab(l_index).data_class',l_type_defn_tab(l_index).data_class);
+   
+           if l_type_defn_tab(l_index).col_name is null THEN 
+              ms_logger.comment(l_node,'No col_name - Record is just a single unnamed column');
               note_var(i_var  => i_name_prefix
                       ,i_type => l_type_defn_tab(l_index).data_type);
+
+           elsif is_atomic_type(i_type => l_type_defn_tab(l_index).col_name) THEN
+              ms_logger.comment(l_node,'Type in col_name - Record is just a single unnamed column');
+              note_var(i_var  => i_name_prefix
+                      ,i_type => l_type_defn_tab(l_index).col_name);
            else   
 
              l_col_name := lower(i_name_prefix||'.'||l_type_defn_tab(l_index).col_name);
@@ -3691,8 +3701,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
           note_record(i_name_prefix  => lower(i_var_name)
                      ,i_signature    => l_var_list(l_var).signature);
 
-        elsif l_var_list(l_var).data_class = 'INDEX TABLE' then
-          ms_logger.comment(l_node, 'Index Table class detected from PLScope');
+        elsif l_var_list(l_var).data_class in ( 'INDEX TABLE','ASSOCIATIVE ARRAY' ) then
+          ms_logger.comment(l_node, 'Index Table / Assoc Array class detected from PLScope');
             
           --Need to determine where at index is associated with this table
           --Compare the original fullname i_var_name with the bracket-free i_var
@@ -4114,6 +4124,13 @@ BEGIN --AOP_block
       --
       --  l_var := find_var(i_search => G_REGEX_VAR);
       --  note_complex_var(i_var => l_var);
+
+      WHEN regex_match(l_keyword ,G_REGEX_BULK_FETCH_INTO  ) THEN   
+        ms_logger.info(l_node, 'Fetch Bulk Collect Into');
+        --This fetches into a tab, which the weaver cannot support, so skip to semi-colon;
+        go_past(G_REGEX_SEMI_COL); 
+
+     
 
  
       WHEN regex_match(l_keyword ,G_REGEX_SELECT_FETCH_INTO  ) THEN   
@@ -5261,7 +5278,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                           , i_compile => TRUE
                           ) THEN
       g_during_advise:= false; 
-	  ms_logger.info(l_node, 'Original Source is invalid.  AOP_PROCESSOR skipping this request' );
+	    ms_logger.info(l_node, 'Original Source is invalid.  AOP_PROCESSOR skipping this request' );
       return;    
     end if;     
  
