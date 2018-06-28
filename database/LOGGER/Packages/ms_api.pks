@@ -101,17 +101,34 @@ FUNCTION get_plain_text_process_report(i_process_id IN NUMBER) RETURN CLOB;
 ------------------------------------------------------------------------
 -- get_html_process_report
 ------------------------------------------------------------------------
-FUNCTION get_html_process_report RETURN CLOB;
+FUNCTION get_html_process_report(i_process_id in integer DEFAULT NULL) RETURN CLOB;
  
+
 ------------------------------------------------------------------------
--- get_trace_URL
+-- get_smartlogger_trace_URL
+------------------------------------------------------------------------
+FUNCTION get_smartlogger_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
+                                  ,i_port         IN VARCHAR2 DEFAULT NULL
+                                  ,i_dir          IN VARCHAR2 DEFAULT NULL
+                                  ,i_process_id   IN INTEGER   ) RETURN VARCHAR2;
+
+------------------------------------------------------------------------
+-- get_smartlogger_process_URL
+------------------------------------------------------------------------
+FUNCTION get_smartlogger_process_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
+                                    ,i_port         IN VARCHAR2 DEFAULT NULL
+                                    ,i_dir          IN VARCHAR2 DEFAULT NULL
+                                    ,i_process_id   IN INTEGER   ) RETURN VARCHAR2;   
+
+------------------------------------------------------------------------
+-- get_trace_URL - first checks process exists
 ------------------------------------------------------------------------
 FUNCTION get_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
                       ,i_port         IN VARCHAR2 DEFAULT NULL
                       ,i_dir          IN VARCHAR2 DEFAULT NULL
                       ,i_process_id   IN INTEGER  DEFAULT NULL
                       ,i_ext_ref      IN VARCHAR2 DEFAULT NULL  ) RETURN VARCHAR2; 
- 
+
 ------------------------------------------------------------------------
 -- get_user_feedback_URL
 ------------------------------------------------------------------------

@@ -23,7 +23,7 @@ create or replace package body ms_api is
 ------------------------------------------------------------------------
 
 
-G_SMARTLOGGER_APP_NO          CONSTANT NUMBER := 104;
+G_SMARTLOGGER_APP_NO          CONSTANT NUMBER := 126;
 G_SMARTLOGGER_PROCESS_PAGE_NO CONSTANT NUMBER := 8;
 G_SMARTLOGGER_TRACE_PAGE_NO   CONSTANT NUMBER := 24;
  
@@ -289,7 +289,7 @@ END;
 ------------------------------------------------------------------------
 -- get_html_process_report
 ------------------------------------------------------------------------
-FUNCTION get_html_process_report RETURN CLOB IS
+FUNCTION get_html_process_report(i_process_id in integer DEFAULT NULL) RETURN CLOB IS
 
   l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_html_process_report');
   l_report CLOB;
@@ -304,7 +304,7 @@ FUNCTION get_html_process_report RETURN CLOB IS
   
   l_colour            VARCHAR2(10);  
   
-  l_process_id INTEGER := ms_logger.f_process_id;
+  l_process_id INTEGER := NVL(i_process_id, ms_logger.f_process_id);
   
   PROCEDURE write(i_line IN VARCHAR2 DEFAULT NULL) IS
 
@@ -401,7 +401,48 @@ exception
 end; --get_html_process_report
 
 
+------------------------------------------------------------------------
+-- prepare_URL
+------------------------------------------------------------------------
+FUNCTION prepare_URL(i_server_url    IN VARCHAR2 DEFAULT NULL
+                    ,i_port          IN VARCHAR2 DEFAULT NULL
+                    ,i_dir           IN VARCHAR2 DEFAULT NULL
+                    ,i_app_no        IN VARCHAR2 DEFAULT NULL
+                    ,i_page_no       IN VARCHAR2 DEFAULT NULL
+                    ,i_session       IN VARCHAR2 DEFAULT NULL
+                    ,i_request       IN VARCHAR2 DEFAULT NULL
+                    ,i_clear_cache   IN VARCHAR2 DEFAULT NULL
+                    ,i_param_names   IN VARCHAR2 DEFAULT NULL
+                    ,i_param_values  IN VARCHAR2 DEFAULT NULL
+                    ,i_checksum_type IN VARCHAR2 DEFAULT 'SESSION') RETURN VARCHAR2 IS
 
+  --l_server_url VARCHAR2(200) := NVL(i_server_url, f_config_value(i_name => 'APEX_SERVER_URL') );
+  --l_port       VARCHAR2(20)  := NVL(i_port,       f_config_value(i_name => 'APEX_PORT') );
+  --l_dir        VARCHAR2(50)  := NVL(i_dir,        f_config_value(i_name => 'APEX_DIR') );
+  l_app_no     VARCHAR2(20)  := NVL(i_app_no,  v('APP_ID'));
+  l_page_no    VARCHAR2(20)  := NVL(i_page_no,  v('APP_PAGE_ID'));
+  l_session    number        := NVL(i_session, v('APP_SESSION'));
+
+BEGIN
+  RETURN 
+      ltrim(i_server_url
+          ||case i_port
+              when null then null
+            else ':'||i_port
+            end
+          ||case i_dir
+              when null then null
+            else '/'||i_dir
+            end
+          ||'/','/')
+      ||APEX_UTIL.PREPARE_URL('f?p='||l_app_no||':'||l_page_no||':'||l_session||':'
+                                    ||i_request||'::'
+                                    ||i_clear_cache||':'
+                                    ||i_param_names||':'
+                                    ||i_param_values
+                              ,p_checksum_type => i_checksum_type);
+ 
+END;  
 
 ------------------------------------------------------------------------
 -- get_apex_page_URL
@@ -419,23 +460,29 @@ FUNCTION get_apex_page_URL(i_server_url  IN VARCHAR2 DEFAULT NULL
   l_server_url VARCHAR2(200) := NVL(i_server_url, f_config_value(i_name => 'APEX_SERVER_URL') );
   l_port       VARCHAR2(20)  := NVL(i_port,       f_config_value(i_name => 'APEX_PORT') );
   l_dir        VARCHAR2(50)  := NVL(i_dir,        f_config_value(i_name => 'APEX_DIR') );
-
+ 
+  l_session number := null; --v('APP_SESSION');
 
 BEGIN
-  RETURN l_server_url
-      ||case l_port
-          when null then null
-        else ':'||l_port
-        end
-      ||case l_dir
-          when null then null
-        else '/'||l_dir
-        end
-      ||'/f?p='||i_app_no||':'||i_page_no||'::'
-      ||i_request||'::'
-      ||i_clear_cache||':'
-      ||i_param_names||':'
-      ||i_param_values;
+  RETURN 
+     --   l_server_url
+     -- ||case l_port
+     --     when null then null
+     --   else ':'||l_port
+     --   end
+     -- ||case l_dir
+     --     when null then null
+     --   else '/'||l_dir
+     --   end
+     -- ||'/'
+     -- ||
+      APEX_UTIL.PREPARE_URL('f?p='||i_app_no||':'||i_page_no||':'||l_session||':'
+                                    ||i_request||'::'
+                                    ||i_clear_cache||':'
+                                    ||i_param_names||':'
+                                    ||i_param_values
+                              ,p_checksum_type => 'PUBLIC_BOOKMARK');
+ 
 END;  
 
  
@@ -469,7 +516,8 @@ BEGIN
                           ,i_app_no      => G_SMARTLOGGER_APP_NO
                           ,i_page_no     => i_page_no
                           ,i_request     => l_request
-                          ,i_clear_cache => 'RIR,RP,'||i_page_no
+                          --,i_clear_cache => 'RIR,RP,'||i_page_no
+                          ,i_clear_cache =>  i_page_no
                           ,i_param_names => 'P'||i_page_no||'_PROCESS_ID'
                           ,i_param_values => i_process_id);
 
@@ -516,7 +564,7 @@ END;
  
  
 ------------------------------------------------------------------------
--- get_trace_URL
+-- get_trace_URL - first checks process exists
 ------------------------------------------------------------------------
 FUNCTION get_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
                       ,i_port         IN VARCHAR2 DEFAULT NULL

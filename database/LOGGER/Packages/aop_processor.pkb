@@ -43,6 +43,9 @@ create or replace package body aop_processor is
 
   g_aop_reg_mode_debug  CONSTANT VARCHAR2(30) := '@AOP_REG_MODE_DEBUG';
  
+  g_logger_id_param     CONSTANT VARCHAR2(30) := 'O_LOGGER_ID';
+  g_logger_url_param    CONSTANT VARCHAR2(30) := 'O_LOGGER_URL';
+ 
   g_for_aop_html      boolean := false;
  
   g_weave_start_time  date;
@@ -3562,8 +3565,10 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   G_REGEX_FROM                CONSTANT VARCHAR2(50) := '\sFROM\s';
  
   
-  G_REGEX_BULK_FETCH_INTO     CONSTANT VARCHAR2(50) := '\s(FETCH)\s+?(\s|\S)+?\s+?BULK\s+COLLECT\s+INTO\s';
-  G_REGEX_SELECT_FETCH_INTO   CONSTANT VARCHAR2(50) := '\s(SELECT|FETCH)\s+?(\s|\S)+?\s+?INTO\s';
+  --G_REGEX_BULK_FETCH_INTO     CONSTANT VARCHAR2(50) := '\s(FETCH)\s+?(\s|\S)+?\s+?BULK\s+COLLECT\s+INTO\s';
+  G_REGEX_BULK_FETCH_INTO     CONSTANT VARCHAR2(50) := '\sFETCH\s.*?BULK\s+COLLECT\s+INTO\s'; --TEMP FIX ONE LINE ONLY
+  --G_REGEX_SELECT_FETCH_INTO   CONSTANT VARCHAR2(50) := '\s(SELECT|FETCH)\s+?(\s|\S)+?\s+?INTO\s';
+  G_REGEX_SELECT_FETCH_INTO   CONSTANT VARCHAR2(50) := '\s(SELECT|FETCH)\s.*?INTO\s'; --TEMP FIX ONE LINE ONLY
 
   --G_REGEX_INTO_VARS          CONSTANT VARCHAR2(50) :=   '.*(\s*{{comment:\w*}})*\s*(;|\sFROM\s)'; 
   G_REGEX_INTO_VARS          CONSTANT VARCHAR2(50) :=  '(.|\s)*(;|\sFROM\s)'; --mulitple lines
@@ -4444,15 +4449,29 @@ BEGIN
  
   END LOOP;
 
-  --Return a pointer to the log
-  if l_var_list.exists('O_LOG_PROCESS_ID')                   and
-     l_var_list('O_LOG_PROCESS_ID').level = i_pu_stack.count and
-     l_var_list('O_LOG_PROCESS_ID').out_var                  then
-      inject( i_new_code  => 'o_log_process_id := l_node.traversal.process_id;'
+  --If the logger process id parameter is included then
+  --return a pointer to the logged process
+  if l_var_list.exists(g_logger_id_param)                   and
+     l_var_list(g_logger_id_param).level = i_pu_stack.count and
+     l_var_list(g_logger_id_param).out_var                  then
+      inject( i_new_code  => lower(g_logger_id_param)||' := l_node.traversal.process_id;'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_RETURN_LOG);
 
   end if;
+
+  --If the logger url parameter is included then
+  --return a url to view the process in the logger app.
+  if l_var_list.exists(g_logger_url_param)                  and
+     l_var_list(g_logger_url_param).level = i_pu_stack.count and
+     l_var_list(g_logger_url_param).out_var                  then
+      inject( i_new_code  => 
+        lower(g_logger_url_param)||' := ms_api.get_smartlogger_trace_URL(i_process_id  => l_node.traversal.process_id);'
+             ,i_indent    => i_indent
+             ,i_colour    => G_COLOUR_RETURN_LOG);
+
+  end if;
+ 
  
   IF i_prog_unit_name = 'beforepform' THEN
     inject( i_new_code  => 'ms_logger.info(l_node,''Starting Report ''||'||g_aop_module_name||');'

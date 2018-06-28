@@ -997,8 +997,8 @@ END log_process;
 ------------------------------------------------------------------------
 -- push_message
 ------------------------------------------------------------------------
-PROCEDURE push_message(io_messages  IN OUT message_list
-                      ,i_message    IN     ms_message%ROWTYPE ) IS
+PROCEDURE push_message(io_messages  IN OUT NOCOPY message_list
+                      ,i_message    IN            ms_message%ROWTYPE ) IS
   l_next_index               BINARY_INTEGER;    
  
 BEGIN
@@ -1013,6 +1013,28 @@ BEGIN
 
  
 END;
+
+
+/*
+------------------------------------------------------------------------
+-- push_message
+------------------------------------------------------------------------
+PROCEDURE push_message(i_message    IN            ms_message%ROWTYPE ) IS
+  l_next_index               BINARY_INTEGER;    
+ 
+BEGIN
+ 
+  --Next index is last index + 1
+  l_next_index := NVL(g_nodes(f_index).unlogged_messages.LAST,0) + 1;
+  $if $$intlog $then intlog_note('l_next_index  ',l_next_index   );   $end
+  
+  --add to the stack             
+  g_nodes(f_index).unlogged_messages( l_next_index ) := i_message;
+
+
+ 
+END;
+*/
 
 ------------------------------------------------------------------------
 -- log_message
@@ -1113,8 +1135,11 @@ BEGIN
         $if $$intlog $then intlog_debug('Not yet loggable, so push it.' );        $end
         --Node is unlogged or not set to low enough message mode, yet..
         --push onto unlogged messages
-        push_message(io_messages     => g_nodes(f_index).unlogged_messages 
-                    ,i_message       => l_message); 
+
+        --TEMP REMOVED - This is too slow.
+        null;
+        --push_message(io_messages     => g_nodes(f_index).unlogged_messages 
+        --            ,i_message       => l_message); 
  
 
       END IF;   
