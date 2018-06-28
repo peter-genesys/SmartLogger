@@ -343,7 +343,9 @@ where max_event_date >= :i_min_qa_date
     --##This is a special fatal
     --""Next comment produces a Note.
     --^^l_clob_a
-    if true then
+
+    --Show Me syntax is below, exposes the line just executed.
+    if true then--@@
 
       o_param23:= NVL(NULL,CASE
                              WHEN TRUE THEN 1

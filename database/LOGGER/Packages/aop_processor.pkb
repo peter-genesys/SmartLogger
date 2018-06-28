@@ -3553,6 +3553,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   G_REGEX_REC_COL             CONSTANT VARCHAR2(50) := G_REGEX_WORD||'.'||G_REGEX_WORD;
   G_REGEX_BIND_VAR            CONSTANT VARCHAR2(50) := ':'||G_REGEX_WORD;
 
+  G_REGEX_SHOW_ME             CONSTANT VARCHAR2(50) :=    '--(\@\@)';
   G_REGEX_SHOW_ME_LINE        CONSTANT VARCHAR2(50) :=  '.+--(\@\@)';
   G_REGEX_ROW_COUNT_LINE      CONSTANT VARCHAR2(50) :=  '.+--(RC)';
  
@@ -3844,11 +3845,11 @@ BEGIN --AOP_block
                                        ||'|'||G_REGEX_SEMI_COL
 
                           ,i_srch_after       => G_REGEX_WHEN_EXCEPT_THEN --(also matches for G_REGEX_WHEN_OTHERS_THEN)
-                                       ||'|'||G_REGEX_SHOW_ME_LINE 
                                        --||'|'||G_REGEX_ROW_COUNT_LINE
                                        --||'|'||G_REGEX_DML               
                                        ||'|'||G_REGEX_SELECT_FETCH_INTO          
                           ,i_stop          => G_REGEX_START_ANNOTATION --don't colour it
+                                       ||'|'||G_REGEX_SHOW_ME_LINE 
                                        --||'|'||G_REGEX_ASSIGN_TO_REC_COL
                                        --||'|'||G_REGEX_ASSIGN_TO_ANY_WORDS
                                        ||'|'||G_REGEX_ASSIGNMENT
@@ -3964,14 +3965,13 @@ BEGIN --AOP_block
                 ,i_colour => null);      --no colour
  
       WHEN regex_match(l_keyword ,G_REGEX_SHOW_ME_LINE) THEN
-      ms_logger.info(l_node, 'Show Me');
-      --expose this line of code as a comment 
-        inject( i_new_code => 'ms_logger.comment(l_node,'''
-                        ||SUBSTR(l_keyword,1,LENGTH(l_keyword)-4)  
-              ||''');'
+        ms_logger.info(l_node, 'Show Me');
+ 
+        --expose this line of code as a comment 
+        inject( i_new_code => 'ms_logger.comment(l_node,'||quoted_var_name(SUBSTR(lower(l_keyword),1,instr(l_keyword,'--@@')-1))||');'
                ,i_indent   => i_indent
                ,i_colour   => G_COLOUR_COMMENT);
-
+ 
       WHEN regex_match(l_keyword ,G_REGEX_LABEL) THEN
         ms_logger.info(l_node, 'Label');
  
