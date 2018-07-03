@@ -23,7 +23,7 @@ create or replace package body ms_api is
 ------------------------------------------------------------------------
 
 
-G_SMARTLOGGER_APP_NO          CONSTANT NUMBER := 126;
+G_SMARTLOGGER_ALIAS           CONSTANT VARCHAR2(100) := 'SMARTLOGGER';
 G_SMARTLOGGER_PROCESS_PAGE_NO CONSTANT NUMBER := 8;
 G_SMARTLOGGER_TRACE_PAGE_NO   CONSTANT NUMBER := 24;
  
@@ -513,11 +513,10 @@ BEGIN
   RETURN get_apex_page_URL(i_server_url  => i_server_url
                           ,i_port        => i_port
                           ,i_dir         => i_dir
-                          ,i_app_no      => G_SMARTLOGGER_APP_NO
+                          ,i_app_no      => G_SMARTLOGGER_ALIAS
                           ,i_page_no     => i_page_no
                           ,i_request     => l_request
-                          --,i_clear_cache => 'RIR,RP,'||i_page_no
-                          ,i_clear_cache =>  i_page_no
+                          ,i_clear_cache => 'RIR,RP,'||i_page_no
                           ,i_param_names => 'P'||i_page_no||'_PROCESS_ID'
                           ,i_param_values => i_process_id);
 
