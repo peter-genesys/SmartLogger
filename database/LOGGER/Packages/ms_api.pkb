@@ -500,7 +500,10 @@ FUNCTION get_smartlogger_report_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
  
 BEGIN
 
-   
+  if i_process_id is null then 
+    --There is no process to report on.
+    return null;
+  end if; 
   
   IF ms_logger.f_process_exceptions(i_process_id => i_process_id) THEN
     --Exceptions exist so lets show them.
