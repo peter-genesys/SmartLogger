@@ -47,6 +47,8 @@ create or replace package body ms_logger is
   G_REF_NAME_WIDTH        CONSTANT NUMBER := 100;
   G_REF_VALUE_WIDTH       CONSTANT NUMBER := 30;
   G_CALL_STACK_WIDTH      CONSTANT NUMBER := 2000;
+
+  G_MAX_UNLOGGED_MSG_COUNT  CONSTANT NUMBER := 100;
   
  
 TYPE node_stack_typ IS
@@ -1003,15 +1005,38 @@ PROCEDURE push_message(io_messages  IN OUT NOCOPY message_list
  
 BEGIN
  
+  $if $$intlog $then intlog_start('push_message');   $end
+
+  IF io_messages.count > G_MAX_UNLOGGED_MSG_COUNT then
+    $if $$intlog $then intlog_note('io_messages.count',io_messages.count);   $end
+    $if $$intlog $then intlog_debug('TOO MANY MESSAGES');   $end
+    --G_MAX_UNLOGGED_MSG_COUNT protects again excessive memory use
+    --Must remove a message before we can add another
+    declare
+      l_non_param_index BINARY_INTEGER;    
+    BEGIN
+      --Find the first message that is not a parameter
+      --(Assumes will be less than 100 params in a routine)
+      l_non_param_index := io_messages.first;
+      while io_messages( l_non_param_index ).MSG_TYPE = G_MSG_TYPE_PARAM LOOP
+        l_non_param_index := io_messages.next( l_non_param_index );
+      END LOOP;
+      --Delete it.
+      $if $$intlog $then intlog_note('l_non_param_index  ',l_non_param_index   );   $end
+      io_messages.delete( l_non_param_index );
+    END;
+
+  END IF;  
+ 
   --Next index is last index + 1
   l_next_index := NVL(io_messages.LAST,0) + 1;
   $if $$intlog $then intlog_note('l_next_index  ',l_next_index   );   $end
   
   --add to the stack             
   io_messages( l_next_index ) := i_message;
-  
 
- 
+  $if $$intlog $then intlog_end('push_message');   $end
+
 END;
 
 
@@ -1131,17 +1156,13 @@ BEGIN
         --logged it, don't need to push it
         NULL;
       ELSE
-        --Not loggable
+        --Not currently loggable.
         $if $$intlog $then intlog_debug('Not yet loggable, so push it.' );        $end
         --Node is unlogged or not set to low enough message mode, yet..
         --push onto unlogged messages
-
-        --TEMP REMOVED - This is too slow.
-        null;
-        --push_message(io_messages     => g_nodes(f_index).unlogged_messages 
-        --            ,i_message       => l_message); 
+        push_message(io_messages     => g_nodes(f_index).unlogged_messages 
+                    ,i_message       => l_message); 
  
-
       END IF;   
      
 
@@ -1183,7 +1204,8 @@ BEGIN
   IF  io_node.open_process = G_OPEN_PROCESS_ALWAYS    OR 
      (io_node.open_process = G_OPEN_PROCESS_IF_CLOSED AND f_process_is_closed) THEN
  
-    --if the procedure stack if empty then we'll start a new process
+    $if $$intlog $then intlog_debug('Lets start a new process'); $end
+    --if the procedure stack is empty then we'll start a new process
     log_process(i_origin  => io_node.module.module_name||' '||io_node.unit.unit_name  );
   END IF;
 
@@ -1645,7 +1667,7 @@ BEGIN
                       ,i_message   => i_descr
                       ,i_msg_type  => i_msg_type
                       ,i_msg_level => G_MSG_LEVEL_COMMENT
-	         ,i_node    => i_node);      
+	                    ,i_node      => i_node);      
  
     ELSE
       --Longer or multi-line value, put it in the message column
@@ -1807,7 +1829,6 @@ FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
                     ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
                     ,i_module_name  IN VARCHAR2 DEFAULT NULL
                     ,i_unit_name    IN VARCHAR2 DEFAULT NULL
-					--,i_msg_mode     IN INTEGER  DEFAULT G_MSG_MODE_NORMAL
                     ,i_comments     IN VARCHAR2 DEFAULT NULL       ) RETURN INTEGER IS
  
   l_origin ms_process.origin%TYPE;
@@ -1834,8 +1855,7 @@ BEGIN
 
   l_origin := NVL(TRIM(l_origin),'UNKNOWN ORIGIN');
  
-  log_process(i_origin      =>l_origin
-        --  ,i_msg_mode     => i_msg_mode
+  log_process(i_origin      => l_origin
             ,i_ext_ref      => i_ext_ref    
             ,i_comments     => i_comments);  
  
