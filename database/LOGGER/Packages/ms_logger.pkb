@@ -40,7 +40,7 @@ create or replace package body ms_logger is
 ------------------------------------------------------------------------
  
  
-  g_debug_indent       INTEGER;
+  g_debug_indent          INTEGER;
  
   G_MODULE_NAME_WIDTH     CONSTANT NUMBER := 50;
   G_UNIT_NAME_WIDTH       CONSTANT NUMBER := 50;
@@ -73,12 +73,15 @@ G_MAX_NESTED_NODES      CONSTANT NUMBER       := 1000;
 
 
 --NEW CONTROLS
-g_process_id                     NUMBER;
-g_internal_error                 BOOLEAN := FALSE;
+
+g_process                        ms_process%ROWTYPE;
+         
+--g_process_id                     NUMBER;
+--g_internal_error                 BOOLEAN := FALSE;
 g_nodes                          node_stack_typ;
+--g_logger_awake                   BOOLEAN := FALSE;
 
 
- 
 --Node Types
 --Root Only  - Will end current process and start a new one.
 --Root Never - Will not start a process
@@ -122,6 +125,39 @@ G_MODULE_TYPE_SCRIPT      CONSTANT ms_module.module_type%TYPE := 'SCRIPT';
 G_MODULE_TYPE_DBTRIGGER   CONSTANT ms_module.module_type%TYPE := 'DB_TRIG';
   
   
+
+ 
+FUNCTION f_logger_is_asleep RETURN BOOLEAN IS
+BEGIN
+  --start_datetime is null when logger is asleep
+  --(logger is asleep when the logger package initilises)
+  RETURN g_process.created_date IS NULL;
+
+END f_logger_is_asleep; 
+
+FUNCTION f_logger_is_awake RETURN BOOLEAN IS
+BEGIN   
+  RETURN NOT f_logger_is_asleep;
+END f_logger_is_awake; 
+
+FUNCTION f_logger_is_quiet RETURN BOOLEAN IS
+BEGIN
+  --Process is cached, but not logged.
+  --All nodes have been disabled or quiet.
+  RETURN g_process.process_id is null;
+END f_logger_is_quiet; 
+
+FUNCTION f_logger_is_active RETURN BOOLEAN IS
+BEGIN
+  RETURN NOT f_logger_is_quiet;
+END f_logger_is_active; 
+
+
+FUNCTION f_internal_error return boolean is
+BEGIN
+  return  g_process.internal_error = 'Y'; 
+END f_internal_error;
+ 
 ----------------------------------------------------------------------
 -- Type Conversion functions (private)
 ----------------------------------------------------------------------
@@ -303,15 +339,15 @@ BEGIN
   --fatal(g_nodes(f_index)  ,'ms_logger Internal Error');
   --warning(g_nodes(f_index),'log_node: exceeded ' ||G_MAX_NESTED_NODES||' nested procs.');
 
-  g_internal_error := TRUE; 
+  g_process.internal_error := 'Y'; 
+  g_process.error_message  := i_error_message; 
+  g_process.updated_date   := SYSDATE; 
  
   --NB if g_process_id is NULL,this will do nothing and raise no error, but that is ok.
   UPDATE ms_process 
-  SET internal_error = 'Y'
-     ,error_message  = i_error_message
-     ,updated_date   = SYSDATE
-  WHERE process_id   = g_process_id
-  AND internal_error = 'N';
+  SET ROW = g_process
+  WHERE process_id   = g_process.process_id
+  AND   internal_error = 'N';
   
   COMMIT;
 
@@ -332,7 +368,7 @@ PROCEDURE err_warn_oracle_error(i_prog_unit IN VARCHAR2 ) IS
 BEGIN 
   $if $$intlog $then intlog_putline(i_prog_unit||':');     $end
   err_raise_internal_error(i_prog_unit => i_prog_unit
-                           ,i_message   => SQLERRM);
+                          ,i_message   => SQLERRM);
   $if $$intlog $then intlog_end(i_prog_unit); $end --extra call to intlog_end closes the program unit.
 
 END;
@@ -364,31 +400,31 @@ BEGIN
  
 END get_module;
 
-  --------------------------------------------------------------------
-  -- object_owner
-  --------------------------------------------------------------------
-  FUNCTION object_owner(i_object_name IN VARCHAR2) RETURN VARCHAR2 IS
-    
-    -- find the most appropriate object owner.
-    -- Of DBA OBJECTS  
-    -- Select 1 owner, with preference to the user
-    CURSOR cu_owner IS
-    select owner
-    from   dba_objects_v
-    where  object_name = UPPER(i_object_name)
-    and    object_type <> 'SYNONYM'
-    order by decode(owner,USER,1,2);
+--------------------------------------------------------------------
+-- object_owner
+--------------------------------------------------------------------
+FUNCTION object_owner(i_object_name IN VARCHAR2) RETURN VARCHAR2 IS
+  
+  -- find the most appropriate object owner.
+  -- Of DBA OBJECTS  
+  -- Select 1 owner, with preference to the user
+  CURSOR cu_owner IS
+  select owner
+  from   dba_objects_v
+  where  object_name = UPPER(i_object_name)
+  and    object_type <> 'SYNONYM'
+  order by decode(owner,USER,1,2);
 
-    l_result VARCHAR2(30);
+  l_result VARCHAR2(30);
 
-  BEGIN
-    OPEN cu_owner;
-    FETCH cu_owner INTO l_result;
-    CLOSE cu_owner;
+BEGIN
+  OPEN cu_owner;
+  FETCH cu_owner INTO l_result;
+  CLOSE cu_owner;
 
-    RETURN NVL(l_result,USER);
- 
-  END;
+  RETURN NVL(l_result,USER);
+
+END;
 
 
   --------------------------------------------------------------------
@@ -452,6 +488,7 @@ BEGIN
       --Derive module type
       $if $$intlog $then intlog_debug('Derive module type');  $end
       CASE 
+        --Legacy support for Oracle Reports - may not bother supporting in future.
         WHEN i_unit_name IN ('beforepform'
                             ,'afterpform'
                             ,'afterreport') THEN 
@@ -483,10 +520,8 @@ BEGIN
     l_module.module_id       := new_module_id;
     l_module.module_name     := LOWER(i_module_name);
     l_module.revision        := i_revision;
-    --l_module.msg_mode        := G_MSG_MODE_DEBUG; 
-    --l_module.open_process    := G_OPEN_PROCESS_IF_CLOSED;  
-    l_module.msg_mode        := G_MSG_MODE_QUIET; 
-    l_module.open_process    := G_OPEN_PROCESS_NEVER;     
+    l_module.msg_mode        := G_MSG_MODE_DEFAULT;      
+    l_module.open_process    := G_OPEN_PROCESS_DEFAULT; 
  
     --insert a new module instance
     $if $$intlog $then intlog_debug('insert module');  $end
@@ -565,8 +600,8 @@ BEGIN
     l_unit.module_id       := i_module_id;
     l_unit.unit_name       := i_unit_name;
     l_unit.unit_type       := i_unit_type;
-    l_unit.msg_mode        := G_MSG_MODE_DEFAULT;     --unit is overridden by module when set to DEFAULT 
-    l_unit.open_process    := G_OPEN_PROCESS_DEFAULT; --unit is overridden by module when set to DEFAULT   
+    l_unit.msg_mode        := G_MSG_MODE_OVERRIDDEN;     --overridden by module msg_mode 
+    l_unit.open_process    := G_OPEN_PROCESS_OVERRIDDEN; --overridden by module open_process  
 
     --insert a new procedure instance
     INSERT INTO ms_unit VALUES l_unit;  
@@ -741,7 +776,7 @@ BEGIN
    
   ELSE
    
-    RETURN g_process_id;
+    RETURN g_process.process_id;
     
   END IF;  
   
@@ -749,7 +784,7 @@ END f_process_id;
  
 FUNCTION f_process_is_closed RETURN BOOLEAN IS
 BEGIN
-  RETURN g_process_id IS NULL;
+  RETURN g_process.process_id IS NULL;
 END f_process_is_closed;
 
 FUNCTION f_process_is_open RETURN BOOLEAN IS
@@ -757,6 +792,9 @@ BEGIN
   RETURN NOT f_process_is_closed;
 END f_process_is_open; 
  
+
+
+
 
 ----------------------------------------------------------------------
 -- DERIVATION RULES (private)
@@ -767,14 +805,16 @@ END f_process_is_open;
  
 ------------------------------------------------------------------------
 -- Process operations (private)
+-- @TODO - Deprecated NOT USED - remove
+-- No known calls to this. Not in Spec.
 ------------------------------------------------------------------------ 
 PROCEDURE close_process  
 IS
 BEGIN
 
-    g_process_id := NULL;
+    g_process.process_id := NULL;
     --Reset the internal error flag.  This will reactivate the package.
-    g_internal_error := FALSE;
+    g_process.internal_error := 'N';
  
 END close_process;
 
@@ -936,51 +976,72 @@ PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
                     ,i_msg_mode IN NUMBER);
 
  
+
+------------------------------------------------------------------------
+--CACHING ROUTINES
+------------------------------------------------------------------------
+
+PROCEDURE create_process(io_node  IN OUT node_typ) IS
+  --Logger is now awake
+BEGIN
+    $if $$intlog $then intlog_start('create_process'); $end
+    $if $$intlog $then intlog_note('io_node.module.module_name',io_node.module.module_name );   $end
+    $if $$intlog $then intlog_note('io_node.unit.unit_name'    ,io_node.unit.unit_name );   $end
+    --$if $$intlog $then intlog_note('i_comments',i_comments );   $end
+ 
+    g_process.process_id     := null;
+    g_process.origin         := io_node.module.module_name||' '||io_node.unit.unit_name;
+    --g_process.ext_ref        := i_ext_ref;  --DEPRECATED
+    g_process.username       := USER;
+    g_process.created_date   := SYSDATE;      --This is when the process is cached, rather than when inserted.
+    --g_process.comments       := i_comments; --DEPRECATED
+    g_process.internal_error := 'N';  --reset internal error for the new process
+    g_process.keep_yn        := 'N';
+ 
+    init_node_stack; --remove all nodes from the stack.
+
+    $if $$intlog $then intlog_debug('Process created, but not yet logged.');   $end 
+
+
+    --@TODO Either log the process now - if the unit is set to DEBUGGING or NORMAL
+    --OR wait unit attempt to log node. 
+ 
+    $if $$intlog $then intlog_end('create_process'); $end
+
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    err_warn_oracle_error('create_process');
+    
+END create_process;
+
+
+
+
 ------------------------------------------------------------------------
 -- LOGGING ROUTINES (private)
 -- These routines write to the logging tables
 ------------------------------------------------------------------------
 
-PROCEDURE log_process(i_origin       IN VARCHAR2 DEFAULT NULL
-                     ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
-                     ,i_comments     IN VARCHAR2 DEFAULT NULL)
+PROCEDURE log_process is 
 
-IS
- 
   PRAGMA AUTONOMOUS_TRANSACTION;
-  
-  l_process ms_process%ROWTYPE;
-
+ 
 BEGIN
     $if $$intlog $then intlog_start('log_process'); $end
-    $if $$intlog $then intlog_note('i_origin  ',i_origin   );   $end
-    $if $$intlog $then intlog_note('i_ext_ref ',i_ext_ref  );   $end
-    $if $$intlog $then intlog_note('i_comments',i_comments );   $end
+    --$if $$intlog $then intlog_note('i_origin  ',i_origin   );   $end
+    --$if $$intlog $then intlog_note('i_ext_ref ',i_ext_ref  );   $end
+    --$if $$intlog $then intlog_note('i_comments',i_comments );   $end
 	
-    --reset internal error for the new process
-    g_internal_error := FALSE;
- 
-    g_process_id := ms_process_seq.NEXTVAL;
-	  $if $$intlog $then intlog_note('g_process_id',g_process_id);           $end
- 
-    l_process.process_id     := g_process_id;
-    l_process.origin         := i_origin;
-    l_process.ext_ref        := i_ext_ref;
-    l_process.username       := USER;
-    l_process.created_date   := SYSDATE; 
-    l_process.comments       := i_comments;
-    l_process.internal_error := 'N';
-    l_process.keep_yn        := 'N';
- 
-    
+    --Set the process_id
+    g_process.process_id := ms_process_seq.NEXTVAL;
+	  $if $$intlog $then intlog_note('g_process.process_id',g_process.process_id);           $end
  
     --insert a new process
-    INSERT INTO ms_process VALUES l_process;
+    INSERT INTO ms_process VALUES g_process;
  
     COMMIT;
-    
-    init_node_stack;
-	
+ 
   	$if $$intlog $then intlog_end('log_process'); $end
 
 EXCEPTION
@@ -1040,26 +1101,6 @@ BEGIN
 END;
 
 
-/*
-------------------------------------------------------------------------
--- push_message
-------------------------------------------------------------------------
-PROCEDURE push_message(i_message    IN            ms_message%ROWTYPE ) IS
-  l_next_index               BINARY_INTEGER;    
- 
-BEGIN
- 
-  --Next index is last index + 1
-  l_next_index := NVL(g_nodes(f_index).unlogged_messages.LAST,0) + 1;
-  $if $$intlog $then intlog_note('l_next_index  ',l_next_index   );   $end
-  
-  --add to the stack             
-  g_nodes(f_index).unlogged_messages( l_next_index ) := i_message;
-
-
- 
-END;
-*/
 
 ------------------------------------------------------------------------
 -- log_message
@@ -1069,8 +1110,8 @@ FUNCTION log_message(i_message  IN ms_message%ROWTYPE
                     ,i_node     IN ms_logger.node_typ) RETURN BOOLEAN IS
     PRAGMA AUTONOMOUS_TRANSACTION;
 
-  l_message ms_message%ROWTYPE := i_message;
-  l_logged BOOLEAN := FALSE;
+  l_message        ms_message%ROWTYPE := i_message;
+  l_logged_message BOOLEAN := FALSE;
 BEGIN
   $if $$intlog $then intlog_start('log_message'); $end
   l_message.message_id := new_message_id;
@@ -1089,7 +1130,7 @@ BEGIN
      $if $$intlog $then intlog_note('message_id  ',l_message.message_id  ); $end
      $if $$intlog $then intlog_note('traversal_id',l_message.traversal_id); $end
      $if $$intlog $then intlog_note('name        ',l_message.name        ); $end
-	 $if $$intlog $then intlog_note('value       ',l_message.value        ); $end
+	   $if $$intlog $then intlog_note('value       ',l_message.value        ); $end
      $if $$intlog $then intlog_note('message     ',l_message.message     ); $end
      $if $$intlog $then intlog_note('msg_type    ',l_message.msg_type    ); $end
      $if $$intlog $then intlog_note('msg_level   ',l_message.msg_level   ); $end
@@ -1097,7 +1138,7 @@ BEGIN
     
      INSERT INTO ms_message VALUES l_message;
 
-     l_logged := TRUE;
+     l_logged_message := TRUE;
   
   END IF;
  
@@ -1105,7 +1146,7 @@ BEGIN
  
   $if $$intlog $then intlog_end('log_message'); $end
 
-  RETURN l_logged;
+  RETURN l_logged_message;
  
 EXCEPTION
   WHEN OTHERS THEN
@@ -1130,7 +1171,7 @@ PROCEDURE create_message ( i_name      IN VARCHAR2 DEFAULT NULL
 
 BEGIN
   $if $$intlog $then intlog_start('create_message'); $end
-  IF NOT g_internal_error and 
+  IF     g_process.internal_error  = 'N' and 
      NOT i_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN 
  
       --ms_logger passes node as origin of message  
@@ -1188,6 +1229,7 @@ PROCEDURE log_node(io_node        IN OUT node_typ
   l_del_message_index BINARY_INTEGER;
 
   x_too_deeply_nested   EXCEPTION;
+  x_logger_asleep       EXCEPTION;
   PRAGMA AUTONOMOUS_TRANSACTION;
   l_logged BOOLEAN;
  
@@ -1200,13 +1242,19 @@ BEGIN
     RAISE x_too_deeply_nested;
   END IF;
  
-  --should we start a new process
-  IF  io_node.open_process = G_OPEN_PROCESS_ALWAYS    OR 
-     (io_node.open_process = G_OPEN_PROCESS_IF_CLOSED AND f_process_is_closed) THEN
- 
-    $if $$intlog $then intlog_debug('Lets start a new process'); $end
-    --if the procedure stack is empty then we'll start a new process
-    log_process(i_origin  => io_node.module.module_name||' '||io_node.unit.unit_name  );
+  --Logger must be awake
+  IF f_logger_is_asleep then
+     raise x_logger_asleep;
+  end if;
+
+  --Ensure the current cached process has been logged.
+  If f_logger_is_quiet then
+    --Process is cached, but not logged.
+    --Time to log the process.
+    $if $$intlog $then intlog_debug('Log the process'); $end
+    --??if the procedure stack is empty then we'll start a new process
+    --PAB - doesn't seem to work like this anymore - but maybe it should.
+    log_process;
   END IF;
 
   --Now that we can re-log a node, need to test if already logged.
@@ -1230,7 +1278,7 @@ BEGIN
     --fill in the NULLs
     io_node.traversal.traversal_id        := new_traversal_id; 
     io_node.traversal.parent_traversal_id := g_nodes(i_parent_index).traversal.traversal_id; 
-    io_node.traversal.process_id          := g_process_id;
+    io_node.traversal.process_id          := g_process.process_id;
     
     $if $$intlog $then intlog_note('module_name        ',io_node.module.module_name );           $end
     $if $$intlog $then intlog_note('unit_name          ',io_node.unit.unit_name  );              $end
@@ -1245,7 +1293,7 @@ BEGIN
 	
   END IF;
   
-  COMMIT;  --commit prior to logging refs
+  COMMIT;  --commit prior to logging messages
  
   --Loop thru any unlogged messages, attempting to log each.  
   --if successful, then remove message from the list.
@@ -1268,6 +1316,10 @@ BEGIN
   $if $$intlog $then intlog_end('log_node'); $end
   
 EXCEPTION
+  WHEN x_logger_asleep THEN
+    ROLLBACK;
+    err_raise_internal_error(i_prog_unit => 'log_node'
+                            ,i_message   => 'Logger is still asleep.  State should not occur.');
   WHEN x_too_deeply_nested THEN
     ROLLBACK;
     err_raise_internal_error(i_prog_unit => 'log_node'
@@ -1289,18 +1341,17 @@ PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
   --or were logged at a higher msg_mode.
   --search back recursively to first logged traversal, at an equal msg_mode
   --log_node will update node with the new msg_mode
-  --and log any remaining unlogged refs.
+  --and log any remaining unlogged messages
 
   l_traversal_index BINARY_INTEGER;
 BEGIN
   $if $$intlog $then intlog_start('dump_nodes'); $end
-  $if $$intlog $then intlog_note('i_index           ',i_index);               $end
-  $if $$intlog $then intlog_note('i_msg_mode        ',i_msg_mode);            $end
-  
-  
+  $if $$intlog $then intlog_note('i_index'   ,i_index);     $end
+  $if $$intlog $then intlog_note('i_msg_mode',i_msg_mode);  $end
+ 
   IF i_index > 0 AND ( 
           NOT g_nodes(i_index).logged 
-	  OR  g_nodes(i_index).traversal.msg_mode > i_msg_mode)  THEN
+	        OR  g_nodes(i_index).traversal.msg_mode > i_msg_mode)  THEN
     --dump any previous traversals too
     dump_nodes(i_index    => g_nodes.PRIOR(i_index)
               ,i_msg_mode => i_msg_mode);
@@ -1316,73 +1367,115 @@ EXCEPTION
     err_warn_oracle_error('dump_nodes');
 END;
 
-
-
-
+ 
+ 
 ------------------------------------------------------------------------
 -- Traversal operations (private)
 ------------------------------------------------------------------------
 
-PROCEDURE create_traversal(io_node     IN OUT ms_logger.node_typ )
-IS
+------------------------------------------------------------------------
+-- f_wake_logger (private)
+-- The logger is either ASLEEP or AWAKE.
+--  ASLEEP - When the logger package is initialised, it is ASLEEP
+--  AWAKE  - When the logger encounters a node that may wake it, it will become AWAKE
+-- Wake the logger, if allowed, and then return wake status.
+-- (The logger will remain awake for the remainder of the session.)
+------------------------------------------------------------------------
+
+FUNCTION f_wake_logger(io_node IN OUT ms_logger.node_typ) RETURN BOOLEAN is
+BEGIN
+  --Open a new process 
+  --  A If this unit always wakes the logger
+  --    this is an atypical mode.  opens a new process, even if already awake.
+  --  B If this unit may wake the logger, and the logger is asleep.
+
+  IF  io_node.open_process = G_OPEN_PROCESS_ALWAYS    OR   
+     (io_node.open_process = G_OPEN_PROCESS_IF_CLOSED AND f_logger_is_asleep) THEN
+    $if $$intlog $then intlog_debug('Wake the logger'); $end
+    create_process(io_node => io_node);
+  END IF;
+
+  return f_logger_is_awake;
+ 
+END;  
+
+
+PROCEDURE create_traversal(io_node     IN OUT ms_logger.node_typ ) IS
+
+ 
+  x_internal_error    EXCEPTION;
+  x_node_disabled     EXCEPTION;
+  x_logger_asleep     EXCEPTION;
 
 BEGIN
   $if $$intlog $then intlog_start('create_traversal'); $end
   $if $$intlog $then intlog_note('io_node.unit.unit_name',io_node.unit.unit_name); $end
   
-  
  
-    --Messages and references, in the SCOPE of this traversal, will be stored.
-    io_node.traversal.traversal_id        := NULL;
-    io_node.traversal.process_id          := NULL;
-    io_node.traversal.unit_id             := io_node.unit.unit_id;
-    io_node.traversal.parent_traversal_id := NULL;
-    io_node.traversal.msg_mode            := NVL(io_node.unit.msg_mode    ,io_node.module.msg_mode);      --unit override module, unless null
-    io_node.open_process                  := NVL(io_node.unit.open_process,io_node.module.open_process);  --unit override module, unless null
-    io_node.logged                        := FALSE;
-  
-  IF g_internal_error AND (io_node.open_process <> G_OPEN_PROCESS_ALWAYS) THEN
-      -- internal error state, and not starting a new process yet
-      $if $$intlog $then intlog_debug('SmartLogger inactive'); $end
-      NULL;
+  --Messages and references, in the SCOPE of this traversal, will be stored.
+  io_node.traversal.traversal_id        := NULL;
+  io_node.traversal.process_id          := NULL;
+  io_node.traversal.unit_id             := io_node.unit.unit_id;
+  io_node.traversal.parent_traversal_id := NULL;
+  io_node.traversal.msg_mode            := NVL(io_node.unit.msg_mode    ,io_node.module.msg_mode);      --unit override module, unless null
+  io_node.open_process                  := NVL(io_node.unit.open_process,io_node.module.open_process);  --unit override module, unless null
+  io_node.logged                        := FALSE;
+  --DEPRECATED io_node.internal_error                := f_internal_error; g_process.internal_error = 'Y';
  
-    ELSIF io_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN  
-      -- create disabled nodes, but don't log them or stack them
-      $if $$intlog $then intlog_debug('Disabled node'); $end
-      NULL;
+  if NOT f_wake_logger(io_node => io_node) then
+    raise x_logger_asleep;
+  end if;
 
-    ELSE  
+  IF f_internal_error then 
+    raise x_internal_error;
+  END IF;  
+ 
+  IF io_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN  
+    raise x_node_disabled;
+  END IF;
 
-      --Use the call stack to remove any nodes from the stack that are not ancestors
-      pop_to_parent_node(i_node => io_node);
-   
-      IF io_node.traversal.msg_mode <> G_MSG_MODE_QUIET THEN 
-      --Log this node, but first log any ancestors that are not yet logged.
-        --dump any unlogged traversals in QUIET MODE
-        dump_nodes(i_index    => f_index
-                  ,i_msg_mode => G_MSG_MODE_QUIET);
-        --log the traversal and push it on the traversal stack
-        log_node(io_node        => io_node
-                ,i_parent_index => f_index);
-   
-      END IF;
+
+  --Use the call stack to remove any nodes from the stack that are not ancestors
+  pop_to_parent_node(i_node => io_node);
+  
+  IF io_node.traversal.msg_mode IN (G_MSG_MODE_DEBUG, G_MSG_MODE_NORMAL)  THEN 
+    --Log this node, but first log any ancestors that are not yet logged.
+    --There may be cached nodes that are not yet logged.
+    --Since this may be the first loggable node we've encountered since waking up,
+    --need see if there are other nodes already encountered that were cached but not logged.
+    --These will be any previous nodes that were set to Quiet Mode.
+    --dump any unlogged traversals in QUIET MODE
+    dump_nodes(i_index    => f_index
+              ,i_msg_mode => G_MSG_MODE_QUIET);
+    --log the traversal and push it on the traversal stack
+    log_node(io_node        => io_node
+            ,i_parent_index => f_index);
+  
+  END IF;
     
-  --  push the traversal onto the stack
-      push_node(io_node  => io_node);
-      
-  
-      IF NOT g_internal_error THEN
-        io_node.node_level := f_index; --meaningless if g_internal_error is TRUE
-      END IF;
-
-    END IF;
+  --Cache the traversal - may or may not already have been logged.
+  --push the traversal onto the stack
+  push_node(io_node  => io_node);
  
-  
-  io_node.internal_error := g_internal_error;
-  
+  io_node.node_level := f_index; 
+ 
   $if $$intlog $then intlog_end('create_traversal'); $end
   
 EXCEPTION
+  WHEN x_internal_error THEN
+      -- internal error state, and not starting a new process yet
+      $if $$intlog $then intlog_debug('SmartLogger inactive'); $end
+      NULL;
+  WHEN x_node_disabled THEN
+      -- create disabled nodes, but don't log or cache them
+      $if $$intlog $then intlog_debug('Disabled node'); $end
+      NULL;
+
+  WHEN x_logger_asleep THEN
+      -- Logger still asleep - no need to log or cache
+      $if $$intlog $then intlog_debug('Logger is Asleep'); $end
+      NULL ;
+
   WHEN OTHERS THEN
     err_warn_oracle_error('create_traversal');
  
@@ -1821,8 +1914,14 @@ END;
 
 ------------------------------------------------------------------------
 -- Node ROUTINES (Public)
+-- @TODO - Deprecated - remove from spec
+-- This is only used in the beforepform logic for reports in AOP_PROCESSOR.
+-- Do i even want to support oracle reports anymore?
+-- There may be a better way to do this. Like simply adding an l_node and 
+-- interogating the node after creation.
+-- There are also examples of this in the test scripts. 
 ------------------------------------------------------------------------
-
+/*
  
 FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
                     ,i_process_type IN VARCHAR2 DEFAULT NULL
@@ -1856,17 +1955,17 @@ BEGIN
   l_origin := NVL(TRIM(l_origin),'UNKNOWN ORIGIN');
  
   log_process(i_origin      => l_origin
-            ,i_ext_ref      => i_ext_ref    
-            ,i_comments     => i_comments);  
+             ,i_ext_ref      => i_ext_ref    
+             ,i_comments     => i_comments);  
  
-  RETURN g_process_id;
+  RETURN g_process.process_id;
 					
  		 
 END;
-  
+*/  
  
   FUNCTION new_pkg(i_module_name IN VARCHAR2
-                  ,i_unit_name   IN VARCHAR2 DEFAULT 'Initialisation') RETURN ms_logger.node_typ IS
+                  ,i_unit_name   IN VARCHAR2 DEFAULT 'init_package') RETURN ms_logger.node_typ IS
  
   BEGIN
     

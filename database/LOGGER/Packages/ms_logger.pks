@@ -15,13 +15,13 @@ TYPE node_typ IS RECORD
   ,node_level       BINARY_INTEGER
   ,logged           BOOLEAN
   ,unlogged_messages message_list
-  ,unlogged_size    integer --total size of all unlogged_messages (in chars)  
-  ,internal_error   BOOLEAN DEFAULT NULL --start undefined, set to false by an ENTER routine.
+ -- ,unlogged_size    integer --total size of all unlogged_messages (in chars)  
+ -- ,internal_error   BOOLEAN DEFAULT NULL --start undefined, set to false by an ENTER routine.
   ,call_stack_level BINARY_INTEGER
   ,call_stack_hist  VARCHAR2(2000));  --limit of 2000 chars returned by dbms_utility.format_call_stack in 11g
 
   
-G_MSG_LEVEL_IGNORE      CONSTANT NUMBER(2) := 0;
+G_MSG_LEVEL_IGNORE      CONSTANT NUMBER(2) := 0; --NOT USED
 G_MSG_LEVEL_COMMENT     CONSTANT NUMBER(2) := 1;
 G_MSG_LEVEL_INFO        CONSTANT NUMBER(2) := 2;
 G_MSG_LEVEL_WARNING     CONSTANT NUMBER(2) := 3;
@@ -29,11 +29,12 @@ G_MSG_LEVEL_FATAL       CONSTANT NUMBER(2) := 4;
 G_MSG_LEVEL_ORACLE      CONSTANT NUMBER(2) := 5;
 G_MSG_LEVEL_INTERNAL    CONSTANT NUMBER(2) := 6;
  
-G_MSG_MODE_DEBUG        CONSTANT NUMBER(2) := G_MSG_LEVEL_COMMENT; 
-G_MSG_MODE_NORMAL       CONSTANT NUMBER(2) := G_MSG_LEVEL_INFO;
-G_MSG_MODE_QUIET        CONSTANT NUMBER(2) := G_MSG_LEVEL_FATAL;
+G_MSG_MODE_DEBUG        CONSTANT NUMBER(2) := G_MSG_LEVEL_COMMENT; --1
+G_MSG_MODE_NORMAL       CONSTANT NUMBER(2) := G_MSG_LEVEL_INFO;    --2
+G_MSG_MODE_QUIET        CONSTANT NUMBER(2) := G_MSG_LEVEL_FATAL;   --4
 G_MSG_MODE_DISABLED     CONSTANT NUMBER(2) := 99; 
-G_MSG_MODE_DEFAULT      CONSTANT NUMBER(2) := NULL;
+G_MSG_MODE_OVERRIDDEN      CONSTANT NUMBER(2) := NULL;
+G_MSG_MODE_DEFAULT      CONSTANT NUMBER(2) := G_MSG_MODE_QUIET;
 
 G_MSG_TYPE_PARAM        CONSTANT VARCHAR2(10) := 'Param';
 G_MSG_TYPE_NOTE         CONSTANT VARCHAR2(10) := 'Note';
@@ -43,21 +44,21 @@ G_MSG_TYPE_MESSAGE      CONSTANT VARCHAR2(10) := 'Message';
 G_OPEN_PROCESS_ALWAYS     CONSTANT ms_unit.open_process%TYPE := 'Y'; 
 G_OPEN_PROCESS_IF_CLOSED  CONSTANT ms_unit.open_process%TYPE := 'C';
 G_OPEN_PROCESS_NEVER      CONSTANT ms_unit.open_process%TYPE := 'N';
-G_OPEN_PROCESS_DEFAULT    CONSTANT ms_unit.open_process%TYPE := NULL;
-
-
+G_OPEN_PROCESS_OVERRIDDEN CONSTANT ms_unit.open_process%TYPE := NULL;
+G_OPEN_PROCESS_DEFAULT    CONSTANT ms_unit.open_process%TYPE := G_OPEN_PROCESS_NEVER;
  
-FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
-                    ,i_process_type IN VARCHAR2 DEFAULT NULL
-                    ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
-                    ,i_module_name  IN VARCHAR2 DEFAULT NULL
-                    ,i_unit_name    IN VARCHAR2 DEFAULT NULL
-          --,i_msg_mode     IN INTEGER  DEFAULT G_MSG_MODE_NORMAL
-                    ,i_comments     IN VARCHAR2 DEFAULT NULL       ) RETURN INTEGER; 
+-- @TODO - Deprecated - remove
+--FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
+--                    ,i_process_type IN VARCHAR2 DEFAULT NULL
+--                    ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
+--                    ,i_module_name  IN VARCHAR2 DEFAULT NULL
+--                    ,i_unit_name    IN VARCHAR2 DEFAULT NULL
+--          --,i_msg_mode     IN INTEGER  DEFAULT G_MSG_MODE_NORMAL
+--                    ,i_comments     IN VARCHAR2 DEFAULT NULL       ) RETURN INTEGER; 
  
  
 FUNCTION new_pkg(i_module_name IN VARCHAR2
-                ,i_unit_name   IN VARCHAR2 DEFAULT 'Initialisation' ) RETURN ms_logger.node_typ;
+                ,i_unit_name   IN VARCHAR2 DEFAULT 'init_package' ) RETURN ms_logger.node_typ;
  
  
 FUNCTION new_proc(i_module_name IN VARCHAR2
@@ -106,11 +107,7 @@ FUNCTION f_process_exceptions(i_process_id IN INTEGER) RETURN BOOLEAN;
 FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
                      ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN INTEGER; 
 
-FUNCTION f_process_is_closed RETURN BOOLEAN;
-
-FUNCTION f_process_is_open RETURN BOOLEAN;
-
-
+ 
 ----------------------------------------------------------------------
 -- USED IN INSTRUMENTATION BY AOP_PROCESSOR 
 ----------------------------------------------------------------------

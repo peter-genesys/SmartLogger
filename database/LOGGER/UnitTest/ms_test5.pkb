@@ -122,7 +122,7 @@ END;
   	--""Start
   	--??Hi
     
-    for j in 1 .. 4 LOOP
+    for j in 1 .. 2 LOOP
       l_string := null;
       for i in 1 .. 1000 LOOP
         l_string := l_string || 'X';
