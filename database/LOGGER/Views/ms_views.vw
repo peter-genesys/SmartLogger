@@ -6,7 +6,7 @@ SELECT  message_id
        ,traversal_id
        ,name
        ,value
-       ,message  
+       ,substr(message,1,32000) message --Fix for display in Apex App  
        ,msg_type
        ,msg_level  
        ,time_now       
@@ -50,7 +50,7 @@ SELECT t.traversal_id
       ,t.unit_type         
       ,m.message_id       
       ,m.name      
-      ,m.message          
+      ,substr(m.message,1,32000) message --Fix for display in Apex App     
       ,m.msg_type      
       ,m.msg_level   
       ,m.time_now    
