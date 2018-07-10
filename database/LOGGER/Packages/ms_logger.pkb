@@ -74,13 +74,11 @@ G_MAX_NESTED_NODES      CONSTANT NUMBER       := 1000;
 
 --NEW CONTROLS
 
+g_empty_process                  ms_process%ROWTYPE; --constant
 g_process                        ms_process%ROWTYPE;
          
---g_process_id                     NUMBER;
---g_internal_error                 BOOLEAN := FALSE;
 g_nodes                          node_stack_typ;
---g_logger_awake                   BOOLEAN := FALSE;
-
+ 
 
 --Node Types
 --Root Only  - Will end current process and start a new one.
@@ -799,27 +797,21 @@ END f_process_is_open;
 ----------------------------------------------------------------------
 -- DERIVATION RULES (private)
 ----------------------------------------------------------------------
-
-
- 
  
 ------------------------------------------------------------------------
 -- Process operations (private)
--- @TODO - Deprecated NOT USED - remove
--- No known calls to this. Not in Spec.
 ------------------------------------------------------------------------ 
-PROCEDURE close_process  
+PROCEDURE snooze_logger  
 IS
 BEGIN
-
-    g_process.process_id := NULL;
-    --Reset the internal error flag.  This will reactivate the package.
-    g_process.internal_error := 'N';
  
-END close_process;
-
-
-
+    g_process := g_empty_process;
+    --Logger is now asleep. 
+    --Internal error flag is reset.
+    --Logger can be re-awoken.
+ 
+END snooze_logger;
+ 
 
 ------------------------------------------------------------------------
 -- Node Stack operations (private)
@@ -897,6 +889,12 @@ BEGIN
        g_nodes.DELETE( f_index );
 
   end loop;
+
+  if f_is_stack_empty then 
+    $if $$intlog $then intlog_debug('pop_to_parent_node: no parents left.  Put logger to sleep.'); $end
+    snooze_logger;
+  end if;
+
   $if $$intlog $then intlog_end('pop_to_parent_node'); $end
  
 EXCEPTION
@@ -1391,8 +1389,11 @@ BEGIN
 
   IF  io_node.open_process = G_OPEN_PROCESS_ALWAYS    OR   
      (io_node.open_process = G_OPEN_PROCESS_IF_CLOSED AND f_logger_is_asleep) THEN
-    $if $$intlog $then intlog_debug('Wake the logger'); $end
-    create_process(io_node => io_node);
+    --Exclude disabled nodes too.
+    IF io_node.traversal.msg_mode <> G_MSG_MODE_DISABLED THEN
+      $if $$intlog $then intlog_debug('Wake the logger'); $end
+      create_process(io_node => io_node);
+    END IF;
   END IF;
 
   return f_logger_is_awake;
@@ -1422,6 +1423,10 @@ BEGIN
   io_node.logged                        := FALSE;
   --DEPRECATED io_node.internal_error                := f_internal_error; g_process.internal_error = 'Y';
  
+  --Use the call stack to remove any nodes from the stack that are not ancestors
+  --This may put the logger to sleep.
+  pop_to_parent_node(i_node => io_node);
+ 
   if NOT f_wake_logger(io_node => io_node) then
     raise x_logger_asleep;
   end if;
@@ -1433,11 +1438,7 @@ BEGIN
   IF io_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN  
     raise x_node_disabled;
   END IF;
-
-
-  --Use the call stack to remove any nodes from the stack that are not ancestors
-  pop_to_parent_node(i_node => io_node);
-  
+ 
   IF io_node.traversal.msg_mode IN (G_MSG_MODE_DEBUG, G_MSG_MODE_NORMAL)  THEN 
     --Log this node, but first log any ancestors that are not yet logged.
     --There may be cached nodes that are not yet logged.

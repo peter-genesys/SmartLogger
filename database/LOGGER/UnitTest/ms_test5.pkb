@@ -142,6 +142,26 @@ END;
   end test_for_quiet_mode;
 
 
+  procedure test_sleeping1 is
+  BEGIN
+    null;
+    --""message1
+  END;
+
+  procedure test_sleeping2 is
+  BEGIN
+    null;
+    --""message1
+  END;
+
+  procedure test_sleeping is
+  BEGIN
+    test_sleeping1;
+    test_sleeping2;
+  END;
+
+
+
 end ms_test5;
 /
 execute aop_processor.reapply_aspect(i_object_name=> 'MS_TEST5', i_versions => 'HTML,AOP');
