@@ -4564,16 +4564,12 @@ BEGIN
       CASE 
         WHEN regex_match(l_keyword,G_REGEX_PKG_BODY) THEN
           l_node_type := g_node_type_package;
-         -- l_prog_unit_name := 'Initialise';
         WHEN regex_match(l_keyword,G_REGEX_PROCEDURE) THEN
           l_node_type := g_node_type_procedure;
-          l_prog_unit_name := NULL;
         WHEN regex_match(l_keyword,G_REGEX_FUNCTION) THEN
           l_node_type := g_node_type_function;
-          l_prog_unit_name := NULL;
         WHEN regex_match(l_keyword,G_REGEX_TRIGGER) THEN
           l_node_type := g_node_type_trigger;
-          l_prog_unit_name := NULL;
       WHEN regex_match(l_keyword,G_REGEX_BEGIN) OR l_keyword IS NULL THEN
         EXIT;
         ELSE
@@ -4613,13 +4609,15 @@ BEGIN
       END IF;
       
       
-      IF l_prog_unit_name IS NULL THEN
-        --Get program unit name
-        l_prog_unit_name := get_next_object_name;
+      --Get program unit name
+      l_prog_unit_name := get_next_object_name;
  
-      END IF;
+      if l_node_type = g_node_type_package then
+        --Create a default unit name for a package.
+        l_prog_unit_name := 'init_package';
+      end if;  
+
       ms_logger.note(l_node, 'l_prog_unit_name' ,l_prog_unit_name);
-      
  
       AOP_is_as(i_prog_unit_name => l_prog_unit_name
                ,i_indent         => calc_indent(i_indent, l_keyword)
