@@ -160,8 +160,12 @@ END;
     test_sleeping2;
   END;
 
+BEGIN
+  
+    null;
+    --""initialise
 
-
+ 
 end ms_test5;
 /
 execute aop_processor.reapply_aspect(i_object_name=> 'MS_TEST5', i_versions => 'HTML,AOP');
