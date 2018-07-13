@@ -11,7 +11,7 @@ TYPE node_typ IS RECORD
   (traversal        ms_traversal%ROWTYPE
   ,module           ms_module%ROWTYPE
   ,unit             ms_unit%ROWTYPE
-  ,open_process     ms_unit.open_process%TYPE
+  ,auto_wake        ms_unit.auto_wake%TYPE
   ,node_level       BINARY_INTEGER
   ,logged           BOOLEAN
   ,unlogged_messages message_list
@@ -33,19 +33,20 @@ G_MSG_MODE_DEBUG        CONSTANT NUMBER(2) := G_MSG_LEVEL_COMMENT; --1
 G_MSG_MODE_NORMAL       CONSTANT NUMBER(2) := G_MSG_LEVEL_INFO;    --2
 G_MSG_MODE_QUIET        CONSTANT NUMBER(2) := G_MSG_LEVEL_FATAL;   --4
 G_MSG_MODE_DISABLED     CONSTANT NUMBER(2) := 99; 
-G_MSG_MODE_OVERRIDDEN      CONSTANT NUMBER(2) := NULL;
-G_MSG_MODE_DEFAULT      CONSTANT NUMBER(2) := G_MSG_MODE_QUIET;
+G_MSG_MODE_OVERRIDDEN          CONSTANT NUMBER(2) := NULL;
+G_AUTO_MSG_MODE_DEFAULT        CONSTANT NUMBER(2) := G_MSG_MODE_QUIET;
+G_MANUAL_MSG_MODE_DEFAULT      CONSTANT NUMBER(2) := G_MSG_MODE_OVERRIDDEN;
 
 G_MSG_TYPE_PARAM        CONSTANT VARCHAR2(10) := 'Param';
 G_MSG_TYPE_NOTE         CONSTANT VARCHAR2(10) := 'Note';
 G_MSG_TYPE_MESSAGE      CONSTANT VARCHAR2(10) := 'Message';
  
  
-G_OPEN_PROCESS_ALWAYS     CONSTANT ms_unit.open_process%TYPE := 'Y'; 
-G_OPEN_PROCESS_IF_CLOSED  CONSTANT ms_unit.open_process%TYPE := 'C';
-G_OPEN_PROCESS_NEVER      CONSTANT ms_unit.open_process%TYPE := 'N';
-G_OPEN_PROCESS_OVERRIDDEN CONSTANT ms_unit.open_process%TYPE := NULL;
-G_OPEN_PROCESS_DEFAULT    CONSTANT ms_unit.open_process%TYPE := G_OPEN_PROCESS_NEVER;
+G_AUTO_WAKE_FORCE         CONSTANT ms_unit.auto_wake%TYPE := 'F'; 
+G_AUTO_WAKE_YES           CONSTANT ms_unit.auto_wake%TYPE := 'Y';
+G_AUTO_WAKE_NO            CONSTANT ms_unit.auto_wake%TYPE := 'N';
+G_AUTO_WAKE_OVERRIDDEN    CONSTANT ms_unit.auto_wake%TYPE := NULL;
+G_AUTO_WAKE_DEFAULT    CONSTANT ms_unit.auto_wake%TYPE := G_AUTO_WAKE_NO;
  
 -- @TODO - Deprecated - remove
 --FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
@@ -58,21 +59,51 @@ G_OPEN_PROCESS_DEFAULT    CONSTANT ms_unit.open_process%TYPE := G_OPEN_PROCESS_N
  
  
 FUNCTION new_pkg(i_module_name IN VARCHAR2
-                ,i_unit_name   IN VARCHAR2 DEFAULT 'init_package' ) RETURN ms_logger.node_typ;
+                ,i_unit_name   IN VARCHAR2 DEFAULT 'init_package' 
+                ,i_debug       in boolean  default false
+                ,i_normal      in boolean  default false
+                ,i_quiet       in boolean  default false
+                ,i_disabled    in boolean  default false
+                ,i_msg_mode    in integer  default null
+                ) RETURN ms_logger.node_typ;
  
  
 FUNCTION new_proc(i_module_name IN VARCHAR2
-                 ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;
+                 ,i_unit_name   IN VARCHAR2 
+                 ,i_debug       in boolean  default false
+                 ,i_normal      in boolean  default false
+                 ,i_quiet       in boolean  default false
+                 ,i_disabled    in boolean  default false
+                 ,i_msg_mode    in integer  default null
+                ) RETURN ms_logger.node_typ;
 
 
 FUNCTION new_func(i_module_name IN VARCHAR2
-                 ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;
+                 ,i_unit_name   IN VARCHAR2 
+                 ,i_debug       in boolean  default false
+                 ,i_normal      in boolean  default false
+                 ,i_quiet       in boolean  default false
+                 ,i_disabled    in boolean  default false
+                 ,i_msg_mode    in integer  default null
+                ) RETURN ms_logger.node_typ;
 				 
 FUNCTION new_trig(i_module_name IN VARCHAR2
-                 ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;		 
+                 ,i_unit_name   IN VARCHAR2
+                 ,i_debug       in boolean  default false
+                 ,i_normal      in boolean  default false
+                 ,i_quiet       in boolean  default false
+                 ,i_disabled    in boolean  default false
+                 ,i_msg_mode    in integer  default null
+                 ) RETURN ms_logger.node_typ;		 
 
 FUNCTION new_script(i_module_name IN VARCHAR2
-                   ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ;  
+                   ,i_unit_name   IN VARCHAR2
+                   ,i_debug       in boolean  default false
+                   ,i_normal      in boolean  default false
+                   ,i_quiet       in boolean  default false
+                   ,i_disabled    in boolean  default false
+                   ,i_msg_mode    in integer  default null
+                 ) RETURN ms_logger.node_typ;  
 				   
  
  
@@ -94,6 +125,12 @@ PROCEDURE  set_unit_msg_mode(i_module_name IN VARCHAR2
                             ,i_unit_name   IN VARCHAR2
                             ,i_msg_mode   IN NUMBER );
 
+PROCEDURE  set_logger_msg_mode(i_msg_mode   IN NUMBER );
+
+
+PROCEDURE  wake_logger(i_node      IN node_typ
+                      ,i_msg_mode  IN NUMBER DEFAULT G_MSG_MODE_DEBUG);
+
 ----------------------------------------------------------------------
 -- f_process_traced
 ----------------------------------------------------------------------
@@ -105,7 +142,8 @@ FUNCTION f_process_traced(i_process_id IN INTEGER) RETURN BOOLEAN;
 FUNCTION f_process_exceptions(i_process_id IN INTEGER) RETURN BOOLEAN;
 
 FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
-                     ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN INTEGER; 
+                  --   ,i_ext_ref    IN VARCHAR2 DEFAULT NULL
+                     ) RETURN INTEGER; 
 
  
 ----------------------------------------------------------------------

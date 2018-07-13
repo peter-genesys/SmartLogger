@@ -572,7 +572,8 @@ FUNCTION get_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
                       ,i_port         IN VARCHAR2 DEFAULT NULL
                       ,i_dir          IN VARCHAR2 DEFAULT NULL
                       ,i_process_id   IN INTEGER  DEFAULT NULL
-                      ,i_ext_ref      IN VARCHAR2 DEFAULT NULL  ) RETURN VARCHAR2 IS
+                     -- ,i_ext_ref      IN VARCHAR2 DEFAULT NULL  
+                      ) RETURN VARCHAR2 IS
  
   l_process_id INTEGER;
   l_result     VARCHAR2(2000);
@@ -581,7 +582,8 @@ FUNCTION get_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
 BEGIN 
 
   l_process_id := ms_logger.f_process_id(i_process_id => i_process_id
-                                        ,i_ext_ref    => i_ext_ref );  
+                                       -- ,i_ext_ref    => i_ext_ref 
+                                        );  
  
   IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
     l_result := get_smartlogger_trace_URL(i_server_url  => i_server_url

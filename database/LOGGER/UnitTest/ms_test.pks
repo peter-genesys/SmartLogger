@@ -88,7 +88,8 @@ CREATE OR REPLACE PACKAGE  ms_test AS
 
   PROCEDURE test_quiet_mode;
  
-
+   PROCEDURE test_ondemand_mode;
+   
 END ms_test;
 /
 show errors;

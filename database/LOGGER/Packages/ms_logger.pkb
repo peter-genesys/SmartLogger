@@ -1,7 +1,7 @@
 alter session set plsql_ccflags = 'intlog:false';
 --alter package ms_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings 
 --alter package ms_logger compile PLSQL_CCFlags = 'intlog:false' reuse settings 
-
+ 
 --Ensure no inlining so ms_logger can be used
 alter session set plsql_optimize_level = 1;
 
@@ -79,16 +79,17 @@ g_process                        ms_process%ROWTYPE;
          
 g_nodes                          node_stack_typ;
  
+g_logger_msg_mode integer := G_MSG_MODE_OVERRIDDEN;
 
 --Node Types
 --Root Only  - Will end current process and start a new one.
 --Root Never - Will not start a process
 --Either will start a process if none started and Normal, or Debug msg_mode.
 
---Open Process  open_process
---Always        Y
---If Closed     C
---Never         N 
+--Auto Wake     auto_wake
+--Yes           Y         - wake if asleep
+--No            N         - never wake
+--Force         F         - wake (new process) even if already awake
  
 ------------------------------------------------------------------------
 -- UNIT TYPES (Private)
@@ -518,8 +519,9 @@ BEGIN
     l_module.module_id       := new_module_id;
     l_module.module_name     := LOWER(i_module_name);
     l_module.revision        := i_revision;
-    l_module.msg_mode        := G_MSG_MODE_DEFAULT;      
-    l_module.open_process    := G_OPEN_PROCESS_DEFAULT; 
+    l_module.auto_wake       := G_AUTO_WAKE_DEFAULT;
+    l_module.auto_msg_mode   := G_AUTO_MSG_MODE_DEFAULT;      
+    l_module.manual_msg_mode := G_MANUAL_MSG_MODE_DEFAULT; 
  
     --insert a new module instance
     $if $$intlog $then intlog_debug('insert module');  $end
@@ -598,8 +600,9 @@ BEGIN
     l_unit.module_id       := i_module_id;
     l_unit.unit_name       := i_unit_name;
     l_unit.unit_type       := i_unit_type;
-    l_unit.msg_mode        := G_MSG_MODE_OVERRIDDEN;     --overridden by module msg_mode 
-    l_unit.open_process    := G_OPEN_PROCESS_OVERRIDDEN; --overridden by module open_process  
+    l_unit.auto_wake       := G_AUTO_WAKE_OVERRIDDEN; --overridden by module auto_wake
+    l_unit.auto_msg_mode   := G_MSG_MODE_OVERRIDDEN;  --overridden by module auto_msg_mode      
+    l_unit.manual_msg_mode := G_MSG_MODE_OVERRIDDEN;  --overridden by module manual_msg_mod
 
     --insert a new procedure instance
     INSERT INTO ms_unit VALUES l_unit;  
@@ -749,23 +752,27 @@ BEGIN
     RETURN l_result;
    
 END f_process_exceptions;
+
  
 ----------------------------------------------------------------------
 -- f_process_id
 ----------------------------------------------------------------------
 FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
-                     ,i_ext_ref    IN VARCHAR2 DEFAULT NULL) RETURN INTEGER IS
+                   --  ,i_ext_ref    IN VARCHAR2 DEFAULT NULL
+                   ) RETURN INTEGER IS
 					 
   CURSOR cu_process IS
   SELECT process_id
   FROM   ms_process   p
-  WHERE  p.process_id = i_process_id
-     OR  p.ext_ref    = i_ext_ref;  
+  WHERE  p.process_id = i_process_id;
+    -- OR  p.ext_ref    = i_ext_ref;  
  				 
   l_result INTEGER;				 
 				 
 BEGIN
-  IF i_process_id IS NOT NULL OR i_ext_ref IS NOT NULL THEN
+  IF i_process_id IS NOT NULL 
+  -- OR i_ext_ref IS NOT NULL 
+THEN
     OPEN cu_process;
     FETCH cu_process INTO l_result;
     CLOSE cu_process;
@@ -779,6 +786,7 @@ BEGIN
   END IF;  
   
 END f_process_id;
+ 
  
 FUNCTION f_process_is_closed RETURN BOOLEAN IS
 BEGIN
@@ -1387,8 +1395,8 @@ BEGIN
   --    this is an atypical mode.  opens a new process, even if already awake.
   --  B If this unit may wake the logger, and the logger is asleep.
 
-  IF  io_node.open_process = G_OPEN_PROCESS_ALWAYS    OR   
-     (io_node.open_process = G_OPEN_PROCESS_IF_CLOSED AND f_logger_is_asleep) THEN
+  IF  io_node.auto_wake = G_AUTO_WAKE_FORCE    OR   
+     (io_node.auto_wake = G_AUTO_WAKE_YES AND f_logger_is_asleep) THEN
     --Exclude disabled nodes too.
     IF io_node.traversal.msg_mode <> G_MSG_MODE_DISABLED THEN
       $if $$intlog $then intlog_debug('Wake the logger'); $end
@@ -1402,7 +1410,6 @@ END;
 
 
 PROCEDURE create_traversal(io_node     IN OUT ms_logger.node_typ ) IS
-
  
   x_internal_error    EXCEPTION;
   x_node_disabled     EXCEPTION;
@@ -1418,8 +1425,22 @@ BEGIN
   io_node.traversal.process_id          := NULL;
   io_node.traversal.unit_id             := io_node.unit.unit_id;
   io_node.traversal.parent_traversal_id := NULL;
-  io_node.traversal.msg_mode            := NVL(io_node.unit.msg_mode    ,io_node.module.msg_mode);      --unit override module, unless null
-  io_node.open_process                  := NVL(io_node.unit.open_process,io_node.module.open_process);  --unit override module, unless null
+
+  if g_logger_msg_mode is null then
+    --AUTO
+    --unit override module, unless null
+    io_node.auto_wake                     := NVL(io_node.unit.auto_wake     ,io_node.module.auto_wake);  
+    io_node.traversal.msg_mode            := NVL(io_node.unit.auto_msg_mode ,io_node.module.auto_msg_mode); 
+       
+  ELSE
+    --MANUAL
+    $if $$intlog $then intlog_debug('Manually set to wakeup, if asleep.'); $end
+    io_node.auto_wake                     := G_AUTO_WAKE_YES;
+    --unit has precedence over module, module has precedence over g_logger_msg_mode
+    io_node.traversal.msg_mode            := COALESCE(io_node.unit.manual_msg_mode ,io_node.module.manual_msg_mode ,g_logger_msg_mode); 
+    
+  end if;  
+ 
   io_node.logged                        := FALSE;
   --DEPRECATED io_node.internal_error                := f_internal_error; g_process.internal_error = 'Y';
  
@@ -1490,7 +1511,12 @@ END create_traversal;
 
 FUNCTION new_node(i_module_name IN VARCHAR2
                  ,i_unit_name   IN VARCHAR2
-                 ,i_unit_type   IN VARCHAR2) RETURN ms_logger.node_typ IS
+                 ,i_unit_type   IN VARCHAR2
+                 ,i_msg_mode    in integer  default null
+                 ,i_disabled    in boolean  default false
+                 ,i_debug       in boolean  default false
+                 ,i_normal      in boolean  default false
+                 ,i_quiet       in boolean  default false) RETURN ms_logger.node_typ IS
          
   --When upgraded to 12C may not need to pass any params         
 
@@ -1541,7 +1567,17 @@ FUNCTION new_node(i_module_name IN VARCHAR2
  
  
 BEGIN
-  
+
+ 
+  g_logger_msg_mode := case 
+                         when i_disabled then G_MSG_MODE_DISABLED
+                         when i_debug    then G_MSG_MODE_DEBUG
+                         when i_normal   then G_MSG_MODE_NORMAL
+                         when i_quiet    then G_MSG_MODE_QUIET
+                         when i_msg_mode is not null then i_msg_mode
+                         ELSE null
+                        end;
+ 
   --get a registered module or register this one
   l_node.module := find_module(i_module_name => i_module_name
                               ,i_unit_name   => i_unit_name); 
@@ -1794,7 +1830,7 @@ BEGIN
   $if $$intlog $then intlog_note('i_msg_mode',i_msg_mode); $end
 
   UPDATE ms_module
-  SET    msg_mode  = i_msg_mode
+  SET    auto_msg_mode  = i_msg_mode
   WHERE  module_id = i_module_id;
 
   COMMIT;
@@ -1816,7 +1852,7 @@ BEGIN
   $if $$intlog $then intlog_note('i_msg_mode',i_msg_mode); $end
 
   UPDATE ms_unit
-  SET    msg_mode  = i_msg_mode
+  SET    auto_msg_mode  = i_msg_mode
   WHERE  unit_id   = i_unit_id;
 
   COMMIT;
@@ -1860,11 +1896,30 @@ BEGIN
   set_unit_msg_mode(i_unit_id  => find_unit(i_module_name => i_module_name
                                            ,i_unit_name   => i_unit_name
                                            ,i_create      => FALSE).unit_id
-                                           ,i_msg_mode => i_msg_mode);
+                                           ,i_msg_mode    => i_msg_mode);
  
 END; 
 
 
+PROCEDURE  set_logger_msg_mode(i_msg_mode   IN NUMBER ) IS
+                             
+BEGIN
+
+  g_logger_msg_mode := i_msg_mode;
+ 
+END; 
+
+
+PROCEDURE  wake_logger(i_node      IN node_typ
+                      ,i_msg_mode  IN NUMBER DEFAULT G_MSG_MODE_DEBUG) IS
+                             
+BEGIN
+
+  set_logger_msg_mode(i_msg_mode => i_msg_mode);
+ 
+END; 
+
+ 
 
 
 ------------------------------------------------------------------------
@@ -1966,60 +2021,114 @@ END;
 */  
  
   FUNCTION new_pkg(i_module_name IN VARCHAR2
-                  ,i_unit_name   IN VARCHAR2 DEFAULT 'init_package') RETURN ms_logger.node_typ IS
+                  ,i_unit_name   IN VARCHAR2 DEFAULT 'init_package'
+                  ,i_debug       in boolean  default false
+                  ,i_normal      in boolean  default false
+                  ,i_quiet       in boolean  default false
+                  ,i_disabled    in boolean  default false
+                  ,i_msg_mode    in integer  default null) RETURN ms_logger.node_typ IS
  
   BEGIN
     
 	RETURN ms_logger.new_node(i_module_name => i_module_name
                            ,i_unit_name   => i_unit_name
-						            	 ,i_unit_type   => G_UNIT_TYPE_PACKAGE );
- 
+						            	 ,i_unit_type   => G_UNIT_TYPE_PACKAGE 
+                           ,i_debug       => i_debug   
+                           ,i_normal      => i_normal  
+                           ,i_quiet       => i_quiet   
+                           ,i_disabled    => i_disabled
+                           ,i_msg_mode    => i_msg_mode
+                           );
   END;
   
   
   FUNCTION new_proc(i_module_name IN VARCHAR2
-                   ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
+                   ,i_unit_name   IN VARCHAR2 
+                   ,i_debug       in boolean  default false
+                   ,i_normal      in boolean  default false
+                   ,i_quiet       in boolean  default false
+                   ,i_disabled    in boolean  default false
+                   ,i_msg_mode    in integer  default null) RETURN ms_logger.node_typ IS
  
   BEGIN
     
 	RETURN ms_logger.new_node(i_module_name => i_module_name
                            ,i_unit_name   => i_unit_name
-							             ,i_unit_type   => G_UNIT_TYPE_PROCEDURE );
+							             ,i_unit_type   => G_UNIT_TYPE_PROCEDURE
+                           ,i_debug       => i_debug   
+                           ,i_normal      => i_normal  
+                           ,i_quiet       => i_quiet   
+                           ,i_disabled    => i_disabled
+                           ,i_msg_mode    => i_msg_mode
+                           );
  
   END;
   
   
   FUNCTION new_func(i_module_name IN VARCHAR2
-                   ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
+                   ,i_unit_name   IN VARCHAR2
+                   ,i_debug       in boolean  default false
+                   ,i_normal      in boolean  default false
+                   ,i_quiet       in boolean  default false
+                   ,i_disabled    in boolean  default false
+                   ,i_msg_mode    in integer  default null ) RETURN ms_logger.node_typ IS
  
   BEGIN
     
 	RETURN ms_logger.new_node(i_module_name => i_module_name
                            ,i_unit_name   => i_unit_name
-							             ,i_unit_type   => G_UNIT_TYPE_FUNCTION );
+							             ,i_unit_type   => G_UNIT_TYPE_FUNCTION
+                           ,i_debug       => i_debug   
+                           ,i_normal      => i_normal  
+                           ,i_quiet       => i_quiet   
+                           ,i_disabled    => i_disabled
+                           ,i_msg_mode    => i_msg_mode
+                           );
  
   END;
   
   FUNCTION new_trig(i_module_name IN VARCHAR2
-                   ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
+                   ,i_unit_name   IN VARCHAR2
+                   ,i_debug       in boolean  default false
+                   ,i_normal      in boolean  default false
+                   ,i_quiet       in boolean  default false
+                   ,i_disabled    in boolean  default false
+                   ,i_msg_mode    in integer  default null) RETURN ms_logger.node_typ IS
  
   BEGIN
     
 	RETURN ms_logger.new_node(i_module_name => i_module_name
                            ,i_unit_name   => i_unit_name
-							             ,i_unit_type   => G_UNIT_TYPE_TRIGGER );
+							             ,i_unit_type   => G_UNIT_TYPE_TRIGGER 
+                           ,i_debug       => i_debug   
+                           ,i_normal      => i_normal  
+                           ,i_quiet       => i_quiet   
+                           ,i_disabled    => i_disabled
+                           ,i_msg_mode    => i_msg_mode
+                           );
  
   END;
   
   
   FUNCTION new_script(i_module_name IN VARCHAR2
-                     ,i_unit_name   IN VARCHAR2 ) RETURN ms_logger.node_typ IS
+                     ,i_unit_name   IN VARCHAR2
+                     ,i_debug       in boolean  default false
+                     ,i_normal      in boolean  default false
+                     ,i_quiet       in boolean  default false
+                     ,i_disabled    in boolean  default false
+                     ,i_msg_mode    in integer  default null ) RETURN ms_logger.node_typ IS
   
   BEGIN
     
    RETURN ms_logger.new_node(i_module_name => i_module_name
-                             ,i_unit_name   => i_unit_name
-                						 ,i_unit_type   => G_UNIT_TYPE_SCRIPT );
+                            ,i_unit_name   => i_unit_name
+                					  ,i_unit_type   => G_UNIT_TYPE_SCRIPT 
+                            ,i_debug       => i_debug   
+                            ,i_normal      => i_normal  
+                            ,i_quiet       => i_quiet   
+                            ,i_disabled    => i_disabled
+                            ,i_msg_mode    => i_msg_mode
+                            );
   
   END;
   

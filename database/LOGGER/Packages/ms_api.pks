@@ -127,7 +127,8 @@ FUNCTION get_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
                       ,i_port         IN VARCHAR2 DEFAULT NULL
                       ,i_dir          IN VARCHAR2 DEFAULT NULL
                       ,i_process_id   IN INTEGER  DEFAULT NULL
-                      ,i_ext_ref      IN VARCHAR2 DEFAULT NULL  ) RETURN VARCHAR2; 
+                     -- ,i_ext_ref      IN VARCHAR2 DEFAULT NULL 
+                       ) RETURN VARCHAR2; 
 
 ------------------------------------------------------------------------
 -- get_user_feedback_URL

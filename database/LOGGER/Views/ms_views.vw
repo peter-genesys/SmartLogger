@@ -18,7 +18,6 @@ CREATE OR REPLACE VIEW ms_unit_traversal_vw
 AS 
 SELECT t.traversal_id               
       ,t.process_id   
-      ,p.ext_ref
       ,t.unit_id               
       ,t.parent_traversal_id  
       ,m.module_id
@@ -42,7 +41,6 @@ CREATE OR REPLACE VIEW ms_traversal_message_vw
 AS 
 SELECT t.traversal_id               
       ,t.process_id   
-      ,t.ext_ref
       ,t.unit_id               
       ,t.parent_traversal_id   
       ,t.module_name       
@@ -93,8 +91,9 @@ SELECT  m.module_id
        ,m.module_name    
        ,m.revision       
        ,m.module_type    
-       ,m.msg_mode
-       ,m.open_process
+       ,m.auto_wake
+       ,m.auto_msg_mode
+       ,m.manual_msg_mode
        ,SUM(u.traversal_count) traversal_count
        ,SUM(u.comment_count)   comment_count
        ,SUM(u.info_count)      info_count 
@@ -108,8 +107,9 @@ GROUP BY m.module_id
         ,m.module_name    
         ,m.revision       
         ,m.module_type    
-        ,m.msg_mode  
-        ,m.open_process
+        ,m.auto_wake
+        ,m.auto_msg_mode
+        ,m.manual_msg_mode
 /
 
 create or replace view ms_process_vw as

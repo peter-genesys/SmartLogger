@@ -967,7 +967,22 @@ END f_elapsed_time;
   end; --test_quiet_mode
 
  
+  PROCEDURE test_ondemand_mode is
+    l_node ms_logger.node_typ := ms_logger.new_proc($$plsql_unit ,'test_ondemand_mode', i_debug => true);
+  begin --test_quiet_mode
+  begin  
+    ms_logger.comment(l_node,'On demand debugging');
+    null;
+  END;
+  exception
+    when others then
+      ms_logger.warn_error(l_node);
+      raise;
+  end; --test_ondemand_mode
+
  
 END ms_test;
 /
 show errors;
+execute ms_api.set_module_quiet(i_module_name => 'MS_TEST');
+
