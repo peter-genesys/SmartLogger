@@ -967,8 +967,8 @@ END f_elapsed_time;
   end; --test_quiet_mode
 
  
-  PROCEDURE test_ondemand_mode is
-    l_node ms_logger.node_typ := ms_logger.new_proc($$plsql_unit ,'test_ondemand_mode', i_debug => true);
+  PROCEDURE test_ondemand_mode(i_logger_debug in boolean) is
+    l_node ms_logger.node_typ := ms_logger.new_proc($$plsql_unit ,'test_ondemand_mode', i_debug => i_logger_debug);
   begin --test_quiet_mode
   begin  
     ms_logger.comment(l_node,'On demand debugging');
@@ -979,6 +979,27 @@ END f_elapsed_time;
       ms_logger.warn_error(l_node);
       raise;
   end; --test_ondemand_mode
+
+
+procedure test(i_logger_debug in boolean
+              ,i_logger_normal in boolean
+              ,i_logger_quiet in boolean
+              ,i_logger_msg_mode in integer) is
+  l_node ms_logger.node_typ := ms_logger.new_proc($$plsql_unit ,'test',i_debug => i_logger_debug,i_normal => i_logger_normal,i_quiet => i_logger_quiet,i_msg_mode => i_logger_msg_mode); 
+begin --test
+  ms_logger.param(l_node,'i_logger_debug'   ,i_logger_debug);
+  ms_logger.param(l_node,'i_logger_normal'  ,i_logger_normal);
+  ms_logger.param(l_node,'i_logger_quiet'   ,i_logger_quiet);
+  ms_logger.param(l_node,'i_logger_msg_mode',i_logger_msg_mode);
+begin
+
+ null;
+end;
+exception
+  when others then
+    ms_logger.warn_error(l_node);
+    raise;
+end; --test
 
  
 END ms_test;

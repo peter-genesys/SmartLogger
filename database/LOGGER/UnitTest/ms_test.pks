@@ -88,7 +88,7 @@ CREATE OR REPLACE PACKAGE  ms_test AS
 
   PROCEDURE test_quiet_mode;
  
-   PROCEDURE test_ondemand_mode;
+   PROCEDURE test_ondemand_mode(i_logger_debug in boolean) ;
    
 END ms_test;
 /

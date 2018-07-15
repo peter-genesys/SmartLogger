@@ -43,8 +43,13 @@ create or replace package body aop_processor is
 
   g_aop_reg_mode_debug  CONSTANT VARCHAR2(30) := '@AOP_REG_MODE_DEBUG';
  
-  g_logger_id_param     CONSTANT VARCHAR2(30) := 'O_LOGGER_ID';
-  g_logger_url_param    CONSTANT VARCHAR2(30) := 'O_LOGGER_URL';
+  g_logger_id_param          CONSTANT VARCHAR2(30) := 'O_LOGGER_ID';
+  g_logger_url_param         CONSTANT VARCHAR2(30) := 'O_LOGGER_URL';
+  g_logger_debug_param       CONSTANT VARCHAR2(30) := 'I_LOGGER_DEBUG';
+  g_logger_normal_param      CONSTANT VARCHAR2(30) := 'I_LOGGER_NORMAL';
+  g_logger_quiet_param       CONSTANT VARCHAR2(30) := 'I_LOGGER_QUIET';
+  g_logger_disabled_param    CONSTANT VARCHAR2(30) := 'I_LOGGER_DISABLED';
+  g_logger_msg_mode_param    CONSTANT VARCHAR2(30) := 'I_LOGGER_MSG_MODE';
  
   g_for_aop_html      boolean := false;
  
@@ -2447,12 +2452,13 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
                       ,io_param_list => io_param_list);
     END IF;
 
-    IF l_var.out_var THEN
-      store_var_list(i_var        => l_var
-                    ,io_var_list  => io_var_list
-                    ,i_pu_stack   => i_pu_stack);
+    --Now store all params as vars even though not all params can be written to.
+    --Need to be able to search for a param by name, to check for special logger params.
+    store_var_list(i_var        => l_var
+                  ,io_var_list  => io_var_list
+                  ,i_pu_stack   => i_pu_stack);
 
-    END IF;
+
 
 
  /*
@@ -3345,6 +3351,7 @@ PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
   l_param_list            param_list_typ;
   l_var_list              var_list_typ := i_var_list;
   l_pu_stack              pu_stack_typ := i_pu_stack;
+  l_extra_node_params     varchar2(1000);
  
 BEGIN
   ms_logger.param(l_node, 'i_prog_unit_name' ,i_prog_unit_name); 
@@ -3389,9 +3396,39 @@ BEGIN
            ,i_indent    => i_indent
            ,i_colour    => G_COLOUR_NODE);
   END IF;
+
+ 
+  --If a logger OnDemand param is included, in THIS node, then pass it to the logger.
+  if l_var_list.exists(g_logger_debug_param)                  and
+     l_var_list(g_logger_debug_param).level = l_pu_stack.count and
+     l_var_list(g_logger_debug_param).in_var                  then
+     l_extra_node_params := l_extra_node_params ||',i_debug => '||lower(g_logger_debug_param);
+
+  end if;
+
+  if l_var_list.exists(g_logger_normal_param)                  and
+     l_var_list(g_logger_normal_param).level = l_pu_stack.count and
+     l_var_list(g_logger_normal_param).in_var                  then
+     l_extra_node_params := l_extra_node_params ||',i_normal => '||lower(g_logger_normal_param);
+
+  end if;
+
+  if l_var_list.exists(g_logger_quiet_param)                  and
+     l_var_list(g_logger_quiet_param).level = l_pu_stack.count and
+     l_var_list(g_logger_quiet_param).in_var                  then
+     l_extra_node_params := l_extra_node_params ||',i_quiet => '||lower(g_logger_quiet_param);
+
+  end if;
+ 
+  if l_var_list.exists(g_logger_msg_mode_param)                  and
+     l_var_list(g_logger_msg_mode_param).level = l_pu_stack.count and
+     l_var_list(g_logger_msg_mode_param).in_var                  then
+     l_extra_node_params := l_extra_node_params ||',i_msg_mode => '||lower(g_logger_msg_mode_param);
+
+  end if;
   
   --NEW NODE
-  l_inject_node := 'l_node ms_logger.node_typ := ms_logger.'||i_node_type||'('||g_aop_module_name||' ,'''||i_prog_unit_name||''');';
+  l_inject_node := 'l_node ms_logger.node_typ := ms_logger.'||i_node_type||'('||g_aop_module_name||' ,'''||i_prog_unit_name||''''||l_extra_node_params||');';
   inject( i_new_code  =>  l_inject_node
          ,i_indent     => i_indent
          ,i_colour     => G_COLOUR_NODE);   
@@ -4449,7 +4486,7 @@ BEGIN
  
   END LOOP;
 
-  --If the logger process id parameter is included then
+  --If the logger process id parameter is included, in THIS node, then
   --return a pointer to the logged process
   if l_var_list.exists(g_logger_id_param)                   and
      l_var_list(g_logger_id_param).level = i_pu_stack.count and
@@ -4460,7 +4497,7 @@ BEGIN
 
   end if;
 
-  --If the logger url parameter is included then
+  --If the logger url parameter is included, in THIS node, then
   --return a url to view the process in the logger app.
   if l_var_list.exists(g_logger_url_param)                  and
      l_var_list(g_logger_url_param).level = i_pu_stack.count and
