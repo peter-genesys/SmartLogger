@@ -23,7 +23,7 @@ wwv_flow_api.create_page(
 ,p_cache_timeout_seconds=>21600
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20170506122727'
+,p_last_upd_yyyymmddhh24miss=>'20180716222758'
 );
 wwv_flow_api.create_report_region(
  p_id=>wwv_flow_api.id(28512300429694668)
@@ -41,8 +41,9 @@ wwv_flow_api.create_report_region(
 '"MODULE_NAME",',
 '"REVISION",',
 '"MODULE_TYPE",',
-'"MSG_MODE",',
-'"OPEN_PROCESS"',
+'auto_wake,',
+'auto_msg_mode,',
+'manual_msg_mode',
 'from "#OWNER#"."MS_MODULE"',
 'where owner = :P9_OWNER',
 ''))
@@ -68,80 +69,65 @@ wwv_flow_api.create_report_region(
 ,p_plug_query_strip_html=>'Y'
 );
 wwv_flow_api.create_report_columns(
- p_id=>wwv_flow_api.id(28512505668694668)
-,p_query_column_id=>1
-,p_column_alias=>'CHECK$01'
-,p_column_display_sequence=>1
-,p_column_heading=>'&nbsp;'
-,p_heading_alignment=>'LEFT'
-,p_display_as=>'CHECKBOX'
-,p_derived_column=>'Y'
-);
-wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(28512589710694668)
-,p_query_column_id=>2
+,p_query_column_id=>1
 ,p_column_alias=>'MODULE_ID'
 ,p_column_display_sequence=>2
-,p_column_heading=>'Module Id'
-,p_heading_alignment=>'LEFT'
 ,p_disable_sort_column=>'N'
 ,p_hidden_column=>'Y'
 ,p_display_as=>'HIDDEN'
-,p_column_width=>16
 ,p_pk_col_source_type=>'S'
 ,p_pk_col_source=>'MS_MODULE_SEQ'
+,p_derived_column=>'N'
+,p_include_in_export=>'Y'
 ,p_ref_schema=>'TPDS'
 ,p_ref_table_name=>'MS_MODULE'
 ,p_ref_column_name=>'MODULE_ID'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(28512699453694668)
-,p_query_column_id=>3
+,p_query_column_id=>2
 ,p_column_alias=>'MODULE_ID_DISPLAY'
-,p_column_display_sequence=>8
+,p_column_display_sequence=>10
 ,p_column_heading=>'Edit Units'
-,p_use_as_row_header=>'N'
 ,p_column_link=>'f?p=&APP_ID.:10:&SESSION.::&DEBUG.::P10_MODULE_ID,P10_MODULE_NAME:#MODULE_ID#,#MODULE_NAME#'
 ,p_column_linktext=>'<img src="#IMAGE_PREFIX#ed-item.gif" alt="">'
 ,p_heading_alignment=>'LEFT'
 ,p_disable_sort_column=>'N'
-,p_lov_show_nulls=>'NO'
-,p_column_width=>16
-,p_lov_display_extra=>'YES'
+,p_derived_column=>'N'
 ,p_include_in_export=>'Y'
 ,p_ref_table_name=>'MS_MODULE'
 ,p_ref_column_name=>'MODULE_ID_DISPLAY'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(28512793332694668)
-,p_query_column_id=>4
+,p_query_column_id=>3
 ,p_column_alias=>'MODULE_NAME'
 ,p_column_display_sequence=>3
 ,p_column_heading=>'Module Name'
+,p_use_as_row_header=>'N'
 ,p_heading_alignment=>'LEFT'
 ,p_disable_sort_column=>'N'
-,p_column_width=>16
+,p_derived_column=>'N'
+,p_include_in_export=>'Y'
 ,p_ref_schema=>'TPDS'
 ,p_ref_table_name=>'MS_MODULE'
 ,p_ref_column_name=>'MODULE_NAME'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(28512880226694668)
-,p_query_column_id=>5
+,p_query_column_id=>4
 ,p_column_alias=>'REVISION'
 ,p_column_display_sequence=>4
-,p_column_heading=>'Revision'
-,p_heading_alignment=>'LEFT'
-,p_disable_sort_column=>'N'
 ,p_hidden_column=>'Y'
-,p_column_width=>16
+,p_derived_column=>'N'
 ,p_ref_schema=>'TPDS'
 ,p_ref_table_name=>'MS_MODULE'
 ,p_ref_column_name=>'REVISION'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(28512998195694668)
-,p_query_column_id=>6
+,p_query_column_id=>5
 ,p_column_alias=>'MODULE_TYPE'
 ,p_column_display_sequence=>5
 ,p_column_heading=>'Module Type'
@@ -149,48 +135,68 @@ wwv_flow_api.create_report_columns(
 ,p_heading_alignment=>'LEFT'
 ,p_disable_sort_column=>'N'
 ,p_display_as=>'SELECT_LIST'
-,p_inline_lov=>'Package;PACKAGE,Procedure;PROCEDURE,Function;FUNCTION,Trigger;TRIGGER,Oracle Report;REPORT,Oracle Form;FORM,Oracle Report PLSQL Library;REPORT_LIB,Oracle Form PLSQL Library;FORM_LIB,Apex App;APEX'
+,p_inline_lov=>'STATIC:Package;PACKAGE,Procedure;PROCEDURE,Function;FUNCTION,Trigger;TRIGGER,Oracle Report;REPORT,Oracle Form;FORM,Oracle Report PLSQL Library;REPORT_LIB,Oracle Form PLSQL Library;FORM_LIB,Apex App;APEX'
 ,p_lov_show_nulls=>'NO'
-,p_column_width=>10
+,p_derived_column=>'N'
 ,p_lov_display_extra=>'YES'
 ,p_include_in_export=>'Y'
 ,p_ref_table_name=>'MS_MODULE'
 ,p_ref_column_name=>'MODULE_TYPE'
 );
 wwv_flow_api.create_report_columns(
- p_id=>wwv_flow_api.id(28513081036694668)
-,p_query_column_id=>7
-,p_column_alias=>'MSG_MODE'
-,p_column_display_sequence=>6
-,p_column_heading=>'Msg Mode'
+ p_id=>wwv_flow_api.id(24213987203111202)
+,p_query_column_id=>6
+,p_column_alias=>'AUTO_WAKE'
+,p_column_display_sequence=>7
+,p_column_heading=>'Auto Wake'
 ,p_use_as_row_header=>'N'
-,p_heading_alignment=>'LEFT'
 ,p_disable_sort_column=>'N'
 ,p_display_as=>'SELECT_LIST'
-,p_inline_lov=>'Disabled;99,Quiet;4,Normal;2,Debug;1'
-,p_lov_show_nulls=>'NO'
-,p_column_width=>16
+,p_inline_lov=>'STATIC:No;N,Yes;Y,Force;F'
+,p_lov_show_nulls=>'YES'
+,p_derived_column=>'N'
 ,p_lov_display_extra=>'YES'
 ,p_include_in_export=>'Y'
-,p_ref_table_name=>'MS_MODULE'
-,p_ref_column_name=>'MSG_MODE'
 );
 wwv_flow_api.create_report_columns(
- p_id=>wwv_flow_api.id(28513203603694668)
-,p_query_column_id=>8
-,p_column_alias=>'OPEN_PROCESS'
-,p_column_display_sequence=>7
-,p_column_heading=>'Open Process'
-,p_heading_alignment=>'LEFT'
+ p_id=>wwv_flow_api.id(24214031200111203)
+,p_query_column_id=>7
+,p_column_alias=>'AUTO_MSG_MODE'
+,p_column_display_sequence=>8
+,p_column_heading=>'Auto Mode'
+,p_use_as_row_header=>'N'
 ,p_disable_sort_column=>'N'
 ,p_display_as=>'SELECT_LIST'
-,p_inline_lov=>'No;N,Yes;Y,If Closed;C'
+,p_inline_lov=>'STATIC:Disabled;99,Quiet;4,Normal;2,Debug;1'
 ,p_lov_show_nulls=>'NO'
-,p_column_width=>12
+,p_derived_column=>'N'
+,p_lov_display_extra=>'NO'
 ,p_include_in_export=>'Y'
-,p_ref_schema=>'TPDS'
-,p_ref_table_name=>'MS_MODULE'
-,p_ref_column_name=>'OPEN_PROCESS'
+);
+wwv_flow_api.create_report_columns(
+ p_id=>wwv_flow_api.id(24214180227111204)
+,p_query_column_id=>8
+,p_column_alias=>'MANUAL_MSG_MODE'
+,p_column_display_sequence=>9
+,p_column_heading=>'Manual Mode'
+,p_use_as_row_header=>'N'
+,p_disable_sort_column=>'N'
+,p_display_as=>'SELECT_LIST'
+,p_inline_lov=>'STATIC:Overridden;,Disabled;99,Quiet;4,Normal;2,Debug;1'
+,p_lov_show_nulls=>'NO'
+,p_derived_column=>'N'
+,p_lov_display_extra=>'NO'
+,p_include_in_export=>'Y'
+);
+wwv_flow_api.create_report_columns(
+ p_id=>wwv_flow_api.id(28512505668694668)
+,p_query_column_id=>9
+,p_column_alias=>'CHECK$01'
+,p_column_display_sequence=>1
+,p_column_heading=>'&nbsp;'
+,p_heading_alignment=>'LEFT'
+,p_display_as=>'CHECKBOX'
+,p_derived_column=>'Y'
 );
 wwv_flow_api.create_region_rpt_cols(
  p_id=>wwv_flow_api.id(13850371029878067)
