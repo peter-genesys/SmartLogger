@@ -4877,7 +4877,14 @@ END;
  
       l_woven:= true;
 
-      --DEPRECATED - Translate SIMPLE ms_feedback syntax to MORE COMPLEX ms_logger syntax
+      --Translate SIMPLE ms_feedback syntax to MORE COMPLEX ms_logger syntax
+      --EG ms_feedback.x(           ->  ms_logger.x(l_node,
+      g_code := REGEXP_REPLACE(g_code,'(ms_feedback)(\.)(.+)(\()','ms_logger.\3(l_node,');
+    
+      --Replace routines with no params 
+      --EG ms_feedback.oracle_error -> ms_logger.oracle_error(l_node)
+      g_code := REGEXP_REPLACE(g_code,'(ms_feedback)(\.)(.+)(;)','ms_logger.\3(l_node);');
+
  
       restore_comments_and_strings;
  
