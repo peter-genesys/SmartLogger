@@ -15,7 +15,7 @@ prompt APPLICATION 126 - SmartLogger
 -- Application Statistics:
 --   Pages:                     12
 --     Items:                   23
---     Validations:              2
+--     Validations:              1
 --     Processes:               22
 --     Regions:                 33
 --     Buttons:                 31

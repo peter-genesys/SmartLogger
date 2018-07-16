@@ -23,7 +23,7 @@ wwv_flow_api.create_page(
 ,p_cache_timeout_seconds=>21600
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180716222758'
+,p_last_upd_yyyymmddhh24miss=>'20180717012907'
 );
 wwv_flow_api.create_report_region(
  p_id=>wwv_flow_api.id(28512300429694668)
@@ -425,19 +425,6 @@ wwv_flow_api.create_page_item(
 ,p_attribute_01=>'SUBMIT'
 ,p_attribute_03=>'N'
 );
-wwv_flow_api.create_page_validation(
- p_id=>wwv_flow_api.id(28514182918694678)
-,p_tabular_form_region_id=>wwv_flow_api.id(28512300429694668)
-,p_validation_name=>'MSG_MODE must be numeric'
-,p_validation_sequence=>60
-,p_validation=>'MSG_MODE'
-,p_validation_type=>'ITEM_IS_NUMERIC'
-,p_error_message=>'#COLUMN_HEADER# must be numeric.'
-,p_always_execute=>'N'
-,p_when_button_pressed=>wwv_flow_api.id(28513286908694669)
-,p_associated_column=>'MSG_MODE'
-,p_error_display_location=>'INLINE_WITH_FIELD_AND_NOTIFICATION'
-);
 wwv_flow_api.create_page_process(
  p_id=>wwv_flow_api.id(28514293615694680)
 ,p_process_sequence=>10
@@ -483,13 +470,16 @@ wwv_flow_api.create_page_process(
 ,p_process_name=>'SetAllDebug'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'update ms_module',
-'set msg_mode     = ms_logger.G_MSG_MODE_DEBUG',
-'--DONT CHANGE OPEN PROCESS   ,open_process = ms_logger.G_OPEN_PROCESS_IF_CLOSED',
+'set auto_msg_mode    = ms_logger.G_MSG_MODE_DEBUG ',
+' -- auto_wake        = ms_logger.G_AUTO_WAKE_NO      --don''t change',
+' --,manual_msg_mode  = ms_logger.G_MSG_MODE_DISABLED --don''t change',
 'where owner = :P9_OWNER',
 ';',
+'',
 'update ms_unit',
-'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT ',
-'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT',
+'set auto_wake        = ms_logger.G_MSG_MODE_OVERRIDDEN',
+'   ,auto_msg_mode    = ms_logger.G_MSG_MODE_OVERRIDDEN ',
+'  -- ,manual_msg_mode  = ms_logger.G_MSG_MODE_OVERRIDDEN  --don''t change',
 'where module_id in (select module_id from ms_module where owner = :P9_OWNER)',
 ';',
 'commit;'))
@@ -505,18 +495,21 @@ wwv_flow_api.create_page_process(
 ,p_process_type=>'NATIVE_PLSQL'
 ,p_process_name=>'SetAllQuiet'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'',
 'update ms_module',
-'set msg_mode     = ms_logger.G_MSG_MODE_QUIET ',
-'   ,open_process = ms_logger.G_OPEN_PROCESS_NEVER',
+'set auto_msg_mode    = ms_logger.G_MSG_MODE_QUIET ',
+' -- auto_wake        = ms_logger.G_AUTO_WAKE_NO      --don''t change',
+' --,manual_msg_mode  = ms_logger.G_MSG_MODE_DISABLED --don''t change',
 'where owner = :P9_OWNER',
 ';',
 '',
 'update ms_unit',
-'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT ',
-'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT',
+'set auto_wake        = ms_logger.G_MSG_MODE_OVERRIDDEN',
+'   ,auto_msg_mode    = ms_logger.G_MSG_MODE_OVERRIDDEN ',
+'  -- ,manual_msg_mode  = ms_logger.G_MSG_MODE_OVERRIDDEN  --don''t change',
 'where module_id in (select module_id from ms_module where owner = :P9_OWNER)',
 ';',
-'',
+' ',
 'Commit;'))
 ,p_process_error_message=>'Failed to set &P9_OWNER. modules to Quiet mode.'
 ,p_error_display_location=>'INLINE_IN_NOTIFICATION'
@@ -530,15 +523,18 @@ wwv_flow_api.create_page_process(
 ,p_process_type=>'NATIVE_PLSQL'
 ,p_process_name=>'SetAllNormal'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'',
 'update ms_module',
-'set msg_mode     = ms_logger.G_MSG_MODE_NORMAL',
-'--DONT CHANGE OPEN_PROCESS   ,open_process = ms_logger.G_OPEN_PROCESS_IF_CLOSED',
+'set auto_msg_mode    = ms_logger.G_MSG_MODE_NORMAL ',
+' -- auto_wake        = ms_logger.G_AUTO_WAKE_NO      --don''t change',
+' --,manual_msg_mode  = ms_logger.G_MSG_MODE_DISABLED --don''t change',
 'where owner = :P9_OWNER',
 ';',
 '',
 'update ms_unit',
-'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT ',
-'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT',
+'set auto_wake        = ms_logger.G_MSG_MODE_OVERRIDDEN',
+'   ,auto_msg_mode    = ms_logger.G_MSG_MODE_OVERRIDDEN ',
+'  -- ,manual_msg_mode  = ms_logger.G_MSG_MODE_OVERRIDDEN  --don''t change',
 'where module_id in (select module_id from ms_module where owner = :P9_OWNER)',
 ';',
 '',
@@ -557,38 +553,47 @@ wwv_flow_api.create_page_process(
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
 '--Set Report Modules to Normal',
 'update ms_module',
-'set msg_mode     = ms_logger.G_MSG_MODE_NORMAL',
-'   ,open_process = ms_logger.G_OPEN_PROCESS_IF_CLOSED',
+'set auto_msg_mode    = ms_logger.G_MSG_MODE_NORMAL ',
+'   ,auto_wake        = ms_logger.G_AUTO_WAKE_YES ',
+' --,manual_msg_mode  = ms_logger.G_MSG_MODE_DISABLED --don''t change',
 'where module_type = ''REPORT''',
 'and   owner = :P9_OWNER',
 ';',
 '',
 '--Set Report Units to Overridden',
 'update ms_unit',
-'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT ',
-'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT',
+'set auto_wake        = ms_logger.G_MSG_MODE_OVERRIDDEN',
+'   ,auto_msg_mode    = ms_logger.G_MSG_MODE_OVERRIDDEN ',
+'  -- ,manual_msg_mode  = ms_logger.G_MSG_MODE_OVERRIDDEN  --don''t change',
 'where module_id in (select module_id from ms_module where module_type = ''REPORT'' and owner = :P9_OWNER)',
 ';',
-'',
+' ',
+' ',
 '--Set Reports Parameter routine to debug.',
 'update ms_unit',
-'set msg_mode     = ms_logger.G_MSG_MODE_DEBUG',
+'set  auto_wake        = ms_logger.G_MSG_MODE_OVERRIDDEN',
+'    ,auto_msg_mode    = ms_logger.G_MSG_MODE_DEBUG ',
+'  -- ,manual_msg_mode  = ms_logger.G_MSG_MODE_OVERRIDDEN  --don''t change',
 'where unit_name  = ''get_parameters''',
-'and module_id in (select module_id from ms_module where module_type = ''REPORT'' and owner = :P9_OWNER)',
-';',
+'and module_id in (select module_id from ms_module where module_type = ''REPORT'' and owner = :P9_OWNER);',
+'',
+' ',
 '',
 '--Set Report Library Modules to Disabled',
 'update ms_module',
-'set msg_mode     = ms_logger.G_MSG_MODE_DISABLED',
-'   ,open_process = ms_logger.G_OPEN_PROCESS_NEVER',
+'set auto_msg_mode    = ms_logger.G_MSG_MODE_DISABLED ',
+'   ,auto_wake        = ms_logger.G_AUTO_WAKE_NO',
+' --,manual_msg_mode  = ms_logger.G_MSG_MODE_DISABLED --don''t change',
 'where module_type = ''REPORT_LIB''',
-'and   owner = :P9_OWNER',
-';',
+'and   owner = :P9_OWNER;',
+'',
+' ',
 '',
 '--Set Report Library Units to Overridden',
 'update ms_unit',
-'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT ',
-'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT',
+'set auto_wake        = ms_logger.G_MSG_MODE_OVERRIDDEN',
+'   ,auto_msg_mode    = ms_logger.G_MSG_MODE_OVERRIDDEN ',
+'  -- ,manual_msg_mode  = ms_logger.G_MSG_MODE_OVERRIDDEN  --don''t change',
 'where module_id in (select module_id from ms_module where module_type = ''REPORT_LIB'' and owner = :P9_OWNER)',
 ';',
 ' ',
@@ -609,14 +614,16 @@ wwv_flow_api.create_page_process(
 ,p_process_name=>'SetAllDisabled'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'update ms_module',
-'set msg_mode     = ms_logger.G_MSG_MODE_DISABLED ',
-'   ,open_process = ms_logger.G_OPEN_PROCESS_NEVER',
+'set auto_wake        = ms_logger.G_AUTO_WAKE_NO',
+'   ,auto_msg_mode    = ms_logger.G_MSG_MODE_DISABLED ',
+'--   ,manual_msg_mode  = ms_logger.G_MSG_MODE_DISABLED  --Don''t change',
 'where owner = :P9_OWNER',
 ';',
 '',
 'update ms_unit',
-'set msg_mode     = ms_logger.G_MSG_MODE_DEFAULT ',
-'   ,open_process = ms_logger.G_OPEN_PROCESS_DEFAULT',
+'set auto_wake        = ms_logger.G_MSG_MODE_OVERRIDDEN',
+'   ,auto_msg_mode    = ms_logger.G_MSG_MODE_OVERRIDDEN ',
+'--   ,manual_msg_mode  = ms_logger.G_MSG_MODE_OVERRIDDEN --Don''t change',
 'where module_id in (select module_id from ms_module where owner = :P9_OWNER)',
 ';',
 '',
