@@ -1575,9 +1575,11 @@ BEGIN
                          when i_normal   then G_MSG_MODE_NORMAL
                          when i_quiet    then G_MSG_MODE_QUIET
                          when i_msg_mode is not null then i_msg_mode
-                         ELSE null
+                         ELSE g_logger_msg_mode
                         end;
  
+  $if $$intlog $then intlog_note('g_logger_msg_mode',g_logger_msg_mode); $end
+
   --get a registered module or register this one
   l_node.module := find_module(i_module_name => i_module_name
                               ,i_unit_name   => i_unit_name); 
@@ -1761,11 +1763,11 @@ BEGIN
                   ,i_msg_level => i_msg_level
 			  ,i_node     => i_node );
   
+  
   warn_user_source_error_lines(i_prev_lines => 5
                               ,i_post_lines => 5
-							  ,i_node     => i_node);
-
-
+						                  ,i_node     => i_node);
+ 
 END debug_error;
 
 
@@ -2210,6 +2212,7 @@ BEGIN
               ,i_msg_level        => G_MSG_LEVEL_ORACLE );
  
 END oracle_error;
+ 
 ------------------------------------------------------------------------
 -- warn_error  
 ------------------------------------------------------------------------
@@ -2221,13 +2224,12 @@ BEGIN
 
   debug_error( i_node             => i_node     
               ,i_message          => i_message
-              ,i_msg_level        => G_MSG_LEVEL_FATAL );
+              ,i_msg_level        => G_MSG_LEVEL_WARNING );
 
 
 END warn_error;
 
-
-
+ 
 ------------------------------------------------------------------------
 -- Reference ROUTINES (Public)
 ------------------------------------------------------------------------

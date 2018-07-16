@@ -980,11 +980,27 @@ END f_elapsed_time;
       raise;
   end; --test_ondemand_mode
 
+  procedure test_error is
+    l_node ms_logger.node_typ := ms_logger.new_proc($$plsql_unit ,'test_error');
+  begin --test_error
+  BEGIN
+    raise no_data_found;
+  END;
+  exception
+    when others then
+      ms_logger.comment(l_node,'WHEN OTHERS THEN (woven)');
+      ms_logger.note_error(l_node);
+      raise;
+  end; --test_error
 
-procedure test(i_logger_debug in boolean
-              ,i_logger_normal in boolean
-              ,i_logger_quiet in boolean
-              ,i_logger_msg_mode in integer) is
+
+
+
+
+procedure test(i_logger_debug in boolean  default false
+              ,i_logger_normal in boolean default false
+              ,i_logger_quiet in boolean  default false
+              ,i_logger_msg_mode in integer default null) is
   l_node ms_logger.node_typ := ms_logger.new_proc($$plsql_unit ,'test',i_debug => i_logger_debug,i_normal => i_logger_normal,i_quiet => i_logger_quiet,i_msg_mode => i_logger_msg_mode); 
 begin --test
   ms_logger.param(l_node,'i_logger_debug'   ,i_logger_debug);
@@ -992,10 +1008,16 @@ begin --test
   ms_logger.param(l_node,'i_logger_quiet'   ,i_logger_quiet);
   ms_logger.param(l_node,'i_logger_msg_mode',i_logger_msg_mode);
 begin
-
+  ms_logger.comment(l_node,'Comment');
+  ms_logger.info(l_node,'Info');
+  ms_logger.warning(l_node,'Warning');
+  --ms_logger.fatal(l_node,'Fatal');
+  test_error;
  null;
 end;
 exception
+  when no_data_found then
+    ms_logger.comment(l_node,'Trapped no_data_found');
   when others then
     ms_logger.warn_error(l_node);
     raise;

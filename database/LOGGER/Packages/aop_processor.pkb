@@ -4370,8 +4370,11 @@ BEGIN --AOP_block
   
       WHEN regex_match(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
         ms_logger.info(l_node, 'WHEN OTHERS THEN');   
-        --warn of error after WHEN OTHERS THEN  
-        inject( i_new_code => 'ms_logger.warn_error(l_node);'
+        --note an error after WHEN OTHERS THEN  
+        inject( i_new_code => q'[ms_logger.comment(l_node,'WHEN OTHERS THEN (orig)');]'
+               ,i_indent   => i_indent
+               ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
+        inject( i_new_code => 'ms_logger.note_error(l_node);'
                ,i_indent   => i_indent
                ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
                
@@ -4537,8 +4540,10 @@ BEGIN
   inject( i_new_code  => '  when others then'
          ,i_indent    => i_indent - g_indent_spaces
          ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
-
-  inject( i_new_code  => '    ms_logger.warn_error(l_node);'
+  inject( i_new_code  => q'[  ms_logger.comment(l_node,'WHEN OTHERS THEN (woven)');]'
+         ,i_indent    => i_indent
+         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+  inject( i_new_code  => '    ms_logger.note_error(l_node);'
          ,i_indent    => i_indent - g_indent_spaces
          ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
 
