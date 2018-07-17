@@ -154,8 +154,8 @@ FUNCTION get_db_object_signature(i_object_name         IN varchar2
 * @param i_type  Object Type 
 */
   function source_reg_mode_debug(i_owner varchar2
-                           ,i_name  varchar2
-                           ,i_type  varchar2) return boolean;
+                                ,i_name  varchar2
+                                ,i_type  varchar2) return boolean;
 
  
 -----------------------------------------------------------------------------------------------
@@ -173,18 +173,18 @@ FUNCTION get_db_object_signature(i_object_name         IN varchar2
 -- weave
 ----------------------------------------------------------------------------------------------- 
 /** PUBLIC
-* Calls the private weave function with an empty p_var_list
-* So that the Apex app can call this for Quick Weave without sending p_var_list          
-* @param p_code         source code
-* @param p_package_name name of package (optional)
-* @param p_for_html     flag to add HTML style tags for apex pretty print
-* @param p_end_user     object owner
+* Calls the private weave function with an empty i_var_list
+* So that the Apex app can call this for Quick Weave without sending i_var_list          
+* @param i_code         source code
+* @param i_package_name name of package (optional)
+* @param i_for_html     flag to add HTML style tags for apex pretty print
+* @param i_end_user     object owner
 * @return TRUE if woven successfully.
 */
-  function weave ( p_code         in out clob
-                 , p_package_name in varchar2
-                 , p_for_html     in boolean      default false
-                 , p_end_user     in varchar2     default null
+  function weave ( io_code         in out clob
+                 , i_package_name in varchar2
+                 , i_for_html     in boolean      default false
+                 , i_end_user     in varchar2     default null
                  ) return boolean; 
   
 --------------------------------------------------------------------

@@ -1654,18 +1654,18 @@ END;
 /** PRIVATE
 * Splice extra code into source code.  
 * Extra code will be inserted within the source code to create a longer result.
-* Return the result in p_code.
-* @param p_code     Source Code
-* @param p_new_code Extra Code to be spliced into Source Code
-* @param p_pos      Position within Source Code to splice Extra Code
-* @param p_indent   Current indenting (number of spaces indented) - if not null, then a new line is injected.
-* @param p_colour   Colour to be wrapped around the spliced code.
+* Return the result in io_code.
+* @param io_code     Source Code
+* @param i_new_code Extra Code to be spliced into Source Code
+* @param i_pos      Position within Source Code to splice Extra Code
+* @param i_indent   Current indenting (number of spaces indented) - if not null, then a new line is injected.
+* @param i_colour   Colour to be wrapped around the spliced code.
 */
-  procedure splice( p_code     in out clob
-                   ,p_new_code in clob
-                   ,p_pos      in out number
-                   ,p_indent   in number   default null
-                   ,p_colour   in varchar2 default null ) IS
+  procedure splice( io_code     in out clob
+                   ,i_new_code in clob
+                   ,i_pos      in out number
+                   ,i_indent   in number   default null
+                   ,i_colour   in varchar2 default null ) IS
                    
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'splice');  
     l_new_code        CLOB;
@@ -1681,40 +1681,40 @@ END;
 
   BEGIN
 
-    --ms_logger.param(l_node, 'p_code'          ,p_code );
-    --ms_logger.param(l_node, 'LENGTH(p_code)'  ,LENGTH(p_code)  );
-    --ms_logger.param(l_node, 'p_new_code'      ,p_new_code);
-    ms_logger.param(l_node, 'p_pos     '       ,p_pos     );
-    ms_logger.param(l_node, 'p_indent     '    ,p_indent     );
-    ms_logger.param(l_node, 'p_colour  '       ,p_colour     );
+    --ms_logger.param(l_node, 'io_code'          ,io_code );
+    --ms_logger.param(l_node, 'LENGTH(io_code)'  ,LENGTH(io_code)  );
+    --ms_logger.param(l_node, 'i_new_code'      ,i_new_code);
+    ms_logger.param(l_node, 'i_pos     '       ,i_pos     );
+    ms_logger.param(l_node, 'i_indent     '    ,i_indent     );
+    ms_logger.param(l_node, 'i_colour  '       ,i_colour     );
 
     ms_logger.note(l_node, 'g_for_aop_html     '     ,g_for_aop_html     );
 
-    l_new_code := f_colour(i_text   => p_new_code
-                          ,i_colour => NVL(p_colour, G_COLOUR_SPLICE));
+    l_new_code := f_colour(i_text   => i_new_code
+                          ,i_colour => NVL(i_colour, G_COLOUR_SPLICE));
     ms_logger.note(l_node, 'l_new_code     '     ,l_new_code     );
   
 
-    --ms_logger.note(l_node, 'char @ intial pos-2     '   ,substr(p_code, p_pos-2, 1)||ascii(substr(p_code, p_pos-2, 1)));
-    --ms_logger.note(l_node, 'char @ intial pos-1     '   ,substr(p_code, p_pos-1, 1)||ascii(substr(p_code, p_pos-1, 1)));
-    --ms_logger.note(l_node, 'char @ intial pos       '   ,substr(p_code, p_pos, 1)||ascii(substr(p_code, p_pos, 1)));
-    --ms_logger.note(l_node, 'char @ intial pos+1     '   ,substr(p_code, p_pos+1, 1)||ascii(substr(p_code, p_pos+1, 1)));
-    --ms_logger.note(l_node, 'char @ intial pos+2     '   ,substr(p_code, p_pos+2, 1)||ascii(substr(p_code, p_pos+2, 1)));
+    --ms_logger.note(l_node, 'char @ intial pos-2     '   ,substr(io_code, i_pos-2, 1)||ascii(substr(io_code, i_pos-2, 1)));
+    --ms_logger.note(l_node, 'char @ intial pos-1     '   ,substr(io_code, i_pos-1, 1)||ascii(substr(io_code, i_pos-1, 1)));
+    --ms_logger.note(l_node, 'char @ intial pos       '   ,substr(io_code, i_pos, 1)||ascii(substr(io_code, i_pos, 1)));
+    --ms_logger.note(l_node, 'char @ intial pos+1     '   ,substr(io_code, i_pos+1, 1)||ascii(substr(io_code, i_pos+1, 1)));
+    --ms_logger.note(l_node, 'char @ intial pos+2     '   ,substr(io_code, i_pos+2, 1)||ascii(substr(io_code, i_pos+2, 1)));
 
-    IF p_indent is not null then
+    IF i_indent is not null then
       ----INJECT LINE
  
-      IF ascii(substr(p_code, p_pos-1, 1)) = 10 then
+      IF ascii(substr(io_code, i_pos-1, 1)) = 10 then
         --Current char is a NL - we want to skip it in the splice, since we are going to add a NL infront of the splice anyway.
         ms_logger.comment(l_node, 'Seting the NL offset to remove 1 NL');
         l_leading_nl_offset := 1;
       END IF;
  
-      --Apply a leading new line and indent by p_indent spaces
-      --l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',(p_indent-1)*g_indent_spaces+g_indent_spaces,' '));
-      l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',p_indent+g_indent_spaces,' '));
+      --Apply a leading new line and indent by i_indent spaces
+      --l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',(i_indent-1)*g_indent_spaces+g_indent_spaces,' '));
+      l_new_code := replace(chr(10)||l_new_code,chr(10),chr(10)||rpad(' ',i_indent+g_indent_spaces,' '));
  
-      IF REGEXP_INSTR(p_code,G_REGEX_WORD_CHAR,p_pos) < INSTR(p_code,chr(10),p_pos) THEN
+      IF REGEXP_INSTR(io_code,G_REGEX_WORD_CHAR,i_pos) < INSTR(io_code,chr(10),i_pos) THEN
         --Add a trailing newline, because there is a word-char before the next NL.
         ms_logger.comment(l_node, 'Add a trailing newline');
         l_new_code := l_new_code||chr(10);
@@ -1723,22 +1723,22 @@ END;
   
     END IF; 
 
-    --p_pos - the current position is taken to indicate the next character to be read eg by regex_substr
+    --i_pos - the current position is taken to indicate the next character to be read eg by regex_substr
     --so when you splice with current position, it is to be between pos-1 and pos
-    p_code:= substr(p_code, 1, p_pos-1-l_leading_nl_offset)
+    io_code:= substr(io_code, 1, i_pos-1-l_leading_nl_offset)
            ||l_new_code
-           ||substr(p_code, p_pos);
+           ||substr(io_code, i_pos);
 
-    p_pos := p_pos + length(l_new_code)-l_leading_nl_offset-l_trailing_nl_offset;  
+    i_pos := i_pos + length(l_new_code)-l_leading_nl_offset-l_trailing_nl_offset;  
 
-    --ms_logger.note(l_node, 'char @ final pos-2     '   ,substr(p_code, p_pos-2, 1)||ascii(substr(p_code, p_pos-2, 1)));
-    --ms_logger.note(l_node, 'char @ final pos-1     '   ,substr(p_code, p_pos-1, 1)||ascii(substr(p_code, p_pos-1, 1)));
-    --ms_logger.note(l_node, 'char @ final pos       '   ,substr(p_code, p_pos, 1)||ascii(substr(p_code, p_pos, 1)));
-    --ms_logger.note(l_node, 'char @ final pos+1     '   ,substr(p_code, p_pos+1, 1)||ascii(substr(p_code, p_pos+1, 1)));
-    --ms_logger.note(l_node, 'char @ final pos+2     '   ,substr(p_code, p_pos+2, 1)||ascii(substr(p_code, p_pos+2, 1)));
+    --ms_logger.note(l_node, 'char @ final pos-2     '   ,substr(io_code, i_pos-2, 1)||ascii(substr(io_code, i_pos-2, 1)));
+    --ms_logger.note(l_node, 'char @ final pos-1     '   ,substr(io_code, i_pos-1, 1)||ascii(substr(io_code, i_pos-1, 1)));
+    --ms_logger.note(l_node, 'char @ final pos       '   ,substr(io_code, i_pos, 1)||ascii(substr(io_code, i_pos, 1)));
+    --ms_logger.note(l_node, 'char @ final pos+1     '   ,substr(io_code, i_pos+1, 1)||ascii(substr(io_code, i_pos+1, 1)));
+    --ms_logger.note(l_node, 'char @ final pos+2     '   ,substr(io_code, i_pos+2, 1)||ascii(substr(io_code, i_pos+2, 1)));
     
-    --ms_logger.note(l_node, 'p_code     '     ,p_code     );
-    --ms_logger.note(l_node, 'p_pos     '      ,p_pos     );
+    --ms_logger.note(l_node, 'io_code     '     ,io_code     );
+    --ms_logger.note(l_node, 'i_pos     '      ,i_pos     );
 
   END;
   
@@ -1747,7 +1747,7 @@ END;
 --------------------------------------------------------------------
 /** PRIVATE
 * Wedge splices i_new_code into the global g_code at the global g_current_pos
-* Does not specify p_indent when calling splice, so splice will NOT create a new line.
+* Does not specify i_indent when calling splice, so splice will NOT create a new line.
 * @param i_new_code Extra Code to be spliced into g_code
 * @param i_colour   Colour to be wrapped around the spliced code.
 */
@@ -1756,10 +1756,10 @@ END;
   
   BEGIN
     IF i_new_code IS NOT NULL THEN
-      splice( p_code      => g_code    
-             ,p_new_code  => i_new_code
-             ,p_pos       => g_current_pos
-             ,p_colour    => i_colour  );
+      splice( io_code      => g_code    
+             ,i_new_code  => i_new_code
+             ,i_pos       => g_current_pos
+             ,i_colour    => i_colour  );
     END IF;      
    
   END;
@@ -1779,11 +1779,11 @@ END;
   BEGIN
     IF i_new_code IS NOT NULL THEN
       --g_current_pos := g_current_pos - 1;
-      splice( p_code      => g_code    
-             ,p_new_code  => i_new_code
-             ,p_pos       => g_current_pos     
-             ,p_indent    => i_indent
-             ,p_colour    => i_colour  );  
+      splice( io_code      => g_code    
+             ,i_new_code  => i_new_code
+             ,i_pos       => g_current_pos     
+             ,i_indent    => i_indent
+             ,i_colour    => i_colour  );  
     END IF;      
   END;
   
@@ -4759,21 +4759,22 @@ END;
 *  one package body (and componants) or 
 *  one anonymous block (and componants) or
 *  a list of program units (Procedures and Functions)            
-* @param p_code         source code
-* @param p_package_name name of package (optional)
-* @param p_var_list     list of scoped variables, typically from a package spec
-* @param p_for_html     flag to add HTML style tags for apex pretty print
-* @param p_end_user     object owner
+* @param io_code         source code
+* @param i_package_name name of package (optional)
+* @param i_var_list     list of scoped variables, typically from a package spec
+* @param i_pu_stack     program stack - private type pu_stack_typ
+* @param i_for_html     flag to add HTML style tags for apex pretty print
+* @param i_end_user     object owner
 * @return TRUE if woven successfully.
 */
 
   function weave
-  ( p_code         in out clob
-  , p_package_name in varchar2
-  , p_var_list     in var_list_typ 
-  , p_pu_stack     in pu_stack_typ 
-  , p_for_html     in boolean      default false
-  , p_end_user     in varchar2     default null
+  ( io_code         in out clob
+  , i_package_name in varchar2
+  , i_var_list     in var_list_typ 
+  , i_pu_stack     in pu_stack_typ 
+  , i_for_html     in boolean      default false
+  , i_end_user     in varchar2     default null
   ) return boolean
   is
 
@@ -4790,22 +4791,22 @@ END;
     l_package_name       varchar2(50);
   
   begin
-    ms_logger.param(l_node, 'p_package_name'      ,p_package_name);
-    ms_logger.param(l_node, 'p_for_html'          ,p_for_html);
-    ms_logger.param(l_node, 'p_end_user'          ,p_end_user);
+    ms_logger.param(l_node, 'i_package_name'      ,i_package_name);
+    ms_logger.param(l_node, 'i_for_html'          ,i_for_html);
+    ms_logger.param(l_node, 'i_end_user'          ,i_end_user);
 
     begin
  
-      IF p_package_name IS NULL THEN
+      IF i_package_name IS NULL THEN
         g_aop_module_name := '$$plsql_unit';
         ELSE
-        g_aop_module_name := ''''||p_package_name||'''';
+        g_aop_module_name := ''''||i_package_name||'''';
       END IF;
      
-      g_for_aop_html := p_for_html;
-      g_end_user     := p_end_user;
+      g_for_aop_html := i_for_html;
+      g_end_user     := i_end_user;
    
-      g_code := chr(10)||p_code||chr(10); --add a trailing CR to help with searching
+      g_code := chr(10)||io_code||chr(10); --add a trailing CR to help with searching
     
       set_weave_timeout;
         
@@ -4829,8 +4830,8 @@ END;
 
       declare
         l_keyword    varchar2(50);
-        l_var_list   var_list_typ := p_var_list; 
-        --l_pu_stack   pu_stack_typ := p_pu_stack; 
+        l_var_list   var_list_typ := i_var_list; 
+        --l_pu_stack   pu_stack_typ := i_pu_stack; 
      
       
       begin
@@ -4851,7 +4852,7 @@ END;
             AOP_declare_block(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_DECLARE
                                                                                    ,i_colour      => G_COLOUR_GO_PAST))
                              ,i_var_list  => l_var_list
-                             ,i_pu_stack  => p_pu_stack);
+                             ,i_pu_stack  => i_pu_stack);
               
           WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN
             ms_logger.comment(l_node, 'Found Simple Anonymous Block');
@@ -4860,14 +4861,14 @@ END;
                                                                             ,i_colour      => G_COLOUR_GO_PAST))
                      ,i_regex_end  => G_REGEX_END_BEGIN
                      ,i_var_list   => l_var_list
-                     ,i_pu_stack   => p_pu_stack);
+                     ,i_pu_stack   => i_pu_stack);
         
           WHEN regex_match(l_keyword , G_REGEX_PROG_UNIT
                                 ||'|'||G_REGEX_CREATE) THEN
             ms_logger.comment(l_node, 'Found Program Unit');
             AOP_prog_units(i_indent   => calc_indent(g_initial_indent,l_keyword)
                           ,i_var_list => l_var_list
-                          ,i_pu_stack => p_pu_stack);
+                          ,i_pu_stack => i_pu_stack);
     
         ELSE
           ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
@@ -4920,7 +4921,7 @@ END;
         g_code := '<PRE>'||g_code||'</PRE>'; --@TODO - may be able to add this into the SmartLogger display page instead.
     END IF;  
  
-    p_code := trim_clob(i_clob => g_code);
+    io_code := trim_clob(i_clob => g_code);
  
     return l_woven;
  
@@ -5204,32 +5205,32 @@ and   t.usage_context_id = v.usage_id ) LOOP
 -- weave
 ----------------------------------------------------------------------------------------------- 
 /** PUBLIC
-* Calls the private weave function with an empty p_var_list
-* So that the Apex app can call this for Quick Weave without sending p_var_list
+* Calls the private weave function with an empty i_var_list
+* So that the Apex app can call this for Quick Weave without sending i_var_list
 * If package name is given - get package spec vars for var list
 * If owner is not given - derive it from package name           
-* @param p_code         source code
-* @param p_package_name name of package (optional)
-* @param p_for_html     flag to add HTML style tags for apex pretty print
-* @param p_end_user     object owner
+* @param io_code         source code
+* @param i_package_name name of package (optional)
+* @param i_for_html     flag to add HTML style tags for apex pretty print
+* @param i_end_user     object owner
 * @return TRUE if woven successfully.
 */
-  function weave ( p_code         in out clob
-                 , p_package_name in varchar2
-                 , p_for_html     in boolean      default false
-                 , p_end_user     in varchar2     default null
+  function weave ( io_code         in out clob
+                 , i_package_name in varchar2
+                 , i_for_html     in boolean      default false
+                 , i_end_user     in varchar2     default null
                  ) return boolean is
     l_var_list   var_list_typ;
-    l_owner      varchar2(30) := p_end_user;
+    l_owner      varchar2(30) := i_end_user;
     l_pu_stack   pu_stack_typ;
     l_package_body_signature varchar2(32);
   BEGIN
 
-    if p_package_name is not null then
+    if i_package_name is not null then
 
       if l_owner is null then
 
-         l_owner := object_owner(i_object_name => p_package_name
+         l_owner := object_owner(i_object_name => i_package_name
                                 ,i_object_type => 'PACKAGE');
 
       end if;     
@@ -5237,12 +5238,12 @@ and   t.usage_context_id = v.usage_id ) LOOP
       --Recompile all referenced packages with PLScope before compiling this package with PLScope
       for l_referenced_object in (  select * 
                                     from  all_dependencies  
-                                    where name  = p_package_name
+                                    where name  = i_package_name
                                     and   owner = l_owner
                                     and   type in ('PACKAGE','PACKAGE BODY') --Get refs of both the spec and body
                                     and referenced_type = 'PACKAGE' 
                                     and referenced_owner NOT IN ( 'SYS' ,'APEX_050100')
-                                    and referenced_name not in ('MS_LOGGER','AOP_PROCESSOR',p_package_name)) LOOP
+                                    and referenced_name not in ('MS_LOGGER','AOP_PROCESSOR',i_package_name)) LOOP
 
         --Get a list of variables from any package spec directly referenced from the spec or body of this package.
         l_var_list := get_vars_from_compiled_object(i_name     => l_referenced_object.referenced_name
@@ -5256,13 +5257,13 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
       --Compile this package spec and body with PLScope
       --Get a list of variables from the package spec
-      l_var_list := get_vars_from_compiled_object(i_name     => p_package_name
+      l_var_list := get_vars_from_compiled_object(i_name     => i_package_name
                                                  ,i_owner    => l_owner 
                                                  ,i_type     =>  'PACKAGE'
                                                  ,i_var_list => l_var_list   );
 
       --Get a list of variables from the package body
-      l_var_list := get_vars_from_compiled_object(i_name     => p_package_name
+      l_var_list := get_vars_from_compiled_object(i_name     => i_package_name
                                                  ,i_owner    => l_owner 
                                                  ,i_type     =>  'PACKAGE BODY' 
                                                  ,i_var_list => l_var_list   );
@@ -5274,22 +5275,22 @@ and   t.usage_context_id = v.usage_id ) LOOP
    --         -- ,i_signature  => null
    --          ,io_pu_stack => l_pu_stack);
 --
-   --  -- l_package_body_signature := get_db_object_signature(i_object_name => p_package_name
+   --  -- l_package_body_signature := get_db_object_signature(i_object_name => i_package_name
    --  --                                                 ,i_object_type => 'PACKAGE BODY');
  --
-   --   push_pu(i_name       => p_package_name
+   --   push_pu(i_name       => i_package_name
    --          ,i_type       => 'PACKAGE BODY'
    --         -- ,i_signature  => l_package_body_signature
    --          ,io_pu_stack => l_pu_stack);
    
     end if;  
     
-    RETURN weave( p_code         => p_code        
-                , p_package_name => p_package_name
-                , p_var_list     => l_var_list    
-                , p_for_html     => p_for_html    
-                , p_end_user     => p_end_user 
-                , p_pu_stack     => l_pu_stack   
+    RETURN weave( io_code         => io_code        
+                , i_package_name => i_package_name
+                , i_var_list     => l_var_list    
+                , i_for_html     => i_for_html    
+                , i_end_user     => i_end_user 
+                , i_pu_stack     => l_pu_stack   
                 ) ;
   END;  
 
@@ -5416,12 +5417,12 @@ and   t.usage_context_id = v.usage_id ) LOOP
       --We want to see what happened.
       ms_logger.comment(l_node,'Reweave with html');  
       l_html_body := l_orig_body;
-        l_woven := weave( p_code         => l_html_body
-                          , p_package_name => lower(i_object_name)
-                          , p_var_list     => l_var_list
-                          , p_pu_stack     => l_pu_stack
-                          , p_for_html     => true
-                          , p_end_user     => i_object_owner);
+        l_woven := weave( io_code         => l_html_body
+                          , i_package_name => lower(i_object_name)
+                          , i_var_list     => l_var_list
+                          , i_pu_stack     => l_pu_stack
+                          , i_for_html     => true
+                          , i_end_user     => i_object_owner);
  
       IF NOT validate_source(i_name  => i_object_name
                            , i_type  => i_object_type
@@ -5438,11 +5439,11 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
       l_aop_body := l_orig_body;
       -- manipulate source by weaving in aspects as required; only weave if the keyword logging not yet applied.
-      l_woven := weave( p_code         => l_aop_body
-                        , p_package_name => lower(i_object_name)
-                        , p_var_list     => l_var_list
-                        , p_pu_stack     => l_pu_stack
-                        , p_end_user     => i_object_owner        );
+      l_woven := weave( io_code         => l_aop_body
+                        , i_package_name => lower(i_object_name)
+                        , i_var_list     => l_var_list
+                        , i_pu_stack     => l_pu_stack
+                        , i_end_user     => i_object_owner        );
 
       -- (re)compile the source 
       ms_logger.comment(l_node, 'Validate the AOP version.' );
@@ -5478,12 +5479,12 @@ and   t.usage_context_id = v.usage_id ) LOOP
       --We want to see what happened.
       ms_logger.comment(l_node,'Reweave with html');  
       l_html_body := l_orig_body;
-        l_woven := weave( p_code         => l_html_body
-                          , p_package_name => lower(i_object_name)
-                          , p_var_list     => l_var_list
-                          , p_pu_stack     => l_pu_stack
-                          , p_for_html     => true
-                          , p_end_user     => i_object_owner);
+        l_woven := weave( io_code         => l_html_body
+                          , i_package_name => lower(i_object_name)
+                          , i_var_list     => l_var_list
+                          , i_pu_stack     => l_pu_stack
+                          , i_for_html     => true
+                          , i_end_user     => i_object_owner);
  
       IF NOT validate_source(i_name  => i_object_name
                            , i_type  => i_object_type
