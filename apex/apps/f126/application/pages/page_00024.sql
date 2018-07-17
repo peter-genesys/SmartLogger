@@ -33,16 +33,14 @@ wwv_flow_api.create_page(
 '	}',
 '',
 '</script>'))
+,p_step_template=>wwv_flow_api.id(10771871110342874)
 ,p_page_template_options=>'#DEFAULT#'
-,p_dialog_chained=>'Y'
 ,p_overwrite_navigation_list=>'N'
-,p_nav_list_template_options=>'#DEFAULT#'
 ,p_page_is_public_y_n=>'Y'
 ,p_cache_mode=>'NOCACHE'
-,p_cache_timeout_seconds=>21600
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20170502210917'
+,p_last_upd_yyyymmddhh24miss=>'20180717102032'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(14038458256444357)
