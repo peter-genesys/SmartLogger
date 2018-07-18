@@ -19,7 +19,7 @@ wwv_flow_api.create_page(
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180517211647'
+,p_last_upd_yyyymmddhh24miss=>'20180718105313'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(21951889721867801)
@@ -237,11 +237,19 @@ wwv_flow_api.create_page_process(
 '    apex_collection.delete_collection(p_collection_name=>''AOP_OUTPUT_CLEAN'');',
 '  end if;',
 '  apex_collection.create_or_truncate_collection(p_collection_name=>''AOP_OUTPUT_CLEAN'');',
-' ',
-'  l_woven := aop_processor.weave( p_code         => l_clob',
-'                                , p_package_name => :P21_PACKAGE_NAME',
-'                                , p_for_html     => FALSE',
-'                                , p_end_user     => :P21_SCHEMA );',
+'',
+'                                ',
+'  l_woven := aop_processor.weave( io_code         => l_clob',
+'                                , i_package_name => :P21_PACKAGE_NAME',
+'                                , i_for_html     => FALSE',
+'                                , i_end_user     => :P21_SCHEMA',
+'                                , i_note_params             =>    :P21_NOTE_PARAMS = ''Y''',
+'                                , i_note_vars               =>    :P21_NOTE_VARS   = ''Y''',
+'                                , i_note_unhandled_errors   =>    :P21_UNHANDLED_ERRORS = ms_logger.G_MSG_LEVEL_COMMENT',
+'                                , i_warn_unhandled_errors   =>    :P21_UNHANDLED_ERRORS = ms_logger.G_MSG_LEVEL_WARNING',
+'                                , i_fatal_unhandled_errors  =>    :P21_UNHANDLED_ERRORS = ms_logger.G_MSG_LEVEL_ORACLE',
+'                                , i_note_exception_handlers =>    :P21_NOTE_EX_HANDLERS  = ''Y''',
+' );           ',
 ' ',
 '    apex_collection.add_member(p_collection_name => ''AOP_OUTPUT_CLEAN'',p_clob001 => l_clob);',
 '  if l_woven then',

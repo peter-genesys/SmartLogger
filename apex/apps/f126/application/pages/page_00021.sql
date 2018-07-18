@@ -19,7 +19,7 @@ wwv_flow_api.create_page(
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20170506133412'
+,p_last_upd_yyyymmddhh24miss=>'20180718111238'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(21946388428861308)
@@ -89,7 +89,7 @@ wwv_flow_api.create_page_branch(
 wwv_flow_api.create_page_item(
  p_id=>wwv_flow_api.id(13491358792125962)
 ,p_name=>'P21_RAW_INPUT'
-,p_item_sequence=>30
+,p_item_sequence=>80
 ,p_item_plug_id=>wwv_flow_api.id(13488873524114310)
 ,p_prompt=>'Raw Input'
 ,p_display_as=>'NATIVE_TEXTAREA'
@@ -129,7 +129,8 @@ wwv_flow_api.create_page_item(
 ,p_display_as=>'NATIVE_TEXT_FIELD'
 ,p_cSize=>30
 ,p_cMaxlength=>4000
-,p_field_template=>wwv_flow_api.id(10851543190342926)
+,p_begin_on_new_line=>'N'
+,p_field_template=>wwv_flow_api.id(10851401898342926)
 ,p_item_template_options=>'#DEFAULT#'
 ,p_restricted_characters=>'NO_SPECIAL_CHAR_NL'
 ,p_help_text=>'Package Name or Report Name'
@@ -147,12 +148,78 @@ wwv_flow_api.create_page_item(
 ,p_display_as=>'NATIVE_TEXT_FIELD'
 ,p_cSize=>30
 ,p_cMaxlength=>4000
-,p_field_template=>wwv_flow_api.id(10851543190342926)
+,p_field_template=>wwv_flow_api.id(10851401898342926)
 ,p_item_template_options=>'#DEFAULT#'
 ,p_attribute_01=>'N'
 ,p_attribute_02=>'N'
 ,p_attribute_04=>'TEXT'
 ,p_attribute_05=>'NONE'
+);
+wwv_flow_api.create_page_item(
+ p_id=>wwv_flow_api.id(24214597445111208)
+,p_name=>'P21_NOTE_PARAMS'
+,p_is_required=>true
+,p_item_sequence=>30
+,p_item_plug_id=>wwv_flow_api.id(13488873524114310)
+,p_prompt=>'Note Parameters'
+,p_source=>'Y'
+,p_source_type=>'STATIC'
+,p_display_as=>'NATIVE_YES_NO'
+,p_field_template=>wwv_flow_api.id(10851401898342926)
+,p_item_template_options=>'#DEFAULT#'
+,p_help_text=>'Debug the value of an incoming parameter.'
+,p_attribute_01=>'APPLICATION'
+);
+wwv_flow_api.create_page_item(
+ p_id=>wwv_flow_api.id(24214602303111209)
+,p_name=>'P21_NOTE_VARS'
+,p_is_required=>true
+,p_item_sequence=>50
+,p_item_plug_id=>wwv_flow_api.id(13488873524114310)
+,p_prompt=>'Note Variables'
+,p_source=>'Y'
+,p_source_type=>'STATIC'
+,p_display_as=>'NATIVE_YES_NO'
+,p_begin_on_new_line=>'N'
+,p_field_template=>wwv_flow_api.id(10851401898342926)
+,p_item_template_options=>'#DEFAULT#'
+,p_help_text=>'Debug the value of a variable assignment.'
+,p_attribute_01=>'APPLICATION'
+);
+wwv_flow_api.create_page_item(
+ p_id=>wwv_flow_api.id(24214710617111210)
+,p_name=>'P21_NOTE_EX_HANDLERS'
+,p_is_required=>true
+,p_item_sequence=>60
+,p_item_plug_id=>wwv_flow_api.id(13488873524114310)
+,p_prompt=>'Note Exception Handlers'
+,p_source=>'Y'
+,p_source_type=>'STATIC'
+,p_display_as=>'NATIVE_YES_NO'
+,p_field_template=>wwv_flow_api.id(10851401898342926)
+,p_item_template_options=>'#DEFAULT#'
+,p_help_text=>'Debug the triggering of an Explicit Exception Handler'
+,p_attribute_01=>'APPLICATION'
+);
+wwv_flow_api.create_page_item(
+ p_id=>wwv_flow_api.id(24214895593111211)
+,p_name=>'P21_UNHANDLED_ERRORS'
+,p_is_required=>true
+,p_item_sequence=>70
+,p_item_plug_id=>wwv_flow_api.id(13488873524114310)
+,p_prompt=>'Unhandled Errors'
+,p_source=>'1'
+,p_source_type=>'STATIC'
+,p_display_as=>'NATIVE_SELECT_LIST'
+,p_lov=>'STATIC:Ignore;0,Note;1,Warning;3,Fatal;5'
+,p_cHeight=>1
+,p_begin_on_new_line=>'N'
+,p_field_template=>wwv_flow_api.id(10851401898342926)
+,p_item_template_options=>'#DEFAULT#'
+,p_lov_display_extra=>'NO'
+,p_help_text=>'Choose the importance of Unhandled Errors.'
+,p_attribute_01=>'NONE'
+,p_attribute_02=>'N'
 );
 wwv_flow_api.create_page_validation(
  p_id=>wwv_flow_api.id(14436842862325334)
@@ -254,10 +321,17 @@ wwv_flow_api.create_page_process(
 '  end if;',
 '  apex_collection.create_or_truncate_collection(p_collection_name=>''AOP_OUTPUT'');',
 ' ',
-'  l_woven := aop_processor.weave( p_code         => l_clob',
-'                                , p_package_name => :P21_PACKAGE_NAME',
-'                                , p_for_html     => TRUE',
-'                                , p_end_user     => :P21_SCHEMA );',
+'  l_woven := aop_processor.weave( io_code         => l_clob',
+'                                , i_package_name => :P21_PACKAGE_NAME',
+'                                , i_for_html     => TRUE',
+'                                , i_end_user     => :P21_SCHEMA',
+'                                , i_note_params             =>    :P21_NOTE_PARAMS = ''Y''',
+'                                , i_note_vars               =>    :P21_NOTE_VARS   = ''Y''',
+'                                , i_note_unhandled_errors   =>    :P21_UNHANDLED_ERRORS = ms_logger.G_MSG_LEVEL_COMMENT',
+'                                , i_warn_unhandled_errors   =>    :P21_UNHANDLED_ERRORS = ms_logger.G_MSG_LEVEL_WARNING',
+'                                , i_fatal_unhandled_errors  =>    :P21_UNHANDLED_ERRORS = ms_logger.G_MSG_LEVEL_ORACLE',
+'                                , i_note_exception_handlers =>    :P21_NOTE_EX_HANDLERS  = ''Y''',
+' );',
 ' ',
 '    apex_collection.add_member(p_collection_name => ''AOP_OUTPUT'',p_clob001 => l_clob);',
 '  if l_woven then',
