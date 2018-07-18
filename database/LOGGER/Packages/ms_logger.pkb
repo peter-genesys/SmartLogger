@@ -1762,11 +1762,6 @@ BEGIN
                   ,i_msg_type  => G_MSG_TYPE_MESSAGE
                   ,i_msg_level => i_msg_level
 			  ,i_node     => i_node );
-  
-  
-  warn_user_source_error_lines(i_prev_lines => 5
-                              ,i_post_lines => 5
-						                  ,i_node     => i_node);
  
 END debug_error;
 
@@ -2210,6 +2205,12 @@ BEGIN
   debug_error( i_node             => i_node     
               ,i_message          => i_message
               ,i_msg_level        => G_MSG_LEVEL_ORACLE );
+
+ 
+  warn_user_source_error_lines(i_prev_lines => 5
+                              ,i_post_lines => 5
+                              ,i_node     => i_node);
+  
  
 END oracle_error;
  
@@ -2228,6 +2229,23 @@ BEGIN
 
 
 END warn_error;
+
+
+------------------------------------------------------------------------
+-- note_error  
+------------------------------------------------------------------------
+
+PROCEDURE note_error( i_node            IN ms_logger.node_typ 
+                     ,i_message         IN VARCHAR2 DEFAULT NULL  )
+IS
+BEGIN
+
+  debug_error( i_node             => i_node     
+              ,i_message          => i_message
+              ,i_msg_level        => G_MSG_LEVEL_COMMENT );
+
+
+END note_error;
 
  
 ------------------------------------------------------------------------
@@ -2450,7 +2468,7 @@ END f_note_rowcount;
 
 ------------------------------------------------------------------------
 
-PROCEDURE note_error(i_node      IN ms_logger.node_typ )
+PROCEDURE note_sqlerrm(i_node      IN ms_logger.node_typ )
 IS
 BEGIN
 
@@ -2458,7 +2476,7 @@ BEGIN
         ,i_value      => SQLERRM
         ,i_node       => i_node  );
  
-END note_error;
+END note_sqlerrm;
 
 ------------------------------------------------------------------------
 PROCEDURE note_length( i_node  IN ms_logger.node_typ 

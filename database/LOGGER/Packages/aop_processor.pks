@@ -181,10 +181,16 @@ FUNCTION get_db_object_signature(i_object_name         IN varchar2
 * @param i_end_user     object owner
 * @return TRUE if woven successfully.
 */
-  function weave ( io_code         in out clob
-                 , i_package_name in varchar2
-                 , i_for_html     in boolean      default false
-                 , i_end_user     in varchar2     default null
+  function weave ( io_code                   in out clob
+                 , i_package_name            in varchar2
+                 , i_for_html                in boolean      default false
+                 , i_end_user                in varchar2     default null
+                 , i_note_params             in boolean      default true
+                 , i_note_vars               in boolean      default true
+                 , i_note_unhandled_errors   in boolean      default true
+                 , i_warn_unhandled_errors   in boolean      default false
+                 , i_fatal_unhandled_errors  in boolean      default false
+                 , i_note_exception_handlers in boolean      default true
                  ) return boolean; 
   
 --------------------------------------------------------------------
@@ -195,8 +201,15 @@ FUNCTION get_db_object_signature(i_object_name         IN varchar2
 * @param i_object_name  Object Name 
 * @param i_versions     Versions of Logger weaving required 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
 */
-  procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL
-                         , i_versions    in varchar2 default 'AOP,HTML');
+  procedure reapply_aspect(i_object_name             IN VARCHAR2 DEFAULT NULL
+                         , i_versions                in varchar2 default 'AOP,HTML'
+                         , i_note_params             in boolean      default true
+                         , i_note_vars               in boolean      default true
+                         , i_note_unhandled_errors   in boolean      default true
+                         , i_warn_unhandled_errors   in boolean      default false
+                         , i_fatal_unhandled_errors  in boolean      default false
+                         , i_note_exception_handlers in boolean      default true
+                         );
 
 --------------------------------------------------------------------
 -- using_aop

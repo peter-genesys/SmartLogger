@@ -193,6 +193,12 @@ PROCEDURE warn_error( i_node            IN ms_logger.node_typ
                      ,i_message         IN VARCHAR2 DEFAULT NULL  );
 
 ------------------------------------------------------------------------
+-- note_error  
+------------------------------------------------------------------------
+
+PROCEDURE note_error( i_node            IN ms_logger.node_typ 
+                     ,i_message         IN VARCHAR2 DEFAULT NULL  );
+------------------------------------------------------------------------
 -- Reference operations (PUBLIC)
 ------------------------------------------------------------------------
 
@@ -264,7 +270,7 @@ FUNCTION f_note_rowcount( i_node      IN ms_logger.node_typ
 
 ------------------------------------------------------------------------
 
-PROCEDURE note_error(i_node      IN ms_logger.node_typ );
+PROCEDURE note_sqlerrm(i_node      IN ms_logger.node_typ );
 ------------------------------------------------------------------------
 PROCEDURE note_length( i_node  IN ms_logger.node_typ 
                       ,i_name  IN VARCHAR2 

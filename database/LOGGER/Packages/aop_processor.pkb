@@ -88,6 +88,16 @@ create or replace package body aop_processor is
   g_indent_spaces     CONSTANT INTEGER := 2;
 
   g_end_user          VARCHAR2(30); --owner for normal packages, invoker for invoker packages.
+
+
+  g_note_params                 boolean;
+  g_note_vars                   boolean; --THIS IS THE BIG ONE! NOT YET IMPLIMENTED.
+  g_note_unhandled_errors       boolean;
+  g_warn_unhandled_errors       boolean;
+  g_fatal_unhandled_errors      boolean;
+  g_add_wrapper_block           boolean;
+  g_note_exception_handlers     boolean;
+
  
   ----------------------------------------------------------------------------
   -- REGULAR EXPRESSIONS
@@ -233,11 +243,7 @@ create or replace package body aop_processor is
                      ,'CLOB');     
   END;
 
-
-
-
-
-
+ 
 --------------------------------------------------------------------
 -- regex_match
 --------------------------------------------------------------------
@@ -1756,7 +1762,7 @@ END;
   
   BEGIN
     IF i_new_code IS NOT NULL THEN
-      splice( io_code      => g_code    
+      splice( io_code     => g_code    
              ,i_new_code  => i_new_code
              ,i_pos       => g_current_pos
              ,i_colour    => i_colour  );
@@ -3342,7 +3348,7 @@ PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
                    ,i_indent         IN INTEGER
                    ,i_node_type      IN VARCHAR2
                    ,i_var_list       IN var_list_typ
-                   ,i_pu_stack       IN pu_stack_typ) IS
+                   ,i_pu_stack       IN pu_stack_typ ) IS
   l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_is_as'); 
  
   l_keyword               VARCHAR2(50);
@@ -4370,22 +4376,32 @@ BEGIN --AOP_block
   
       WHEN regex_match(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
         ms_logger.info(l_node, 'WHEN OTHERS THEN');   
-        --note an error after WHEN OTHERS THEN  
-        inject( i_new_code => q'[ms_logger.comment(l_node,'WHEN OTHERS THEN (orig)');]'
-               ,i_indent   => i_indent
-               ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
-        inject( i_new_code => 'ms_logger.note_error(l_node);'
-               ,i_indent   => i_indent
-               ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
-               
+        if g_note_exception_handlers then
+  
+          --note an error after WHEN OTHERS THEN  
+          inject( i_new_code => q'[ms_logger.comment(l_node,'WHEN OTHERS Exception Handler');]'
+                 ,i_indent   => i_indent
+                 ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
+  
+          inject( i_new_code => 'ms_logger.note_error(l_node);'
+                 ,i_indent   => i_indent
+                 ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
+  
+        end if;  
+        
       WHEN regex_match(l_keyword ,G_REGEX_WHEN_EXCEPT_THEN) THEN 
         --Only want to note exceptions in an exception section.
-        IF l_exception_section THEN
-          ms_logger.info(l_node, 'WHEN_EXCEPT_THEN');       
-          --comment the exception after WHEN exception THEN 
+        IF l_exception_section and g_note_exception_handlers THEN
+          ms_logger.info(l_node, 'WHEN EXCEPT THEN');       
+
+          --comment the exception after WHEN explicit_exception THEN 
+          inject( i_new_code => q'[ms_logger.comment(l_node,'EXPLICIT Exception Handler');]'
+                 ,i_indent   => i_indent
+                 ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
+
           inject( i_new_code => 'ms_logger.comment(l_node,'''||flatten(trim_whitespace(l_keyword))||''');'
                  ,i_indent   => i_indent
-                 ,i_colour   => G_COLOUR_COMMENT);   
+                 ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);   
         END IF;    
 
       --WHEN regex_match(l_keyword ,G_REGEX_DML) THEN 
@@ -4469,25 +4485,31 @@ BEGIN
   --Add extra BEGIN infront of existing BEGIN, ensuring not trimmed.
   go_upto(i_stop      => G_REGEX_BEGIN); --default is i_trim_pointers FALSE
  
-  inject( i_new_code  => 'begin --'||i_prog_unit_name
-          ,i_indent   => i_indent - g_indent_spaces
-          ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
-  --Add the params (if any)
-  l_index := l_expanded_param_list.FIRST;
-  WHILE l_index IS NOT NULL LOOP
-    IF l_expanded_param_list(l_index).type = 'CLOB' THEN
-      inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||l_expanded_param_list(l_index).name||'''',l_param_padding)||','||l_expanded_param_list(l_index).name||');'
-             ,i_indent    => i_indent
-             ,i_colour    => G_COLOUR_PARAM);
-    ELSE
-      inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||l_expanded_param_list(l_index).name||'''',l_param_padding)||','||l_expanded_param_list(l_index).name||');'
-             ,i_indent    => i_indent
-             ,i_colour    => G_COLOUR_PARAM);
-  END IF;
-           
-    l_index := l_expanded_param_list.NEXT(l_index);    
- 
-  END LOOP;
+  if g_add_wrapper_block then
+    --BEGIN a wrapper block. 
+    inject( i_new_code  => 'begin --'||i_prog_unit_name
+            ,i_indent   => i_indent - g_indent_spaces
+            ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+  end if;
+
+  if g_note_params then
+    --Add the params (if any)
+    l_index := l_expanded_param_list.FIRST;
+    WHILE l_index IS NOT NULL LOOP
+      IF l_expanded_param_list(l_index).type = 'CLOB' THEN
+        inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||l_expanded_param_list(l_index).name||'''',l_param_padding)||','||l_expanded_param_list(l_index).name||');'
+               ,i_indent    => i_indent
+               ,i_colour    => G_COLOUR_PARAM);
+      ELSE
+        inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||l_expanded_param_list(l_index).name||'''',l_param_padding)||','||l_expanded_param_list(l_index).name||');'
+               ,i_indent    => i_indent
+               ,i_colour    => G_COLOUR_PARAM);
+      END IF;
+             
+      l_index := l_expanded_param_list.NEXT(l_index);    
+   
+    END LOOP;
+  end if;
 
   --If the logger process id parameter is included, in THIS node, then
   --return a pointer to the logged process
@@ -4531,30 +4553,53 @@ BEGIN
            ,i_var_list   => l_var_list
            ,i_pu_stack   => i_pu_stack  );
   
-  --Add extra exception handler
-  --add the terminating exception handler of the new surrounding block
-  inject( i_new_code  => 'exception'
-         ,i_indent    => i_indent - g_indent_spaces
-         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+  if g_note_unhandled_errors or 
+     g_warn_unhandled_errors or 
+     g_fatal_unhandled_errors then
+    --Add extra exception handler
+    --add the terminating exception handler of the new surrounding block
+    inject( i_new_code  => 'exception'
+           ,i_indent    => i_indent - g_indent_spaces
+           ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+  
+    inject( i_new_code  => '  when others then'
+           ,i_indent    => i_indent - g_indent_spaces
+           ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
 
-  inject( i_new_code  => '  when others then'
-         ,i_indent    => i_indent - g_indent_spaces
-         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
-  inject( i_new_code  => q'[  ms_logger.comment(l_node,'WHEN OTHERS THEN (woven)');]'
-         ,i_indent    => i_indent
-         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
-  inject( i_new_code  => '    ms_logger.note_error(l_node);'
-         ,i_indent    => i_indent - g_indent_spaces
-         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+    inject( i_new_code  => q'[  ms_logger.comment(l_node,'Unhandled Error');]'
+           ,i_indent    => i_indent
+           ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+    
+    if g_note_unhandled_errors  then
+ 
+      inject( i_new_code  => '    ms_logger.note_error(l_node);'
+             ,i_indent    => i_indent - g_indent_spaces
+             ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
 
-  inject( i_new_code  => '    raise;'
-         ,i_indent    => i_indent - g_indent_spaces
-         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+    elsif g_warn_unhandled_errors  then
+ 
+      inject( i_new_code  => '    ms_logger.warn_error(l_node);'
+             ,i_indent    => i_indent - g_indent_spaces
+             ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
 
-  inject( i_new_code  => 'end; --'||i_prog_unit_name
-         ,i_indent    => i_indent - g_indent_spaces
-         ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+    else --g_fatal_unhandled_errors
 
+      inject( i_new_code  => '    ms_logger.oracle_error(l_node);'
+             ,i_indent    => i_indent - g_indent_spaces
+             ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+    end if;
+ 
+    inject( i_new_code  => '    raise;'
+           ,i_indent    => i_indent - g_indent_spaces
+           ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+  end if;
+
+  if g_add_wrapper_block then
+    --END wrapper block
+    inject( i_new_code  => 'end; --'||i_prog_unit_name
+           ,i_indent    => i_indent - g_indent_spaces
+           ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
+  end if;
  
 
 exception
@@ -4576,7 +4621,7 @@ END AOP_pu_block;
 */
 PROCEDURE AOP_prog_units(i_indent   IN INTEGER
                         ,i_var_list IN var_list_typ
-                        ,i_pu_stack in pu_stack_typ   ) IS
+                        ,i_pu_stack in pu_stack_typ) IS
   l_node    ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_prog_units'); 
 
   l_keyword         VARCHAR2(50);
@@ -4665,7 +4710,7 @@ BEGIN
                ,i_indent         => calc_indent(i_indent, l_keyword)
                ,i_node_type      => l_node_type
                ,i_var_list       => l_var_list
-               ,i_pu_stack       => i_pu_stack);
+               ,i_pu_stack       => i_pu_stack );
       
     EXCEPTION 
       WHEN x_language_java_name THEN
@@ -4769,12 +4814,12 @@ END;
 */
 
   function weave
-  ( io_code         in out clob
-  , i_package_name in varchar2
-  , i_var_list     in var_list_typ 
-  , i_pu_stack     in pu_stack_typ 
-  , i_for_html     in boolean      default false
-  , i_end_user     in varchar2     default null
+  ( io_code                   in out clob
+  , i_package_name            in varchar2
+  , i_var_list                in var_list_typ 
+  , i_pu_stack                in pu_stack_typ 
+  , i_for_html                in boolean      default false
+  , i_end_user                in varchar2     default null
   ) return boolean
   is
 
@@ -4878,13 +4923,13 @@ END;
  
       l_woven:= true;
 
-      --Translate SIMPLE ms_feedback syntax to MORE COMPLEX ms_logger syntax
-      --EG ms_feedback.x(           ->  ms_logger.x(l_node,
-      g_code := REGEXP_REPLACE(g_code,'(ms_feedback)(\.)(.+)(\()','ms_logger.\3(l_node,');
+      --Translate sm_jotter syntax to equivalent ms_logger syntax
+      --EG sm_jotter.x(           ->  ms_logger.x(l_node,
+      g_code := REGEXP_REPLACE(g_code,'(sm_jotter)(\.)(.+)(\()','ms_logger.\3(l_node,');
     
       --Replace routines with no params 
-      --EG ms_feedback.oracle_error -> ms_logger.oracle_error(l_node)
-      g_code := REGEXP_REPLACE(g_code,'(ms_feedback)(\.)(.+)(;)','ms_logger.\3(l_node);');
+      --EG sm_jotter.oracle_error -> ms_logger.oracle_error(l_node)
+      g_code := REGEXP_REPLACE(g_code,'(sm_jotter)(\.)(.+)(;)','ms_logger.\3(l_node);');
 
  
       restore_comments_and_strings;
@@ -5215,16 +5260,35 @@ and   t.usage_context_id = v.usage_id ) LOOP
 * @param i_end_user     object owner
 * @return TRUE if woven successfully.
 */
-  function weave ( io_code         in out clob
-                 , i_package_name in varchar2
-                 , i_for_html     in boolean      default false
-                 , i_end_user     in varchar2     default null
+  function weave ( io_code                   in out clob
+                 , i_package_name            in varchar2
+                 , i_for_html                in boolean      default false
+                 , i_end_user                in varchar2     default null
+                 , i_note_params             in boolean      default true
+                 , i_note_vars               in boolean      default true
+                 , i_note_unhandled_errors   in boolean      default true
+                 , i_warn_unhandled_errors   in boolean      default false
+                 , i_fatal_unhandled_errors  in boolean      default false
+                 , i_note_exception_handlers in boolean      default true
                  ) return boolean is
     l_var_list   var_list_typ;
     l_owner      varchar2(30) := i_end_user;
     l_pu_stack   pu_stack_typ;
     l_package_body_signature varchar2(32);
   BEGIN
+
+      --THIS SECTION SHOULD BE SAME AS IN reapply_aspect
+      g_note_params              := i_note_params; 
+      g_note_vars                := i_note_vars; 
+      g_note_unhandled_errors    := i_note_unhandled_errors;
+      g_warn_unhandled_errors    := i_warn_unhandled_errors; 
+      g_fatal_unhandled_errors   := i_fatal_unhandled_errors;
+      g_note_exception_handlers  := i_note_exception_handlers; 
+      g_add_wrapper_block        := g_note_params           or
+                                    g_note_unhandled_errors or 
+                                    g_warn_unhandled_errors or 
+                                    g_fatal_unhandled_errors;    
+
 
     if i_package_name is not null then
 
@@ -5274,10 +5338,10 @@ and   t.usage_context_id = v.usage_id ) LOOP
    --          ,i_type       => 'OWNER'
    --         -- ,i_signature  => null
    --          ,io_pu_stack => l_pu_stack);
---
+   --
    --  -- l_package_body_signature := get_db_object_signature(i_object_name => i_package_name
    --  --                                                 ,i_object_type => 'PACKAGE BODY');
- --
+   --
    --   push_pu(i_name       => i_package_name
    --          ,i_type       => 'PACKAGE BODY'
    --         -- ,i_signature  => l_package_body_signature
@@ -5285,13 +5349,15 @@ and   t.usage_context_id = v.usage_id ) LOOP
    
     end if;  
     
-    RETURN weave( io_code         => io_code        
-                , i_package_name => i_package_name
-                , i_var_list     => l_var_list    
-                , i_for_html     => i_for_html    
-                , i_end_user     => i_end_user 
-                , i_pu_stack     => l_pu_stack   
+    RETURN weave( io_code                     => io_code        
+                , i_package_name              => i_package_name
+                , i_var_list                  => l_var_list  
+                , i_pu_stack                  => l_pu_stack  
+                , i_for_html                  => i_for_html    
+                , i_end_user                  => i_end_user 
                 ) ;
+ 
+    
   END;  
 
 
@@ -5307,10 +5373,10 @@ and   t.usage_context_id = v.usage_id ) LOOP
 * @param i_versions      Versions of Logger weaving required 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
 */
   procedure instrument_plsql
-  ( i_object_name   in varchar2
-  , i_object_type   in varchar2
-  , i_object_owner  in varchar2
-  , i_versions      in varchar2 --USAGE 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
+  ( i_object_name             in varchar2
+  , i_object_type             in varchar2
+  , i_object_owner            in varchar2
+  , i_versions                in varchar2 --USAGE 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
   ) is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'instrument_plsql');
   
@@ -5326,6 +5392,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
     ms_logger.param(l_node, 'i_object_name'  ,i_object_name  );
     ms_logger.param(l_node, 'i_object_type'  ,i_object_type  );
     ms_logger.param(l_node, 'i_object_owner' ,i_object_owner );
+    ms_logger.param(l_node, 'i_versions'     ,i_versions );
     g_during_advise:= true;
     -- test for state of package; no sense in trying to post-process an invalid package
     
@@ -5422,7 +5489,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
                           , i_var_list     => l_var_list
                           , i_pu_stack     => l_pu_stack
                           , i_for_html     => true
-                          , i_end_user     => i_object_owner);
+                          , i_end_user     => i_object_owner
+                          );
  
       IF NOT validate_source(i_name  => i_object_name
                            , i_type  => i_object_type
@@ -5520,9 +5588,29 @@ and   t.usage_context_id = v.usage_id ) LOOP
 * @param i_versions     Versions of Logger weaving required 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
 */
   procedure reapply_aspect(i_object_name IN VARCHAR2 DEFAULT NULL
-                         , i_versions    in varchar2 default 'AOP,HTML') is
+                         , i_versions    in varchar2 default 'AOP,HTML'
+                         , i_note_params             in boolean      default true
+                         , i_note_vars               in boolean      default true
+                         , i_note_unhandled_errors   in boolean      default true
+                         , i_warn_unhandled_errors   in boolean      default false
+                         , i_fatal_unhandled_errors  in boolean      default false
+                         , i_note_exception_handlers in boolean      default true
+                         ) is
     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'reapply_aspect'); 
   begin
+
+      --THIS SECTION SHOULD BE SAME AS IN weave PUBLIC
+      g_note_params              := i_note_params; 
+      g_note_vars                := i_note_vars; 
+      g_note_unhandled_errors    := i_note_unhandled_errors;
+      g_warn_unhandled_errors    := i_warn_unhandled_errors; 
+      g_fatal_unhandled_errors   := i_fatal_unhandled_errors;
+      g_note_exception_handlers  := i_note_exception_handlers; 
+      g_add_wrapper_block        := g_note_params           or
+                                    g_note_unhandled_errors or 
+                                    g_warn_unhandled_errors or 
+                                    g_fatal_unhandled_errors;  
+
     ms_logger.param(l_node, 'i_object_name', i_object_name);
       for l_object in (select object_name 
                             , object_type
