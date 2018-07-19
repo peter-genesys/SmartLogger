@@ -39,8 +39,8 @@ wwv_flow_api.create_page(
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
-,p_last_updated_by=>'BURGPETE'
-,p_last_upd_yyyymmddhh24miss=>'20180427113010'
+,p_last_updated_by=>'PETER'
+,p_last_upd_yyyymmddhh24miss=>'20180719095846'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(14319247721374987)
@@ -1074,17 +1074,17 @@ wwv_flow_api.create_report_region(
 ,p_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'select p.*  ',
 '      ,(select min(traversal_id) from ms_traversal where parent_traversal_id is null and process_id = p.process_id) top_traversal_id',
-',(select count(*)',
-'from ms_traversal t',
-'    ,ms_message m',
-'where t.process_id = p.process_id',
-'and m.traversal_id = t.traversal_id',
-'and m.msg_level > 2) exception_count',
-',(select count(*)',
-'from ms_traversal t',
-'    ,ms_message m',
-'where t.process_id = p.process_id',
-'and m.traversal_id = t.traversal_id ) message_count',
+'      ,(select count(*)',
+'        from ms_traversal t',
+'            ,ms_message m',
+'        where t.process_id = p.process_id',
+'        and m.traversal_id = t.traversal_id',
+'        and m.msg_level > 2)                   exception_count',
+'        ,(select count(*)',
+'          from ms_traversal t',
+'              ,ms_message m',
+'          where t.process_id = p.process_id',
+'          and m.traversal_id = t.traversal_id ) message_count',
 'from ms_process p'))
 ,p_source_type=>'NATIVE_SQL_REPORT'
 ,p_ajax_enabled=>'Y'
@@ -1125,70 +1125,52 @@ wwv_flow_api.create_report_columns(
 ,p_include_in_export=>'Y'
 );
 wwv_flow_api.create_report_columns(
- p_id=>wwv_flow_api.id(28506875220649321)
-,p_query_column_id=>2
-,p_column_alias=>'EXT_REF'
-,p_column_display_sequence=>3
-,p_column_heading=>'External Ref'
-,p_use_as_row_header=>'N'
-,p_heading_alignment=>'LEFT'
-,p_disable_sort_column=>'N'
-,p_lov_show_nulls=>'NO'
-,p_lov_display_extra=>'YES'
-,p_include_in_export=>'Y'
-);
-wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(28506974704649321)
-,p_query_column_id=>3
+,p_query_column_id=>2
 ,p_column_alias=>'ORIGIN'
 ,p_column_display_sequence=>2
 ,p_column_heading=>'Origin'
 ,p_use_as_row_header=>'N'
 ,p_heading_alignment=>'LEFT'
 ,p_disable_sort_column=>'N'
-,p_lov_show_nulls=>'NO'
-,p_lov_display_extra=>'YES'
+,p_derived_column=>'N'
 ,p_include_in_export=>'Y'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(28507093492649321)
-,p_query_column_id=>4
+,p_query_column_id=>3
 ,p_column_alias=>'USERNAME'
-,p_column_display_sequence=>4
-,p_column_heading=>'Username'
-,p_disable_sort_column=>'N'
+,p_column_display_sequence=>3
 ,p_hidden_column=>'Y'
-);
-wwv_flow_api.create_report_columns(
- p_id=>wwv_flow_api.id(28507279219649321)
-,p_query_column_id=>5
-,p_column_alias=>'COMMENTS'
-,p_column_display_sequence=>5
-,p_column_heading=>'Comments'
-,p_disable_sort_column=>'N'
-,p_hidden_column=>'Y'
+,p_derived_column=>'N'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(28507388577649321)
-,p_query_column_id=>6
+,p_query_column_id=>4
 ,p_column_alias=>'INTERNAL_ERROR'
-,p_column_display_sequence=>9
+,p_column_display_sequence=>7
 ,p_column_heading=>'Internal Error Flag'
+,p_use_as_row_header=>'N'
 ,p_disable_sort_column=>'N'
+,p_derived_column=>'N'
+,p_include_in_export=>'Y'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(28507477025649321)
-,p_query_column_id=>7
+,p_query_column_id=>5
 ,p_column_alias=>'NOTIFIED_FLAG'
-,p_column_display_sequence=>10
+,p_column_display_sequence=>8
 ,p_column_heading=>'Notified Flag'
+,p_use_as_row_header=>'N'
 ,p_disable_sort_column=>'N'
+,p_derived_column=>'N'
+,p_include_in_export=>'Y'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(14405864722652598)
-,p_query_column_id=>8
+,p_query_column_id=>6
 ,p_column_alias=>'ERROR_MESSAGE'
-,p_column_display_sequence=>11
+,p_column_display_sequence=>9
 ,p_column_heading=>'Internal Error Message'
 ,p_use_as_row_header=>'N'
 ,p_display_as=>'WITHOUT_MODIFICATION'
@@ -1198,29 +1180,30 @@ wwv_flow_api.create_report_columns(
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(28507187705649321)
-,p_query_column_id=>9
+,p_query_column_id=>7
 ,p_column_alias=>'CREATED_DATE'
-,p_column_display_sequence=>12
+,p_column_display_sequence=>10
 ,p_column_heading=>'Created DateTime'
+,p_use_as_row_header=>'N'
 ,p_column_format=>'DD-MON-YYYY HH24:MI'
 ,p_heading_alignment=>'LEFT'
 ,p_disable_sort_column=>'N'
-,p_lov_show_nulls=>'NO'
+,p_derived_column=>'N'
 ,p_include_in_export=>'Y'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(14405958464652602)
-,p_query_column_id=>10
+,p_query_column_id=>8
 ,p_column_alias=>'UPDATED_DATE'
-,p_column_display_sequence=>13
-,p_column_heading=>'Updated Date'
+,p_column_display_sequence=>11
 ,p_hidden_column=>'Y'
+,p_derived_column=>'N'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(2949851095927701)
-,p_query_column_id=>11
+,p_query_column_id=>9
 ,p_column_alias=>'KEEP_YN'
-,p_column_display_sequence=>14
+,p_column_display_sequence=>12
 ,p_column_heading=>'Keep yn'
 ,p_use_as_row_header=>'N'
 ,p_disable_sort_column=>'N'
@@ -1229,17 +1212,17 @@ wwv_flow_api.create_report_columns(
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(14131147995996832)
-,p_query_column_id=>12
+,p_query_column_id=>10
 ,p_column_alias=>'TOP_TRAVERSAL_ID'
-,p_column_display_sequence=>6
+,p_column_display_sequence=>4
 ,p_hidden_column=>'Y'
 ,p_derived_column=>'N'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(14371965368452051)
-,p_query_column_id=>13
+,p_query_column_id=>11
 ,p_column_alias=>'EXCEPTION_COUNT'
-,p_column_display_sequence=>8
+,p_column_display_sequence=>6
 ,p_column_heading=>'Exception Count'
 ,p_column_link=>'f?p=&APP_ID.:8:&SESSION.:IR_REPORT_EXCEPTIONS:&DEBUG.::P8_PROCESS_ID,P8_TRAVERSAL_ID:#PROCESS_ID#,#TOP_TRAVERSAL_ID#'
 ,p_column_linktext=>'#EXCEPTION_COUNT#'
@@ -1249,9 +1232,9 @@ wwv_flow_api.create_report_columns(
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(15464860856633598)
-,p_query_column_id=>14
+,p_query_column_id=>12
 ,p_column_alias=>'MESSAGE_COUNT'
-,p_column_display_sequence=>7
+,p_column_display_sequence=>5
 ,p_column_heading=>'Message Count'
 ,p_use_as_row_header=>'N'
 ,p_disable_sort_column=>'N'
