@@ -17,8 +17,9 @@ TYPE node_typ IS RECORD
   ,unlogged_messages message_list
  -- ,unlogged_size    integer --total size of all unlogged_messages (in chars)  
  -- ,internal_error   BOOLEAN DEFAULT NULL --start undefined, set to false by an ENTER routine.
-  ,call_stack_level BINARY_INTEGER
-  ,call_stack_hist  VARCHAR2(2000));  --limit of 2000 chars returned by dbms_utility.format_call_stack in 11g
+  ,call_stack_level  BINARY_INTEGER
+  ,call_stack_hist   VARCHAR2(2000)  --limit of 2000 chars returned by dbms_utility.format_call_stack in 11g
+  ,call_stack_parent VARCHAR2(100)); 
 
   
 G_MSG_LEVEL_IGNORE      CONSTANT NUMBER(2) := 0; --NOT USED

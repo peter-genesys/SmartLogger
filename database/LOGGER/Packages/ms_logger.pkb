@@ -993,14 +993,21 @@ BEGIN
     $if $$intlog $then intlog_start('create_process'); $end
     $if $$intlog $then intlog_note('io_node.module.module_name',io_node.module.module_name );   $end
     $if $$intlog $then intlog_note('io_node.unit.unit_name'    ,io_node.unit.unit_name );   $end
-    --$if $$intlog $then intlog_note('i_comments',i_comments );   $end
- 
+    $if $$intlog $then intlog_note('io_node.call_stack_hist'   ,io_node.call_stack_hist );   $end
+    $if $$intlog $then intlog_note('io_node.call_stack_level'   ,io_node.call_stack_level );   $end
+    $if $$intlog $then intlog_note('io_node.call_stack_parent'   ,io_node.call_stack_parent );   $end
+
+    --$if $$intlog $then intlog_note('format_call_stack'   ,dbms_utility.format_call_stack );   $end
+    
+
     g_process.process_id     := null;
-    g_process.origin         := io_node.module.module_name||' '||io_node.unit.unit_name;
-    --g_process.ext_ref        := i_ext_ref;  --DEPRECATED
+    if io_node.module.module_name = 'sm_jotter' then
+      g_process.origin       := io_node.call_stack_parent;
+    else  
+      g_process.origin         := io_node.module.module_name||' '||io_node.unit.unit_name;
+    end if;
     g_process.username       := USER;
     g_process.created_date   := SYSDATE;      --This is when the process is cached, rather than when inserted.
-    --g_process.comments       := i_comments; --DEPRECATED
     g_process.internal_error := 'N';  --reset internal error for the new process
     g_process.keep_yn        := 'N';
  
@@ -1518,8 +1525,10 @@ FUNCTION new_node(i_module_name IN VARCHAR2
                  ,i_normal      in boolean  default false
                  ,i_quiet       in boolean  default false) RETURN ms_logger.node_typ IS
          
-  --When upgraded to 12C may not need to pass any params         
-
+  --When upgraded to 12C may not need to pass any params      
+  --In 11g i use function dbms_utility.format_call_stack   
+  --12C includes new package UTL_CALL_STACK
+ 
   --must work in SILENT MODE, incase somebody write logic on the app side that depends
   --on l_node                
   l_node ms_logger.node_typ;  
@@ -1540,6 +1549,7 @@ FUNCTION new_node(i_module_name IN VARCHAR2
   FUNCTION f_call_stack_hist RETURN CLOB IS
     l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
     l_call_stack_hist CLOB;
+    l_grand_parent_index integer := 9;
   BEGIN
     --Indicative only. Absolute value doesn't matter so much, used for comparison only.
     l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
@@ -1552,7 +1562,7 @@ FUNCTION new_node(i_module_name IN VARCHAR2
     --But whatever is left may be useful...  
   --Next line is the calling line number from the grand-parent prog_unit which is somewhat useful in determining parentage.
   
-  FOR l_index IN 9..l_lines.count LOOP 
+  FOR l_index IN l_grand_parent_index..l_lines.count LOOP 
     --UNFORMATTED
     --l_call_stack_hist := ltrim(l_call_stack_hist || chr(10) || l_lines(l_index), chr(10));
     
@@ -1565,6 +1575,17 @@ FUNCTION new_node(i_module_name IN VARCHAR2
      
   END;  
  
+
+  FUNCTION f_call_stack_parent RETURN varchar2 IS
+    l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
+    l_parent_index integer := 8;
+  BEGIN
+    --Separate the call stack into lines
+    l_lines := APEX_UTIL.STRING_TO_TABLE(dbms_utility.format_call_stack,chr(10));
+   
+    return LOWER(REGEXP_SUBSTR(l_lines(l_parent_index),'\w*$')); 
+     
+  END;   
  
 BEGIN
 
@@ -1592,6 +1613,7 @@ BEGIN
 
   l_node.call_stack_level := f_call_stack_level; --simplify after 12C with additional functions
   l_node.call_stack_hist  := f_call_stack_hist;
+  l_node.call_stack_parent  := f_call_stack_parent;
  
   create_traversal(io_node => l_node);
  
