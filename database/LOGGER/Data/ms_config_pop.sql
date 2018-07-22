@@ -18,4 +18,9 @@ Insert into MS_CONFIG (NAME,VALUE) values ('SMTP_MAIL' ,'N');
 Insert into MS_CONFIG (NAME,VALUE) values ('APEX_MAIL' ,'Y');
 
 
+Insert into MS_CONFIG (NAME,VALUE) values ('DEFAULT_AUTO_DEBUG'    ,'Y');
+Insert into MS_CONFIG (NAME,VALUE) values ('DEFAULT_AUTO_NORMAL'   ,'N');
+Insert into MS_CONFIG (NAME,VALUE) values ('DEFAULT_AUTO_QUIET'    ,'N');
+Insert into MS_CONFIG (NAME,VALUE) values ('DEFAULT_AUTO_DISABLED' ,'N');
+ 
 COMMIT;

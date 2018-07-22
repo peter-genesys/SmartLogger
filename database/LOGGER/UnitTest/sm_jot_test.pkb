@@ -12,9 +12,18 @@ create or replace package body sm_jot_test as
   end;
 
   procedure test3 is
+    x number;
+    y number;
   begin
     test2;
     sm_jotter.comment('test3');
+
+    select 1 into x from dual;
+    
+    y := sm_jotter.f_note_rowcount( i_name => 'select 1 into x from dual');
+    sm_jotter.note_rowcount( i_name => 'select 1 into x from dual');
+    
+
   end;
  
 end sm_jot_test;

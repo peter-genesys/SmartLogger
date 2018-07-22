@@ -123,7 +123,32 @@ G_MODULE_TYPE_REPORT      CONSTANT ms_module.module_type%TYPE := 'REPORT';
 G_MODULE_TYPE_SCRIPT      CONSTANT ms_module.module_type%TYPE := 'SCRIPT';
 G_MODULE_TYPE_DBTRIGGER   CONSTANT ms_module.module_type%TYPE := 'DB_TRIG';
   
-  
+G_AUTO_WAKE_DEFAULT        ms_unit.auto_wake%TYPE;
+G_AUTO_MSG_MODE_DEFAULT    NUMBER(2);
+
+G_MANUAL_MSG_MODE_DEFAULT  NUMBER(2) := G_MSG_MODE_OVERRIDDEN;
+
+
+--------------------------------------------------------------------------------
+--f_config_value
+--------------------------------------------------------------------------------
+function f_config_value(i_name IN VARCHAR2) return VARCHAR2 IS
+
+  cursor cu_config(c_name IN VARCHAR2) is
+  select value
+  from   ms_config
+  where  name = c_name;
+
+  l_result  ms_config.value%type;
+ 
+begin
+  open  cu_config(c_name => i_name);
+  fetch cu_config into l_result;
+  close cu_config;
+
+  return l_result;
+ 
+end; 
 
  
 FUNCTION f_logger_is_asleep RETURN BOOLEAN IS
@@ -2518,6 +2543,23 @@ BEGIN
   NULL;
   --Enable DBMS_OUTPUT when compiled for INTLOG
   $if $$intlog $then DBMS_OUTPUT.ENABLE(null); $end
+  
+  --Set G_AUTO_WAKE_DEFAULT and G_AUTO_MSG_MODE_DEFAULT
+  --based on config settings
+  if f_config_value('DEFAULT_AUTO_DEBUG') = 'Y' THEN
+    G_AUTO_WAKE_DEFAULT          := G_AUTO_WAKE_YES;
+    G_AUTO_MSG_MODE_DEFAULT      := G_MSG_MODE_DEBUG;
+  elsif f_config_value('DEFAULT_AUTO_NORMAL') = 'Y' THEN
+    G_AUTO_WAKE_DEFAULT          := G_AUTO_WAKE_YES;
+    G_AUTO_MSG_MODE_DEFAULT      := G_MSG_MODE_NORMAL;
+  elsif f_config_value('DEFAULT_AUTO_QUIET') = 'Y' THEN
+    G_AUTO_WAKE_DEFAULT          := G_AUTO_WAKE_NO;
+    G_AUTO_MSG_MODE_DEFAULT      := G_MSG_MODE_QUIET;
+  elsif f_config_value('DEFAULT_AUTO_DISABLED') = 'Y' THEN
+    G_AUTO_WAKE_DEFAULT          := G_AUTO_WAKE_NO;
+    G_AUTO_MSG_MODE_DEFAULT      := G_MSG_MODE_DISABLED;
+  END IF;  
+  
 end;
 /
 show error;
