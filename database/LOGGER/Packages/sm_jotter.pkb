@@ -16,7 +16,7 @@ create or replace package body sm_jotter is
 ------------------------------------------------------------------------
 -- This package is not to be instrumented by the AOP_PROCESSOR
 -- @AOP_NEVER 
-g_node ms_logger.node_typ := ms_logger.new_proc('sm_jotter','package');
+g_node ms_logger.node_typ := ms_logger.new_pkg('sm_jotter');
   
 ------------------------------------------------------------------------
 -- MESSAGE ROUTINES (Public)
@@ -226,6 +226,24 @@ FUNCTION get_jotter_url return varchar2 is
 BEGIN
   return ms_api.get_smartlogger_trace_URL(i_process_id  => get_jotter_id);
 end;
+
+------------------------------------------------------------------------
+PROCEDURE on_demand(i_debug       in boolean  default false
+                   ,i_normal      in boolean  default false
+                   ,i_quiet       in boolean  default false
+                   ,i_disabled    in boolean  default false
+                   ,i_msg_mode    in integer  default null ) is
+BEGIN
+
+  --Reinitialise the node with the requested mode.
+  g_node := ms_logger.new_pkg(i_module_name => 'sm_jotter'
+                             ,i_debug       => i_debug    
+                             ,i_normal      => i_normal   
+                             ,i_quiet       => i_quiet    
+                             ,i_disabled    => i_disabled 
+                             ,i_msg_mode    => i_msg_mode );
+
+END;  
  
 end;
 /

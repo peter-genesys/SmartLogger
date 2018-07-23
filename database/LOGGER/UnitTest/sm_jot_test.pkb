@@ -25,6 +25,22 @@ create or replace package body sm_jot_test as
     
 
   end;
+
+  procedure manual_jotting is
+  BEGIN
+    
+    --This test demonstrates that the on_demand calls starts a new logger session each time. 
+    sm_jotter.on_demand(i_debug => true);
+    sm_jotter.comment('Manual');
+    sm_jotter.on_demand(i_quiet => true);
+    sm_jotter.comment('Quiet');
+    sm_jotter.on_demand(i_debug => true);
+    sm_jotter.comment('Comment');
+
+  END;
+
+
+
  
 end sm_jot_test;
 /

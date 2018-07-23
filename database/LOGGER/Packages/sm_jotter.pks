@@ -118,6 +118,12 @@ FUNCTION get_jotter_id return number;
 
 ------------------------------------------------------------------------
 FUNCTION get_jotter_url return varchar2;
+
+PROCEDURE on_demand(i_debug       in boolean  default false
+                   ,i_normal      in boolean  default false
+                   ,i_quiet       in boolean  default false
+                   ,i_disabled    in boolean  default false
+                   ,i_msg_mode    in integer  default null );
  
 end;
 /
