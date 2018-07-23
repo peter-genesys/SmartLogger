@@ -5,7 +5,7 @@ prompt ms_test2
 set pages 1000;
 
 prompt register this script  
-execute ms_metacode.register_sql_script('ms_test2.sql','10.0');
+--execute ms_metacode.register_sql_script('ms_test2.sql','10.0');
  
 prompt start test of internal debugging
 set serveroutput on;
@@ -55,27 +55,27 @@ execute ms_test.test_exception_propagation(  i_number   => 1234    -
                                             ,i_date     => SYSDATE -
                                             ,i_boolean  => FALSE);
 */ 
-column my_unique_id_var noprint new_val my_unique_id
-undefine my_unique_id
+--column my_unique_id_var noprint new_val my_unique_id
+--undefine my_unique_id
 
-select 'MSTEST.'||ltrim(apex_access_control_seq.nextval) my_unique_id_var from dual;
+--select 'MSTEST.'||ltrim(apex_access_control_seq.nextval) my_unique_id_var from dual;
  
 prompt new_process 
-execute ms_metacode.set_internal_debug;
-execute ms_metacode.new_process(i_module_name => 'ms_test.sql'  -
-                               ,i_unit_name   => 'ms_test.sql' -
-                               ,i_ext_ref     => '&&my_unique_id' -
-                               ,i_comments    => 'Testing the metacode package');
+--execute ms_metacode.set_internal_debug;
+--execute ms_metacode.new_process(i_module_name => 'ms_test.sql'  -
+--                               ,i_unit_name   => 'ms_test.sql' -
+--                               ,i_ext_ref     => '&&my_unique_id' -
+--                               ,i_comments    => 'Testing the metacode package');
 
 --set serveroutput on;
  
-DECLARE
-  l_node ms_logger.node_typ := ms_logger.new_block('ms_test.sql','master_block',dbms_utility.format_call_stack);
+--DECLARE
+--  l_node ms_logger.node_typ := ms_logger.new_block('ms_test.sql','master_block',dbms_utility.format_call_stack);
  
 BEGIN
  
-  ms_metacode.set_unit_debug(i_module_name => 'ms_test'                
-                            ,i_unit_name   => 'error_node');
+  --ms_metacode.set_unit_debug(i_module_name => 'ms_test'                
+  --                          ,i_unit_name   => 'error_node');
                                   
 
 
@@ -111,30 +111,30 @@ BEGIN
  
 END;
 /
-execute ms_metacode.reset_internal_debug;
+--execute ms_metacode.reset_internal_debug;
 
 --execute ms_test.test_internal_error;
  
-prompt Ext Ref is &&my_unique_id
-
-SELECT lpad('+ ',(level-1)*2,'+ ')
-||module_name||'.'
-||unit_name
-FROM ms_unit_traversal_vw
-WHERE ext_ref = '&&my_unique_id'
-START WITH parent_traversal_id IS NULL
-CONNECT BY PRIOR traversal_id = parent_traversal_id
-ORDER SIBLINGS BY traversal_id;
-
-prompt Show all
-SELECT lpad('+ ',(level-1)*2,'+ ')
-||module_name||'.'
-||unit_name
-||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_reference where traversal_id = t.traversal_id)
-||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id)
-FROM ms_unit_traversal_vw t
-START WITH parent_traversal_id IS NULL
-CONNECT BY PRIOR traversal_id = parent_traversal_id
-ORDER SIBLINGS BY traversal_id; 
+--prompt Ext Ref is &&my_unique_id
+--
+--SELECT lpad('+ ',(level-1)*2,'+ ')
+--||module_name||'.'
+--||unit_name
+--FROM ms_unit_traversal_vw
+--WHERE ext_ref = '&&my_unique_id'
+--START WITH parent_traversal_id IS NULL
+--CONNECT BY PRIOR traversal_id = parent_traversal_id
+--ORDER SIBLINGS BY traversal_id;
+--
+--prompt Show all
+--SELECT lpad('+ ',(level-1)*2,'+ ')
+--||module_name||'.'
+--||unit_name
+--||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_reference where traversal_id = t.traversal_id)
+--||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id)
+--FROM ms_unit_traversal_vw t
+--START WITH parent_traversal_id IS NULL
+--CONNECT BY PRIOR traversal_id = parent_traversal_id
+--ORDER SIBLINGS BY traversal_id; 
  
 

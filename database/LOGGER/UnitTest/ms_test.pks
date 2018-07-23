@@ -6,6 +6,8 @@ CREATE OR REPLACE PACKAGE  ms_test AS
   PROCEDURE error_node(i_node_count IN  NUMBER) ;
   
   PROCEDURE test_node(i_node_count IN  NUMBER);
+
+  PROCEDURE hello;
  
   --------------------------------------------------------------------
   --test_exception_propagation

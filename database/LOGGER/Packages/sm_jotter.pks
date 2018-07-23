@@ -112,6 +112,12 @@ PROCEDURE note_sqlerrm;
 ------------------------------------------------------------------------
 PROCEDURE note_length( i_name  IN VARCHAR2 
                       ,i_value IN CLOB        );
+
+------------------------------------------------------------------------
+FUNCTION get_jotter_id return number;
+
+------------------------------------------------------------------------
+FUNCTION get_jotter_url return varchar2;
  
 end;
 /

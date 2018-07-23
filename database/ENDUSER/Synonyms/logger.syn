@@ -1,3 +1,4 @@
 create synonym ms_api for logger.ms_api;
 create synonym ms_logger for logger.ms_logger;
 create synonym aop_processor for logger.aop_processor;
+create synonym sm_jotter for logger.sm_jotter;

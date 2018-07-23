@@ -215,6 +215,17 @@ BEGIN
 END note_length;
 
  
-  
+------------------------------------------------------------------------ 
+FUNCTION get_jotter_id return number is
+BEGIN
+  return g_node.traversal.process_id;
+end;
+
+------------------------------------------------------------------------
+FUNCTION get_jotter_url return varchar2 is
+BEGIN
+  return ms_api.get_smartlogger_trace_URL(i_process_id  => get_jotter_id);
+end;
+ 
 end;
 /

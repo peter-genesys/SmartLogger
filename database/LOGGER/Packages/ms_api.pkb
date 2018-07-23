@@ -21,9 +21,7 @@ create or replace package body ms_api is
 -- This package is not to be instrumented by the AOP_PROCESSOR
 -- @AOP_NEVER 
 ------------------------------------------------------------------------
-
-
-G_SMARTLOGGER_ALIAS           CONSTANT VARCHAR2(100) := 'SMARTLOGGER';
+ 
 G_SMARTLOGGER_PROCESS_PAGE_NO CONSTANT NUMBER := 8;
 G_SMARTLOGGER_TRACE_PAGE_NO   CONSTANT NUMBER := 24;
  
@@ -136,7 +134,7 @@ END;
 PROCEDURE  set_module_normal(i_module_name IN VARCHAR2 ) IS
                              
 BEGIN
- ms_logger. set_module_msg_mode(i_module_name  => i_module_name
+ ms_logger.set_module_msg_mode(i_module_name  => i_module_name
                                ,i_msg_mode    => ms_logger.G_MSG_MODE_NORMAL);
 END; 
 
@@ -516,7 +514,7 @@ BEGIN
   RETURN get_apex_page_URL(i_server_url  => i_server_url
                           ,i_port        => i_port
                           ,i_dir         => i_dir
-                          ,i_app_no      => G_SMARTLOGGER_ALIAS
+                          ,i_app_no      => f_config_value(i_name => 'SMARTLOGGER_APP_ALIAS')
                           ,i_page_no     => i_page_no
                           ,i_request     => l_request
                           ,i_clear_cache => 'RIR,RP,'||i_page_no

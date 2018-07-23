@@ -51,6 +51,15 @@ BEGIN
 END f_elapsed_time;
 
 
+   PROCEDURE hello
+   IS
+     l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'hello');
+   BEGIN
+ 
+     ms_logger.info(l_node,'Hello World');
+ 
+   END;
+
 
   --------------------------------------------------------------------
   --error_node
@@ -180,9 +189,7 @@ END f_elapsed_time;
 
 
   BEGIN
-
-
-    
+ 
 
     ms_logger.param(l_node, 'i_number  ' ,i_number  );
     ms_logger.param(l_node, 'i_varchar2' ,i_varchar2);
@@ -1027,5 +1034,6 @@ end; --test
 END ms_test;
 /
 show errors;
-execute ms_api.set_module_quiet(i_module_name => 'MS_TEST');
+execute ms_api.set_module_debug(i_module_name => 'MS_TEST');
 
+execute ms_test.hello;
