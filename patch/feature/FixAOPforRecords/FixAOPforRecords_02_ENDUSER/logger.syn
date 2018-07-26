@@ -1,0 +1,4 @@
+create synonym ms_api        for &&LOGGER_user.ms_api;
+create synonym ms_logger     for &&LOGGER_user.ms_logger;
+create synonym aop_processor for &&LOGGER_user.aop_processor;
+create synonym sm_jotter     for &&LOGGER_user.sm_jotter;
