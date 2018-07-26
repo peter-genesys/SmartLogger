@@ -26,11 +26,11 @@ create or replace package body aop_test2 is
 
     body_simple_var1                   := l_var;
     aop_test2.body_simple_var1         := l_var;
-    --pacman.aop_test2.body_simple_var := l_var; --'PLS-00302: component 'BODY_SIMPLE_VAR1' must be declared
+    --&&LOGGER_user..aop_test2.body_simple_var := l_var; --'PLS-00302: component 'BODY_SIMPLE_VAR1' must be declared
 
     spec_simple_var1                   := l_var;
     aop_test2.spec_simple_var1         := l_var;
-    pacman.aop_test2.spec_simple_var1  := l_var;
+    &&LOGGER_user..aop_test2.spec_simple_var1  := l_var;
  
   END;
 
@@ -45,7 +45,7 @@ create or replace package body aop_test2 is
     io_var.anum  := 1;
     io_var2.anum := 1;
     aop_test2.scope_test;
-    --pacman.aop_test2.scope_test; --PLS-00302: component 'SCOPE_TEST' must be declared
+    --&&LOGGER_user..aop_test2.scope_test; --PLS-00302: component 'SCOPE_TEST' must be declared
     --No need to user the owner in the pu_stack of the package body.
     --Cannot refer to either variables or program units defined in the body by a user prefix, 
     --because this denotes that we are referring to the spec only.

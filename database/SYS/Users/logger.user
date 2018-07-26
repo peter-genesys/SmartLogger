@@ -1,32 +1,32 @@
-CREATE USER logger identified by &logger_password;
+CREATE USER &&LOGGER_user identified by &&LOGGER_password;
 
 -- USER SQL
-ALTER USER logger 
+ALTER USER &&LOGGER_user 
 DEFAULT TABLESPACE "USERS"
 TEMPORARY TABLESPACE "TEMP"
 ACCOUNT UNLOCK ;
 
 -- ROLES
-grant connect to logger;
-ALTER USER logger DEFAULT ROLE "CONNECT";
+grant connect to &&LOGGER_user;
+ALTER USER &&LOGGER_user DEFAULT ROLE "CONNECT";
 
 -- SYSTEM PRIVILEGES
-grant create table to logger;
-grant create procedure to logger;
-grant create trigger to logger;
-grant create synonym to logger;
-grant create sequence to logger;
-grant create view to logger;
-grant select any table to logger;
---grant select_catalog_role to logger;   --verify that this helps
---grant select any dictionary to logger; --verify that this helps
+grant create table to &&LOGGER_user;
+grant create procedure to &&LOGGER_user;
+grant create trigger to &&LOGGER_user;
+grant create synonym to &&LOGGER_user;
+grant create sequence to &&LOGGER_user;
+grant create view to &&LOGGER_user;
+grant select any table to &&LOGGER_user;
+--grant select_catalog_role to &&LOGGER_user;   --verify that this helps
+--grant select any dictionary to &&LOGGER_user; --verify that this helps
 
 --OBJECT PRIVILEGES 
---grant select on DBA_TAB_COLUMNS to logger;
-grant select on DBA_SOURCE to logger; 
-grant select on DBA_OBJECTS to logger; 
+--grant select on DBA_TAB_COLUMNS to &&LOGGER_user;
+grant select on DBA_SOURCE to &&LOGGER_user; 
+grant select on DBA_OBJECTS to &&LOGGER_user; 
 
  
 -- QUOTAS
-ALTER USER logger QUOTA UNLIMITED ON USERS;
+ALTER USER &&LOGGER_user QUOTA UNLIMITED ON &&LOGGER_tablespace;
 
