@@ -1,3 +1,7 @@
+ALTER SESSION SET 
+plscope_settings='IDENTIFIERS:ALL'
+/
+
 CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
   --@AOP_LOG
 
@@ -6,10 +10,63 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
   type date_typ_rec is record (adate date);
   l_date_rec1 date_typ_rec;
   l_date_rec2 date_typ_rec;
+
+
+procedure test_select_fetch_into is
+
+  cursor cu_user_tables is
+  select column_name, table_name 
+  from   user_tab_columns;
+
+  cursor cu_unit is
+  select * from ms_unit;
+
+  l_column_name varchar2(100);
+  l_table_name varchar2(100);
+  type int_tab_typ is table of integer index by varchar2(100);
+  a int_tab_typ;
+  b int_tab_typ;
+  c number;
  
-  function test4$(i_module ms_module%ROWTYPE
+  l_user_tables cu_user_tables%ROWTYPE;
+  l_unit cu_unit%ROWTYPE;
+ 
+  TYPE user_tables_tab_typ IS TABLE OF cu_user_tables%ROWTYPE;
+  l_user_tables_tab        user_tables_tab_typ;
+
+begin
+    open cu_user_tables;
+    fetch cu_user_tables into l_column_name  
+                            , l_table_name;
+    fetch cu_user_tables into l_user_tables;                      
+    close cu_user_tables;
+
+    open cu_unit;
+    fetch cu_unit into l_unit;                      
+    close cu_unit;
+   
+    select 1,2,3
+    into a(to_char(sysdate, 'D'))  --
+       , b(to_char(sysdate, 'YYYY'))   --b
+       , c        --sd
+    from dual;
+
+
+    open cu_user_tables;
+    LOOP
+      FETCH cu_user_tables BULK COLLECT INTO l_user_tables_tab LIMIT 1000;
+      EXIT WHEN l_user_tables_tab.COUNT = 0;
+    END LOOP;  
+
+
+end;
+
+ 
+  function test4$(i_module      ms_module%ROWTYPE
+                ,i_module_name  ms_module.module_name%TYPE
                 ,i_name_array  in OWA.vc_arr
-                ,o_unit      out ms_unit%ROWTYPE) return varchar2 is
+                ,o_unit        out ms_unit%ROWTYPE
+                ,o_unit_name   out ms_unit.unit_name%TYPE) return varchar2 is
     l_var number;
 
     cursor cu_user_tables is
@@ -28,6 +85,8 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
 
   begin
 
+    AOP_TEST.g_test3 := 1;
+    AOP_TEST.g$ := 1;
     l_date_rec1.adate := SYSDATE;
     l_date_rec2 := l_date_rec1;
 
@@ -61,12 +120,13 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
     end if;
  
     o_unit.unit_name := 'X';
+    o_unit_name := 'Y';
   end test4$;
 
 
   function test3(i_param31 in varchar2 ) return varchar2  RESULT_CACHE RELIES_ON (dual)  is
   begin
-    null;
+    --null;
     --""Eg of debugging message added by a developer
 
 
@@ -77,12 +137,13 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
       f# integer;
       l_unit ms_unit%ROWTYPE;
       l_unit_name ms_unit.unit_name%TYPE;
+      l_test1 test_typ;
 
     begin
       l_unit_name := 'X';
       l_unit.unit_name := 'X';
       l_unit := l_unit;
-      null;
+      --null;
       --""anon block1
       --:x:= 1;
       --:x := 1;
@@ -93,7 +154,8 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
       --hello:= 23;
       f#:=3;
       g$:= 4 ;
-
+      anon1.f#:=3;
+    
     end anon1;
 
     <<anon2>>
@@ -102,6 +164,7 @@ CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
 
       procedure testz(i_paramz in varchar2 ) is
         l_var varchar2(32000);
+ 
       begin
 
         --x:= 4 ;
@@ -156,14 +219,18 @@ where max_event_date >= :i_min_qa_date
 )
 ]';
 
-        null;
+        --null;
         --""testz is nested in anon block2
+
+
+        anon2.l_temp := 'HI'; --name resolution labelled block.
+
       end testz;
 
     begin
       null;
       --""anon block2
-
+ 
       testz(i_paramz => 'Z');
 
       declare
@@ -257,7 +324,7 @@ where max_event_date >= :i_min_qa_date
       when l_dummy = 2 then
         null;
       else
-        null;
+        l_dummy := 3;
     end case;    
 
 
@@ -276,7 +343,9 @@ where max_event_date >= :i_min_qa_date
     --##This is a special fatal
     --""Next comment produces a Note.
     --^^l_clob_a
-    if true then
+
+    --Show Me syntax is below, exposes the line just executed.
+    if true then--@@
 
       o_param23:= NVL(NULL,CASE
                              WHEN TRUE THEN 1
@@ -303,6 +372,7 @@ where max_event_date >= :i_min_qa_date
 
 
   FUNCTION test5 RETURN VARCHAR2 is
+  -- This is a test to see if logger interferes with use of SQL%ROWCOUNT
     l_insert_count number;
     l_delete_count number;
     l_update_count number;
@@ -330,7 +400,95 @@ where max_event_date >= :i_min_qa_date
 
   END;
 
+  procedure test_param_of_spec_type(i_test  in out aop_test.test_typ
+                                   ,i_test2 in out aop_test.test_typ2 ) is
+    l_test aop_test.test_typ;
+    l_test2         test_typ;
 
+  BEGIN
+    l_test.num := 2;
+    l_test     := g_test1;
+    l_test2    := g_test1;
+    
+
+
+    i_test.num := 2;
+    i_test     := g_test1;
+
+
+  END;
+
+
+  procedure test_global_spec_var(i_test  in out aop_test.test_typ
+                                ,i_test2 in out aop_test.test_typ2 )  is
+    l_module ms_module%ROWTYPE;
+  BEGIN
+    g_test1.num := 2;
+    g_test1     := i_test;
+    l_module.module_name := 'Johnny';
+
+  END;
+
+
+
+  procedure test99 is
+
+    TYPE rule_set_typ IS RECORD (
+       selector      VARCHAR2(50)
+      ,selector_type VARCHAR2(30)
+      ,decl_block    CLOB);
+    
+    TYPE rule_set_tab_typ IS TABLE OF rule_set_typ INDEX BY BINARY_INTEGER;
+
+    l_rule_set_tab  rule_set_tab_typ;
+    l_selector      VARCHAR2(50);  
+    l_test          test_typ;
+    l_rule_set      rule_set_typ;
+
+    procedure test_proc_typ(io_proc_typ  in out test99.rule_set_typ
+                           ,io_proc_typ2 in out  rule_set_typ) is
+      l_proc_typ test99.rule_set_typ;
+    BEGIN
+      io_proc_typ  := l_proc_typ;
+      io_proc_typ2 := l_proc_typ;
+ 
+    END;
+
+
+  BEGIN
+    l_test.num := 1;
+
+    l_rule_set_tab(1).selector   := ltrim(l_selector,'.#'); --Does this create a valid statement?
+     
+    l_rule_set.selector := 'TEST';
+
+    
+
+  END;
+
+  procedure name_resolution_simple_var is
+    aname varchar2(100);
+  BEGIN
+    
+    aname := 'name1';
+    name_resolution_simple_var.aname := 'name2';
+    aop_test.name_resolution_simple_var.aname := 'name3';
+    --pacman.aop_test.name_resolution_simple_var.aname := 'name4'; --reference is out of scope
+
+  END;
+
+ 
+
+  procedure last is
+
+    l_simple number;
+  BEGIN
+    l_simple := 1;
+
+    --Package Spec Var
+    g_test4 := 'HI';
+    
+  end;
 
 
   /*
@@ -341,6 +499,50 @@ where max_event_date >= :i_min_qa_date
 end;
 /
 show errors;
-execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST');
+execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST', i_versions => 'HTML,AOP');
 execute ms_api.set_module_debug(i_module_name => 'AOP_TEST');
 select aop_test.test5 from dual;
+
+SELECT PLSCOPE_SETTINGS
+FROM USER_PLSQL_OBJECT_SETTINGS
+WHERE NAME='AOP_TEST' AND TYPE='PACKAGE BODY';
+
+/*
+I used this test to show that variables declared in anonymous blocks do not appear in all_identifiers.
+Thus PLscope will be limited its usefulness to track vars as it will NOT work 
+to link vars in anonymous blocks to there definitions whether they are also in the anon block or elsewhere.
+So will definately still need to be able to read vars and types, and work out the links myself, 
+but may be able to match those against details in PLscope.
+
+
+drop table all_identifiers_bak;
+create table all_identifiers_bak as 
+SELECT  name
+      , TYPE
+      , usage
+ FROM all_identifiers
+FROM all_identifiers;
+       
+             
+(select 'ADDED' op,  name
+      , TYPE
+      , usage  from  all_identifiers a
+minus
+SELECT 'ADDED' op,  name
+      , TYPE
+      , usage  FROM all_identifiers_bak  a)
+UNION ALL
+(select 'REMOVED' op,  name
+      , TYPE
+      , usage from all_identifiers_bak a
+minus
+SELECT 'REMOVED' op,  name
+      , TYPE
+      , usage from all_identifiers      a)
+
+TYPES:
+Will need to be able to read type definitions in anon blocks, but in procs and functions will be able to look 
+at the full hierarchy.
+Tip - if you define complex vars in anon blocks, will have to write more logging.
+
+*/

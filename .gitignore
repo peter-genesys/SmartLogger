@@ -2,3 +2,6 @@
 .DS_Store
 /patch/temp_master_script.sql
 /patch/*.log
+/chain_with_exit.sql
+/*.sublime-workspace
+/*.sublime-project
