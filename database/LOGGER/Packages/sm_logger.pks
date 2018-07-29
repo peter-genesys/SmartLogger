@@ -1,17 +1,17 @@
-create or replace package ms_logger is
+create or replace package sm_logger is
  
 ------------------------------------------------------------------------
 -- Node Typ API functions (Public)
 ------------------------------------------------------------------------
 
  
-TYPE message_list     IS TABLE OF ms_message%ROWTYPE INDEX BY BINARY_INTEGER;  
+TYPE message_list     IS TABLE OF sm_message%ROWTYPE INDEX BY BINARY_INTEGER;  
   
 TYPE node_typ IS RECORD
-  (traversal        ms_traversal%ROWTYPE
-  ,module           ms_module%ROWTYPE
-  ,unit             ms_unit%ROWTYPE
-  ,auto_wake        ms_unit.auto_wake%TYPE
+  (call             sm_call%ROWTYPE
+  ,module           sm_module%ROWTYPE
+  ,unit             sm_unit%ROWTYPE
+  ,auto_wake        sm_unit.auto_wake%TYPE
   ,node_level       BINARY_INTEGER
   ,logged           BOOLEAN
   ,unlogged_messages message_list
@@ -41,18 +41,18 @@ G_MSG_TYPE_NOTE         CONSTANT VARCHAR2(10) := 'Note';
 G_MSG_TYPE_MESSAGE      CONSTANT VARCHAR2(10) := 'Message';
  
  
-G_AUTO_WAKE_FORCE         CONSTANT ms_unit.auto_wake%TYPE := 'F'; 
-G_AUTO_WAKE_YES           CONSTANT ms_unit.auto_wake%TYPE := 'Y';
-G_AUTO_WAKE_NO            CONSTANT ms_unit.auto_wake%TYPE := 'N';
-G_AUTO_WAKE_OVERRIDDEN    CONSTANT ms_unit.auto_wake%TYPE := NULL;
+G_AUTO_WAKE_FORCE         CONSTANT sm_unit.auto_wake%TYPE := 'F'; 
+G_AUTO_WAKE_YES           CONSTANT sm_unit.auto_wake%TYPE := 'Y';
+G_AUTO_WAKE_NO            CONSTANT sm_unit.auto_wake%TYPE := 'N';
+G_AUTO_WAKE_OVERRIDDEN    CONSTANT sm_unit.auto_wake%TYPE := NULL;
  
 -- @TODO - Deprecated - remove
---FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
---                    ,i_process_type IN VARCHAR2 DEFAULT NULL
+--FUNCTION new_session(i_session_name IN VARCHAR2 DEFAULT NULL
+--                    ,i_session_type IN VARCHAR2 DEFAULT NULL
 --                    ,i_ext_ref      IN VARCHAR2 DEFAULT NULL
 --                    ,i_module_name  IN VARCHAR2 DEFAULT NULL
 --                    ,i_unit_name    IN VARCHAR2 DEFAULT NULL
---          --,i_msg_mode     IN INTEGER  DEFAULT G_MSG_MODE_NORMAL
+--                    ,i_msg_mode     IN INTEGER  DEFAULT G_MSG_MODE_NORMAL
 --                    ,i_comments     IN VARCHAR2 DEFAULT NULL       ) RETURN INTEGER; 
  
  
@@ -63,7 +63,7 @@ FUNCTION new_pkg(i_module_name IN VARCHAR2
                 ,i_quiet       in boolean  default false
                 ,i_disabled    in boolean  default false
                 ,i_msg_mode    in integer  default null
-                ) RETURN ms_logger.node_typ;
+                ) RETURN sm_logger.node_typ;
  
  
 FUNCTION new_proc(i_module_name IN VARCHAR2
@@ -73,7 +73,7 @@ FUNCTION new_proc(i_module_name IN VARCHAR2
                  ,i_quiet       in boolean  default false
                  ,i_disabled    in boolean  default false
                  ,i_msg_mode    in integer  default null
-                ) RETURN ms_logger.node_typ;
+                ) RETURN sm_logger.node_typ;
 
 
 FUNCTION new_func(i_module_name IN VARCHAR2
@@ -83,7 +83,7 @@ FUNCTION new_func(i_module_name IN VARCHAR2
                  ,i_quiet       in boolean  default false
                  ,i_disabled    in boolean  default false
                  ,i_msg_mode    in integer  default null
-                ) RETURN ms_logger.node_typ;
+                ) RETURN sm_logger.node_typ;
 				 
 FUNCTION new_trig(i_module_name IN VARCHAR2
                  ,i_unit_name   IN VARCHAR2
@@ -92,7 +92,7 @@ FUNCTION new_trig(i_module_name IN VARCHAR2
                  ,i_quiet       in boolean  default false
                  ,i_disabled    in boolean  default false
                  ,i_msg_mode    in integer  default null
-                 ) RETURN ms_logger.node_typ;		 
+                 ) RETURN sm_logger.node_typ;		 
 
 FUNCTION new_script(i_module_name IN VARCHAR2
                    ,i_unit_name   IN VARCHAR2
@@ -101,7 +101,7 @@ FUNCTION new_script(i_module_name IN VARCHAR2
                    ,i_quiet       in boolean  default false
                    ,i_disabled    in boolean  default false
                    ,i_msg_mode    in integer  default null
-                 ) RETURN ms_logger.node_typ;  
+                 ) RETURN sm_logger.node_typ;  
 				   
  
  
@@ -130,22 +130,22 @@ PROCEDURE  wake_logger(i_node      IN node_typ
                       ,i_msg_mode  IN NUMBER DEFAULT G_MSG_MODE_DEBUG);
 
 ----------------------------------------------------------------------
--- f_process_traced
+-- f_session_traced
 ----------------------------------------------------------------------
-FUNCTION f_process_traced(i_process_id IN INTEGER) RETURN BOOLEAN;
+FUNCTION f_session_traced(i_session_id IN INTEGER) RETURN BOOLEAN;
 
 ----------------------------------------------------------------------
--- f_process_exceptions - TRUE if any exceptions
+-- f_session_exceptions - TRUE if any exceptions
 ----------------------------------------------------------------------
-FUNCTION f_process_exceptions(i_process_id IN INTEGER) RETURN BOOLEAN;
+FUNCTION f_session_exceptions(i_session_id IN INTEGER) RETURN BOOLEAN;
 
-FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
+FUNCTION f_session_id(i_session_id IN INTEGER  DEFAULT NULL
                   --   ,i_ext_ref    IN VARCHAR2 DEFAULT NULL
                      ) RETURN INTEGER; 
 
  
 ----------------------------------------------------------------------
--- USED IN INSTRUMENTATION BY AOP_PROCESSOR 
+-- USED IN INSTRUMENTATION BY SM_WEAVER 
 ----------------------------------------------------------------------
 ------------------------------------------------------------------------
 -- Message ROUTINES (Public)
@@ -154,127 +154,139 @@ FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
 ------------------------------------------------------------------------ 
 -- comment 
 ------------------------------------------------------------------------
-PROCEDURE comment( i_node            IN ms_logger.node_typ 
+PROCEDURE comment( i_node            IN sm_logger.node_typ 
                   ,i_message         IN VARCHAR2 DEFAULT NULL );
 
 ------------------------------------------------------------------------
 -- info 
 ------------------------------------------------------------------------
-PROCEDURE info( i_node            IN ms_logger.node_typ 
+PROCEDURE info( i_node            IN sm_logger.node_typ 
                ,i_message         IN     VARCHAR2 DEFAULT NULL );
 
 ------------------------------------------------------------------------
 -- warning  
 ------------------------------------------------------------------------
 
-PROCEDURE warning( i_node            IN ms_logger.node_typ 
+PROCEDURE warning( i_node            IN sm_logger.node_typ 
                   ,i_message      IN     VARCHAR2 DEFAULT NULL );
 
 ------------------------------------------------------------------------
 -- fatal  
 ------------------------------------------------------------------------
 
-PROCEDURE fatal( i_node            IN ms_logger.node_typ 
+PROCEDURE fatal( i_node            IN sm_logger.node_typ 
                 ,i_message         IN     VARCHAR2 DEFAULT NULL );
   
 ------------------------------------------------------------------------
 -- oracle_error 
 ------------------------------------------------------------------------
 
-PROCEDURE oracle_error( i_node            IN ms_logger.node_typ 
+PROCEDURE oracle_error( i_node            IN sm_logger.node_typ 
                        ,i_message         IN VARCHAR2 DEFAULT NULL  );
 ------------------------------------------------------------------------
 -- warn_error  
 ------------------------------------------------------------------------
 
-PROCEDURE warn_error( i_node            IN ms_logger.node_typ 
+PROCEDURE warn_error( i_node            IN sm_logger.node_typ 
                      ,i_message         IN VARCHAR2 DEFAULT NULL  );
 
 ------------------------------------------------------------------------
 -- note_error  
 ------------------------------------------------------------------------
 
-PROCEDURE note_error( i_node            IN ms_logger.node_typ 
+PROCEDURE note_error( i_node            IN sm_logger.node_typ 
                      ,i_message         IN VARCHAR2 DEFAULT NULL  );
 ------------------------------------------------------------------------
 -- Reference operations (PUBLIC)
 ------------------------------------------------------------------------
 
 --overloaded name, value | [id, descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 
+PROCEDURE note    ( i_node      IN sm_logger.node_typ 
                    ,i_name      IN VARCHAR2
                    ,i_value     IN VARCHAR2
                    ,i_descr     IN VARCHAR2 DEFAULT NULL  );
  
 ------------------------------------------------------------------------
 
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
+PROCEDURE param ( i_node      IN sm_logger.node_typ 
                  ,i_name      IN VARCHAR2
                  ,i_value     IN VARCHAR2  );
 
 
 --overloaded name, value | [id, descr] FOR CLOB
-PROCEDURE note_clob( i_node      IN ms_logger.node_typ   
+PROCEDURE note_clob( i_node      IN sm_logger.node_typ   
                     ,i_name      IN VARCHAR2
                     ,i_value     IN CLOB );
 
  
 ------------------------------------------------------------------------
 
-PROCEDURE param_clob( i_node      IN ms_logger.node_typ 
+PROCEDURE param_clob( i_node      IN sm_logger.node_typ 
                      ,i_name      IN VARCHAR2
                      ,i_value     IN CLOB  );
 
 
 ------------------------------------------------------------------------
 --overloaded name, num_value | [id, descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 
+PROCEDURE note    ( i_node      IN sm_logger.node_typ 
                    ,i_name      IN VARCHAR2
                    ,i_num_value IN NUMBER );
 
 ------------------------------------------------------------------------ 
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
+PROCEDURE param ( i_node      IN sm_logger.node_typ 
                  ,i_name      IN VARCHAR2
                  ,i_num_value IN NUMBER    );
 ------------------------------------------------------------------------
 --overloaded name, date_value , descr] 
-PROCEDURE note    ( i_node       IN ms_logger.node_typ 
+PROCEDURE note    ( i_node       IN sm_logger.node_typ 
                    ,i_name       IN VARCHAR2
                    ,i_date_value IN DATE );
 ------------------------------------------------------------------------
-PROCEDURE param ( i_node       IN ms_logger.node_typ 
+PROCEDURE param ( i_node       IN sm_logger.node_typ 
                  ,i_name       IN VARCHAR2
                  ,i_date_value IN DATE   );
 
 ------------------------------------------------------------------------
 --overloaded name, bool_value 
-PROCEDURE note   (i_node       IN ms_logger.node_typ 
+PROCEDURE note   (i_node       IN sm_logger.node_typ 
                  ,i_name       IN VARCHAR2
                  ,i_bool_value IN BOOLEAN );
 ------------------------------------------------------------------------
-PROCEDURE param ( i_node       IN ms_logger.node_typ 
+PROCEDURE param ( i_node       IN sm_logger.node_typ 
                  ,i_name      IN VARCHAR2
                  ,i_bool_value IN BOOLEAN  );
 ------------------------------------------------------------------------
 --overloaded name
-PROCEDURE note   (i_node      IN ms_logger.node_typ 
+PROCEDURE note   (i_node      IN sm_logger.node_typ 
                  ,i_name      IN VARCHAR2);
 ------------------------------------------------------------------------
-PROCEDURE note_rowcount( i_node      IN ms_logger.node_typ 
+PROCEDURE note_rowcount( i_node      IN sm_logger.node_typ 
                         ,i_name      IN VARCHAR2 );
 ------------------------------------------------------------------------
-FUNCTION f_note_rowcount( i_node      IN ms_logger.node_typ 
+FUNCTION f_note_rowcount( i_node      IN sm_logger.node_typ 
                          ,i_name      IN VARCHAR2 ) RETURN NUMBER;
 
 ------------------------------------------------------------------------
 
-PROCEDURE note_sqlerrm(i_node      IN ms_logger.node_typ );
+PROCEDURE note_sqlerrm(i_node      IN sm_logger.node_typ );
 ------------------------------------------------------------------------
-PROCEDURE note_length( i_node  IN ms_logger.node_typ 
+PROCEDURE note_length( i_node  IN sm_logger.node_typ 
                       ,i_name  IN VARCHAR2 
                       ,i_value IN CLOB        ) ;
+
+FUNCTION get_session_id(i_node IN sm_logger.node_typ) return number;
+
+------------------------------------------------------------------------
+FUNCTION get_session_url(i_node IN sm_logger.node_typ) return varchar2;
+
+PROCEDURE on_demand(io_node       IN OUT sm_logger.node_typ
+                   ,i_debug       in boolean  default false
+                   ,i_normal      in boolean  default false
+                   ,i_quiet       in boolean  default false
+                   ,i_disabled    in boolean  default false
+                   ,i_msg_mode    in integer  default null );
  
  
-END;
+END sm_logger;
 /
 show error;

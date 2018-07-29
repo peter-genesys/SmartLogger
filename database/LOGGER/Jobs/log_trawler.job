@@ -3,7 +3,7 @@ declare
   l_job_no NUMBER;
 begin
       dbms_job.submit(  job       => l_job_no
-                       ,what      => 'ms_api.trawl_log_for_errors;'
+                       ,what      => 'sm_api.trawl_log_for_errors;'
                        ,next_date => SYSDATE + 30/86400           --now + 30 secs
                        ,interval  => 'SYSDATE + 10/1440'          --every 10 minutes
                        ,no_parse  => false); 

@@ -114,10 +114,10 @@ PROCEDURE note_length( i_name  IN VARCHAR2
                       ,i_value IN CLOB        );
 
 ------------------------------------------------------------------------
-FUNCTION get_jotter_id return number;
+FUNCTION get_session_id return number;
 
 ------------------------------------------------------------------------
-FUNCTION get_jotter_url return varchar2;
+FUNCTION get_session_url return varchar2;
 
 PROCEDURE on_demand(i_debug       in boolean  default false
                    ,i_normal      in boolean  default false

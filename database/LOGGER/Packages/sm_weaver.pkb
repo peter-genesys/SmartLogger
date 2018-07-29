@@ -1,18 +1,18 @@
 WHENEVER SQLERROR CONTINUE
-alter trigger aop_processor_trg disable;
+alter trigger sm_weaver_trg disable;
 
 
 
---Ensure no inlining so ms_logger can be used
+--Ensure no inlining so sm_logger can be used
 alter session set plsql_optimize_level = 1;
 
 set define off;
 
 
 
-create or replace package body aop_processor is
+create or replace package body sm_weaver is
 /** 
-* AOP Processor - Aspect Orientated Programming Processor
+* WEAVER - AOP Processor - Aspect Orientated Programming Processor
 * Weaves the logging instrumentation into valid plsql progam units. 
 */
 
@@ -32,7 +32,7 @@ create or replace package body aop_processor is
 
   g_use_plscope         constant boolean := true;
  
-  g_package_name        CONSTANT VARCHAR2(30) := 'aop_processor'; 
+  g_package_name        CONSTANT VARCHAR2(30) := 'sm_weaver'; 
  
   g_during_advise       boolean:= false;
   
@@ -344,7 +344,7 @@ create or replace package body aop_processor is
 
 FUNCTION get_db_object_signature(i_object_name         IN varchar2
                                 ,i_object_type         IN varchar2) return varchar2 is
-l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_db_object_signature'); 
+l_node     sm_logger.node_typ := sm_logger.new_proc(g_package_name,'get_db_object_signature'); 
 
    CURSOR cu_plscope_var is
    select  o.*
@@ -360,16 +360,16 @@ l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_db_objec
 
     l_plscope_var cu_plscope_var%ROWTYPE; 
 BEGIN
-  ms_logger.param(l_node, 'i_object_name'  ,i_object_name ); 
-  ms_logger.param(l_node, 'i_object_type'  ,i_object_type ); 
+  sm_logger.param(l_node, 'i_object_name'  ,i_object_name ); 
+  sm_logger.param(l_node, 'i_object_type'  ,i_object_type ); 
  
   OPEN cu_plscope_var;
   FETCH cu_plscope_var into l_plscope_var;
   CLOSE cu_plscope_var;
 
-  ms_logger.note(l_node, 'l_plscope_var.name'         ,l_plscope_var.name );
-  ms_logger.note(l_node, 'l_plscope_var.type'         ,l_plscope_var.type );
-  ms_logger.note(l_node, 'l_plscope_var.signature'    ,l_plscope_var.signature );
+  sm_logger.note(l_node, 'l_plscope_var.name'         ,l_plscope_var.name );
+  sm_logger.note(l_node, 'l_plscope_var.type'         ,l_plscope_var.type );
+  sm_logger.note(l_node, 'l_plscope_var.signature'    ,l_plscope_var.signature );
  
 
   RETURN l_plscope_var.signature;
@@ -394,7 +394,7 @@ FUNCTION get_pu_signature(--i_pu_stack         IN pu_stack_typ
                          ,i_parent_type      in varchar2
                          ,i_pu_name          IN varchar2
                          ,i_pu_type          IN varchar2) return varchar2 is
-  l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_pu_signature'); 
+  l_node     sm_logger.node_typ := sm_logger.new_proc(g_package_name,'get_pu_signature'); 
 
 
    --Start at the definition of the parent block and jump down 1 level to declaration of the child.
@@ -426,10 +426,10 @@ FUNCTION get_pu_signature(--i_pu_stack         IN pu_stack_typ
  
     l_plscope_var cu_plscope_var%ROWTYPE; 
 BEGIN
-  ms_logger.param(l_node, 'i_parent_signature' ,i_parent_signature ); 
-  ms_logger.param(l_node, 'i_parent_type'      ,i_parent_type ); 
-  ms_logger.param(l_node, 'i_pu_name'          ,i_pu_name ); 
-  ms_logger.param(l_node, 'i_pu_type'          ,i_pu_type ); 
+  sm_logger.param(l_node, 'i_parent_signature' ,i_parent_signature ); 
+  sm_logger.param(l_node, 'i_parent_type'      ,i_parent_type ); 
+  sm_logger.param(l_node, 'i_pu_name'          ,i_pu_name ); 
+  sm_logger.param(l_node, 'i_pu_type'          ,i_pu_type ); 
   
   OPEN cu_plscope_var(c_parent_signature => i_parent_signature
                      ,c_parent_type      => i_parent_type 
@@ -439,9 +439,9 @@ BEGIN
   CLOSE cu_plscope_var;
 
 
-  ms_logger.note(l_node, 'l_plscope_var.child_name'         ,l_plscope_var.child_name );
-  ms_logger.note(l_node, 'l_plscope_var.child_type'         ,l_plscope_var.child_type );
-  ms_logger.note(l_node, 'l_plscope_var.signature'          ,l_plscope_var.signature );
+  sm_logger.note(l_node, 'l_plscope_var.child_name'         ,l_plscope_var.child_name );
+  sm_logger.note(l_node, 'l_plscope_var.child_type'         ,l_plscope_var.child_type );
+  sm_logger.note(l_node, 'l_plscope_var.signature'          ,l_plscope_var.signature );
 
   RETURN l_plscope_var.signature;
  
@@ -458,13 +458,13 @@ procedure push_pu(i_name       in varchar2
                  ,i_type       in varchar2
                 -- ,i_signature  in varchar2
                  ,io_pu_stack IN OUT pu_stack_typ ) is
-  l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'push_pu'); 
+  l_node     sm_logger.node_typ := sm_logger.new_proc(g_package_name,'push_pu'); 
   l_pu_rec pu_rec_typ;
 BEGIN
-  ms_logger.param(l_node, 'i_name'          ,i_name ); 
-  ms_logger.param(l_node, 'i_type'          ,i_type ); 
-  --ms_logger.param(l_node, 'i_signature'     ,i_signature ); 
-  ms_logger.note(l_node, 'io_pu_stack.COUNT'          ,io_pu_stack.COUNT ); 
+  sm_logger.param(l_node, 'i_name'          ,i_name ); 
+  sm_logger.param(l_node, 'i_type'          ,i_type ); 
+  --sm_logger.param(l_node, 'i_signature'     ,i_signature ); 
+  sm_logger.note(l_node, 'io_pu_stack.COUNT'          ,io_pu_stack.COUNT ); 
   
 
   l_pu_rec.name      := i_name;
@@ -484,8 +484,8 @@ BEGIN
  
   l_pu_rec.level     := io_pu_stack.COUNT+1; 
 
-  ms_logger.note(l_node, 'l_pu_rec.signature'      ,l_pu_rec.signature ); 
-  ms_logger.note(l_node, 'l_pu_rec.level'          ,l_pu_rec.level ); 
+  sm_logger.note(l_node, 'l_pu_rec.signature'      ,l_pu_rec.signature ); 
+  sm_logger.note(l_node, 'l_pu_rec.level'          ,l_pu_rec.level ); 
 
   io_pu_stack(l_pu_rec.level) := l_pu_rec; 
 END;
@@ -517,14 +517,14 @@ END;
 -- log_var_list - Log the var list
 --------------------------------------------------------------------
   procedure log_var_list(i_var_list in var_list_typ) is
-    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'log_var_list'); 
+    l_node sm_logger.node_typ := sm_logger.new_func($$plsql_unit ,'log_var_list'); 
     l_index varchar2(200);
   BEGIN
     l_index := i_var_list.FIRST;
     
     WHILE l_index is not null loop
-      --ms_logger.note(l_node,i_var_list(l_index).name,i_var_list(l_index).type,i_var_list(l_index).signature);
-      ms_logger.note(l_node,l_index,i_var_list(l_index).type,i_var_list(l_index).signature); --show the index
+      --sm_logger.note(l_node,i_var_list(l_index).name,i_var_list(l_index).type,i_var_list(l_index).signature);
+      sm_logger.note(l_node,l_index,i_var_list(l_index).type,i_var_list(l_index).signature); --show the index
       l_index := i_var_list.NEXT(l_index);
     end loop;
   END;
@@ -536,7 +536,7 @@ END;
 --------------------------------------------------------------------
   procedure log_new_var_list(i_old_var_list  in var_list_typ
                             ,i_new_var_list  in var_list_typ) is
-    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'log_new_var_list'); 
+    l_node sm_logger.node_typ := sm_logger.new_func($$plsql_unit ,'log_new_var_list'); 
     l_index varchar2(200);
   BEGIN
     l_index := i_new_var_list.FIRST;
@@ -546,7 +546,7 @@ END;
          NVL(i_old_var_list(l_index).signature,'X') <> NVL(i_new_var_list(l_index).signature,'X') OR
          i_old_var_list(l_index).level <> i_new_var_list(l_index).level THEN
         --This entry is not in the old list, or the signature is different, or level is different, so it's a new one.  Log it.
-        ms_logger.note(l_node,l_index,i_new_var_list(l_index).type,i_new_var_list(l_index).signature); --show the index
+        sm_logger.note(l_node,l_index,i_new_var_list(l_index).type,i_new_var_list(l_index).signature); --show the index
       end if;
       l_index := i_new_var_list.NEXT(l_index);
     end loop;
@@ -556,13 +556,13 @@ END;
 -- log_param_list - Log the param list
 --------------------------------------------------------------------
   procedure log_param_list(i_param_list in param_list_typ) is
-    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'log_param_list'); 
+    l_node sm_logger.node_typ := sm_logger.new_func($$plsql_unit ,'log_param_list'); 
     l_index BINARY_INTEGER;
   BEGIN
     l_index := i_param_list.FIRST;
     
     WHILE l_index is not null loop
-      ms_logger.note(l_node,i_param_list(l_index).name,i_param_list(l_index).type,i_param_list(l_index).signature);
+      sm_logger.note(l_node,i_param_list(l_index).name,i_param_list(l_index).type,i_param_list(l_index).signature);
       l_index := i_param_list.NEXT(l_index);
     end loop;
   END;
@@ -620,7 +620,7 @@ END;
 FUNCTION get_type_signature(i_parent_signature IN varchar2
                            ,i_var_name         IN varchar2
                            ,i_var_type         IN varchar2) return varchar2 is
-l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_signature'); 
+l_node     sm_logger.node_typ := sm_logger.new_proc(g_package_name,'get_type_signature'); 
    CURSOR cu_plscope_var is
    select  p.name        parent_name
           ,c.name        child_name
@@ -654,19 +654,19 @@ l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_sig
     l_plscope_var cu_plscope_var%ROWTYPE; 
     l_type_signature varchar2(32);
 BEGIN
-  ms_logger.param(l_node, 'i_parent_signature'  ,i_parent_signature ); 
-  ms_logger.param(l_node, 'i_var_name'          ,i_var_name ); 
-  ms_logger.param(l_node, 'i_var_type'          ,i_var_type ); 
+  sm_logger.param(l_node, 'i_parent_signature'  ,i_parent_signature ); 
+  sm_logger.param(l_node, 'i_var_name'          ,i_var_name ); 
+  sm_logger.param(l_node, 'i_var_type'          ,i_var_type ); 
   
   OPEN cu_plscope_var;
   FETCH cu_plscope_var into l_plscope_var;
   CLOSE cu_plscope_var;
 
-  ms_logger.note(l_node, 'l_plscope_var.var_decl_signature'          ,l_plscope_var.var_decl_signature );
+  sm_logger.note(l_node, 'l_plscope_var.var_decl_signature'          ,l_plscope_var.var_decl_signature );
 
   l_type_signature := get_declaration_type(i_signature => l_plscope_var.var_decl_signature).signature;
 
-  ms_logger.note(l_node, 'l_type_signature'          ,l_type_signature );
+  sm_logger.note(l_node, 'l_type_signature'          ,l_type_signature );
  
   RETURN l_type_signature;
  
@@ -681,7 +681,7 @@ END get_type_signature;
 * @return signature of the type
 */
 FUNCTION get_type_signature(i_var_signature IN varchar2 ) return varchar2 is
-l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_signature'); 
+l_node     sm_logger.node_typ := sm_logger.new_proc(g_package_name,'get_type_signature'); 
    CURSOR cu_plscope_var is
    select  c.name        child_name
           ,c.type        child_type
@@ -703,13 +703,13 @@ l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_type_sig
 
     l_plscope_var cu_plscope_var%ROWTYPE; 
 BEGIN
-  ms_logger.param(l_node, 'i_var_signature'  ,i_var_signature ); 
+  sm_logger.param(l_node, 'i_var_signature'  ,i_var_signature ); 
  
   OPEN cu_plscope_var;
   FETCH cu_plscope_var into l_plscope_var;
   CLOSE cu_plscope_var;
 
-  ms_logger.note(l_node, 'l_plscope_var.type_signature'          ,l_plscope_var.type_signature );
+  sm_logger.note(l_node, 'l_plscope_var.type_signature'          ,l_plscope_var.type_signature );
 
   RETURN l_plscope_var.type_signature;
  
@@ -757,7 +757,7 @@ FUNCTION identifier_exists(i_signature   in varchar2) return boolean is
 */
 
 FUNCTION get_type_defn( i_signature   in varchar2) return identifier_tab is
-  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_type_defn');
+  l_node sm_logger.node_typ := sm_logger.new_func($$plsql_unit ,'get_type_defn');
 
  
   CURSOR cu_identifier is
@@ -790,7 +790,7 @@ FUNCTION get_type_defn( i_signature   in varchar2) return identifier_tab is
    l_index            number := 0;
  
 begin --get_type_defn
-  ms_logger.param(l_node,'i_signature',i_signature);
+  sm_logger.param(l_node,'i_signature',i_signature);
  BEGIN
 
 
@@ -803,7 +803,7 @@ begin --get_type_defn
    FOR l_identifier_rec IN cu_identifier LOOP
 
      l_index := l_index + 1;
-     ms_logger.note(l_node,'l_index',l_index);
+     sm_logger.note(l_node,'l_index',l_index);
 
      IF l_identifier_rec.defn_type = 'INDEX TABLE' THEN
        --@TODO need to check whether there was an index in the record name or not...
@@ -811,7 +811,7 @@ begin --get_type_defn
           l_identifier_tab :=  get_type_defn( i_signature => l_identifier_rec.col_signature);
           --exit; --@TODO test whether this works with tables in records...
         ELSIF l_identifier_rec.col_type  like '%DATATYPE' then
-          ms_logger.comment(l_node,'INDEX TABLE of atomic data type.');
+          sm_logger.comment(l_node,'INDEX TABLE of atomic data type.');
  
           l_identifier_tab(l_index).col_name   := null;
           l_identifier_tab(l_index).data_type  := l_identifier_rec.col_name;
@@ -819,8 +819,8 @@ begin --get_type_defn
           l_identifier_tab(l_index).signature  := l_identifier_rec.col_signature;
 
         ELSE
-          ms_logger.note(l_node,'l_identifier_rec.col_type',l_identifier_rec.col_type);
-          ms_logger.fatal(l_node,'INDEX TABLE found but unexpected col_type');
+          sm_logger.note(l_node,'l_identifier_rec.col_type',l_identifier_rec.col_type);
+          sm_logger.fatal(l_node,'INDEX TABLE found but unexpected col_type');
           --exit;
         END IF;
  
@@ -833,22 +833,22 @@ begin --get_type_defn
 
      END IF;   
 
-     ms_logger.note(l_node,'l_identifier_tab(l_index).col_name' ,l_identifier_tab(l_index).col_name);
-     ms_logger.note(l_node,'l_identifier_tab(l_index).data_type',l_identifier_tab(l_index).data_type);
-     ms_logger.note(l_node,'l_identifier_tab(l_index).data_class',l_identifier_tab(l_index).data_class);
-     ms_logger.note(l_node,'l_identifier_tab(l_index).signature',l_identifier_tab(l_index).signature);
+     sm_logger.note(l_node,'l_identifier_tab(l_index).col_name' ,l_identifier_tab(l_index).col_name);
+     sm_logger.note(l_node,'l_identifier_tab(l_index).data_type',l_identifier_tab(l_index).data_type);
+     sm_logger.note(l_node,'l_identifier_tab(l_index).data_class',l_identifier_tab(l_index).data_class);
+     sm_logger.note(l_node,'l_identifier_tab(l_index).signature',l_identifier_tab(l_index).signature);
  
 
    END LOOP;
 
-   ms_logger.note(l_node,'l_identifier_tab.count',l_identifier_tab.count);
+   sm_logger.note(l_node,'l_identifier_tab.count',l_identifier_tab.count);
 
    RETURN l_identifier_tab;
 
  END;
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise;
 end; --get_type_defn
 
@@ -870,21 +870,21 @@ end; --get_type_defn
                         ,i_signature  in varchar2 default null 
                         ,i_pu_stack   in pu_stack_typ
                        ) return var_rec_typ is
-    l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'create_var_rec'); 
+    l_node     sm_logger.node_typ := sm_logger.new_proc(g_package_name,'create_var_rec'); 
     l_var      var_rec_typ;
     l_index    binary_integer;
     l_declaration_type all_identifiers%rowtype;
   BEGIN
-    ms_logger.param(l_node, 'i_param_name' ,i_param_name); 
-    ms_logger.param(l_node, 'i_param_type' ,i_param_type); 
-    ms_logger.param(l_node, 'i_rowtype'    ,i_rowtype   );
-    ms_logger.param(l_node, 'i_in_var'     ,i_in_var    ); 
-    ms_logger.param(l_node, 'i_out_var'    ,i_out_var   ); 
-    ms_logger.param(l_node, 'i_lex_var'    ,i_lex_var   ); 
-    ms_logger.param(l_node, 'i_lim_var'    ,i_lim_var   ); 
-    ms_logger.param(l_node, 'i_assign_var' ,i_assign_var   ); 
-    ms_logger.param(l_node, 'i_signature'  ,i_signature ); 
-    ms_logger.param(l_node, 'i_pu_stack.count'  ,i_pu_stack.count ); 
+    sm_logger.param(l_node, 'i_param_name' ,i_param_name); 
+    sm_logger.param(l_node, 'i_param_type' ,i_param_type); 
+    sm_logger.param(l_node, 'i_rowtype'    ,i_rowtype   );
+    sm_logger.param(l_node, 'i_in_var'     ,i_in_var    ); 
+    sm_logger.param(l_node, 'i_out_var'    ,i_out_var   ); 
+    sm_logger.param(l_node, 'i_lex_var'    ,i_lex_var   ); 
+    sm_logger.param(l_node, 'i_lim_var'    ,i_lim_var   ); 
+    sm_logger.param(l_node, 'i_assign_var' ,i_assign_var   ); 
+    sm_logger.param(l_node, 'i_signature'  ,i_signature ); 
+    sm_logger.param(l_node, 'i_pu_stack.count'  ,i_pu_stack.count ); 
 
 
     l_var.name    := i_param_name;
@@ -902,25 +902,25 @@ end; --get_type_defn
 
 
     if i_assign_var Then
-      ms_logger.comment(l_node, 'PLScope ASSIGNMENT');
+      sm_logger.comment(l_node, 'PLScope ASSIGNMENT');
       --This variable was discovered from a plscoped ASSIGNMENT
       --Every assignment should therefore turn up later when parsing the source.
 
       l_declaration_type := get_declaration_type(i_signature => i_signature);
 
       if l_declaration_type.type = 'VARIABLE' then
-         ms_logger.warning(l_node, 'VARIABLE type from PLScope is not supported.  Ignoring this Assignment.');
+         sm_logger.warning(l_node, 'VARIABLE type from PLScope is not supported.  Ignoring this Assignment.');
 
       else
 
-         ms_logger.comment(l_node, 'Use the declaration info');
+         sm_logger.comment(l_node, 'Use the declaration info');
          l_var.type       := l_declaration_type.name;
          l_var.data_class := l_declaration_type.type;
          l_var.signature  := l_declaration_type.signature;
    
-         ms_logger.note(l_node, 'l_var.type      '    ,l_var.type       ); 
-         ms_logger.note(l_node, 'l_var.data_class'    ,l_var.data_class ); 
-         ms_logger.note(l_node, 'l_var.signature '    ,l_var.signature  ); 
+         sm_logger.note(l_node, 'l_var.type      '    ,l_var.type       ); 
+         sm_logger.note(l_node, 'l_var.data_class'    ,l_var.data_class ); 
+         sm_logger.note(l_node, 'l_var.signature '    ,l_var.signature  ); 
       end if;   
 
     else
@@ -932,10 +932,10 @@ end; --get_type_defn
       end if;
     else
       if is_atomic_type(i_type => l_var.type ) then
-        ms_logger.comment(l_node, 'Found Atomic Type'); 
+        sm_logger.comment(l_node, 'Found Atomic Type'); 
       else
         if i_signature is not null then
-          ms_logger.comment(l_node, 'Create with known signature'); 
+          sm_logger.comment(l_node, 'Create with known signature'); 
           l_var.signature := i_signature;
         else
  
@@ -945,13 +945,13 @@ end; --get_type_defn
                                                ,i_var_name         => i_param_name
                                                ,i_var_type         => i_param_type );
           if l_var.signature is not null then
-            ms_logger.info(l_node, 'Found type signature'); 
-            ms_logger.note(l_node, 'l_var.signature'  ,l_var.signature ); 
+            sm_logger.info(l_node, 'Found type signature'); 
+            sm_logger.note(l_node, 'l_var.signature'  ,l_var.signature ); 
           else
-            ms_logger.warning(l_node, 'Unable to find type signature'); 
+            sm_logger.warning(l_node, 'Unable to find type signature'); 
           end if;  
 
-          --ms_logger.comment(l_node, 'Searching for Type'); 
+          --sm_logger.comment(l_node, 'Searching for Type'); 
 
           --DONT FORGET A GOOD WAY TO FIGURE THIS OUT IS TO LOOK AT THE PLSCOPE 
           --GIVEN THAT WE KNOW THE CONTEXT WE FIND THE VARIABLE OR PARAM IN
@@ -1047,20 +1047,20 @@ and   t.usage_context_id = v.usage_id
 
 
      -- if l_var like '%.%' then
-     --   ms_logger.comment(l_node, 'Let us remove the last componant and try again');
+     --   sm_logger.comment(l_node, 'Let us remove the last componant and try again');
      --   declare
      --     l_componant varchar2(1000);
      --   begin
      --      l_componant  := REGEXP_SUBSTR(l_var,G_REGEX_WORD||'$',1,1,'i');
-     --      ms_logger.note(l_node,'l_componant',l_componant);
+     --      sm_logger.note(l_node,'l_componant',l_componant);
      --      l_var        := REGEXP_REPLACE(l_var,'.'||G_REGEX_WORD||'$',''); --remove the last word
-     --      ms_logger.note(l_node,'l_var',l_var);
+     --      sm_logger.note(l_node,'l_var',l_var);
 --
      --      note_complex_var(i_var       => l_var
      --                       ,i_componant => i_componant||'.'||l_componant );
      --   end;
      -- else
-     --   ms_logger.warning(l_node, 'Var not known '||i_var||'.'||i_componant); --RTRIM(i_var||'.'||i_componant,'.');
+     --   sm_logger.warning(l_node, 'Var not known '||i_var||'.'||i_componant); --RTRIM(i_var||'.'||i_componant,'.');
      --   log_var_list(i_var_list => l_var_list);
      -- end if;
         END IF;
@@ -1126,19 +1126,19 @@ and   t.usage_context_id = v.usage_id
   procedure store_var_list(i_var        in     var_rec_typ
                           ,io_var_list  in out var_list_typ
                           ,i_pu_stack   in     pu_stack_typ ) is
-    l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'store_var_list'); 
+    l_node     sm_logger.node_typ := sm_logger.new_proc(g_package_name,'store_var_list'); 
     l_var   var_rec_typ := i_var;
  
     procedure add_var(i_var        in     var_rec_typ ) is
   
-      l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'add_var'); 
+      l_node     sm_logger.node_typ := sm_logger.new_proc(g_package_name,'add_var'); 
    
       x_assign_var_exists exception;
    
     BEGIN
-      ms_logger.param(l_node,'i_var.name' ,i_var.name);
-      ms_logger.param(l_node,'i_var.type' ,i_var.type);
-      ms_logger.param(l_node,'i_var.level',i_var.level);
+      sm_logger.param(l_node,'i_var.name' ,i_var.name);
+      sm_logger.param(l_node,'i_var.type' ,i_var.type);
+      sm_logger.param(l_node,'i_var.level',i_var.level);
   
       IF io_var_list.EXISTS(UPPER(i_var.name)) then
         IF io_var_list(UPPER(l_var.name)).assign_var            and  
@@ -1148,10 +1148,10 @@ and   t.usage_context_id = v.usage_id
   
   
         IF io_var_list(UPPER(i_var.name)).level = i_var.level then
-          ms_logger.warning(l_node, 'This variable already exists at this scoping level.  New version overwriting it.');
+          sm_logger.warning(l_node, 'This variable already exists at this scoping level.  New version overwriting it.');
         ELSE 
-          ms_logger.comment(l_node, 'A variable of the same name exists at a higher scoped level.');
-          ms_logger.comment(l_node, 'The new variable now has scope at this level.');
+          sm_logger.comment(l_node, 'A variable of the same name exists at a higher scoped level.');
+          sm_logger.comment(l_node, 'The new variable now has scope at this level.');
         END IF;  
       END IF;  
   
@@ -1160,14 +1160,14 @@ and   t.usage_context_id = v.usage_id
   
     EXCEPTION
       WHEN x_assign_var_exists THEN
-        ms_logger.comment(l_node, 'An ASSIGNMENT variable is already stored for this name and scoping level.  Ignoring this instance');
+        sm_logger.comment(l_node, 'An ASSIGNMENT variable is already stored for this name and scoping level.  Ignoring this instance');
    
     END;
  
   BEGIN
-    ms_logger.param(l_node,'i_var.name' ,i_var.name);
-    ms_logger.param(l_node,'i_var.type' ,i_var.type);
-    ms_logger.param(l_node,'i_var.level',i_var.level);
+    sm_logger.param(l_node,'i_var.name' ,i_var.name);
+    sm_logger.param(l_node,'i_var.type' ,i_var.type);
+    sm_logger.param(l_node,'i_var.level',i_var.level);
 
     add_var(i_var  => l_var );
 
@@ -1195,7 +1195,7 @@ and   t.usage_context_id = v.usage_id
         --and adding it to the list again
         --until we have fully qualified the variable name.
         WHILE l_index is not null loop
-          ms_logger.note(l_node,i_pu_stack(l_index).name,i_pu_stack(l_index).type);
+          sm_logger.note(l_node,i_pu_stack(l_index).name,i_pu_stack(l_index).type);
           l_var.name := lower(i_pu_stack(l_index).name||'.'||l_var.name);
 
           add_var(i_var  => l_var );
@@ -1212,7 +1212,7 @@ and   t.usage_context_id = v.usage_id
 -- get_expanded_param_list - Expand any composite parameter into its componants
 --------------------------------------------------------------------
  FUNCTION get_expanded_param_list(i_param_list in param_list_typ ) return param_list_typ is
-  l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_expanded_param_list'); 
+  l_node     sm_logger.node_typ := sm_logger.new_proc(g_package_name,'get_expanded_param_list'); 
   l_expanded_param_list   param_list_typ;
   l_index                 BINARY_INTEGER;
 
@@ -1225,21 +1225,21 @@ BEGIN
   l_index := i_param_list.FIRST;
   WHILE l_index IS NOT NULL LOOP
 
-     ms_logger.note(l_node, 'i_param_list(l_index).name'   ,i_param_list(l_index).name); 
-     ms_logger.note(l_node, 'i_param_list(l_index).type'   ,i_param_list(l_index).type); 
-     ms_logger.note(l_node, 'i_param_list(l_index).rowtype',i_param_list(l_index).rowtype); 
+     sm_logger.note(l_node, 'i_param_list(l_index).name'   ,i_param_list(l_index).name); 
+     sm_logger.note(l_node, 'i_param_list(l_index).type'   ,i_param_list(l_index).type); 
+     sm_logger.note(l_node, 'i_param_list(l_index).rowtype',i_param_list(l_index).rowtype); 
 
     
     CASE
       --Check type of param
       WHEN is_atomic_type(i_type => i_param_list(l_index).type) THEN
-        ms_logger.comment(l_node, 'Copy simple param to new list.');
+        sm_logger.comment(l_node, 'Copy simple param to new list.');
         store_param_list(i_param       => i_param_list(l_index)
                         ,io_param_list => l_expanded_param_list);
 
       --Check for rowtype
       WHEN i_param_list(l_index).rowtype is not null then
-        ms_logger.comment(l_node, 'Expand a Rowtype');
+        sm_logger.comment(l_node, 'Expand a Rowtype');
         --assume we've already figured out this is a rowtype
         declare 
           l_table_owner     varchar2(30);
@@ -1247,7 +1247,7 @@ BEGIN
         begin
 
           l_table_owner     := table_owner(i_table_name => i_param_list(l_index).rowtype);
-          ms_logger.note(l_node, 'l_table_owner'    ,l_table_owner); 
+          sm_logger.note(l_node, 'l_table_owner'    ,l_table_owner); 
  
           FOR l_column IN 
             (select lower(column_name) column_name
@@ -1268,7 +1268,7 @@ BEGIN
         end;
 
        ELSE
-         ms_logger.comment(l_node, 'Param ommitted!');
+         sm_logger.comment(l_node, 'Param ommitted!');
 
      END CASE;   
  
@@ -1301,7 +1301,7 @@ END;
                          ,i_name  varchar2
                          ,i_type  varchar2
                          ,i_tag   varchar2) return boolean is
-    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'source_has_tag');
+    l_node sm_logger.node_typ := sm_logger.new_func($$plsql_unit ,'source_has_tag');
 
   cursor cu_check_aop_tags(c_owner varchar2
                           ,c_name  varchar2
@@ -1319,10 +1319,10 @@ END;
   l_dummy number;
   l_result boolean;
   begin --source_has_tag
-    ms_logger.param(l_node,'i_owner'                       ,i_owner);
-    ms_logger.param(l_node,'i_name'                        ,i_name);
-    ms_logger.param(l_node,'i_type'                        ,i_type);
-    ms_logger.param(l_node,'i_tag'                         ,i_tag);
+    sm_logger.param(l_node,'i_owner'                       ,i_owner);
+    sm_logger.param(l_node,'i_name'                        ,i_name);
+    sm_logger.param(l_node,'i_type'                        ,i_type);
+    sm_logger.param(l_node,'i_tag'                         ,i_tag);
   begin
     OPEN cu_check_aop_tags(c_owner => i_owner
                           ,c_name  => i_name 
@@ -1330,14 +1330,14 @@ END;
                           ,c_tag   => i_tag );
     FETCH cu_check_aop_tags into l_dummy;
     l_result := cu_check_aop_tags%FOUND;
-    ms_logger.note(l_node,'l_result',l_result);
+    sm_logger.note(l_node,'l_result',l_result);
     CLOSE cu_check_aop_tags;
 
     return l_result;
   end;
   exception
     when others then
-      ms_logger.warn_error(l_node);
+      sm_logger.warn_error(l_node);
       raise;
   end; --source_has_tag
 
@@ -1496,15 +1496,15 @@ END;
 * @throws x_weave_timeout
 */
   procedure set_weave_timeout is
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'set_weave_timeout');  
+    l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'set_weave_timeout');  
     l_weave_line_count INTEGER;
  
   BEGIN
     --Line Count derived from length of CLOB minus length of CLOB-without-CR
     l_weave_line_count := LENGTH(g_code) - LENGTH(REPLACE(g_code,chr(10)));
-    ms_logger.note(l_node, 'l_weave_line_count ',l_weave_line_count );
+    sm_logger.note(l_node, 'l_weave_line_count ',l_weave_line_count );
     g_weave_timeout_secs := ROUND(l_weave_line_count/1000*G_TIMEOUT_SECS_PER_1000_LINES)+2;
-    ms_logger.note(l_node, 'g_weave_timeout_secs ',g_weave_timeout_secs );
+    sm_logger.note(l_node, 'g_weave_timeout_secs ',g_weave_timeout_secs );
   g_weave_start_time := SYSDATE;
  
   END;
@@ -1514,7 +1514,7 @@ END;
 --------------------------------------------------------------------
 /** PUBLIC
 * Is the weaver currently performing a weave.
-* This function is used purely by the trigger aop_processor_trg to ensure it is NOT triggered by the weaver itself.
+* This function is used purely by the trigger sm_weaver_trg to ensure it is NOT triggered by the weaver itself.
 * @return TRUE when weaving.
 */
   function during_advise return boolean is
@@ -1529,7 +1529,7 @@ END;
 * Recompile the source code with compiler directives.
 * @param i_text         Source Code
 * @param i_with_plscope plscope for AOP
-* @param i_for_logger   optimiser level 1 for ms_logger
+* @param i_for_logger   optimiser level 1 for sm_logger
 */
 PROCEDURE compile_plsql(i_text         in clob
                        ,i_with_plscope in boolean default true
@@ -1546,7 +1546,7 @@ BEGIN
 
   IF i_for_logger then
     --optimiser level 1
-    --MS_LOGGER relies on packages compiled in optimiser level 1, to correcly determine execution tree.
+    --sm_logger relies on packages compiled in optimiser level 1, to correcly determine execution tree.
     --This prevents the optimiser from rewriting sub-procedures as inline macros.
 
     --https://docs.oracle.com/cd/B28359_01/server.111/b28320/initparams184.htm#REFRN10255
@@ -1571,7 +1571,7 @@ END;
 --------------------------------------------------------------------
 /** PRIVATE
 * Compile the source against the database, as directed (i_compile).
-* Store the source in table aop_source
+* Store the source in table sm_source
 * Return the success result of compilation, if any.
 * Executes i_text against the database.
 * Uses ALL_ERRORS to report compilation errors.
@@ -1588,26 +1588,26 @@ END;
                          , i_aop_ver     IN VARCHAR2
                          , i_compile     IN BOOLEAN  
             ) RETURN boolean IS
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'validate_source');              
+    l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'validate_source');              
                       
-    l_aop_source    aop_source%ROWTYPE;    
+    l_sm_source    sm_source%ROWTYPE;    
  
   BEGIN     
  
-    ms_logger.param(l_node, 'i_name      '          ,i_name   );
-    ms_logger.param(l_node, 'i_type      '          ,i_type      );
-    --ms_logger.param(l_node, 'i_text    '          ,i_text          ); --too big.
-    ms_logger.param(l_node, 'i_aop_ver   '           ,i_aop_ver      );
-    ms_logger.param(l_node, 'i_compile   '           ,i_compile      );
+    sm_logger.param(l_node, 'i_name      '          ,i_name   );
+    sm_logger.param(l_node, 'i_type      '          ,i_type      );
+    --sm_logger.param(l_node, 'i_text    '          ,i_text          ); --too big.
+    sm_logger.param(l_node, 'i_aop_ver   '           ,i_aop_ver      );
+    sm_logger.param(l_node, 'i_compile   '           ,i_compile      );
 
     --Prepare record.
-    l_aop_source.name          := i_name;
-    l_aop_source.type          := i_type;
-    l_aop_source.aop_ver       := i_aop_ver;
-    l_aop_source.text          := i_text;
-    l_aop_source.load_datetime := sysdate;
-    l_aop_source.valid_yn      := 'N';
-    l_aop_source.result        := 'Success.';
+    l_sm_source.name          := i_name;
+    l_sm_source.type          := i_type;
+    l_sm_source.aop_ver       := i_aop_ver;
+    l_sm_source.text          := i_text;
+    l_sm_source.load_datetime := sysdate;
+    l_sm_source.valid_yn      := 'N';
+    l_sm_source.result        := 'Success.';
   
     IF i_compile THEN 
  
@@ -1619,11 +1619,11 @@ END;
                      ,i_with_plscope => i_aop_ver = 'AOP'
                      ,i_for_logger   => i_aop_ver = 'AOP');
 
-          l_aop_source.valid_yn := 'Y';
+          l_sm_source.valid_yn := 'Y';
       exception
           when others then
-          l_aop_source.result   := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
-           ms_logger.warn_error(l_node);   
+          l_sm_source.result   := DBMS_UTILITY.FORMAT_ERROR_BACKTRACE;
+           sm_logger.warn_error(l_node);   
         
         --Output Show Errors info
             FOR l_error IN (select line||' '||text  error_line
@@ -1632,23 +1632,23 @@ END;
                         AND   type = i_type)
             LOOP
               DBMS_OUTPUT.PUT_LINE(l_error.error_line);
-              ms_logger.warning(l_node,l_error.error_line); 
-              l_aop_source.result := l_aop_source.result ||chr(10)||l_error.error_line;
+              sm_logger.warning(l_node,l_error.error_line); 
+              l_sm_source.result := l_sm_source.result ||chr(10)||l_error.error_line;
             END LOOP;
     
       end;
  
     end if;
  
-    ins_upd_aop_source(i_aop_source => l_aop_source);
+    ins_upd_sm_source(i_sm_source => l_sm_source);
        
     COMMIT;
     
-    RETURN NOT i_compile OR l_aop_source.valid_yn = 'Y';
+    RETURN NOT i_compile OR l_sm_source.valid_yn = 'Y';
  
   exception
       when others then
-         ms_logger.oracle_error(l_node);  
+         sm_logger.oracle_error(l_node);  
          RETURN FALSE;	   
   
   END;
@@ -1673,7 +1673,7 @@ END;
                    ,i_indent   in number   default null
                    ,i_colour   in varchar2 default null ) IS
                    
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'splice');  
+    l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'splice');  
     l_new_code        CLOB;
     l_colour          VARCHAR2(10);
     l_leading_nl_offset       INTEGER := 0; --NO OFFSET 
@@ -1687,32 +1687,32 @@ END;
 
   BEGIN
 
-    --ms_logger.param(l_node, 'io_code'          ,io_code );
-    --ms_logger.param(l_node, 'LENGTH(io_code)'  ,LENGTH(io_code)  );
-    --ms_logger.param(l_node, 'i_new_code'      ,i_new_code);
-    ms_logger.param(l_node, 'i_pos     '       ,i_pos     );
-    ms_logger.param(l_node, 'i_indent     '    ,i_indent     );
-    ms_logger.param(l_node, 'i_colour  '       ,i_colour     );
+    --sm_logger.param(l_node, 'io_code'          ,io_code );
+    --sm_logger.param(l_node, 'LENGTH(io_code)'  ,LENGTH(io_code)  );
+    --sm_logger.param(l_node, 'i_new_code'      ,i_new_code);
+    sm_logger.param(l_node, 'i_pos     '       ,i_pos     );
+    sm_logger.param(l_node, 'i_indent     '    ,i_indent     );
+    sm_logger.param(l_node, 'i_colour  '       ,i_colour     );
 
-    ms_logger.note(l_node, 'g_for_aop_html     '     ,g_for_aop_html     );
+    sm_logger.note(l_node, 'g_for_aop_html     '     ,g_for_aop_html     );
 
     l_new_code := f_colour(i_text   => i_new_code
                           ,i_colour => NVL(i_colour, G_COLOUR_SPLICE));
-    ms_logger.note(l_node, 'l_new_code     '     ,l_new_code     );
+    sm_logger.note(l_node, 'l_new_code     '     ,l_new_code     );
   
 
-    --ms_logger.note(l_node, 'char @ intial pos-2     '   ,substr(io_code, i_pos-2, 1)||ascii(substr(io_code, i_pos-2, 1)));
-    --ms_logger.note(l_node, 'char @ intial pos-1     '   ,substr(io_code, i_pos-1, 1)||ascii(substr(io_code, i_pos-1, 1)));
-    --ms_logger.note(l_node, 'char @ intial pos       '   ,substr(io_code, i_pos, 1)||ascii(substr(io_code, i_pos, 1)));
-    --ms_logger.note(l_node, 'char @ intial pos+1     '   ,substr(io_code, i_pos+1, 1)||ascii(substr(io_code, i_pos+1, 1)));
-    --ms_logger.note(l_node, 'char @ intial pos+2     '   ,substr(io_code, i_pos+2, 1)||ascii(substr(io_code, i_pos+2, 1)));
+    --sm_logger.note(l_node, 'char @ intial pos-2     '   ,substr(io_code, i_pos-2, 1)||ascii(substr(io_code, i_pos-2, 1)));
+    --sm_logger.note(l_node, 'char @ intial pos-1     '   ,substr(io_code, i_pos-1, 1)||ascii(substr(io_code, i_pos-1, 1)));
+    --sm_logger.note(l_node, 'char @ intial pos       '   ,substr(io_code, i_pos, 1)||ascii(substr(io_code, i_pos, 1)));
+    --sm_logger.note(l_node, 'char @ intial pos+1     '   ,substr(io_code, i_pos+1, 1)||ascii(substr(io_code, i_pos+1, 1)));
+    --sm_logger.note(l_node, 'char @ intial pos+2     '   ,substr(io_code, i_pos+2, 1)||ascii(substr(io_code, i_pos+2, 1)));
 
     IF i_indent is not null then
       ----INJECT LINE
  
       IF ascii(substr(io_code, i_pos-1, 1)) = 10 then
         --Current char is a NL - we want to skip it in the splice, since we are going to add a NL infront of the splice anyway.
-        ms_logger.comment(l_node, 'Seting the NL offset to remove 1 NL');
+        sm_logger.comment(l_node, 'Seting the NL offset to remove 1 NL');
         l_leading_nl_offset := 1;
       END IF;
  
@@ -1722,7 +1722,7 @@ END;
  
       IF REGEXP_INSTR(io_code,G_REGEX_WORD_CHAR,i_pos) < INSTR(io_code,chr(10),i_pos) THEN
         --Add a trailing newline, because there is a word-char before the next NL.
-        ms_logger.comment(l_node, 'Add a trailing newline');
+        sm_logger.comment(l_node, 'Add a trailing newline');
         l_new_code := l_new_code||chr(10);
         l_trailing_nl_offset := 1;
       END IF;
@@ -1737,14 +1737,14 @@ END;
 
     i_pos := i_pos + length(l_new_code)-l_leading_nl_offset-l_trailing_nl_offset;  
 
-    --ms_logger.note(l_node, 'char @ final pos-2     '   ,substr(io_code, i_pos-2, 1)||ascii(substr(io_code, i_pos-2, 1)));
-    --ms_logger.note(l_node, 'char @ final pos-1     '   ,substr(io_code, i_pos-1, 1)||ascii(substr(io_code, i_pos-1, 1)));
-    --ms_logger.note(l_node, 'char @ final pos       '   ,substr(io_code, i_pos, 1)||ascii(substr(io_code, i_pos, 1)));
-    --ms_logger.note(l_node, 'char @ final pos+1     '   ,substr(io_code, i_pos+1, 1)||ascii(substr(io_code, i_pos+1, 1)));
-    --ms_logger.note(l_node, 'char @ final pos+2     '   ,substr(io_code, i_pos+2, 1)||ascii(substr(io_code, i_pos+2, 1)));
+    --sm_logger.note(l_node, 'char @ final pos-2     '   ,substr(io_code, i_pos-2, 1)||ascii(substr(io_code, i_pos-2, 1)));
+    --sm_logger.note(l_node, 'char @ final pos-1     '   ,substr(io_code, i_pos-1, 1)||ascii(substr(io_code, i_pos-1, 1)));
+    --sm_logger.note(l_node, 'char @ final pos       '   ,substr(io_code, i_pos, 1)||ascii(substr(io_code, i_pos, 1)));
+    --sm_logger.note(l_node, 'char @ final pos+1     '   ,substr(io_code, i_pos+1, 1)||ascii(substr(io_code, i_pos+1, 1)));
+    --sm_logger.note(l_node, 'char @ final pos+2     '   ,substr(io_code, i_pos+2, 1)||ascii(substr(io_code, i_pos+2, 1)));
     
-    --ms_logger.note(l_node, 'io_code     '     ,io_code     );
-    --ms_logger.note(l_node, 'i_pos     '      ,i_pos     );
+    --sm_logger.note(l_node, 'io_code     '     ,io_code     );
+    --sm_logger.note(l_node, 'i_pos     '      ,i_pos     );
 
   END;
   
@@ -1923,7 +1923,7 @@ FUNCTION get_next(i_srch_before        IN     VARCHAR2 DEFAULT NULL
                  ,io_upto_pos           IN OUT INTEGER 
                  ,io_past_pos           IN OUT INTEGER ) return CLOB IS
 
-  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next'); 
+  l_node   sm_logger.node_typ := sm_logger.new_proc(g_package_name,'get_next'); 
   
   l_any_match             CLOB;  --the match from any of the componants
   l_trimmed_any_match     CLOB;
@@ -1947,7 +1947,7 @@ FUNCTION get_next(i_srch_before        IN     VARCHAR2 DEFAULT NULL
   */
   PROCEDURE consume_search IS
   BEGIN
-    ms_logger.comment(l_node, 'Consume search componant');
+    sm_logger.comment(l_node, 'Consume search componant');
     l_colour_either_match := f_colour(i_text   => l_trimmed_any_match  
                                      ,i_colour => i_colour);
  
@@ -1963,19 +1963,19 @@ FUNCTION get_next(i_srch_before        IN     VARCHAR2 DEFAULT NULL
  
 
 BEGIN --GET_NEXT
-  ms_logger.param(l_node, 'i_srch_before'     ,i_srch_before);
-  ms_logger.param(l_node, 'i_srch_after'      ,i_srch_after);
-  ms_logger.param(l_node, 'i_stop'            ,i_stop);
-  ms_logger.param(l_node, 'i_modifier     '   ,i_modifier     );
-  ms_logger.param(l_node, 'i_upper        '   ,i_upper        );
-  ms_logger.param(l_node, 'i_lower        '   ,i_lower        );
-  ms_logger.param(l_node, 'i_colour       '   ,i_colour       );
-  ms_logger.param(l_node, 'i_raise_error  '   ,i_raise_error  );
-  ms_logger.param(l_node, 'i_trim_pointers'   ,i_trim_pointers);
-  ms_logger.param(l_node, 'i_trim_result  '   ,i_trim_result  );
-  ms_logger.param(l_node, 'io_current_pos'    ,io_current_pos);
-  ms_logger.param(l_node, 'io_upto_pos'       ,io_upto_pos);
-  ms_logger.param(l_node, 'io_past_pos'       ,io_past_pos);
+  sm_logger.param(l_node, 'i_srch_before'     ,i_srch_before);
+  sm_logger.param(l_node, 'i_srch_after'      ,i_srch_after);
+  sm_logger.param(l_node, 'i_stop'            ,i_stop);
+  sm_logger.param(l_node, 'i_modifier     '   ,i_modifier     );
+  sm_logger.param(l_node, 'i_upper        '   ,i_upper        );
+  sm_logger.param(l_node, 'i_lower        '   ,i_lower        );
+  sm_logger.param(l_node, 'i_colour       '   ,i_colour       );
+  sm_logger.param(l_node, 'i_raise_error  '   ,i_raise_error  );
+  sm_logger.param(l_node, 'i_trim_pointers'   ,i_trim_pointers);
+  sm_logger.param(l_node, 'i_trim_result  '   ,i_trim_result  );
+  sm_logger.param(l_node, 'io_current_pos'    ,io_current_pos);
+  sm_logger.param(l_node, 'io_upto_pos'       ,io_upto_pos);
+  sm_logger.param(l_node, 'io_past_pos'       ,io_past_pos);
 
   --Workaround - when i_srch_before gets too long -> ORA-03113: end-of-file on communication channel
   --So split into 2 searches.
@@ -1988,15 +1988,15 @@ BEGIN --GET_NEXT
 
   ELSIF i_srch_before IS NOT NULL AND i_srch_after IS NOT NULL THEN 
 
-    ms_logger.comment(l_node, 'Choosing search param');
+    sm_logger.comment(l_node, 'Choosing search param');
  
  --@TODO May be useful to test the after pos, instead of the before position esp WRT '.*:='
     --Find out which seach terms (i_srch_before or i_srch_after) find the first result.
     l_srch_before_pos  := REGEXP_INSTR_NOT0(io_code,i_srch_before,io_current_pos,1,0,i_modifier);
     l_srch_after_pos   := REGEXP_INSTR_NOT0(io_code,i_srch_after ,io_current_pos,1,0,i_modifier);
 
-    ms_logger.note(l_node, 'l_srch_before_pos',l_srch_before_pos);
-    ms_logger.note(l_node, 'l_srch_after_pos',l_srch_after_pos);
+    sm_logger.note(l_node, 'l_srch_before_pos',l_srch_before_pos);
+    sm_logger.note(l_node, 'l_srch_after_pos',l_srch_after_pos);
  
     --Use search before, if that term yields the first (earliest) result.  Otherwise search after.
     l_use_srch_before := l_srch_before_pos < l_srch_after_pos;
@@ -2004,24 +2004,24 @@ BEGIN --GET_NEXT
   end if;
  
   If l_use_srch_before THEN
-      ms_logger.info(l_node, 'Using i_srch_before|i_stop');
+      sm_logger.info(l_node, 'Using i_srch_before|i_stop');
       l_any_search := TRIM('|' FROM i_srch_before ||'|'||i_stop);
     else
-      ms_logger.info(l_node, 'Using i_stop|i_srch_after');
+      sm_logger.info(l_node, 'Using i_stop|i_srch_after');
       l_any_search := TRIM('|' FROM i_stop ||'|'||i_srch_after);
   end if;
 
  
-  ms_logger.note(l_node, 'l_any_search',l_any_search  );
-  ms_logger.note_length(l_node, 'l_any_search',l_any_search  );
+  sm_logger.note(l_node, 'l_any_search',l_any_search  );
+  sm_logger.note_length(l_node, 'l_any_search',l_any_search  );
  
   --Keep the original "either" match
   l_any_match := REGEXP_SUBSTR(io_code,l_any_search,io_current_pos,1,i_modifier);
-  ms_logger.note_clob(l_node, 'l_any_match',l_any_match  );
+  sm_logger.note_clob(l_node, 'l_any_match',l_any_match  );
  
   --Should we raise an error?
   IF l_any_match IS NULL AND i_raise_error THEN
-    ms_logger.fatal(l_node, 'String missing '||l_any_search);
+    sm_logger.fatal(l_node, 'String missing '||l_any_search);
     wedge( i_new_code => 'STRING NOT FOUND '||l_any_search
           ,i_colour   => G_COLOUR_ERROR);
     RAISE x_string_not_found;
@@ -2031,7 +2031,7 @@ BEGIN --GET_NEXT
   --Calculate the new positions.  
   io_upto_pos := REGEXP_INSTR(io_code,l_any_search,io_current_pos,1,0,i_modifier);
   io_past_pos := REGEXP_INSTR(io_code,l_any_search,io_current_pos,1,1,i_modifier);     
-  ms_logger.note(l_node, 'io_upto_pos',io_upto_pos  );
+  sm_logger.note(l_node, 'io_upto_pos',io_upto_pos  );
  
   
   l_trimmed_any_match := trim_whitespace(l_any_match);
@@ -2046,40 +2046,40 @@ BEGIN --GET_NEXT
   
     --Now that we've trimmed the match, lets change the pointers to suit.
     --Not a regex search, since just searching for the known string.
-    ms_logger.info(l_node, 'Shifting pointers to trimmed match.');
+    sm_logger.info(l_node, 'Shifting pointers to trimmed match.');
     io_upto_pos := INSTR(io_code,l_trimmed_any_match,io_upto_pos);
     io_past_pos := io_upto_pos + LENGTH(l_trimmed_any_match);
-    ms_logger.note(l_node, 'io_upto_pos',io_upto_pos  );
-    ms_logger.note(l_node, 'io_past_pos',io_past_pos  );   
+    sm_logger.note(l_node, 'io_upto_pos',io_upto_pos  );
+    sm_logger.note(l_node, 'io_past_pos',io_past_pos  );   
   
   END IF;
  
  
   --Determine the priority i_srch_before > i_stop > i_srch_after
   IF  l_use_srch_before AND regex_match(l_any_match,i_srch_before,i_modifier) THEN
-    ms_logger.info(l_node, 'Matched on the search componant1');
+    sm_logger.info(l_node, 'Matched on the search componant1');
     consume_search;
  
   ELSIF regex_match(l_any_match,i_stop,i_modifier) THEN
-    ms_logger.info(l_node, 'Matched on the stop componant');
+    sm_logger.info(l_node, 'Matched on the stop componant');
     --Matched on the stop componant, don't consume - ie don't advance the pointer.
     NULL;
   ELSIF NOT l_use_srch_before AND regex_match(l_any_match,i_srch_after,i_modifier) THEN
-    ms_logger.info(l_node, 'Matched on the search componant2');
+    sm_logger.info(l_node, 'Matched on the search componant2');
     consume_search;  
   END IF;
  
  
-  --ms_logger.param(l_node, 'io_current_pos',io_current_pos);
-  --ms_logger.note(l_node, 'char @ io_current_pos -2     '   ,substr(io_code, io_current_pos-2, 1)||ascii(substr(io_code, io_current_pos-2, 1)));
-  --ms_logger.note(l_node, 'char @ io_current_pos -1     '   ,substr(io_code, io_current_pos-1, 1)||ascii(substr(io_code, io_current_pos-1, 1)));
-  --ms_logger.note(l_node, 'char @ io_current_pos        '   ,substr(io_code, io_current_pos, 1)||ascii(substr(io_code, io_current_pos, 1)));
-  --ms_logger.note(l_node, 'char @ io_current_pos +1     '   ,substr(io_code, io_current_pos+1, 1)||ascii(substr(io_code, io_current_pos+1, 1)));
-  --ms_logger.note(l_node, 'char @ io_current_pos +2     '   ,substr(io_code, io_current_pos+2, 1)||ascii(substr(io_code, io_current_pos+2, 1)));
+  --sm_logger.param(l_node, 'io_current_pos',io_current_pos);
+  --sm_logger.note(l_node, 'char @ io_current_pos -2     '   ,substr(io_code, io_current_pos-2, 1)||ascii(substr(io_code, io_current_pos-2, 1)));
+  --sm_logger.note(l_node, 'char @ io_current_pos -1     '   ,substr(io_code, io_current_pos-1, 1)||ascii(substr(io_code, io_current_pos-1, 1)));
+  --sm_logger.note(l_node, 'char @ io_current_pos        '   ,substr(io_code, io_current_pos, 1)||ascii(substr(io_code, io_current_pos, 1)));
+  --sm_logger.note(l_node, 'char @ io_current_pos +1     '   ,substr(io_code, io_current_pos+1, 1)||ascii(substr(io_code, io_current_pos+1, 1)));
+  --sm_logger.note(l_node, 'char @ io_current_pos +2     '   ,substr(io_code, io_current_pos+2, 1)||ascii(substr(io_code, io_current_pos+2, 1)));
  
-  ms_logger.note_clob(l_node, 'l_result',l_result); 
+  sm_logger.note_clob(l_node, 'l_result',l_result); 
 
-  ms_logger.note_clob(l_node, 'l_result with LF,CR,SP' ,REPLACE(
+  sm_logger.note_clob(l_node, 'l_result with LF,CR,SP' ,REPLACE(
                                                         REPLACE(
                                                         REPLACE(l_result,chr(10),'[LF]')
                                                                         ,chr(13),'[CR]')
@@ -2096,7 +2096,7 @@ BEGIN --GET_NEXT
 
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise;
 
 END get_next;
@@ -2229,13 +2229,13 @@ FUNCTION grab_upto(i_stop          IN VARCHAR2 DEFAULT NULL
                   ,i_lower         IN BOOLEAN  DEFAULT FALSE
                   ,i_upper         IN BOOLEAN  DEFAULT FALSE
                   ) return varchar2 is
-l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'grab_upto'); 
+l_node   sm_logger.node_typ := sm_logger.new_proc(g_package_name,'grab_upto'); 
   l_dummy  CLOB;
   l_result CLOB;
   l_colour_result CLOB;
 BEGIN
 
-  ms_logger.param(l_node, 'i_stop' ,i_stop); 
+  sm_logger.param(l_node, 'i_stop' ,i_stop); 
 
   if i_stop is not null then
 
@@ -2272,7 +2272,7 @@ BEGIN
   --Current pos is now the pto pos 
   g_current_pos := g_upto_pos;
 
-  ms_logger.note(l_node, 'l_result' ,l_result); 
+  sm_logger.note(l_node, 'l_result' ,l_result); 
 
   return l_result;
  
@@ -2292,7 +2292,7 @@ END;
 * @return l_object_name
 */
 FUNCTION get_next_object_name RETURN VARCHAR2 IS
-  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'get_next_object_name'); 
+  l_node   sm_logger.node_typ := sm_logger.new_proc(g_package_name,'get_next_object_name'); 
   l_object_name VARCHAR2(100);
 
 BEGIN
@@ -2303,7 +2303,7 @@ BEGIN
                            ,i_raise_error  => TRUE);
   --Check for double-word
   IF regex_match(l_object_name , G_REGEX_2_QUOTED_WORDS) THEN
-    ms_logger.comment(l_node, 'Double word name - get 2nd word'); 
+    sm_logger.comment(l_node, 'Double word name - get 2nd word'); 
     l_object_name := REGEXP_SUBSTR(l_object_name,G_REGEX_WORD,1,2,'i');
  
   END IF;
@@ -2374,7 +2374,7 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
                        ,io_var_list    IN OUT var_list_typ
                        ,i_pu_stack     IN     pu_stack_typ) is
 
-  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_params'); 
+  l_node   sm_logger.node_typ := sm_logger.new_proc(g_package_name,'AOP_pu_params'); 
  
   l_param_line           CLOB;
   
@@ -2435,16 +2435,16 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
                          ,i_in_var     IN BOOLEAN
                          ,i_out_var    IN BOOLEAN ) IS
                          
-  l_node     ms_logger.node_typ := ms_logger.new_proc(g_package_name,'store_var_def'); 
+  l_node     sm_logger.node_typ := sm_logger.new_proc(g_package_name,'store_var_def'); 
   l_var      var_rec_typ;
                     
   BEGIN
   
-    ms_logger.param(l_node, 'i_param_name' ,i_param_name); 
-    ms_logger.param(l_node, 'i_param_type' ,i_param_type); 
-    ms_logger.param(l_node, 'i_rowtype' ,   i_rowtype); 
-    ms_logger.param(l_node, 'i_in_var    ' ,i_in_var    ); 
-    ms_logger.param(l_node, 'i_out_var   ' ,i_out_var   ); 
+    sm_logger.param(l_node, 'i_param_name' ,i_param_name); 
+    sm_logger.param(l_node, 'i_param_type' ,i_param_type); 
+    sm_logger.param(l_node, 'i_rowtype' ,   i_rowtype); 
+    sm_logger.param(l_node, 'i_in_var    ' ,i_in_var    ); 
+    sm_logger.param(l_node, 'i_out_var   ' ,i_out_var   ); 
 
     l_var :=  create_var_rec(i_param_name => i_param_name
                             ,i_param_type => i_param_type
@@ -2472,7 +2472,7 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
  
       IF i_in_var OR NOT i_out_var THEN
           --IN and IN OUT and (implicit IN) included in the param input list.
-          ms_logger.comment(l_node, 'Stored IN var');  
+          sm_logger.comment(l_node, 'Stored IN var');  
           l_var.name    := i_param_name;
           l_var.type    := i_param_type;
           l_var.in_var  := i_in_var OR NOT i_out_var;   --in  param implcit or explicit
@@ -2489,18 +2489,18 @@ PROCEDURE AOP_pu_params(io_param_list  IN OUT param_list_typ
     
        IF i_out_var THEN
           --Save IN OUT and OUT params in the variable list. 
-          ms_logger.comment(l_node, 'Stored OUT var');  
+          sm_logger.comment(l_node, 'Stored OUT var');  
   
           store_var_list(i_var  _name => i_param_name
                         ,i_param_type => i_param_type
                         ,io_var_list  => io_var_list );
    
-          ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);
+          sm_logger.note(l_node, 'io_var_list.count',io_var_list.count);
         END IF;
 
     ELSE
     
-      ms_logger.warning(l_node, 'Not a predefined type. '||G_REGEX_ATOMIC_TYPES);      
+      sm_logger.warning(l_node, 'Not a predefined type. '||G_REGEX_ATOMIC_TYPES);      
  
     END IF;
     */
@@ -2527,7 +2527,7 @@ BEGIN
     --NEW PARAMETER LINE
     WHEN regex_match(l_keyword , G_REGEX_OPEN_BRACKET
                                ||'|'||G_REGEX_COMMA)        THEN
-           ms_logger.comment(l_node, 'Found new parameter');
+           sm_logger.comment(l_node, 'Found new parameter');
          --find the parameter - Search for Eg
              --  varname IN OUT vartype ,
              --  varname IN vartype)
@@ -2542,36 +2542,36 @@ BEGIN
                                     ,i_colour       => G_COLOUR_PARAM
                                     ,i_raise_error  => TRUE);
              
-            ms_logger.note(l_node, 'l_var_def',l_var_def);
+            sm_logger.note(l_node, 'l_var_def',l_var_def);
 
 
             --temp debugging only
-          -- ms_logger.note(l_node, 'l_var_def p1', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',1));
-          -- ms_logger.note(l_node, 'l_var_def p2', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',2));
-          -- ms_logger.note(l_node, 'l_var_def p3', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',3));
-          -- ms_logger.note(l_node, 'l_var_def p4', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',4));
-          -- ms_logger.note(l_node, 'l_var_def p5', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',5));
-          -- ms_logger.note(l_node, 'l_var_def p6', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',6));
-          -- ms_logger.note(l_node, 'l_var_def p7', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',7));
-          -- ms_logger.note(l_node, 'l_var_def p8', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',8));
+          -- sm_logger.note(l_node, 'l_var_def p1', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',1));
+          -- sm_logger.note(l_node, 'l_var_def p2', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',2));
+          -- sm_logger.note(l_node, 'l_var_def p3', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',3));
+          -- sm_logger.note(l_node, 'l_var_def p4', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',4));
+          -- sm_logger.note(l_node, 'l_var_def p5', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',5));
+          -- sm_logger.note(l_node, 'l_var_def p6', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',6));
+          -- sm_logger.note(l_node, 'l_var_def p7', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',7));
+          -- sm_logger.note(l_node, 'l_var_def p8', REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',8));
 
 
              
              l_in_var  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',3)) LIKE 'IN%';
              l_out_var := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',4)) LIKE 'OUT%';
-             ms_logger.note(l_node, 'l_in_var',l_in_var);
-             ms_logger.note(l_node, 'l_out_var',l_out_var);
+             sm_logger.note(l_node, 'l_in_var',l_in_var);
+             sm_logger.note(l_node, 'l_out_var',l_out_var);
      
              CASE 
 
             WHEN regex_match(l_var_def , G_REGEX_PARAM_ROWTYPE) THEN
-              ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
+              sm_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
               --Looking for ROWTYPE VARS
                  l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_ROWTYPE,1,1,'i',1));
                  l_table_name  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_ROWTYPE,1,1,'i',5));
           
-                 ms_logger.note(l_node, 'l_param_name',l_param_name); 
-                 ms_logger.note(l_node, 'l_table_name',l_table_name); 
+                 sm_logger.note(l_node, 'l_param_name',l_param_name); 
+                 sm_logger.note(l_node, 'l_table_name',l_table_name); 
   
                  --Remember the Record name itself as a var with a type of TABLE_NAME
                  --store_var_list(i_var  _name => l_param_name
@@ -2585,18 +2585,18 @@ BEGIN
                               ,i_out_var    => l_out_var );
 
  
-                 ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
+                 sm_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
        
             
             WHEN regex_match(l_var_def , G_REGEX_PARAM_COLTYPE) THEN
-              ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
+              sm_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
                  l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',1));
                  l_table_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',5));
                  l_column_name   := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_COLTYPE,1,1,'i',7));
             
-                 ms_logger.note(l_node, 'l_param_name' ,l_param_name); 
-                 ms_logger.note(l_node, 'l_table_name' ,l_table_name); 
-                 ms_logger.note(l_node, 'l_column_name',l_column_name);     
+                 sm_logger.note(l_node, 'l_param_name' ,l_param_name); 
+                 sm_logger.note(l_node, 'l_table_name' ,l_table_name); 
+                 sm_logger.note(l_node, 'l_column_name',l_column_name);     
             
             --This should find only 1 record
             l_table_owner := table_owner(i_table_name => l_table_name);
@@ -2619,12 +2619,12 @@ BEGIN
              --@TODO will also need to cover database types and object types
 
             WHEN regex_match(l_var_def , G_REGEX_PARAM_PREDEFINED) THEN
-              ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
+              sm_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
               --LOOKING FOR ATOMIC VARS
                 l_param_name := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_PREDEFINED,1,1,'i',1));
                 l_param_type := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_PARAM_PREDEFINED,1,1,'i',5));
-                ms_logger.note(l_node, 'l_param_name',l_param_name);
-                ms_logger.note(l_node, 'l_param_type',l_param_type);
+                sm_logger.note(l_node, 'l_param_name',l_param_name);
+                sm_logger.note(l_node, 'l_param_type',l_param_type);
                 
                 store_var_def(i_param_name  => l_param_name
                              ,i_param_type  => l_param_type
@@ -2636,20 +2636,20 @@ BEGIN
 
 
             WHEN regex_match(l_var_def , G_REGEX_CUSTOM_PLSQL_TYPE_2WD) THEN
-              ms_logger.info(l_node, 'LOOKING FOR FOREIGN CUSTOM PLSQL TYPE VARS');
+              sm_logger.info(l_node, 'LOOKING FOR FOREIGN CUSTOM PLSQL TYPE VARS');
 
                  l_in_var  := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',3)) LIKE 'IN%';
                  l_out_var := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_NAME_IN_OUT,1,1,'i',4)) LIKE 'OUT%';
-                 ms_logger.note(l_node, 'l_in_var',l_in_var);
-                 ms_logger.note(l_node, 'l_out_var',l_out_var);
+                 sm_logger.note(l_node, 'l_in_var',l_in_var);
+                 sm_logger.note(l_node, 'l_out_var',l_out_var);
  
                  l_param_name      := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_2WD,1,1,'i',1));
                  l_package_name    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_2WD,1,1,'i',5));
                  l_type_name       := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_2WD,1,1,'i',7));
 
-                 ms_logger.note(l_node, 'l_param_name'   ,l_param_name);
-                 ms_logger.note(l_node, 'l_package_name' ,l_package_name);
-                 ms_logger.note(l_node, 'l_type_name'    ,l_type_name);
+                 sm_logger.note(l_node, 'l_param_name'   ,l_param_name);
+                 sm_logger.note(l_node, 'l_package_name' ,l_package_name);
+                 sm_logger.note(l_node, 'l_type_name'    ,l_type_name);
 
                  --@TODO Currently assuming a 2WD typename is package.type but could also be user.type
                  --   Need to also search for user.package.type
@@ -2667,7 +2667,7 @@ BEGIN
                               ,i_in_var     => l_in_var
                               ,i_out_var    => l_out_var );
  
-                 ms_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
+                 sm_logger.note(l_node, 'io_var_list.count',io_var_list.count);   
  
  /*
                  --Only attempts to write out atomic vars, unless we start recursion..
@@ -2686,7 +2686,7 @@ BEGIN
                       and    type_name    =  l_package_name
                       and    type_subname =  l_type_name  ) LOOP
 
-                     ms_logger.note(l_node, 'l_column.data_type',l_column.data_type);
+                     sm_logger.note(l_node, 'l_column.data_type',l_column.data_type);
                       
                       --Restrict to atomic types.
                       IF is_atomic_type(i_type => l_column.data_type) THEN
@@ -2697,14 +2697,14 @@ BEGIN
                                        ,i_in_var      => l_in_var
                                        ,i_out_var     => l_out_var );
                       ELSE
-                         ms_logger.note(l_node, 'l_column.data_type',l_column.data_type);   
-                         ms_logger.warning(l_node, 'Parameter data type not recognised atomic data type.');   
+                         sm_logger.note(l_node, 'l_column.data_type',l_column.data_type);   
+                         sm_logger.warning(l_node, 'Parameter data type not recognised atomic data type.');   
                       END IF;    
     
                    END LOOP; 
                    
                    if not l_param_found then
-                     ms_logger.warning(l_node, 'Parameter NOT stored!');
+                     sm_logger.warning(l_node, 'Parameter NOT stored!');
                    end if;
 
                  end;
@@ -2716,26 +2716,26 @@ BEGIN
 
 
             WHEN regex_match(l_var_def , G_REGEX_CUSTOM_PLSQL_TYPE_1WD) THEN
-              ms_logger.info(l_node, 'LOOKING FOR LOCAL CUSTOM PLSQL TYPE VARS');
+              sm_logger.info(l_node, 'LOOKING FOR LOCAL CUSTOM PLSQL TYPE VARS');
 
               --temp debugging only
-              ms_logger.note(l_node, 'l_var_def p1', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',1));
-              ms_logger.note(l_node, 'l_var_def p2', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',2));
-              ms_logger.note(l_node, 'l_var_def p3', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',3));
-              ms_logger.note(l_node, 'l_var_def p4', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',4));
-              ms_logger.note(l_node, 'l_var_def p5', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',5));
-              ms_logger.note(l_node, 'l_var_def p6', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',6));
-              ms_logger.note(l_node, 'l_var_def p7', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',7));
-              ms_logger.note(l_node, 'l_var_def p8', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',8));
+              sm_logger.note(l_node, 'l_var_def p1', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',1));
+              sm_logger.note(l_node, 'l_var_def p2', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',2));
+              sm_logger.note(l_node, 'l_var_def p3', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',3));
+              sm_logger.note(l_node, 'l_var_def p4', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',4));
+              sm_logger.note(l_node, 'l_var_def p5', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',5));
+              sm_logger.note(l_node, 'l_var_def p6', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',6));
+              sm_logger.note(l_node, 'l_var_def p7', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',7));
+              sm_logger.note(l_node, 'l_var_def p8', REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',8));
 
 
                  l_param_name      := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',1));
                  l_param_type    := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',5));
                  --l_type_name       := UPPER(REGEXP_SUBSTR(l_var_def,G_REGEX_CUSTOM_PLSQL_TYPE_1WD,1,1,'i',7));
 
-                 ms_logger.note(l_node, 'l_param_name' ,l_param_name);
-                 --ms_logger.note(l_node, 'l_package_name' ,l_package_name);
-                 ms_logger.note(l_node, 'l_param_type',l_param_type);
+                 sm_logger.note(l_node, 'l_param_name' ,l_param_name);
+                 --sm_logger.note(l_node, 'l_package_name' ,l_package_name);
+                 sm_logger.note(l_node, 'l_param_type',l_param_type);
 
                  store_var_def(i_param_name => l_param_name
                               ,i_param_type => l_param_type
@@ -2748,7 +2748,7 @@ BEGIN
           
                --UNSUPPORTED
                ELSE
-                 ms_logger.info(l_node, 'Unsupported datatype');
+                 sm_logger.info(l_node, 'Unsupported datatype');
                 go_past(i_search => G_REGEX_CUSTOM_PLSQL_TYPE_2WD
                        ,i_colour => G_COLOUR_UNSUPPORTED);
 
@@ -2760,7 +2760,7 @@ BEGIN
  
        --DEFAULT or :=
     WHEN regex_match(l_keyword , G_REGEX_DEFAULT) THEN 
-      ms_logger.comment(l_node, 'Found DEFAULT, searching for complex value');
+      sm_logger.comment(l_node, 'Found DEFAULT, searching for complex value');
  
       l_bracket_count := 0;
       loop
@@ -2769,7 +2769,7 @@ BEGIN
                                             ||'|'||G_REGEX_COMMA
                                   ,i_raise_error => TRUE);
  
-            ms_logger.note(l_node, 'l_bracket' ,l_bracket); 
+            sm_logger.note(l_node, 'l_bracket' ,l_bracket); 
             CASE 
         WHEN regex_match(l_bracket , G_REGEX_COMMA) THEN
           EXIT WHEN l_bracket_count = 0;
@@ -2782,7 +2782,7 @@ BEGIN
         EXIT WHEN l_bracket_count = -1;
 
               ELSE 
-          ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
+          sm_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
         RAISE x_invalid_keyword;
         END CASE; 
         go_past(i_colour => G_COLOUR_BRACKETS);
@@ -2791,7 +2791,7 @@ BEGIN
  
     --  --NO MORE PARAMS
     WHEN regex_match(l_keyword , G_REGEX_RETURN_IS_AS_DECLARE) THEN
-          ms_logger.comment(l_node, 'No more parameters');
+          sm_logger.comment(l_node, 'No more parameters');
           --Needed to find Return to get to end of params, 
           --but now make sure we consume the IS/AS/DECLARE (DECLARE for triggers).
           go_past(i_search => G_REGEX_IS_AS_DECLARE
@@ -2802,14 +2802,14 @@ BEGIN
           
         --OOPS
         ELSE
-      ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
+      sm_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
           RAISE x_invalid_keyword;
       END CASE;
     EXCEPTION
     WHEN x_out_param THEN  
-      ms_logger.comment(l_node, 'Skipped OUT param');
+      sm_logger.comment(l_node, 'Skipped OUT param');
     WHEN x_unsupported_data_type THEN
-      ms_logger.comment(l_node, 'Unsupported param type');
+      sm_logger.comment(l_node, 'Unsupported param type');
   END;
  
   END LOOP; 
@@ -2822,7 +2822,7 @@ BEGIN
  
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise; 
  
 END AOP_pu_params;    
@@ -2843,7 +2843,7 @@ END AOP_pu_params;
 */
 FUNCTION PLS_pu_assign(i_var_list IN var_list_typ
                       ,i_pu_stack IN pu_stack_typ) RETURN var_list_typ IS
-  l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'PLS_pu_assign'); 
+  l_node sm_logger.node_typ := sm_logger.new_func(g_package_name,'PLS_pu_assign'); 
 
 
 --This query give a qualified list of assigments within a procedure
@@ -2953,23 +2953,23 @@ BEGIN
   if i_pu_stack.count = 0 then
     raise x_no_stack;
   end if;
-  ms_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).name'     ,i_pu_stack(i_pu_stack.last).name);
-  ms_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).signature',i_pu_stack(i_pu_stack.last).signature);
-  ms_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).type'     ,i_pu_stack(i_pu_stack.last).type);
+  sm_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).name'     ,i_pu_stack(i_pu_stack.last).name);
+  sm_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).signature',i_pu_stack(i_pu_stack.last).signature);
+  sm_logger.note(l_node, 'i_pu_stack(i_pu_stack.last).type'     ,i_pu_stack(i_pu_stack.last).type);
 
   --Loop thru each variable assigned within this procedure, or named block.
   FOR l_plscope in cu_plscope_assign(c_parent_signature => i_pu_stack(i_pu_stack.last).signature
                                     ,c_parent_type      => i_pu_stack(i_pu_stack.last).type) LOOP
  
-    ms_logger.note(l_node, 'l_plscope.name'            , l_plscope.name);
-    ms_logger.note(l_node, 'l_plscope.type'            , l_plscope.type);
-    ms_logger.note(l_node, 'l_plscope.signature'       , l_plscope.signature);
-    ms_logger.note(l_node, 'l_plscope.scoped_name'     , l_plscope.scoped_name);
+    sm_logger.note(l_node, 'l_plscope.name'            , l_plscope.name);
+    sm_logger.note(l_node, 'l_plscope.type'            , l_plscope.type);
+    sm_logger.note(l_node, 'l_plscope.signature'       , l_plscope.signature);
+    sm_logger.note(l_node, 'l_plscope.scoped_name'     , l_plscope.scoped_name);
 
     --Add the plscode variable assignment to the var list, 
     --so that later when same variable assignment is found in the source, it can be easilly identified.
     --if l_plscope.type = 'VARIABLE' then
-    --  ms_logger.warning(l_node, 'VARIABLE type from PLScope is not supported.  Ignoring this Assignment.');
+    --  sm_logger.warning(l_node, 'VARIABLE type from PLScope is not supported.  Ignoring this Assignment.');
 
     --else
      store_var_list(i_var       => create_var_rec(i_param_name  => lower(l_plscope.scoped_name)
@@ -3037,7 +3037,7 @@ BEGIN
 
 EXCEPTION
   WHEN x_no_stack THEN
-    ms_logger.fatal(l_node,'Illegal state: There are no program units on the Stack.');
+    sm_logger.fatal(l_node,'Illegal state: There are no program units on the Stack.');
     return l_var_list;
  
 END PLS_pu_assign;  
@@ -3054,7 +3054,7 @@ END PLS_pu_assign;
 */
 FUNCTION AOP_var_defs(i_var_list IN var_list_typ
                      ,i_pu_stack IN pu_stack_typ) RETURN var_list_typ IS
-  l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'AOP_var_defs'); 
+  l_node sm_logger.node_typ := sm_logger.new_func(g_package_name,'AOP_var_defs'); 
   
   l_var_list              var_list_typ := i_var_list;
   l_var_def               CLOB;
@@ -3093,11 +3093,11 @@ BEGIN
                          ,i_upper      => TRUE
                          ,i_colour      => G_COLOUR_VAR_LINE);
  
-  ms_logger.note(l_node, 'l_var_def',l_var_def);
+  sm_logger.note(l_node, 'l_var_def',l_var_def);
  
     CASE 
     WHEN regex_match(l_var_def , G_REGEX_PARAM_PREDEFINED) THEN
-      ms_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
+      sm_logger.info(l_node, 'LOOKING FOR ATOMIC VARS'); 
       --LOOKING FOR ATOMIC VARS
         l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',1));
         l_param_type  := REGEXP_SUBSTR(l_var_def,G_REGEX_VAR_NAME_TYPE,1,1,'i',3);
@@ -3106,8 +3106,8 @@ BEGIN
         --l_param_type  := REGEXP_SUBSTR(l_var_def,G_REGEX_WORD,1,2,'i');
 
    
-        ms_logger.note(l_node, 'l_param_name',l_param_name); 
-        ms_logger.note(l_node, 'l_param_type',l_param_type); 
+        sm_logger.note(l_node, 'l_param_name',l_param_name); 
+        sm_logger.note(l_node, 'l_param_type',l_param_type); 
 
         store_var_list(i_var       => create_var_rec(i_param_name  => l_param_name
                                                     ,i_param_type  => l_param_type
@@ -3122,17 +3122,17 @@ BEGIN
         --  store_var_list(i_var  _name => l_param_name
         --                ,i_param_type => l_param_type
         --                ,io_var_list  => l_var_list );
-        --  ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);     
+        --  sm_logger.note(l_node, 'l_var_list.count',l_var_list.count);     
         --END IF; 
  
     WHEN regex_match(l_var_def , G_REGEX_PARAM_ROWTYPE) THEN
-      ms_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
+      sm_logger.info(l_node, 'LOOKING FOR ROWTYPE VARS'); 
       --Looking for ROWTYPE VARS
         l_param_name  := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_NAME_TYPE,1,1,'i',1));
         l_table_name  := REGEXP_SUBSTR(l_var_def,G_REGEX_REC_VAR_NAME_TYPE,1,1,'i',3);
  
-        ms_logger.note(l_node, 'l_param_name',l_param_name); 
-        ms_logger.note(l_node, 'l_table_name',l_table_name); 
+        sm_logger.note(l_node, 'l_param_name',l_param_name); 
+        sm_logger.note(l_node, 'l_table_name',l_table_name); 
  
         --Remember the Record name itself as a var with a type of TABLE_NAME
         --store_var_list(i_var  _name => l_param_name
@@ -3146,7 +3146,7 @@ BEGIN
                      ,io_var_list  => l_var_list
                      ,i_pu_stack   => i_pu_stack);
  
-        ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);   
+        sm_logger.note(l_node, 'l_var_list.count',l_var_list.count);   
     
     --Also need to add 1 var def for each valid componant of the record type.
     l_table_owner := table_owner(i_table_name => l_table_name);
@@ -3169,20 +3169,20 @@ BEGIN
                         ,i_pu_stack   => i_pu_stack);
 
 
-           ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);       
+           sm_logger.note(l_node, 'l_var_list.count',l_var_list.count);       
          END IF; 
        
     END LOOP;   
     
     WHEN regex_match(l_var_def , G_REGEX_PARAM_COLTYPE) THEN
-        ms_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
+        sm_logger.info(l_node, 'LOOKING FOR TAB COL TYPE VARS'); 
         l_param_name    := LOWER(REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',1));
         l_table_name    :=       REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',3);
         l_column_name   :=       REGEXP_SUBSTR(l_var_def,G_REGEX_TAB_COL_NAME_TYPE,1,1,'i',5);
     
-        ms_logger.note(l_node, 'l_param_name' ,l_param_name); 
-        ms_logger.note(l_node, 'l_table_name' ,l_table_name); 
-        ms_logger.note(l_node, 'l_column_name',l_column_name);    
+        sm_logger.note(l_node, 'l_param_name' ,l_param_name); 
+        sm_logger.note(l_node, 'l_table_name' ,l_table_name); 
+        sm_logger.note(l_node, 'l_column_name',l_column_name);    
     
     --Need to add 1 var def for just one componant of the record type.
     l_table_owner := table_owner(i_table_name => l_table_name);
@@ -3207,14 +3207,14 @@ BEGIN
                          ,io_var_list  => l_var_list
                          ,i_pu_stack   => i_pu_stack);
 
-          ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
+          sm_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
 
          END IF;    
        
     END LOOP; 
  
       ELSE
-      ms_logger.info(l_node,'No more variables.');
+      sm_logger.info(l_node,'No more variables.');
     EXIT;
 
     END CASE;
@@ -3228,7 +3228,7 @@ BEGIN
  
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise; 
  
 END AOP_var_defs;
@@ -3249,7 +3249,7 @@ END AOP_var_defs;
 */
 PROCEDURE labelled_block_extras(io_var_list IN OUT var_list_typ
                                ,io_pu_stack IN OUT pu_stack_typ) IS
-  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'labelled_block_extras'); 
+  l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'labelled_block_extras'); 
 
 begin  
   --@TODO This cannot remain a global value (g_recent_label)
@@ -3288,14 +3288,14 @@ end;
 PROCEDURE AOP_declare_block(i_indent   IN INTEGER
                            ,i_var_list IN var_list_typ
                            ,i_pu_stack IN pu_stack_typ) IS
-  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_declare_block'); 
+  l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'AOP_declare_block'); 
   
   l_var_list          var_list_typ := i_var_list;
   l_pu_stack          pu_stack_typ := i_pu_stack;
   
 BEGIN
 
-  ms_logger.param(l_node, 'i_indent' ,i_indent); 
+  sm_logger.param(l_node, 'i_indent' ,i_indent); 
 
   --Called here and in AOP_block 
   labelled_block_extras(io_var_list => l_var_list
@@ -3323,7 +3323,7 @@ BEGIN
  
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise; 
  
 END AOP_declare_block;
@@ -3349,7 +3349,7 @@ PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
                    ,i_node_type      IN VARCHAR2
                    ,i_var_list       IN var_list_typ
                    ,i_pu_stack       IN pu_stack_typ ) IS
-  l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_is_as'); 
+  l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'AOP_is_as'); 
  
   l_keyword               VARCHAR2(50);
   l_inject_node           VARCHAR2(200);  
@@ -3360,9 +3360,9 @@ PROCEDURE AOP_is_as(i_prog_unit_name IN VARCHAR2
   l_extra_node_params     varchar2(1000);
  
 BEGIN
-  ms_logger.param(l_node, 'i_prog_unit_name' ,i_prog_unit_name); 
-  ms_logger.param(l_node, 'i_indent        ' ,i_indent        ); 
-  ms_logger.param(l_node, 'i_node_type     ' ,i_node_type     ); 
+  sm_logger.param(l_node, 'i_prog_unit_name' ,i_prog_unit_name); 
+  sm_logger.param(l_node, 'i_indent        ' ,i_indent        ); 
+  sm_logger.param(l_node, 'i_node_type     ' ,i_node_type     ); 
 
   if i_node_type = g_node_type_package  then
  
@@ -3397,7 +3397,7 @@ BEGIN
   --NEW PROCESS
   IF UPPER(i_prog_unit_name) = 'BEFOREPFORM' THEN
     --BEFOREPFORM signifies beginning of report. Create a new process before the node
-    l_inject_process :=  'l_process_id INTEGER := ms_logger.new_process('||g_aop_module_name||',''REPORT'',:p_report_run_id);';
+    l_inject_process :=  'l_session_id INTEGER := sm_logger.new_process('||g_aop_module_name||',''REPORT'',:p_report_run_id);';
     inject( i_new_code  => l_inject_process
            ,i_indent    => i_indent
            ,i_colour    => G_COLOUR_NODE);
@@ -3434,7 +3434,7 @@ BEGIN
   end if;
   
   --NEW NODE
-  l_inject_node := 'l_node ms_logger.node_typ := ms_logger.'||i_node_type||'('||g_aop_module_name||' ,'''||i_prog_unit_name||''''||l_extra_node_params||');';
+  l_inject_node := 'l_node sm_logger.node_typ := sm_logger.'||i_node_type||'('||g_aop_module_name||' ,'''||i_prog_unit_name||''''||l_extra_node_params||');';
   inject( i_new_code  =>  l_inject_node
          ,i_indent     => i_indent
          ,i_colour     => G_COLOUR_NODE);   
@@ -3477,7 +3477,7 @@ BEGIN
  
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise; 
  
 END AOP_is_as;
@@ -3542,7 +3542,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                    ,i_regex_end      IN VARCHAR2
                    ,i_var_list       IN var_list_typ
                    ,i_pu_stack       IN pu_stack_typ  )  IS
-  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_block');
+  l_node   sm_logger.node_typ := sm_logger.new_proc(g_package_name,'AOP_block');
 
   l_pu_stack              pu_stack_typ := i_pu_stack;
   
@@ -3645,18 +3645,18 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 
   PROCEDURE note_var(i_var  in varchar2
                     ,i_type in varchar2) IS   
-    l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_var');
+    l_node   sm_logger.node_typ := sm_logger.new_proc(g_package_name,'note_var');
     -- Note a variable 
   BEGIN
-    ms_logger.param(l_node,'i_var' ,i_var);
-    ms_logger.param(l_node,'i_type',i_type);
+    sm_logger.param(l_node,'i_var' ,i_var);
+    sm_logger.param(l_node,'i_type',i_type);
       
     IF i_type = 'CLOB' THEN
-      inject( i_new_code   => 'ms_logger.note_clob(l_node,'||quoted_var_name(i_var)||','||i_var||');'
+      inject( i_new_code   => 'sm_logger.note_clob(l_node,'||quoted_var_name(i_var)||','||i_var||');'
              ,i_indent     => i_indent
              ,i_colour     => G_COLOUR_NOTE);
     ELSE
-      inject( i_new_code   => 'ms_logger.note(l_node,'||quoted_var_name(i_var)||','||i_var||');'
+      inject( i_new_code   => 'sm_logger.note(l_node,'||quoted_var_name(i_var)||','||i_var||');'
              ,i_indent     => i_indent
              ,i_colour     => G_COLOUR_NOTE);
     END IF;
@@ -3669,13 +3669,13 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                             ,i_var        in varchar2
                             ,i_componant  in varchar2 default null) IS
     -- find assignment of non-bind variable and inject a note
-    l_node      ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_complex_var');
+    l_node      sm_logger.node_typ := sm_logger.new_proc(g_package_name,'note_complex_var');
     l_var       varchar2(1000) := upper(i_var);
     
 
       procedure note_record(i_name_prefix in varchar2
                            ,i_signature   in varchar2) is
-      l_node      ms_logger.node_typ := ms_logger.new_proc(g_package_name,'note_record');
+      l_node      sm_logger.node_typ := sm_logger.new_proc(g_package_name,'note_record');
       --This procedure is modular, but currently only called by note_complex_var
 
        --Find columns for this signature.
@@ -3688,32 +3688,32 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
          l_index := l_type_defn_tab.FIRST;
          WHILE l_index is not null loop
 
-           ms_logger.note(l_node,'l_type_defn_tab(l_index).col_name',l_type_defn_tab(l_index).col_name);
-           ms_logger.note(l_node,'l_type_defn_tab(l_index).data_type',l_type_defn_tab(l_index).data_type);
-           ms_logger.note(l_node,'l_type_defn_tab(l_index).data_class',l_type_defn_tab(l_index).data_class);
+           sm_logger.note(l_node,'l_type_defn_tab(l_index).col_name',l_type_defn_tab(l_index).col_name);
+           sm_logger.note(l_node,'l_type_defn_tab(l_index).data_type',l_type_defn_tab(l_index).data_type);
+           sm_logger.note(l_node,'l_type_defn_tab(l_index).data_class',l_type_defn_tab(l_index).data_class);
    
            if l_type_defn_tab(l_index).col_name is null THEN 
-              ms_logger.comment(l_node,'No col_name - Record is just a single unnamed column');
+              sm_logger.comment(l_node,'No col_name - Record is just a single unnamed column');
               note_var(i_var  => i_name_prefix
                       ,i_type => l_type_defn_tab(l_index).data_type);
 
            elsif is_atomic_type(i_type => l_type_defn_tab(l_index).col_name) THEN
-              ms_logger.comment(l_node,'Type in col_name - Record is just a single unnamed column');
+              sm_logger.comment(l_node,'Type in col_name - Record is just a single unnamed column');
               note_var(i_var  => i_name_prefix
                       ,i_type => l_type_defn_tab(l_index).col_name);
            else   
 
              l_col_name := lower(i_name_prefix||'.'||l_type_defn_tab(l_index).col_name);
              IF  is_atomic_type(i_type => l_type_defn_tab(l_index).data_type) THEN 
-                ms_logger.comment(l_node,'Record.Column is an atomic type');
+                sm_logger.comment(l_node,'Record.Column is an atomic type');
                 note_var(i_var  => l_col_name
                         ,i_type => l_type_defn_tab(l_index).data_type);
              ELSIF   l_type_defn_tab(l_index).data_class = 'RECORD' then
-                 ms_logger.comment(l_node,'Record.Column is another record, recursively search lower record.');
+                 sm_logger.comment(l_node,'Record.Column is another record, recursively search lower record.');
                  note_record(i_name_prefix => l_col_name
                             ,i_signature   => l_type_defn_tab(l_index).signature);
              ELSE
-                 ms_logger.fatal(l_node,'Record.Column is unrecognised type');    
+                 sm_logger.fatal(l_node,'Record.Column is unrecognised type');    
              END IF;    
            END IF;
 
@@ -3723,35 +3723,35 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
 
 
   BEGIN --note_complex_var 
-    ms_logger.param(l_node,'i_var_name' ,i_var_name);
-    ms_logger.param(l_node,'i_var'      ,i_var);
-    ms_logger.param(l_node,'i_componant',i_componant);
-    ms_logger.note(l_node ,'l_var'      ,l_var);
+    sm_logger.param(l_node,'i_var_name' ,i_var_name);
+    sm_logger.param(l_node,'i_var'      ,i_var);
+    sm_logger.param(l_node,'i_componant',i_componant);
+    sm_logger.note(l_node ,'l_var'      ,l_var);
     IF l_var_list.EXISTS(l_var) THEN
       --This variable exists in the list of scoped variables with compatible types    
-      ms_logger.comment(l_node, 'Scoped Var Found');
-      ms_logger.note(l_node,'l_var_list(l_var).name',l_var_list(l_var).name);
-      ms_logger.note(l_node,'l_var_list(l_var).type',l_var_list(l_var).type);
-      ms_logger.note(l_node,'l_var_list(l_var).data_class',l_var_list(l_var).data_class);
+      sm_logger.comment(l_node, 'Scoped Var Found');
+      sm_logger.note(l_node,'l_var_list(l_var).name',l_var_list(l_var).name);
+      sm_logger.note(l_node,'l_var_list(l_var).type',l_var_list(l_var).type);
+      sm_logger.note(l_node,'l_var_list(l_var).data_class',l_var_list(l_var).data_class);
 
       IF is_atomic_type(i_type => l_var_list(l_var).type)   THEN
         --Data type is supported.
-        ms_logger.comment(l_node, 'Data type is supported');
+        sm_logger.comment(l_node, 'Data type is supported');
         --So we can write a note for it.
         note_var(i_var  => i_var_name --l_var_list(l_var).name  
                 ,i_type => l_var_list(l_var).type);
 
 
       ELSIF  identifier_exists(i_signature => l_var_list(l_var).signature) THEN
-        ms_logger.comment(l_node, 'Signature is known');
+        sm_logger.comment(l_node, 'Signature is known');
 
         if l_var_list(l_var).data_class = 'RECORD' then
-          ms_logger.comment(l_node, 'Record class detected from PLScope');
+          sm_logger.comment(l_node, 'Record class detected from PLScope');
           note_record(i_name_prefix  => lower(i_var_name)
                      ,i_signature    => l_var_list(l_var).signature);
 
         elsif l_var_list(l_var).data_class in ( 'INDEX TABLE','ASSOCIATIVE ARRAY' ) then
-          ms_logger.comment(l_node, 'Index Table / Assoc Array class detected from PLScope');
+          sm_logger.comment(l_node, 'Index Table / Assoc Array class detected from PLScope');
             
           --Need to determine where at index is associated with this table
           --Compare the original fullname i_var_name with the bracket-free i_var
@@ -3761,10 +3761,10 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
                        ,i_signature    => l_var_list(l_var).signature);
           else
             --This is a table not a record.
-            ms_logger.warning(l_node, 'Ignoring assignment to an entire table.');
+            sm_logger.warning(l_node, 'Ignoring assignment to an entire table.');
           end if;  
         else
-          ms_logger.fatal(l_node, 'Data class is unexpected.');
+          sm_logger.fatal(l_node, 'Data class is unexpected.');
         end if;  
         
         
@@ -3789,9 +3789,9 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
   
       ELSIF l_var_list(l_var).type = 'ROWTYPE' then
 
-        ms_logger.comment(l_node, 'RowType should be a TABLE_NAME');
-        ms_logger.note(l_node,'l_var_list(l_var).type',l_var_list(l_var).type);
-        ms_logger.note(l_node,'l_var_list(l_var).rowtype',l_var_list(l_var).rowtype);
+        sm_logger.comment(l_node, 'RowType should be a TABLE_NAME');
+        sm_logger.note(l_node,'l_var_list(l_var).type',l_var_list(l_var).type);
+        sm_logger.note(l_node,'l_var_list(l_var).rowtype',l_var_list(l_var).rowtype);
         --Data type is unsupported so it is the name of a table instead.
         --Now write a note for each supported column.
         --
@@ -3815,32 +3815,32 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
         END LOOP;  
 
       ELSE  
-        ms_logger.fatal(l_node, 'Data type is unsupported, but it was in the list of scoped vars.');
+        sm_logger.fatal(l_node, 'Data type is unsupported, but it was in the list of scoped vars.');
  
       END IF;
 
     ELSE 
  
       if l_var like '%.%' then
-        ms_logger.comment(l_node, 'Let us remove the last componant and try again');
+        sm_logger.comment(l_node, 'Let us remove the last componant and try again');
         declare
           l_componant varchar2(1000);
           l_new_var   varchar2(1000);
         begin
            l_componant  := REGEXP_SUBSTR(l_var,G_REGEX_WORD||'$',1,1,'i');
-           ms_logger.note(l_node,'l_componant',l_componant);
+           sm_logger.note(l_node,'l_componant',l_componant);
            l_new_var    := REGEXP_REPLACE(l_var,'.'||G_REGEX_WORD||'$',''); --remove the last word
-           ms_logger.note(l_node,'l_new_var',l_new_var);
+           sm_logger.note(l_node,'l_new_var',l_new_var);
            if length(l_new_var) < length(l_var) then
              note_complex_var(i_var_name  => i_var_name
                              ,i_var       => l_new_var
                              ,i_componant => RTRIM(l_componant||'.'||i_componant ,'.'));
            else 
-             ms_logger.fatal(l_node, 'Unable to remove last componant.');
+             sm_logger.fatal(l_node, 'Unable to remove last componant.');
            end if;
         end;
       else
-        ms_logger.warning(l_node, 'Var not known '||i_var||'.'||i_componant); --RTRIM(i_var||'.'||i_componant,'.');
+        sm_logger.warning(l_node, 'Var not known '||i_var||'.'||i_componant); --RTRIM(i_var||'.'||i_componant,'.');
         log_var_list(i_var_list => l_var_list);
       end if;
 
@@ -3858,7 +3858,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
               ,i_type => l_var_list(l_var).type);
        
    ELSE 
-      ms_logger.warning(l_node, 'Var not known');
+      sm_logger.warning(l_node, 'Var not known');
       log_var_list(i_var_list => l_var_list);
  
    END IF;
@@ -3869,8 +3869,8 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
  
 BEGIN --AOP_block
 
-  ms_logger.param(l_node, 'i_indent    '      ,i_indent     );
-  ms_logger.param(l_node, 'i_regex_end '     ,i_regex_end  );
+  sm_logger.param(l_node, 'i_indent    '      ,i_indent     );
+  sm_logger.param(l_node, 'i_regex_end '     ,i_regex_end  );
 
   --Called here and in AOP_declare_block
   labelled_block_extras(io_var_list => l_var_list
@@ -3902,7 +3902,7 @@ BEGIN --AOP_block
                           ,i_raise_error  => TRUE
 );
  
-  ms_logger.note(l_node, 'l_keyword',l_keyword);
+  sm_logger.note(l_node, 'l_keyword',l_keyword);
   --Now process the key words that have already been identified.
     CASE 
       --BLOCK CLOSING REGEX
@@ -3915,40 +3915,40 @@ BEGIN --AOP_block
              (  regex_match(l_keyword ,G_REGEX_END_LOOP) OR
                 regex_match(l_keyword ,G_REGEX_END_CASE) OR 
                 regex_match(l_keyword ,G_REGEX_END_IF)) THEN
-        ms_logger.fatal(l_node, 'Mis-matched Expected END; Got '||l_keyword);
+        sm_logger.fatal(l_node, 'Mis-matched Expected END; Got '||l_keyword);
         RAISE X_INVALID_KEYWORD;
  
       WHEN regex_match(l_keyword ,i_regex_end) THEN
-         ms_logger.info(l_node, 'Block End Found!');
+         sm_logger.info(l_node, 'Block End Found!');
          EXIT;
           
       WHEN regex_match(l_keyword ,G_REGEX_CLOSE) THEN
-        ms_logger.fatal(l_node, 'Mis-matched END Expecting :'||i_regex_end||' Got: '||l_keyword);
+        sm_logger.fatal(l_node, 'Mis-matched END Expecting :'||i_regex_end||' Got: '||l_keyword);
         RAISE X_INVALID_KEYWORD;
 
       --BLOCK OPENING REGEX
       WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN     
-          ms_logger.info(l_node, 'Declare');    
+          sm_logger.info(l_node, 'Declare');    
         AOP_declare_block(i_indent    => calc_indent(i_indent + g_indent_spaces,l_keyword)
                          ,i_var_list  => l_var_list
                          ,i_pu_stack  => l_pu_stack);    
         
       WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN    
-        ms_logger.info(l_node, 'Begin');      
+        sm_logger.info(l_node, 'Begin');      
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_BEGIN
                  ,i_var_list   => l_var_list
                  ,i_pu_stack   => l_pu_stack);     
                  
       WHEN regex_match(l_keyword , G_REGEX_LOOP) THEN   
-        ms_logger.info(l_node, 'Loop'); 
+        sm_logger.info(l_node, 'Loop'); 
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_LOOP
                  ,i_var_list   => l_var_list
                  ,i_pu_stack   => l_pu_stack );                                
              
       WHEN regex_match(l_keyword , G_REGEX_CASE) THEN   
-        ms_logger.info(l_node, 'Case'); 
+        sm_logger.info(l_node, 'Case'); 
     --inc level +2 due to implied WHEN or ELSE
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword) +  g_indent_spaces
                  ,i_regex_end  => G_REGEX_END_CASE||'|'||G_REGEX_END_CASE_EXPR
@@ -3956,7 +3956,7 @@ BEGIN --AOP_block
                  ,i_pu_stack   => l_pu_stack );      
    
       WHEN regex_match(l_keyword , G_REGEX_IF) THEN    
-        ms_logger.info(l_node, 'If'); 
+        sm_logger.info(l_node, 'If'); 
         AOP_block(i_indent     => calc_indent(i_indent + g_indent_spaces,l_keyword)
                  ,i_regex_end  => G_REGEX_END_IF
                  ,i_var_list   => l_var_list
@@ -3964,12 +3964,12 @@ BEGIN --AOP_block
 
       --BLOCK NEUTRAL - no further nesting/indenting
       WHEN regex_match(l_keyword , G_REGEX_EXCEPTION) THEN
-        ms_logger.info(l_node, 'Exception Section');  
+        sm_logger.info(l_node, 'Exception Section');  
         --Now safe to look for WHEN X THEN
         l_exception_section := TRUE;
  
       WHEN regex_match(l_keyword , G_REGEX_NEUTRAL) THEN
-        ms_logger.info(l_node, 'Neutral');  
+        sm_logger.info(l_node, 'Neutral');  
         --Just let it keep going around the loop.
         NULL;
  
@@ -3984,49 +3984,49 @@ BEGIN --AOP_block
      
          END CASE;
          
-         ms_logger.note(l_node, 'l_function',l_function);
+         sm_logger.note(l_node, 'l_function',l_function);
        
          --Find the placeholder for the stashed comment.
          go_past; --Now go past (just can't afford it to be coloured)
          l_stashed_comment := get_next( i_stop        => G_REGEX_STASHED_COMMENT
                                        ,i_raise_error => TRUE);
-         ms_logger.note(l_node, 'l_stashed_comment',l_stashed_comment);
+         sm_logger.note(l_node, 'l_stashed_comment',l_stashed_comment);
  
          if l_function = 'note' then
            g_code := REPLACE(g_code
                            , l_keyword||l_stashed_comment
-                           , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'||quoted_var_name(l_stashed_comment)||','||l_stashed_comment||');'
+                           , f_colour(i_text   => 'sm_logger.'||l_function||'(l_node,'||quoted_var_name(l_stashed_comment)||','||l_stashed_comment||');'
                                     , i_colour => G_COLOUR_NOTE) );
          else 
   
            g_code := REPLACE(g_code
                            , l_keyword||l_stashed_comment
-                           , f_colour(i_text   => 'ms_logger.'||l_function||'(l_node,'||quoted_var_name(l_stashed_comment)||');'
+                           , f_colour(i_text   => 'sm_logger.'||l_function||'(l_node,'||quoted_var_name(l_stashed_comment)||');'
                                     , i_colour => G_COLOUR_NOTE) );
          end if;
          go_past(i_search => G_REGEX_EOL --advance to after the new logger message EOL
                 ,i_colour => null);      --no colour
  
       WHEN regex_match(l_keyword ,G_REGEX_SHOW_ME_LINE) THEN
-        ms_logger.info(l_node, 'Show Me');
+        sm_logger.info(l_node, 'Show Me');
  
         --expose this line of code as a comment 
-        inject( i_new_code => 'ms_logger.comment(l_node,'||quoted_var_name(SUBSTR(lower(l_keyword),1,instr(l_keyword,'--@@')-1))||');'
+        inject( i_new_code => 'sm_logger.comment(l_node,'||quoted_var_name(SUBSTR(lower(l_keyword),1,instr(l_keyword,'--@@')-1))||');'
                ,i_indent   => i_indent
                ,i_colour   => G_COLOUR_COMMENT);
  
       WHEN regex_match(l_keyword ,G_REGEX_LABEL) THEN
-        ms_logger.info(l_node, 'Label');
+        sm_logger.info(l_node, 'Label');
  
         g_recent_label := REGEXP_SUBSTR(l_keyword,G_REGEX_LABEL,1,1,'i',2);
-        ms_logger.note(l_node, 'g_recent_label',g_recent_label);
+        sm_logger.note(l_node, 'g_recent_label',g_recent_label);
 
  
  
      -- WHEN regex_match(l_keyword ,G_REGEX_ROW_COUNT_LINE) THEN
-     -- ms_logger.info(l_node, 'Rowcount');
+     -- sm_logger.info(l_node, 'Rowcount');
      -- --expose this line of code as a note with rowcount 
-     --   inject( i_new_code => 'ms_logger.note_rowcount(l_node,'''
+     --   inject( i_new_code => 'sm_logger.note_rowcount(l_node,'''
      --                   ||SUBSTR(l_keyword,1,LENGTH(l_keyword)-4)  
      --         ||''');'
      --          ,i_indent   => i_indent
@@ -4034,7 +4034,7 @@ BEGIN --AOP_block
 
  
       WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_BIND_VAR) THEN  
-        ms_logger.info(l_node, 'Assign Bind Var');
+        sm_logger.info(l_node, 'Assign Bind Var');
 
         l_var := find_var(i_search => G_REGEX_BIND_VAR);
         note_var(i_var  => l_var
@@ -4042,31 +4042,31 @@ BEGIN --AOP_block
 
       --WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_VARS) THEN  
         --Need to clean the l_keyword
-        --ms_logger.note(l_node, 'l_keyword',l_keyword);
+        --sm_logger.note(l_node, 'l_keyword',l_keyword);
         
-       -- ms_logger.info(l_node, 'Assign Complex words');
+       -- sm_logger.info(l_node, 'Assign Complex words');
        --   l_var := find_var(i_search => G_REGEX_ASSIGN_TO_VARS);
           
       --  --Clean the string
       --  l_var := REGEXP_REPLACE(l_var,'{{\w*:\w*}}',''); --Remove {{comment:1}} entirely
-      --  ms_logger.note(l_node, 'l_var',l_var);
+      --  sm_logger.note(l_node, 'l_var',l_var);
 --
       --  --strip all whitespace
       --  l_var := shrink(i_words => l_var);
-      --  ms_logger.note(l_node, 'l_var',l_var);
+      --  sm_logger.note(l_node, 'l_var',l_var);
 --
 --
       --  l_var_no_brackets := l_var;
       --  --while l_var_no_brackets like '%(%)%' LOOP --THOUGHT THIS CAUSED infinit loop but no, thats not it.
       --    l_var_no_brackets := REGEXP_REPLACE(l_var_no_brackets,G_REGEX_BRACKETED_TERM,'');
-      --    ms_logger.note(l_node, 'l_var_no_brackets',l_var_no_brackets);
+      --    sm_logger.note(l_node, 'l_var_no_brackets',l_var_no_brackets);
       --  --end loop;
 --
       --  --then note what is left
       --   --note_complex_var(i_var => l_var_no_brackets);
  
       WHEN regex_match(l_keyword ,G_REGEX_ASSIGNMENT) THEN  
-        ms_logger.info(l_node, 'General Assignment');
+        sm_logger.info(l_node, 'General Assignment');
   
 
 
@@ -4079,19 +4079,19 @@ BEGIN --AOP_block
         go_past(G_REGEX_SEMI_COL); 
 
 
-        ms_logger.note(l_node, 'l_var',l_var);
+        sm_logger.note(l_node, 'l_var',l_var);
 
         ----remove trailing :=
         --l_var := REGEXP_REPLACE(l_var,':=$',''); 
-        --ms_logger.note(l_node, 'l_var',l_var);
+        --sm_logger.note(l_node, 'l_var',l_var);
 
         --strip all whitespace
         l_var := shrink(i_words => l_var);
-        ms_logger.note(l_node, 'l_var',l_var);
+        sm_logger.note(l_node, 'l_var',l_var);
 
         --remove any comment tags, but keep string tags
         l_var := REGEXP_REPLACE(l_var,'{{comment:\w*}}',''); --Remove {{comment:1}} entirely
-        ms_logger.note(l_node, 'l_var',l_var);
+        sm_logger.note(l_node, 'l_var',l_var);
 
         --Remember l_var_name, then remove all bracketed subterms from l_var
         l_var_name := l_var;
@@ -4101,9 +4101,9 @@ BEGIN --AOP_block
           while l_var like '%(%)%' LOOP
             --contains bracketed term that needs to be removed.
             l_var := REGEXP_REPLACE(l_var,G_REGEX_BRACKETED_TERM,''); --remove any set of brackets containing non-brackets
-            ms_logger.note(l_node, 'l_var',l_var);
+            sm_logger.note(l_node, 'l_var',l_var);
             if l_var = l_prev then
-              ms_logger.fatal(l_node, 'Unable to remove bracketed term.');
+              sm_logger.fatal(l_node, 'Unable to remove bracketed term.');
               exit;
             end if;
             l_prev := l_var;
@@ -4118,9 +4118,9 @@ BEGIN --AOP_block
         --G_REGEX_ASSIGN_COMPLEX_TYPE   CONSTANT VARCHAR2(50) :=  '(THEN|>>|;|BEGIN|ELSE)+([\s\w().]*)(:=)'; --supports arrays
 
         l_var := find_var(i_search => G_REGEX_ASSIGN_COMPLEX_TYPE);
-        ms_logger.note(l_node, 'l_var',l_var);
+        sm_logger.note(l_node, 'l_var',l_var);
         l_var := REGEXP_REPLACE(l_var,G_REGEX_ASSIGN_COMPLEX_TYPE,'/3') ;
-        ms_logger.note(l_node, 'l_var',l_var);
+        sm_logger.note(l_node, 'l_var',l_var);
 
         --remove the leading operator - (THEN|>>|;|BEGIN|ELSE)
         --select REGEXP_REPLACE('BEGIN ; tab(x(1.2.3)).col {{comment:12}}X ','(THEN|>>|;|BEGIN|ELSE)','',1,1) from dual
@@ -4129,16 +4129,16 @@ BEGIN --AOP_block
 
         --Clean the string
         l_var := REGEXP_REPLACE(l_var,'{{\w*:\w*}}','') --Remove {{comment:1}} entirely
-        ms_logger.note(l_node, 'l_var',l_var);
+        sm_logger.note(l_node, 'l_var',l_var);
 
         --strip all whitespace
         l_var := shrink(i_words => l_var);
-        ms_logger.note(l_node, 'l_var',l_var);
+        sm_logger.note(l_node, 'l_var',l_var);
 
         l_var_no_brackets := l_var;
         while l_var_no_brackets like '%(%)%' LOOP
           l_var_no_brackets := REGEXP_REPLACE(l_var_no_brackets,G_REGEX_BRACKETED_TERM,'');
-          ms_logger.note(l_node, 'l_var',l_var);
+          sm_logger.note(l_node, 'l_var',l_var);
         end loop;
 
 
@@ -4150,31 +4150,31 @@ BEGIN --AOP_block
 
 
         
-          ms_logger.info(l_node, 'Assign Any number of words');
+          sm_logger.info(l_node, 'Assign Any number of words');
           l_var := find_var(i_search => G_REGEX_ANY_WORDS);
           note_complex_var(i_var => l_var);
          */
 
       --WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_ANY_WORDS) THEN  
-      --  ms_logger.info(l_node, 'Assign Any number of words');
+      --  sm_logger.info(l_node, 'Assign Any number of words');
       --  l_var := find_var(i_search => G_REGEX_ANY_WORDS);
       --  note_complex_var(i_var => l_var);
  
       --WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_REC_COL) THEN   
-      --  ms_logger.info(l_node, 'Assign Record.Column');
+      --  sm_logger.info(l_node, 'Assign Record.Column');
 
       --  l_var := find_var(i_search => G_REGEX_REC_COL);
       --  note_rec_col_var(i_var => l_var);
 
       --PAB No longer needed - covered by the general case G_REGEX_ANY_WORDS
       --WHEN regex_match(l_keyword ,G_REGEX_ASSIGN_TO_VAR) THEN  
-      --  ms_logger.info(l_node, 'Assign Var');  
+      --  sm_logger.info(l_node, 'Assign Var');  
       --
       --  l_var := find_var(i_search => G_REGEX_VAR);
       --  note_complex_var(i_var => l_var);
 
       WHEN regex_match(l_keyword ,G_REGEX_BULK_FETCH_INTO  ) THEN   
-        ms_logger.info(l_node, 'Fetch Bulk Collect Into');
+        sm_logger.info(l_node, 'Fetch Bulk Collect Into');
         --This fetches into a tab, which the weaver cannot support, so skip to semi-colon;
         go_past(G_REGEX_SEMI_COL); 
 
@@ -4182,7 +4182,7 @@ BEGIN --AOP_block
 
  
       WHEN regex_match(l_keyword ,G_REGEX_SELECT_FETCH_INTO  ) THEN   
-        ms_logger.info(l_node, 'Select/Fetch Into');
+        sm_logger.info(l_node, 'Select/Fetch Into');
 
         --@REWRITE Needed
         --Must grab everything upto the ; or FROM.
@@ -4197,17 +4197,17 @@ BEGIN --AOP_block
           l_var := grab_upto(i_stop   => G_REGEX_END_SELECT_FETCH_INTO 
                             ,i_colour => G_COLOUR_INTO_VARS);
  
-          ms_logger.note(l_node, 'l_var',l_var);
+          sm_logger.note(l_node, 'l_var',l_var);
 
           --removing whitespace and bracketed terms
             
           --strip all whitespace
           l_var := shrink(i_words => l_var);
-          ms_logger.note(l_node, 'l_var',l_var);
+          sm_logger.note(l_node, 'l_var',l_var);
 
           --remove any comment tags, but keep string tags
           l_var := REGEXP_REPLACE(l_var,'{{comment:\w*}}',''); --Remove {{comment:1}} entirely
-          ms_logger.note(l_node, 'l_var',l_var);
+          sm_logger.note(l_node, 'l_var',l_var);
 
           ----Remember l_var_name, then remove all bracketed subterms from l_var
           --l_var_name := l_var;
@@ -4217,9 +4217,9 @@ BEGIN --AOP_block
           --  while l_var like '%(%)%' LOOP
           --    --contains bracketed term that needs to be removed.
           --    l_var := REGEXP_REPLACE(l_var,G_REGEX_BRACKETED_TERM,''); --remove any set of brackets containing non-brackets
-          --    ms_logger.note(l_node, 'l_var',l_var);
+          --    sm_logger.note(l_node, 'l_var',l_var);
           --    if l_var = l_prev then
-          --      ms_logger.fatal(l_node, 'Unable to remove bracketed term.');
+          --      sm_logger.fatal(l_node, 'Unable to remove bracketed term.');
           --      exit;
           --    end if;
           --    l_prev := l_var;
@@ -4237,9 +4237,9 @@ BEGIN --AOP_block
               --contains bracketed term that needs to be removed.
               g_term_stack(g_term_stack.count+1) :=  REGEXP_SUBSTR(l_var,G_REGEX_BRACKETED_TERM,1,1,'i');
               l_var := REGEXP_REPLACE(l_var,G_REGEX_BRACKETED_TERM,'{{term:'||g_term_stack.count||'}}',1,1); --remove any set of brackets containing non-brackets
-              ms_logger.note(l_node, 'l_var',l_var);
+              sm_logger.note(l_node, 'l_var',l_var);
               if l_var = l_prev then
-                ms_logger.fatal(l_node, 'Unable to remove bracketed term.');
+                sm_logger.fatal(l_node, 'Unable to remove bracketed term.');
                 exit;
               end if;
               l_prev := l_var;
@@ -4267,7 +4267,7 @@ BEGIN --AOP_block
                  --Create a clean var for searching.
                  l_into_var := l_var_array(l_index);
                  l_into_var := REGEXP_REPLACE(l_into_var,G_REGEX_STASHED_TERM,''); --Remove stashed term
-                 ms_logger.note(l_node, 'l_into_var',l_into_var);
+                 sm_logger.note(l_node, 'l_into_var',l_into_var);
                  
                  --Restore original var name for the note.
                  --interatively restore the stashed terms
@@ -4283,18 +4283,18 @@ BEGIN --AOP_block
 
                      --find a placeholder
                      l_term_placeholder := REGEXP_SUBSTR(l_into_var_name,G_REGEX_STASHED_TERM,1,1,'i');
-                     ms_logger.note(l_node, 'l_term_placeholder',l_term_placeholder);
+                     sm_logger.note(l_node, 'l_term_placeholder',l_term_placeholder);
 
                      --determine the index
                      l_term_index := REGEXP_REPLACE(l_term_placeholder,G_REGEX_STASHED_TERM,'\1');
-                     ms_logger.note(l_node, 'l_term_index',l_term_index);    
+                     sm_logger.note(l_node, 'l_term_index',l_term_index);    
 
                      --Restore the bracketed term as indicated by the index
                      l_into_var_name := REGEXP_REPLACE(l_into_var_name,G_REGEX_STASHED_TERM,g_term_stack(l_term_index),1,1);
 
-                     ms_logger.note(l_node, 'l_into_var_name',l_into_var_name);
+                     sm_logger.note(l_node, 'l_into_var_name',l_into_var_name);
                      if l_into_var_name = l_prev then
-                       ms_logger.fatal(l_node, 'Unable to restore bracketed term.');
+                       sm_logger.fatal(l_node, 'Unable to restore bracketed term.');
                        exit;
                      end if;
                      l_prev := l_into_var_name;
@@ -4309,7 +4309,7 @@ BEGIN --AOP_block
                    ELSE 
                      note_complex_var(i_var_name => l_into_var_name 
                                      ,i_var      => l_into_var );
-                     --ms_logger.fatal(l_node, 'AOP G_REGEX_FETCH_INTO BUG - REGEX Mismatch');
+                     --sm_logger.fatal(l_node, 'AOP G_REGEX_FETCH_INTO BUG - REGEX Mismatch');
                      --RAISE x_invalid_keyword;
                  END CASE;
  
@@ -4334,13 +4334,13 @@ BEGIN --AOP_block
                               ,i_lower       => TRUE
                               ,i_colour      => G_COLOUR_VAR
                               ,i_raise_error => TRUE);
-          ms_logger.note(l_node, 'l_var',l_var);
+          sm_logger.note(l_node, 'l_var',l_var);
            IF regex_match(l_var ,G_REGEX_SEMI_COL    
                           ||'|'||G_REGEX_FROM)  THEN 
              go_past(G_REGEX_SEMI_COL);
              EXIT;
            END IF;
-           ms_logger.info(l_node, 'Adding a variable');
+           sm_logger.info(l_node, 'Adding a variable');
            --l_into_var_list (l_into_var_list.COUNT+1) := l_var;  
            store_var_list(i_var       => create_var_rec(i_param_name  => l_var
                                                        ,i_param_type  => 'SELECT_INTO' --Unable to derive the datatype
@@ -4364,7 +4364,7 @@ BEGIN --AOP_block
                                                                            ,i_var      => l_var );
             WHEN regex_match(l_var ,G_REGEX_REC_COL)  THEN note_rec_col_var(i_var => l_var );
             ELSE 
-              ms_logger.fatal(l_node, 'AOP G_REGEX_FETCH_INTO BUG - REGEX Mismatch');
+              sm_logger.fatal(l_node, 'AOP G_REGEX_FETCH_INTO BUG - REGEX Mismatch');
               RAISE x_invalid_keyword;
           END CASE;
  
@@ -4375,15 +4375,15 @@ BEGIN --AOP_block
 */
   
       WHEN regex_match(l_keyword ,G_REGEX_WHEN_OTHERS_THEN) THEN  
-        ms_logger.info(l_node, 'WHEN OTHERS THEN');   
+        sm_logger.info(l_node, 'WHEN OTHERS THEN');   
         if g_note_exception_handlers then
   
           --note an error after WHEN OTHERS THEN  
-          inject( i_new_code => q'[ms_logger.comment(l_node,'WHEN OTHERS Exception Handler');]'
+          inject( i_new_code => q'[sm_logger.comment(l_node,'WHEN OTHERS Exception Handler');]'
                  ,i_indent   => i_indent
                  ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
   
-          inject( i_new_code => 'ms_logger.note_error(l_node);'
+          inject( i_new_code => 'sm_logger.note_error(l_node);'
                  ,i_indent   => i_indent
                  ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
   
@@ -4392,33 +4392,33 @@ BEGIN --AOP_block
       WHEN regex_match(l_keyword ,G_REGEX_WHEN_EXCEPT_THEN) THEN 
         --Only want to note exceptions in an exception section.
         IF l_exception_section and g_note_exception_handlers THEN
-          ms_logger.info(l_node, 'WHEN EXCEPT THEN');       
+          sm_logger.info(l_node, 'WHEN EXCEPT THEN');       
 
           --comment the exception after WHEN explicit_exception THEN 
-          inject( i_new_code => q'[ms_logger.comment(l_node,'EXPLICIT Exception Handler');]'
+          inject( i_new_code => q'[sm_logger.comment(l_node,'EXPLICIT Exception Handler');]'
                  ,i_indent   => i_indent
                  ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);
 
-          inject( i_new_code => 'ms_logger.comment(l_node,'''||flatten(trim_whitespace(l_keyword))||''');'
+          inject( i_new_code => 'sm_logger.comment(l_node,'''||flatten(trim_whitespace(l_keyword))||''');'
                  ,i_indent   => i_indent
                  ,i_colour   => G_COLOUR_EXCEPTION_BLOCK);   
         END IF;    
 
       --WHEN regex_match(l_keyword ,G_REGEX_DML) THEN 
-      --  ms_logger.info(l_node, 'DML');
+      --  sm_logger.info(l_node, 'DML');
       --  l_table_name := get_next_object_name;
       --
       --  go_past(G_REGEX_SEMI_COL); 
-      --  inject( i_new_code => 'ms_logger.note_rowcount(l_node,'''||flatten(trim_whitespace(l_keyword))||' '||l_table_name||''');'
+      --  inject( i_new_code => 'sm_logger.note_rowcount(l_node,'''||flatten(trim_whitespace(l_keyword))||' '||l_table_name||''');'
       --         ,i_indent   => i_indent
       --         ,i_colour   => G_COLOUR_NOTE); 
 
       WHEN regex_match(l_keyword ,G_REGEX_SEMI_COL) THEN 
-        ms_logger.info(l_node, 'Any other statement');
+        sm_logger.info(l_node, 'Any other statement');
         --go_past(G_REGEX_SEMI_COL); 
  
       ELSE 
-          ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
+          sm_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
           RAISE x_invalid_keyword;
   
     END CASE;
@@ -4428,7 +4428,7 @@ BEGIN --AOP_block
  
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise; 
  
 END AOP_block;
@@ -4452,7 +4452,7 @@ PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
                       ,i_param_list     IN param_list_typ
                       ,i_var_list       IN var_list_typ
                       ,i_pu_stack       in pu_stack_typ  ) IS
-  l_node   ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_pu_block');
+  l_node   sm_logger.node_typ := sm_logger.new_proc(g_package_name,'AOP_pu_block');
   
   l_var_list              var_list_typ := i_var_list;
   l_index                 BINARY_INTEGER;
@@ -4462,8 +4462,8 @@ PROCEDURE AOP_pu_block(i_prog_unit_name IN VARCHAR2
  
 BEGIN
  
-  ms_logger.param(l_node, 'i_prog_unit_name'     ,i_prog_unit_name     );
-  ms_logger.param(l_node, 'i_indent        '     ,i_indent             );
+  sm_logger.param(l_node, 'i_prog_unit_name'     ,i_prog_unit_name     );
+  sm_logger.param(l_node, 'i_indent        '     ,i_indent             );
  
 
   l_expanded_param_list := get_expanded_param_list(i_param_list => i_param_list);
@@ -4497,11 +4497,11 @@ BEGIN
     l_index := l_expanded_param_list.FIRST;
     WHILE l_index IS NOT NULL LOOP
       IF l_expanded_param_list(l_index).type = 'CLOB' THEN
-        inject( i_new_code  => 'ms_logger.param_clob(l_node,'||RPAD(''''||l_expanded_param_list(l_index).name||'''',l_param_padding)||','||l_expanded_param_list(l_index).name||');'
+        inject( i_new_code  => 'sm_logger.param_clob(l_node,'||RPAD(''''||l_expanded_param_list(l_index).name||'''',l_param_padding)||','||l_expanded_param_list(l_index).name||');'
                ,i_indent    => i_indent
                ,i_colour    => G_COLOUR_PARAM);
       ELSE
-        inject( i_new_code  => 'ms_logger.param(l_node,'||RPAD(''''||l_expanded_param_list(l_index).name||'''',l_param_padding)||','||l_expanded_param_list(l_index).name||');'
+        inject( i_new_code  => 'sm_logger.param(l_node,'||RPAD(''''||l_expanded_param_list(l_index).name||'''',l_param_padding)||','||l_expanded_param_list(l_index).name||');'
                ,i_indent    => i_indent
                ,i_colour    => G_COLOUR_PARAM);
       END IF;
@@ -4516,7 +4516,7 @@ BEGIN
   if l_var_list.exists(g_logger_id_param)                   and
      l_var_list(g_logger_id_param).level = i_pu_stack.count and
      l_var_list(g_logger_id_param).out_var                  then
-      inject( i_new_code  => lower(g_logger_id_param)||' := l_node.traversal.process_id;'
+      inject( i_new_code  => lower(g_logger_id_param)||' := l_node.call.session_id;'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_RETURN_LOG);
 
@@ -4528,7 +4528,7 @@ BEGIN
      l_var_list(g_logger_url_param).level = i_pu_stack.count and
      l_var_list(g_logger_url_param).out_var                  then
       inject( i_new_code  => 
-        lower(g_logger_url_param)||' := ms_api.get_smartlogger_trace_URL(i_process_id  => l_node.traversal.process_id);'
+        lower(g_logger_url_param)||' := sm_api.get_smartlogger_trace_URL(i_session_id  => l_node.call.session_id);'
              ,i_indent    => i_indent
              ,i_colour    => G_COLOUR_RETURN_LOG);
 
@@ -4536,11 +4536,11 @@ BEGIN
  
  
   IF i_prog_unit_name = 'beforepform' THEN
-    inject( i_new_code  => 'ms_logger.info(l_node,''Starting Report ''||'||g_aop_module_name||');'
+    inject( i_new_code  => 'sm_logger.info(l_node,''Starting Report ''||'||g_aop_module_name||');'
            ,i_indent   => i_indent+1
            ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
   ELSIF i_prog_unit_name = 'afterreport' THEN
-    inject( i_new_code  => 'ms_logger.info(l_node,''Finished Report ''||'||g_aop_module_name||');'
+    inject( i_new_code  => 'sm_logger.info(l_node,''Finished Report ''||'||g_aop_module_name||');'
            ,i_indent   => i_indent+1
            ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
   END IF;
@@ -4566,25 +4566,25 @@ BEGIN
            ,i_indent    => i_indent - g_indent_spaces
            ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
 
-    inject( i_new_code  => q'[  ms_logger.comment(l_node,'Unhandled Error');]'
+    inject( i_new_code  => q'[  sm_logger.comment(l_node,'Unhandled Error');]'
            ,i_indent    => i_indent
            ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
     
     if g_note_unhandled_errors  then
  
-      inject( i_new_code  => '    ms_logger.note_error(l_node);'
+      inject( i_new_code  => '    sm_logger.note_error(l_node);'
              ,i_indent    => i_indent - g_indent_spaces
              ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
 
     elsif g_warn_unhandled_errors  then
  
-      inject( i_new_code  => '    ms_logger.warn_error(l_node);'
+      inject( i_new_code  => '    sm_logger.warn_error(l_node);'
              ,i_indent    => i_indent - g_indent_spaces
              ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
 
     else --g_fatal_unhandled_errors
 
-      inject( i_new_code  => '    ms_logger.oracle_error(l_node);'
+      inject( i_new_code  => '    sm_logger.oracle_error(l_node);'
              ,i_indent    => i_indent - g_indent_spaces
              ,i_colour    => G_COLOUR_EXCEPTION_BLOCK);
     end if;
@@ -4604,7 +4604,7 @@ BEGIN
 
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise; 
  
 END AOP_pu_block;
@@ -4622,7 +4622,7 @@ END AOP_pu_block;
 PROCEDURE AOP_prog_units(i_indent   IN INTEGER
                         ,i_var_list IN var_list_typ
                         ,i_pu_stack in pu_stack_typ) IS
-  l_node    ms_logger.node_typ := ms_logger.new_proc(g_package_name,'AOP_prog_units'); 
+  l_node    sm_logger.node_typ := sm_logger.new_proc(g_package_name,'AOP_prog_units'); 
 
   l_keyword         VARCHAR2(50);
   l_language        VARCHAR2(50);
@@ -4636,7 +4636,7 @@ PROCEDURE AOP_prog_units(i_indent   IN INTEGER
  
 BEGIN
 
-  ms_logger.param(l_node, 'i_indent'     ,i_indent );
+  sm_logger.param(l_node, 'i_indent'     ,i_indent );
  
   LOOP
     BEGIN
@@ -4647,7 +4647,7 @@ BEGIN
                               ,i_upper       => TRUE
                               ,i_colour      => G_COLOUR_PROG_UNIT );
      
-      ms_logger.note(l_node, 'l_keyword' ,l_keyword);   
+      sm_logger.note(l_node, 'l_keyword' ,l_keyword);   
       CASE 
         WHEN regex_match(l_keyword,G_REGEX_PKG_BODY) THEN
           l_node_type := g_node_type_package;
@@ -4660,10 +4660,10 @@ BEGIN
       WHEN regex_match(l_keyword,G_REGEX_BEGIN) OR l_keyword IS NULL THEN
         EXIT;
         ELSE
-      ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
+      sm_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
       RAISE x_invalid_keyword;
       END CASE;  
-      ms_logger.note(l_node, 'l_node_type' ,l_node_type);  
+      sm_logger.note(l_node, 'l_node_type' ,l_node_type);  
  
       --Check for LANGUAGE JAVA NAME
       --If this is a JAVA function then we don't want a node and don't need to bother reading spec or parsing body.
@@ -4674,7 +4674,7 @@ BEGIN
                             ,i_colour       => G_COLOUR_JAVA
                             ,i_raise_error  => TRUE );
      
-      ms_logger.note(l_node, 'l_language' ,l_language); 
+      sm_logger.note(l_node, 'l_language' ,l_language); 
       IF l_language LIKE 'LANGUAGE%' THEN
         RAISE x_language_java_name; 
       END IF;
@@ -4690,7 +4690,7 @@ BEGIN
                                    ,i_colour       => G_COLOUR_GO_PAST --G_COLOUR_FORWARD_DECLARE
                                    ,i_raise_error  => TRUE );
      
-      ms_logger.note(l_node, 'l_forward_declare' ,l_forward_declare); 
+      sm_logger.note(l_node, 'l_forward_declare' ,l_forward_declare); 
       IF l_forward_declare = G_REGEX_SEMI_COL THEN
         RAISE x_forward_declare; 
       END IF;
@@ -4704,7 +4704,7 @@ BEGIN
         l_prog_unit_name := 'init_package';
       end if;  
 
-      ms_logger.note(l_node, 'l_prog_unit_name' ,l_prog_unit_name);
+      sm_logger.note(l_node, 'l_prog_unit_name' ,l_prog_unit_name);
  
       AOP_is_as(i_prog_unit_name => l_prog_unit_name
                ,i_indent         => calc_indent(i_indent, l_keyword)
@@ -4714,18 +4714,18 @@ BEGIN
       
     EXCEPTION 
       WHEN x_language_java_name THEN
-        ms_logger.comment(l_node, 'Found LANGUAGE JAVA NAME.');    
+        sm_logger.comment(l_node, 'Found LANGUAGE JAVA NAME.');    
       
       WHEN x_forward_declare THEN
-        ms_logger.comment(l_node, 'Found FORWARD DECLARATION.');    
+        sm_logger.comment(l_node, 'Found FORWARD DECLARATION.');    
     END;
   END LOOP;
  
-  ms_logger.comment(l_node, 'No more program units.');
+  sm_logger.comment(l_node, 'No more program units.');
  
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise; 
  
 END AOP_prog_units;
@@ -4759,13 +4759,13 @@ END;
                      , i_object_type   in varchar2
                      , i_object_owner  in varchar2 )  return clob is
   
-    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'get_plsql');     
+    l_node sm_logger.node_typ := sm_logger.new_func(g_package_name,'get_plsql');     
     l_code clob;
     l_object_type varchar2(30);
   begin
-    ms_logger.param(l_node, 'i_object_name  '          ,i_object_name   );
-    ms_logger.param(l_node, 'i_object_type  '          ,i_object_type   );
-    ms_logger.param(l_node, 'i_object_owner '          ,i_object_owner  );
+    sm_logger.param(l_node, 'i_object_name  '          ,i_object_name   );
+    sm_logger.param(l_node, 'i_object_type  '          ,i_object_type   );
+    sm_logger.param(l_node, 'i_object_owner '          ,i_object_owner  );
  
     --dbms_metadata.set_transform_param( DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', TRUE );
 
@@ -4774,7 +4774,7 @@ END;
                        when i_object_type = 'PACKAGE BODY' then 'PACKAGE_BODY'
                        else i_object_type
                      end;
-    ms_logger.note(l_node, 'l_object_type '          ,l_object_type  );
+    sm_logger.note(l_node, 'l_object_type '          ,l_object_type  );
 
     l_code:= dbms_metadata.get_ddl(l_object_type, i_object_name, i_object_owner);
 
@@ -4823,7 +4823,7 @@ END;
   ) return boolean
   is
 
-    l_node ms_logger.node_typ := ms_logger.new_func(g_package_name,'weave'); 
+    l_node sm_logger.node_typ := sm_logger.new_func(g_package_name,'weave'); 
  
     l_woven              boolean := false;
     l_current_pos        integer := 1;
@@ -4836,9 +4836,9 @@ END;
     l_package_name       varchar2(50);
   
   begin
-    ms_logger.param(l_node, 'i_package_name'      ,i_package_name);
-    ms_logger.param(l_node, 'i_for_html'          ,i_for_html);
-    ms_logger.param(l_node, 'i_end_user'          ,i_end_user);
+    sm_logger.param(l_node, 'i_package_name'      ,i_package_name);
+    sm_logger.param(l_node, 'i_for_html'          ,i_for_html);
+    sm_logger.param(l_node, 'i_end_user'          ,i_end_user);
 
     begin
  
@@ -4888,11 +4888,11 @@ END;
                              ,i_upper       => TRUE
                              ,i_raise_error => TRUE  );
      
-        ms_logger.note(l_node, 'l_keyword' ,l_keyword);
+        sm_logger.note(l_node, 'l_keyword' ,l_keyword);
     
         CASE --@TODO might need to add a check for a <<NAME>> before a block
           WHEN regex_match(l_keyword , G_REGEX_DECLARE) THEN
-            ms_logger.comment(l_node, 'Found Anonymous Block with declaration');
+            sm_logger.comment(l_node, 'Found Anonymous Block with declaration');
             --calc indent and consume DECLARE
             AOP_declare_block(i_indent    => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_DECLARE
                                                                                    ,i_colour      => G_COLOUR_GO_PAST))
@@ -4900,7 +4900,7 @@ END;
                              ,i_pu_stack  => i_pu_stack);
               
           WHEN regex_match(l_keyword , G_REGEX_BEGIN) THEN
-            ms_logger.comment(l_node, 'Found Simple Anonymous Block');
+            sm_logger.comment(l_node, 'Found Simple Anonymous Block');
             --calc indent and consume BEGIN
             AOP_block(i_indent     => calc_indent(g_initial_indent, get_next(i_srch_before => G_REGEX_BEGIN
                                                                             ,i_colour      => G_COLOUR_GO_PAST))
@@ -4910,59 +4910,59 @@ END;
         
           WHEN regex_match(l_keyword , G_REGEX_PROG_UNIT
                                 ||'|'||G_REGEX_CREATE) THEN
-            ms_logger.comment(l_node, 'Found Program Unit');
+            sm_logger.comment(l_node, 'Found Program Unit');
             AOP_prog_units(i_indent   => calc_indent(g_initial_indent,l_keyword)
                           ,i_var_list => l_var_list
                           ,i_pu_stack => i_pu_stack);
     
         ELSE
-          ms_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
+          sm_logger.fatal(l_node, 'AOP BUG - REGEX Mismatch');
           RAISE x_invalid_keyword;
         end case;   
       end;
  
       l_woven:= true;
 
-      --Translate sm_jotter syntax to equivalent ms_logger syntax
-      --EG sm_jotter.x(           ->  ms_logger.x(l_node,
-      g_code := REGEXP_REPLACE(g_code,'(sm_jotter)(\.)(.+)(\()','ms_logger.\3(l_node,');
+      --Translate sm_jotter syntax to equivalent sm_logger syntax
+      --EG sm_jotter.x(           ->  sm_logger.x(l_node,
+      g_code := REGEXP_REPLACE(g_code,'(sm_jotter)(\.)(.+)(\()','sm_logger.\3(l_node,');
     
       --Replace routines with no params 
-      --EG sm_jotter.oracle_error -> ms_logger.oracle_error(l_node)
-      g_code := REGEXP_REPLACE(g_code,'(sm_jotter)(\.)(.+)(;)','ms_logger.\3(l_node);');
+      --EG sm_jotter.oracle_error -> sm_logger.oracle_error(l_node)
+      g_code := REGEXP_REPLACE(g_code,'(sm_jotter)(\.)(.+)(;)','sm_logger.\3(l_node);');
 
  
       restore_comments_and_strings;
  
     exception 
       when x_restore_failed then
-        ms_logger.fatal(l_node, 'x_restore_failed');
+        sm_logger.fatal(l_node, 'x_restore_failed');
         wedge( i_new_code => 'RESTORE FAILED'
               ,i_colour  => G_COLOUR_ERROR);
         l_woven := false;
       when x_invalid_keyword then
-        ms_logger.fatal(l_node, 'x_invalid_keyword');
+        sm_logger.fatal(l_node, 'x_invalid_keyword');
         wedge( i_new_code => 'INVALID KEYWORD'
               ,i_colour  => G_COLOUR_ERROR);
         l_woven := false;
       when x_weave_timeout then
-        ms_logger.fatal(l_node, 'x_weave_timeout');
+        sm_logger.fatal(l_node, 'x_weave_timeout');
         wedge( i_new_code => 'WEAVE TIMED OUT'
               ,i_colour  => G_COLOUR_ERROR);
         l_woven := false;
       when x_string_not_found then
-        ms_logger.fatal(l_node, 'x_string_not_found');
+        sm_logger.fatal(l_node, 'x_string_not_found');
         l_woven := false;
      
     end;
   
-    ms_logger.note(l_node, 'elapsed_time_secs' ,elapsed_time_secs);
+    sm_logger.note(l_node, 'elapsed_time_secs' ,elapsed_time_secs);
     
-    g_code := REPLACE(g_code,g_aop_directive,'Logging by AOP_PROCESSOR on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
+    g_code := REPLACE(g_code,g_aop_directive,'Logging by sm_weaver on '||to_char(systimestamp,'DD-MM-YYYY HH24:MI:SS'));
   
     IF g_for_aop_html then
         g_code := REPLACE(REPLACE(g_code,'<<','&lt;&lt;'),'>>','&gt;&gt;');
-        g_code := REGEXP_REPLACE(g_code,'(ms_logger)(.+)(;)','<B>\1\2\3</B>'); --BOLD all ms_logger calls
+        g_code := REGEXP_REPLACE(g_code,'(sm_logger)(.+)(;)','<B>\1\2\3</B>'); --BOLD all sm_logger calls
         g_code := '<PRE>'||g_code||'</PRE>'; --@TODO - may be able to add this into the SmartLogger display page instead.
     END IF;  
  
@@ -4972,7 +4972,7 @@ END;
  
   exception 
     when others then
-      ms_logger.oracle_error(l_node); 
+      sm_logger.oracle_error(l_node); 
     raise;
   
   end weave;
@@ -4990,7 +4990,7 @@ END;
 
 FUNCTION is_PLScoped(i_name in varchar2
                     ,i_type in varchar2 ) return boolean is
-  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'is_plscoped');
+  l_node sm_logger.node_typ := sm_logger.new_func($$plsql_unit ,'is_plscoped');
 
   cursor cu_plsql_object_settings is
   SELECT PLSCOPE_SETTINGS
@@ -5000,8 +5000,8 @@ FUNCTION is_PLScoped(i_name in varchar2
 
   l_plsql_object_settings cu_plsql_object_settings%ROWTYPE;
 begin --is_plscoped
-  ms_logger.param(l_node,'i_name',i_name);
-  ms_logger.param(l_node,'i_type',i_type);
+  sm_logger.param(l_node,'i_name',i_name);
+  sm_logger.param(l_node,'i_type',i_type);
 BEGIN
   OPEN  cu_plsql_object_settings;
   FETCH cu_plsql_object_settings INTO l_plsql_object_settings;
@@ -5012,7 +5012,7 @@ BEGIN
 END;
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise;
 end; --is_plscoped
  
@@ -5032,30 +5032,30 @@ FUNCTION get_vars_from_compiled_object(i_name       in varchar2
                                       ,i_owner      in varchar2
                                       ,i_type       in varchar2 
                                       ,i_var_list   in var_list_typ) return var_list_typ is
-    l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_vars_from_compiled_object');
+    l_node sm_logger.node_typ := sm_logger.new_func($$plsql_unit ,'get_vars_from_compiled_object');
     l_var_list    var_list_typ := i_var_list;
     l_pu_stack    pu_stack_typ;
     l_source_code clob;
   begin --get_vars_from_compiled_object
-    ms_logger.param(l_node,'i_name' ,i_name);
-    ms_logger.param(l_node,'i_owner',i_owner);
-    ms_logger.param(l_node,'i_type' ,i_type);
+    sm_logger.param(l_node,'i_name' ,i_name);
+    sm_logger.param(l_node,'i_owner',i_owner);
+    sm_logger.param(l_node,'i_type' ,i_type);
   BEGIN
     IF is_PLScoped(i_name => i_name
                   ,i_type => i_type) THEN
-      ms_logger.info(l_node,'Object is already PLScoped');
+      sm_logger.info(l_node,'Object is already PLScoped');
     ELSE
-      ms_logger.comment(l_node,'Object is not currently PLScoped');
+      sm_logger.comment(l_node,'Object is not currently PLScoped');
       --Need to recompile the package spec with plscope set
       l_source_code := get_plsql( i_object_name    => i_name
                                 , i_object_owner   => i_owner
                                 , i_object_type    => i_type   );
-      ms_logger.note_clob(l_node,'l_source_code',l_source_code);
+      sm_logger.note_clob(l_node,'l_source_code',l_source_code);
       compile_plsql(i_text         => l_source_code);
 
       IF NOT is_PLScoped(i_name => i_name
                         ,i_type => i_type) THEN
-        ms_logger.warning(l_node,'Object could not be compiled with PLSCOPE');
+        sm_logger.warning(l_node,'Object could not be compiled with PLSCOPE');
         null;
       END IF;
      
@@ -5115,11 +5115,11 @@ and   t.usage_context_id = v.usage_id ) LOOP
 --to the same query..
 
 
-      ms_logger.note(l_node, 'l_var.name'     ,l_var.name);
-      ms_logger.note(l_node, 'l_var.data_type',l_var.data_type);
+      sm_logger.note(l_node, 'l_var.name'     ,l_var.name);
+      sm_logger.note(l_node, 'l_var.data_type',l_var.data_type);
 
       IF  is_atomic_type(i_type => l_var.data_type)  THEN
-          ms_logger.comment(l_node, 'Found predefined type variable in Package Spec');
+          sm_logger.comment(l_node, 'Found predefined type variable in Package Spec');
           --l_var_list(l_var.name) := l_var; 
           --@TODO check that this info is used correctly later.
           store_var_list(i_var        => create_var_rec(i_param_name => lower(l_var.name)
@@ -5130,11 +5130,11 @@ and   t.usage_context_id = v.usage_id ) LOOP
                         ,io_var_list  => l_var_list
                         ,i_pu_stack   => l_pu_stack);
            
-          ms_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
+          sm_logger.note(l_node, 'l_var_list.count',l_var_list.count);    
 
       ELSIF l_var.data_class = 'RECORD' THEN
-          ms_logger.comment(l_node, 'Found a Package Spec variable of record type, type defined in the package?');
-          ms_logger.comment(l_node, 'Add the record variable with the signature as the signature');
+          sm_logger.comment(l_node, 'Found a Package Spec variable of record type, type defined in the package?');
+          sm_logger.comment(l_node, 'Add the record variable with the signature as the signature');
           --l_var_list(l_var.name) := l_var; --Add the Record 
           --@TODO check that this info is used correctly later.
           store_var_list(i_var        => create_var_rec(i_param_name => lower(l_var.name)
@@ -5155,7 +5155,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
               
               IF  is_atomic_type(i_type => l_type_defn_tab(l_index).data_type) THEN 
                 --@TODO This needs to be able to recursively search lower levels.
-                ms_logger.note(l_node, l_type_defn_tab(l_index).col_name ,l_type_defn_tab(l_index).data_type);
+                sm_logger.note(l_node, l_type_defn_tab(l_index).col_name ,l_type_defn_tab(l_index).data_type);
                 --Add the Record Type
 
                 --@TODO check that this info is used correctly later.
@@ -5210,8 +5210,8 @@ and   t.usage_context_id = v.usage_id ) LOOP
                 and   typ.usage_context_id = col.usage_id 
                 ) LOOP 
 
-             ms_logger.note(l_node, 'l_column.col_name'  ,l_column.col_name);
-             ms_logger.note(l_node, 'l_column.data_type' ,l_column.data_type);
+             sm_logger.note(l_node, 'l_column.col_name'  ,l_column.col_name);
+             sm_logger.note(l_node, 'l_column.data_type' ,l_column.data_type);
              l_var_list(l_var.name||'.'||l_column.col_name) := l_column.data_type; --Add the Record Type
  
           END LOOP; 
@@ -5240,7 +5240,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
   END;
   exception
     when others then
-      ms_logger.warn_error(l_node);
+      sm_logger.warn_error(l_node);
       raise;
   end; --get_vars_from_compiled_object
 
@@ -5307,7 +5307,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                     and   type in ('PACKAGE','PACKAGE BODY') --Get refs of both the spec and body
                                     and referenced_type = 'PACKAGE' 
                                     and referenced_owner NOT IN ( 'SYS' ,'APEX_050100')
-                                    and referenced_name not in ('MS_LOGGER','AOP_PROCESSOR',i_package_name)) LOOP
+                                    and referenced_name not in ('sm_logger','sm_weaver',i_package_name)) LOOP
 
         --Get a list of variables from any package spec directly referenced from the spec or body of this package.
         l_var_list := get_vars_from_compiled_object(i_name     => l_referenced_object.referenced_name
@@ -5378,7 +5378,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
   , i_object_owner            in varchar2
   , i_versions                in varchar2 --USAGE 'AOP,HTML' or 'HTML,AOP', or 'HTML' or 'AOP'
   ) is
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'instrument_plsql');
+    l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'instrument_plsql');
   
     l_orig_body  clob;
     l_aop_body   clob;
@@ -5389,10 +5389,10 @@ and   t.usage_context_id = v.usage_id ) LOOP
     l_package_body_signature varchar2(32);
   begin 
   begin
-    ms_logger.param(l_node, 'i_object_name'  ,i_object_name  );
-    ms_logger.param(l_node, 'i_object_type'  ,i_object_type  );
-    ms_logger.param(l_node, 'i_object_owner' ,i_object_owner );
-    ms_logger.param(l_node, 'i_versions'     ,i_versions );
+    sm_logger.param(l_node, 'i_object_name'  ,i_object_name  );
+    sm_logger.param(l_node, 'i_object_type'  ,i_object_type  );
+    sm_logger.param(l_node, 'i_object_owner' ,i_object_owner );
+    sm_logger.param(l_node, 'i_versions'     ,i_versions );
     g_during_advise:= true;
     -- test for state of package; no sense in trying to post-process an invalid package
     
@@ -5407,11 +5407,11 @@ and   t.usage_context_id = v.usage_id ) LOOP
     -- Also AOP will remove AOP_LOG in the AOP Source, so that logging cannot be doubled-up.
     if instr(l_orig_body, g_aop_never) > 0 THEN
       g_during_advise:= false; 
-	  ms_logger.info(l_node, '@AOP_NEVER found.  AOP_PROCESSOR skipping this request' );
+	  sm_logger.info(l_node, '@AOP_NEVER found.  sm_weaver skipping this request' );
       return;
     elsif instr(l_orig_body, g_aop_directive) = 0 then
       g_during_advise:= false; 
-	  ms_logger.info(l_node, '@AOP_LOG not found.  AOP_PROCESSOR skipping this request' );
+	  sm_logger.info(l_node, '@AOP_LOG not found.  sm_weaver skipping this request' );
       return;
     end if;
   
@@ -5422,7 +5422,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                           , i_compile => TRUE
                           ) THEN
       g_during_advise:= false; 
-	    ms_logger.info(l_node, 'Original Source is invalid.  AOP_PROCESSOR skipping this request' );
+	    sm_logger.info(l_node, 'Original Source is invalid.  sm_weaver skipping this request' );
       return;    
     end if;     
  
@@ -5437,7 +5437,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                     and   type in ('PACKAGE','PACKAGE BODY') --Get refs of both the spec and body
                                     and referenced_type = 'PACKAGE' 
                                     and referenced_owner NOT IN ( 'SYS' ,'APEX_050100')
-                                    and referenced_name not in ('MS_LOGGER','AOP_PROCESSOR',i_object_name)) LOOP
+                                    and referenced_name not in ('sm_logger','sm_weaver',i_object_name)) LOOP
 
         --Get a list of variables from any package spec directly referenced from the spec or body of this package.
         l_var_list := get_vars_from_compiled_object(i_name     => l_referenced_object.referenced_name
@@ -5482,7 +5482,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
     if i_versions like 'HTML%' then
       --Reweave with html - even if the AOP failed.
       --We want to see what happened.
-      ms_logger.comment(l_node,'Reweave with html');  
+      sm_logger.comment(l_node,'Reweave with html');  
       l_html_body := l_orig_body;
         l_woven := weave( io_code         => l_html_body
                           , i_package_name => lower(i_object_name)
@@ -5497,7 +5497,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                            , i_text  => l_html_body
                            , i_aop_ver => 'AOP_HTML'
                            , i_compile => FALSE) THEN
-        ms_logger.fatal(l_node,'Oops problem committing AOP_HTML.');             
+        sm_logger.fatal(l_node,'Oops problem committing AOP_HTML.');             
      
       END IF;
 
@@ -5514,13 +5514,13 @@ and   t.usage_context_id = v.usage_id ) LOOP
                         , i_end_user     => i_object_owner        );
 
       -- (re)compile the source 
-      ms_logger.comment(l_node, 'Validate the AOP version.' );
+      sm_logger.comment(l_node, 'Validate the AOP version.' );
       IF NOT validate_source(i_name  => i_object_name
                          , i_type  => i_object_type
                          , i_text  => l_aop_body
                          , i_aop_ver => 'AOP'
                          , i_compile => l_woven  ) THEN
-        ms_logger.info(l_node, 'Recompile the Original version.' );
+        sm_logger.info(l_node, 'Recompile the Original version.' );
         --reexecute the original so that we at least end up with a valid package.
         IF NOT  validate_source(i_name  => i_object_name
                               , i_type  => i_object_type
@@ -5529,12 +5529,12 @@ and   t.usage_context_id = v.usage_id ) LOOP
                               , i_compile => TRUE) THEN
         --unlikely that will get an error in the original if it worked last time
         --but trap it incase we do  
-            ms_logger.fatal(l_node,'Original Source is invalid on second try.');      
+            sm_logger.fatal(l_node,'Original Source is invalid on second try.');      
         end if;
       else
         --Register the module!!
         if instr(l_orig_body, g_aop_reg_mode_debug) > 0 THEN
-          ms_api.set_module_debug(i_module_name => i_object_name );
+          sm_api.set_module_debug(i_module_name => i_object_name );
         end if;
 
       end if;
@@ -5545,7 +5545,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
       --Reweave with html - even if the AOP failed.
       --We want to see what happened.
-      ms_logger.comment(l_node,'Reweave with html');  
+      sm_logger.comment(l_node,'Reweave with html');  
       l_html_body := l_orig_body;
         l_woven := weave( io_code         => l_html_body
                           , i_package_name => lower(i_object_name)
@@ -5559,7 +5559,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                            , i_text  => l_html_body
                            , i_aop_ver => 'AOP_HTML'
                            , i_compile => FALSE) THEN
-        ms_logger.fatal(l_node,'Oops problem committing AOP_HTML.');             
+        sm_logger.fatal(l_node,'Oops problem committing AOP_HTML.');             
      
       END IF;
 
@@ -5570,7 +5570,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
   exception 
     when others then
-      ms_logger.oracle_error(l_node); 
+      sm_logger.oracle_error(l_node); 
       g_during_advise:= false; 
   end;    
   exception 
@@ -5596,7 +5596,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                          , i_fatal_unhandled_errors  in boolean      default false
                          , i_note_exception_handlers in boolean      default true
                          ) is
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'reapply_aspect'); 
+    l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'reapply_aspect'); 
   begin
 
       --THIS SECTION SHOULD BE SAME AS IN weave PUBLIC
@@ -5611,7 +5611,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                     g_warn_unhandled_errors or 
                                     g_fatal_unhandled_errors;  
 
-    ms_logger.param(l_node, 'i_object_name', i_object_name);
+    sm_logger.param(l_node, 'i_object_name', i_object_name);
       for l_object in (select object_name 
                             , object_type
                             , USER         owner
@@ -5640,7 +5640,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
 * Replace all string placeholders with the original strings
 */
   procedure restore_comments_and_strings IS
-      l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'restore_comments_and_strings'); 
+      l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'restore_comments_and_strings'); 
       l_text CLOB;    
       l_temp_code CLOB;
   BEGIN
@@ -5648,14 +5648,14 @@ and   t.usage_context_id = v.usage_id ) LOOP
     g_current_pos := 1;
  
     FOR l_index in 1..g_comment_stack.count loop
-      ms_logger.note(l_node, 'comment', l_index);
+      sm_logger.note(l_node, 'comment', l_index);
       l_temp_code := g_code;
       l_text := f_colour(i_text   => g_comment_stack(l_index)
                         ,i_colour => G_COLOUR_COMMENT);
       g_code := REPLACE(g_code,'{{comment:'||l_index||'}}',l_text);
 
       IF l_temp_code = g_code THEN
-         ms_logger.warning(l_node, 'Did not find '||'{{comment:'||l_index||'}}');
+         sm_logger.warning(l_node, 'Did not find '||'{{comment:'||l_index||'}}');
          wedge( i_new_code => 'LOOKING FOR '||'{{comment:'||l_index||'}}'
                 ,i_colour  => G_COLOUR_ERROR);
         RAISE x_restore_failed; 
@@ -5665,14 +5665,14 @@ and   t.usage_context_id = v.usage_id ) LOOP
     END LOOP;
   
     FOR l_index in 1..g_string_stack.count loop
-      ms_logger.note(l_node, 'string', l_index);
+      sm_logger.note(l_node, 'string', l_index);
       l_temp_code := g_code;
       l_text := f_colour(i_text   => g_string_stack(l_index)
                         ,i_colour => G_COLOUR_STRING);
       g_code := REPLACE(g_code,'{{string:'||l_index||'}}',l_text);
 
       IF l_temp_code = g_code THEN
-         ms_logger.warning(l_node, 'Did not find '||'{{string:'||l_index||'}}');
+         sm_logger.warning(l_node, 'Did not find '||'{{string:'||l_index||'}}');
          wedge( i_new_code => 'LOOKING FOR '||'{{string:'||l_index||'}}'
                 ,i_colour  => G_COLOUR_ERROR);
         RAISE x_restore_failed;
@@ -5697,7 +5697,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
   procedure stash_comments_and_strings  IS
      
-    l_node ms_logger.node_typ := ms_logger.new_proc(g_package_name,'stash_comments_and_strings');  
+    l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'stash_comments_and_strings');  
   
     l_keyword              VARCHAR2(1000);  
 
@@ -5707,9 +5707,9 @@ and   t.usage_context_id = v.usage_id ) LOOP
     BEGIN
       l_comment := get_next(i_stop     => i_mask
                            ,i_modifier => i_modifier ); --multi-line, lazy
-      ms_logger.note_clob(l_node, 'l_comment', l_comment);
+      sm_logger.note_clob(l_node, 'l_comment', l_comment);
       g_comment_stack(g_comment_stack.count+1) := l_comment; --Put another comment on the stack
-      ms_logger.note(l_node, 'g_comment_stack.count', g_comment_stack.count);
+      sm_logger.note(l_node, 'g_comment_stack.count', g_comment_stack.count);
       g_code := REGEXP_REPLACE(g_code, i_mask, '{{comment:'||g_comment_stack.count||'}}',g_current_pos, 1, i_modifier);
       go_past(i_search => '{{comment:'||g_comment_stack.count||'}}'
              ,i_colour => NULL);
@@ -5722,9 +5722,9 @@ and   t.usage_context_id = v.usage_id ) LOOP
     BEGIN
       l_string := get_next(i_stop     => i_mask
                          ,i_modifier => i_modifier ); --multi-line, lazy
-      ms_logger.note(l_node, 'l_string', l_string);
+      sm_logger.note(l_node, 'l_string', l_string);
       g_string_stack(g_string_stack.count+1) := l_string; --Put another string on the stack
-      ms_logger.note(l_node, 'g_string_stack.count', g_string_stack.count);
+      sm_logger.note(l_node, 'g_string_stack.count', g_string_stack.count);
       g_code := REGEXP_REPLACE(g_code, i_mask, '{{string:'||g_string_stack.count||'}}',g_current_pos, 1, i_modifier);
       go_past(i_search => '{{string:'||g_string_stack.count||'}}'
              ,i_colour => NULL);
@@ -5769,7 +5769,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
         l_keyword :=  get_next(i_stop       => G_REGEX_START_COMMENT_OR_STR
                               ,i_upper      => TRUE   );
    
-        ms_logger.note(l_node, 'l_keyword' ,l_keyword); 
+        sm_logger.note(l_node, 'l_keyword' ,l_keyword); 
       
         CASE 
   
@@ -5779,20 +5779,20 @@ and   t.usage_context_id = v.usage_id ) LOOP
   
             --Check for an annotation                         
             IF regex_match(l_keyword , G_REGEX_START_ANNOTATION) THEN                           
-              ms_logger.info(l_node, 'Annotation');         
+              sm_logger.info(l_node, 'Annotation');         
               --ANNOTATION          
               go_past;          
               extract_comment(i_mask     => G_REGEX_SINGLE_LINE_ANNOTATION          
                              ,i_modifier => 'i');   
   
             ELSIF regex_match(l_keyword , G_REGEX_SHOW_ME) THEN                           
-              ms_logger.info(l_node, 'Show Me');         
+              sm_logger.info(l_node, 'Show Me');         
               --SHOW ME
               --Just ignore this till later.      
               go_past;  
   
             ELSIF regex_match(l_keyword , G_REGEX_ROW_COUNT) THEN                           
-              ms_logger.info(l_node, 'Rowcount');         
+              sm_logger.info(l_node, 'Rowcount');         
               --ROWCOUNT
               --Just ignore this till later.      
               go_past;  
@@ -5802,7 +5802,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
             ELSE
  
               --Just a comment
-              ms_logger.info(l_node, 'Single Line Comment');         
+              sm_logger.info(l_node, 'Single Line Comment');         
               --REMOVE SINGLE LINE COMMENTS 
               --Find "--" and remove chars upto EOL     
               extract_comment(i_mask     => G_REGEX_SINGLE_LINE_COMMENT
@@ -5812,20 +5812,20 @@ and   t.usage_context_id = v.usage_id ) LOOP
   
  
           WHEN regex_match(l_keyword , G_REGEX_START_MULTI_COMMENT)  THEN  
-            ms_logger.info(l_node, 'Multi Line Comment');  
+            sm_logger.info(l_node, 'Multi Line Comment');  
             --REMOVE MULTI-LINE COMMENTS 
             --Find "/*" and remove upto "*/" 
             extract_comment(i_mask => G_REGEX_MULTI_LINE_COMMENT);
                             -- ,i_modifier => 'i');
  
           WHEN regex_match(l_keyword , G_REGEX_START_ADV_STRING)  THEN  
-            ms_logger.info(l_node, 'Multi Line Adv Quote');  
+            sm_logger.info(l_node, 'Multi Line Adv Quote');  
             --REMOVE ADVANCED STRINGS - MULTI_LINE
             --Find "q'[" and remove to next "]'", variations include [] {} <> () and any single printable char.
             extract_strings(i_mask => G_REGEX_MULTI_LINE_ADV_STRING);
               
           WHEN regex_match(l_keyword , G_REGEX_START_STRING)  THEN  
-            ms_logger.info(l_node, 'Multi Line Simple Quote');
+            sm_logger.info(l_node, 'Multi Line Simple Quote');
             --REMOVE SIMPLE STRINGS - MULTI_LINE
             --Find "'" and remove to next "'"     
             extract_strings(i_mask => G_REGEX_MULTI_LINE_STRING);
@@ -5841,11 +5841,11 @@ and   t.usage_context_id = v.usage_id ) LOOP
   
     END LOOP; 
   
-    ms_logger.comment(l_node, 'No more comments or strings.'); 
+    sm_logger.comment(l_node, 'No more comments or strings.'); 
   
   EXCEPTION
     WHEN OTHERS THEN
-      ms_logger.warn_error(l_node);
+      sm_logger.warn_error(l_node);
       RAISE;
   END;
 
@@ -5864,7 +5864,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
     from dba_source_v
     where NAME = i_object_name
     and type   = i_object_type
-    and (text like '%Logging by AOP_PROCESSOR%' or text like '%@AOP_LOG_WOVEN%');
+    and (text like '%Logging by sm_weaver%' or text like '%@AOP_LOG_WOVEN%');
 
     l_dummy number;
     l_found boolean;
@@ -5885,11 +5885,11 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
   END;
  
-end aop_processor;
+end sm_weaver;
 /
 show error;
 
 set define on;
 
-alter trigger aop_processor_trg enable;
+alter trigger sm_weaver_trg enable;
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK

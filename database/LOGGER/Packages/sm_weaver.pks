@@ -1,13 +1,12 @@
 WHENEVER SQLERROR CONTINUE
-alter trigger aop_processor_trg disable;
+alter trigger sm_weaver_trg disable;
 
-create or replace package aop_processor AUTHID CURRENT_USER 
+create or replace package sm_weaver AUTHID CURRENT_USER 
 is
 /** 
-* AOP Processor - Aspect Orientated Programming Processor<br/>
-* Purpose is to weaving the logging instrumentation into valid plsql progam units.<br/> 
+* WEAVER - AOP Processor - Aspect Orientated Programming Processor
+* Weaves the logging instrumentation into valid plsql progam units. 
 */
- 
 
 
 
@@ -22,7 +21,6 @@ TYPE identifier_rec is record (
   ,data_class  varchar2(18)  
   ,signature   varchar2(32));
 
---TYPE identifier_tab IS table of all_identifiers%ROWTYPE;
 TYPE identifier_tab IS table of identifier_rec index by BINARY_INTEGER;
  
   ----------------------------------------------------------------------------
@@ -163,7 +161,7 @@ FUNCTION get_db_object_signature(i_object_name         IN varchar2
 ----------------------------------------------------------------------------------------------- 
 /** PUBLIC
 * Is the weaver currently performing a weave.
-* This function is used purely by the trigger aop_processor_trg to ensure it is NOT triggered by the weaver itself.
+* This function is used purely by the trigger sm_weaver_trg to ensure it is NOT triggered by the weaver itself.
 * @return TRUE when weaving.
 */
   function during_advise return boolean;
@@ -221,9 +219,9 @@ FUNCTION get_db_object_signature(i_object_name         IN varchar2
  function using_aop(i_object_name IN VARCHAR2
                    ,i_object_type IN VARCHAR2 DEFAULT 'PACKAGE BODY') return varchar2;
  
-end aop_processor;
+end sm_weaver;
 /
 show error;
 
-alter trigger aop_processor_trg enable;
+alter trigger sm_weaver_trg enable;
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK;

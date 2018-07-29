@@ -4,7 +4,7 @@ declare
 begin
       dbms_job.submit(  job       => l_job_no
                        ,what      => 
-      'ms_api.purge_old_processes(i_keep_day_count =>  ms_api.f_config_value(i_name => ''KEEP_DAY_COUNT''));'
+      'sm_api.purge_old_processes(i_keep_day_count =>  sm_api.f_config_value(i_name => ''KEEP_DAY_COUNT''));'
                        ,next_date => SYSDATE + 30/86400           --now + 30 secs
                        ,interval  => 'SYSDATE + 10/1440'          --every 10 minutes
                        ,no_parse  => false); 

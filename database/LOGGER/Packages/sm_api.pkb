@@ -1,28 +1,28 @@
 alter session set plsql_ccflags = 'intlog:false';
---alter package ms_api compile PLSQL_CCFlags = 'intlog:true' reuse settings 
---alter package ms_api compile PLSQL_CCFlags = 'intlog:false' reuse settings 
+--alter package sm_api compile PLSQL_CCFlags = 'intlog:true' reuse settings 
+--alter package sm_api compile PLSQL_CCFlags = 'intlog:false' reuse settings 
 
---Ensure no inlining so ms_api can be used
+--Ensure no inlining so sm_api can be used
 alter session set plsql_optimize_level = 1;
 
-create or replace package body ms_api is
+create or replace package body sm_api is
 ------------------------------------------------------------------
--- Program  : ms_api  
+-- Program  : sm_api  
 -- Name     : SmartLoggerAPI 
 -- Author   : P.Burgess
 -- Purpose  : API providing interaction with the logger
--- Since the AOP_PROCESSOR can now instrument code for the SmartLogger (ms_logger),
--- ms_logger will contain only commands that the AOP_PROCESSOR produces.
+-- Since the SM_WEAVER can now instrument code for the SmartLogger (sm_logger),
+-- sm_logger will contain only commands that the SM_WEAVER produces.
 -- Other commands that control the SmartLogger, its modes, perhaps registry changes,
 -- and requests for output, will generally be hand-coded into the target application.
 -- These commands will form the SmartLoggerAPI.
 
 ------------------------------------------------------------------------
--- This package is not to be instrumented by the AOP_PROCESSOR
+-- This package is not to be instrumented by the SM_WEAVER
 -- @AOP_NEVER 
 ------------------------------------------------------------------------
  
-G_SMARTLOGGER_PROCESS_PAGE_NO CONSTANT NUMBER := 8;
+G_SMARTLOGGER_SESSION_PAGE_NO CONSTANT NUMBER := 8;
 G_SMARTLOGGER_TRACE_PAGE_NO   CONSTANT NUMBER := 24;
  
 
@@ -33,10 +33,10 @@ function f_config_value(i_name IN VARCHAR2) return VARCHAR2 IS
 
   cursor cu_config(c_name IN VARCHAR2) is
   select value
-  from   ms_config
+  from   sm_config
   where  name = c_name;
 
-  l_result  ms_config.value%type;
+  l_result  sm_config.value%type;
  
 begin
   open  cu_config(c_name => i_name);
@@ -55,17 +55,17 @@ FUNCTION msg_level_string (i_msg_level    IN NUMBER) RETURN VARCHAR2
 IS
   v_result VARCHAR2(100) := NULL;
 BEGIN
-    IF i_msg_level = ms_logger.G_MSG_LEVEL_INFO THEN
+    IF i_msg_level = sm_logger.G_MSG_LEVEL_INFO THEN
       v_result  := 'Info ?';
-    ELSIF i_msg_level =  ms_logger.G_MSG_LEVEL_COMMENT THEN
+    ELSIF i_msg_level =  sm_logger.G_MSG_LEVEL_COMMENT THEN
       v_result  := 'Comment';
-    ELSIF i_msg_level =  ms_logger.G_MSG_LEVEL_WARNING THEN
+    ELSIF i_msg_level =  sm_logger.G_MSG_LEVEL_WARNING THEN
       v_result  := 'Warning !';
-    ELSIF i_msg_level =  ms_logger.G_MSG_LEVEL_FATAL THEN
+    ELSIF i_msg_level =  sm_logger.G_MSG_LEVEL_FATAL THEN
       v_result  := 'Fatal !';
-    ELSIF i_msg_level =  ms_logger.G_MSG_LEVEL_ORACLE THEN
+    ELSIF i_msg_level =  sm_logger.G_MSG_LEVEL_ORACLE THEN
       v_result  := 'Oracle Error';
-    ELSIF i_msg_level =  ms_logger.G_MSG_LEVEL_INTERNAL THEN
+    ELSIF i_msg_level =  sm_logger.G_MSG_LEVEL_INTERNAL THEN
       v_result  := 'Internal Error';
     END IF;
 
@@ -82,7 +82,7 @@ FUNCTION unit_message_count(i_unit_id      IN NUMBER
   CURSOR cu_message_count(c_unit_id      NUMBER                         
                          ,c_msg_level    NUMBER) IS
   SELECT count(*)
-  FROM   ms_traversal_message_vw
+  FROM   sm_call_message_vw
   WHERE  unit_id    =  c_unit_id
   AND    msg_level  =  c_msg_level; 
   
@@ -99,19 +99,19 @@ BEGIN
 END;  
 
  
-FUNCTION unit_traversal_count(i_unit_id IN NUMBER ) RETURN NUMBER IS
+FUNCTION unit_call_count(i_unit_id IN NUMBER ) RETURN NUMBER IS
                            
-  CURSOR cu_traversal_count(c_unit_id NUMBER ) IS
+  CURSOR cu_call_count(c_unit_id NUMBER ) IS
   SELECT count(*)
-  FROM  ms_traversal
+  FROM  sm_call
   WHERE unit_id =  c_unit_id; 
   
   l_result NUMBER;
   
 BEGIN
-  OPEN cu_traversal_count(c_unit_id => i_unit_id );
-  FETCH cu_traversal_count INTO l_result;
-  CLOSE cu_traversal_count;
+  OPEN cu_call_count(c_unit_id => i_unit_id );
+  FETCH cu_call_count INTO l_result;
+  CLOSE cu_call_count;
   
   RETURN l_result;
   
@@ -125,8 +125,8 @@ END;
 PROCEDURE  set_module_debug(i_module_name IN VARCHAR2 ) IS
                              
 BEGIN
-  ms_logger.set_module_msg_mode(i_module_name  => i_module_name
-                               ,i_msg_mode    => ms_logger.G_MSG_MODE_DEBUG);
+  sm_logger.set_module_msg_mode(i_module_name  => i_module_name
+                               ,i_msg_mode    => sm_logger.G_MSG_MODE_DEBUG);
 END; 
 
 ------------------------------------------------------------------------
@@ -134,8 +134,8 @@ END;
 PROCEDURE  set_module_normal(i_module_name IN VARCHAR2 ) IS
                              
 BEGIN
- ms_logger.set_module_msg_mode(i_module_name  => i_module_name
-                               ,i_msg_mode    => ms_logger.G_MSG_MODE_NORMAL);
+ sm_logger.set_module_msg_mode(i_module_name  => i_module_name
+                               ,i_msg_mode    => sm_logger.G_MSG_MODE_NORMAL);
 END; 
 
 ------------------------------------------------------------------------
@@ -143,15 +143,15 @@ END;
 PROCEDURE  set_module_quiet(i_module_name IN VARCHAR2 ) IS
                              
 BEGIN
-  ms_logger.set_module_msg_mode(i_module_name  => i_module_name
-                               ,i_msg_mode    => ms_logger.G_MSG_MODE_QUIET);
+  sm_logger.set_module_msg_mode(i_module_name  => i_module_name
+                               ,i_msg_mode    => sm_logger.G_MSG_MODE_QUIET);
 END; 
  
 PROCEDURE  set_module_disabled(i_module_name IN VARCHAR2 ) IS
                              
 BEGIN
-  ms_logger.set_module_msg_mode(i_module_name  => i_module_name
-                               ,i_msg_mode    => ms_logger.G_MSG_MODE_DISABLED);
+  sm_logger.set_module_msg_mode(i_module_name  => i_module_name
+                               ,i_msg_mode    => sm_logger.G_MSG_MODE_DISABLED);
 END; 
 
 ------------------------------------------------------------------------
@@ -162,9 +162,9 @@ PROCEDURE  set_unit_debug(i_module_name IN VARCHAR2
                          ,i_unit_name   IN VARCHAR2 ) IS
                              
 BEGIN
-  ms_logger.set_unit_msg_mode(i_module_name  => i_module_name
+  sm_logger.set_unit_msg_mode(i_module_name  => i_module_name
                              ,i_unit_name    => i_unit_name  
-                             ,i_msg_mode     => ms_logger.G_MSG_MODE_DEBUG);
+                             ,i_msg_mode     => sm_logger.G_MSG_MODE_DEBUG);
 END; 
 
 ------------------------------------------------------------------------
@@ -173,9 +173,9 @@ PROCEDURE  set_unit_normal(i_module_name IN VARCHAR2
                          ,i_unit_name   IN VARCHAR2 ) IS
                              
 BEGIN
-  ms_logger.set_unit_msg_mode(i_module_name  => i_module_name
+  sm_logger.set_unit_msg_mode(i_module_name  => i_module_name
                              ,i_unit_name    => i_unit_name  
-                             ,i_msg_mode     => ms_logger.G_MSG_MODE_NORMAL);
+                             ,i_msg_mode     => sm_logger.G_MSG_MODE_NORMAL);
 END; 
 
 ------------------------------------------------------------------------
@@ -184,33 +184,33 @@ PROCEDURE  set_unit_quiet(i_module_name IN VARCHAR2
                          ,i_unit_name   IN VARCHAR2 ) IS
                              
 BEGIN
-  ms_logger.set_unit_msg_mode(i_module_name  => i_module_name
+  sm_logger.set_unit_msg_mode(i_module_name  => i_module_name
                              ,i_unit_name    => i_unit_name  
-                             ,i_msg_mode    => ms_logger.G_MSG_MODE_QUIET);
+                             ,i_msg_mode    => sm_logger.G_MSG_MODE_QUIET);
 END; 
  
 PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
                             ,i_unit_name   IN VARCHAR2 ) IS
                              
 BEGIN
-  ms_logger.set_unit_msg_mode(i_module_name  => i_module_name
+  sm_logger.set_unit_msg_mode(i_module_name  => i_module_name
                              ,i_unit_name    => i_unit_name  
-                             ,i_msg_mode     => ms_logger.G_MSG_MODE_DISABLED);
+                             ,i_msg_mode     => sm_logger.G_MSG_MODE_DISABLED);
 END; 
 
 
 --------------------------------------------------------------------
---purge_old_processes
+--purge_old_sessions
 -------------------------------------------------------------------
 
 
-PROCEDURE purge_old_processes(i_keep_day_count IN NUMBER DEFAULT 1) IS
+PROCEDURE purge_old_sessions(i_keep_day_count IN NUMBER DEFAULT 1) IS
 
  PRAGMA AUTONOMOUS_TRANSACTION;
  
 BEGIN 
 
-  delete from ms_process 
+  delete from sm_session 
   where  created_date < (SYSDATE - i_keep_day_count)
   and    keep_yn = 'N';
  
@@ -219,18 +219,18 @@ BEGIN
  END;
  
 --------------------------------------------------------------------
---set_process_keep_flag
+--set_session_keep_flag
 -------------------------------------------------------------------
-PROCEDURE set_process_keep_flag(i_process_id IN NUMBER
+PROCEDURE set_session_keep_flag(i_session_id IN NUMBER
                                ,i_keep_yn    IN VARCHAR2 DEFAULT 'Y') IS
 
  PRAGMA AUTONOMOUS_TRANSACTION;
  
 BEGIN 
 
-  update ms_process 
+  update sm_session 
      set keep_yn = i_keep_yn
-  where  process_id = i_process_id;
+  where  session_id = i_session_id;
  
   COMMIT;
   
@@ -238,17 +238,17 @@ BEGIN
 
 
 --------------------------------------------------------------------
---toggle_process_keep_flag
+--toggle_session_keep_flag
 -------------------------------------------------------------------
-PROCEDURE toggle_process_keep_flag(i_process_id IN NUMBER ) IS
+PROCEDURE toggle_session_keep_flag(i_session_id IN NUMBER ) IS
 
  PRAGMA AUTONOMOUS_TRANSACTION;
  
 BEGIN 
 
-  update ms_process 
+  update sm_session 
      set keep_yn = decode(keep_yn,'Y','N','N','Y','Y')
-  where  process_id = i_process_id;
+  where  session_id = i_session_id;
  
   COMMIT;
   
@@ -256,24 +256,24 @@ BEGIN
 
  
 ------------------------------------------------------------------------
--- get_plain_text_process_report
+-- get_plain_text_session_report
 ------------------------------------------------------------------------
  
-FUNCTION get_plain_text_process_report(i_process_id IN NUMBER) RETURN CLOB IS
+FUNCTION get_plain_text_session_report(i_session_id IN NUMBER) RETURN CLOB IS
   l_report CLOB;
-  l_process_id INTEGER := NVL(i_process_id, ms_logger.f_process_id);
+  l_session_id INTEGER := NVL(i_session_id, sm_logger.f_session_id);
 BEGIN
  
 	FOR l_line IN (SELECT lpad('+ ',(level-1)*2,'+ ')
                          ||module_name||'.'
                          ||unit_name
-                         ||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by traversal_id) from ms_message where traversal_id = t.traversal_id and msg_type in ('Param','Note'))
-                         ||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from ms_message where traversal_id = t.traversal_id and msg_type not in ('Param','Note')) as text
-                   FROM ms_unit_traversal_vw t
-                   WHERE process_id = l_process_id
-                   START WITH parent_traversal_id IS NULL
-                   CONNECT BY PRIOR traversal_id = parent_traversal_id
-                   ORDER SIBLINGS BY traversal_id) LOOP
+                         ||chr(10)||(SELECT listagg('**'||name||':'||value,chr(10)) within group (order by call_id) from sm_message where call_id = t.call_id and msg_type in ('Param','Note'))
+                         ||chr(10)||(SELECT listagg('--'||message,chr(10)) within group (order by message_id) from sm_message where call_id = t.call_id and msg_type not in ('Param','Note')) as text
+                   FROM sm_unit_call_vw t
+                   WHERE session_id = l_session_id
+                   START WITH parent_call_id IS NULL
+                   CONNECT BY PRIOR call_id = parent_call_id
+                   ORDER SIBLINGS BY call_id) LOOP
 	
 	 
 	  l_report := l_report ||chr(10)||l_line.text;
@@ -285,11 +285,11 @@ BEGIN
 END;
  
 ------------------------------------------------------------------------
--- get_html_process_report
+-- get_html_session_report
 ------------------------------------------------------------------------
-FUNCTION get_html_process_report(i_process_id in integer DEFAULT NULL) RETURN CLOB IS
+FUNCTION get_html_session_report(i_session_id in integer DEFAULT NULL) RETURN CLOB IS
 
-  l_node ms_logger.node_typ := ms_logger.new_func($$plsql_unit ,'get_html_process_report');
+  l_node sm_logger.node_typ := sm_logger.new_func($$plsql_unit ,'get_html_session_report');
   l_report CLOB;
   
   G_COLOUR_PROG_UNIT  VARCHAR2(10) := '#6699FF';
@@ -302,27 +302,27 @@ FUNCTION get_html_process_report(i_process_id in integer DEFAULT NULL) RETURN CL
   
   l_colour            VARCHAR2(10);  
   
-  l_process_id INTEGER := NVL(i_process_id, ms_logger.f_process_id);
+  l_session_id INTEGER := NVL(i_session_id, sm_logger.f_session_id);
   
   PROCEDURE write(i_line IN VARCHAR2 DEFAULT NULL) IS
 
-    l_node ms_logger.node_typ := ms_logger.new_proc($$plsql_unit ,'write');
+    l_node sm_logger.node_typ := sm_logger.new_proc($$plsql_unit ,'write');
  
   begin --write
-    ms_logger.param(l_node,'i_line',i_line);
+    sm_logger.param(l_node,'i_line',i_line);
 
  BEGIN
     l_report := l_report||chr(10)||i_line;
   END;
   exception
     when others then
-      ms_logger.warn_error(l_node);
+      sm_logger.warn_error(l_node);
       raise;
   end; --write
 
   
   
-begin --get_html_process_report
+begin --get_html_session_report
 
 BEGIN
 
@@ -355,13 +355,13 @@ BEGIN
        select level
                ,ut.*
              ,'<span style="padding-left:'||LEVEL*10||'px;">'||ut.unit_name||'</span>' level_unit_name
-         from ms_unit_traversal_vw ut
-		 WHERE process_id = l_process_id 
-         start with ut.PARENT_TRAVERSAL_ID IS NULL
-         connect by prior ut.TRAVERSAL_ID = ut.PARENT_TRAVERSAL_ID
-         order siblings by ut.TRAVERSAL_ID) a
-         ,ms_message_vw m
-       where m.traversal_id = a.traversal_id
+         from sm_unit_call_vw ut
+		 WHERE session_id = l_session_id 
+         start with ut.PARENT_call_ID IS NULL
+         connect by prior ut.call_ID = ut.PARENT_call_ID
+         order siblings by ut.call_ID) a
+         ,sm_message_vw m
+       where m.call_id = a.call_id
 	   order by message_id
 	 ) LOOP
 	
@@ -394,9 +394,9 @@ BEGIN
 END;
 exception
   when others then
-    ms_logger.warn_error(l_node);
+    sm_logger.warn_error(l_node);
     raise;
-end; --get_html_process_report
+end; --get_html_session_report
 
 
 ------------------------------------------------------------------------
@@ -492,18 +492,18 @@ FUNCTION get_smartlogger_report_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
                                    ,i_port         IN VARCHAR2 DEFAULT NULL
                                    ,i_dir          IN VARCHAR2 DEFAULT NULL
                                    ,i_page_no      IN VARCHAR2
-                                   ,i_process_id   IN INTEGER   ) RETURN VARCHAR2 IS
+                                   ,i_session_id   IN INTEGER   ) RETURN VARCHAR2 IS
 
   l_request     VARCHAR2(30);
  
 BEGIN
 
-  if i_process_id is null then 
-    --There is no process to report on.
+  if i_session_id is null then 
+    --There is no session to report on.
     return null;
   end if; 
   
-  IF ms_logger.f_process_exceptions(i_process_id => i_process_id) THEN
+  IF sm_logger.f_session_exceptions(i_session_id => i_session_id) THEN
     --Exceptions exist so lets show them.
     l_request := 'IR_REPORT_EXCEPTIONS';
   ELSE
@@ -518,8 +518,8 @@ BEGIN
                           ,i_page_no     => i_page_no
                           ,i_request     => l_request
                           ,i_clear_cache => 'RIR,RP,'||i_page_no
-                          ,i_param_names => 'P'||i_page_no||'_PROCESS_ID'
-                          ,i_param_values => i_process_id);
+                          ,i_param_names => 'P'||i_page_no||'_session_ID'
+                          ,i_param_values => i_session_id);
 
 END; 
  
@@ -529,7 +529,7 @@ END;
 FUNCTION get_smartlogger_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
                                   ,i_port         IN VARCHAR2 DEFAULT NULL
                                   ,i_dir          IN VARCHAR2 DEFAULT NULL
-                                  ,i_process_id   IN INTEGER   ) RETURN VARCHAR2 IS
+                                  ,i_session_id   IN INTEGER   ) RETURN VARCHAR2 IS
  
 BEGIN
 
@@ -537,26 +537,26 @@ BEGIN
                                    ,i_port        => i_port
                                    ,i_dir         => i_dir
                                    ,i_page_no     => G_SMARTLOGGER_TRACE_PAGE_NO
-                                   ,i_process_id  => i_process_id);
+                                   ,i_session_id  => i_session_id);
  
 END; 
 
 
 ------------------------------------------------------------------------
--- get_smartlogger_process_URL
+-- get_smartlogger_session_URL
 ------------------------------------------------------------------------
-FUNCTION get_smartlogger_process_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
+FUNCTION get_smartlogger_session_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
                                     ,i_port         IN VARCHAR2 DEFAULT NULL
                                     ,i_dir          IN VARCHAR2 DEFAULT NULL
-                                    ,i_process_id   IN INTEGER   ) RETURN VARCHAR2 IS
+                                    ,i_session_id   IN INTEGER   ) RETURN VARCHAR2 IS
  
 BEGIN
 
   RETURN get_smartlogger_report_URL(i_server_url  => i_server_url
                                    ,i_port        => i_port
                                    ,i_dir         => i_dir
-                                   ,i_page_no     => G_SMARTLOGGER_PROCESS_PAGE_NO
-                                   ,i_process_id  => i_process_id);
+                                   ,i_page_no     => G_SMARTLOGGER_SESSION_PAGE_NO
+                                   ,i_session_id  => i_session_id);
  
 END; 
 
@@ -564,30 +564,30 @@ END;
  
  
 ------------------------------------------------------------------------
--- get_trace_URL - first checks process exists
+-- get_trace_URL - first checks session exists
 ------------------------------------------------------------------------
 FUNCTION get_trace_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
                       ,i_port         IN VARCHAR2 DEFAULT NULL
                       ,i_dir          IN VARCHAR2 DEFAULT NULL
-                      ,i_process_id   IN INTEGER  DEFAULT NULL
+                      ,i_session_id   IN INTEGER  DEFAULT NULL
                      -- ,i_ext_ref      IN VARCHAR2 DEFAULT NULL  
                       ) RETURN VARCHAR2 IS
  
-  l_process_id INTEGER;
+  l_session_id INTEGER;
   l_result     VARCHAR2(2000);
   
  
 BEGIN 
 
-  l_process_id := ms_logger.f_process_id(i_process_id => i_process_id
+  l_session_id := sm_logger.f_session_id(i_session_id => i_session_id
                                        -- ,i_ext_ref    => i_ext_ref 
                                         );  
  
-  IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
+  IF sm_logger.f_session_traced(i_session_id => l_session_id) THEN
     l_result := get_smartlogger_trace_URL(i_server_url  => i_server_url
                                          ,i_port        => i_port
                                          ,i_dir         => i_dir      
-                                         ,i_process_id  => l_process_id);
+                                         ,i_session_id  => l_session_id);
  
   END IF;
   
@@ -603,19 +603,19 @@ END;
 FUNCTION get_user_feedback_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
                               ,i_port         IN VARCHAR2 DEFAULT NULL
                               ,i_dir          IN VARCHAR2 DEFAULT NULL
-                              ,i_process_id   IN NUMBER   DEFAULT NULL) RETURN VARCHAR2 IS
-  l_process_id INTEGER;
+                              ,i_session_id   IN NUMBER   DEFAULT NULL) RETURN VARCHAR2 IS
+  l_session_id INTEGER;
 BEGIN
 
-  l_process_id := NVL(i_process_id, ms_logger.f_process_id);
+  l_session_id := NVL(i_session_id, sm_logger.f_session_id);
 
-  IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
+  IF sm_logger.f_session_traced(i_session_id => l_session_id) THEN
   
     RETURN 'Click to view Trace:  '
             ||get_smartlogger_trace_URL(i_server_url  => i_server_url
                                        ,i_port        => i_port
                                        ,i_dir         => i_dir       
-                                       ,i_process_id  => l_process_id);
+                                       ,i_session_id  => l_session_id);
 
   ELSE
     RETURN NULL;
@@ -630,18 +630,18 @@ END;
 FUNCTION get_user_feedback_anchor(i_server_url   IN VARCHAR2 DEFAULT NULL
                                  ,i_port         IN VARCHAR2 DEFAULT NULL
                                  ,i_dir          IN VARCHAR2 DEFAULT NULL
-                                 ,i_process_id   IN NUMBER   DEFAULT NULL ) RETURN VARCHAR2 IS
-  l_process_id INTEGER;
+                                 ,i_session_id   IN NUMBER   DEFAULT NULL ) RETURN VARCHAR2 IS
+  l_session_id INTEGER;
 BEGIN
 
-  l_process_id := NVL(i_process_id, ms_logger.f_process_id);
+  l_session_id := NVL(i_session_id, sm_logger.f_session_id);
 
-  IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
+  IF sm_logger.f_session_traced(i_session_id => l_session_id) THEN
   
     return htf.anchor(curl        => get_smartlogger_trace_URL(i_server_url  => i_server_url
                                                               ,i_port        => i_port
                                                               ,i_dir         => i_dir       
-                                                              ,i_process_id  => l_process_id)
+                                                              ,i_session_id  => l_session_id)
                      ,ctext       => 'Click to view Trace'
                      ,cname       => NULL
                      ,cattributes => NULL);
@@ -659,19 +659,19 @@ END;
 FUNCTION get_support_feedback_anchor(i_server_url   IN VARCHAR2 DEFAULT NULL
                                     ,i_port         IN VARCHAR2 DEFAULT NULL
                                     ,i_dir          IN VARCHAR2 DEFAULT NULL
-                                    ,i_process_id   IN NUMBER   DEFAULT NULL) RETURN VARCHAR2 IS
+                                    ,i_session_id   IN NUMBER   DEFAULT NULL) RETURN VARCHAR2 IS
  --'http://soraempl002.au.fcl.internal:8080'
-  l_process_id INTEGER;
+  l_session_id INTEGER;
 BEGIN
 
-  l_process_id := NVL(i_process_id, ms_logger.f_process_id);
+  l_session_id := NVL(i_session_id, sm_logger.f_session_id);
 
-  IF ms_logger.f_process_traced(i_process_id => l_process_id) THEN
+  IF sm_logger.f_session_traced(i_session_id => l_session_id) THEN
   
-    return htf.anchor(curl        => get_smartlogger_process_URL(i_server_url  => i_server_url
+    return htf.anchor(curl        => get_smartlogger_session_URL(i_server_url  => i_server_url
                                                                 ,i_port        => i_port
                                                                 ,i_dir         => i_dir      
-                                                                ,i_process_id  => l_process_id)
+                                                                ,i_session_id  => l_session_id)
                      ,ctext       => 'Click to view Debugging'
                      ,cname       => NULL
                      ,cattributes => NULL);
@@ -792,15 +792,15 @@ END smtp_mail;
 PROCEDURE trawl_log_for_errors IS
 
   --Find all bad
-  CURSOR cu_bad_processes IS
+  CURSOR cu_bad_sessiones IS
   SELECT * 
-  FROM   ms_process_v2
+  FROM   sm_session_v2
   WHERE  (exception_count > 0 
       OR internal_error = 'Y')
   and    NVL(notified_flag,'N') = 'N';
 
 
-  l_process_list clob;
+  l_session_list clob;
 
   L_CRLF   CONSTANT VARCHAR2(2)   := CHR(13) || CHR(10);
   
@@ -816,23 +816,23 @@ PROCEDURE trawl_log_for_errors IS
  
 BEGIN
   
-  FOR l_bad_process IN cu_bad_processes LOOP
+  FOR l_bad_session IN cu_bad_sessiones LOOP
 
-    l_process_list := l_process_list 
-      || '<LI> Process '||l_bad_process.process_id ||' ' ||get_support_feedback_anchor(i_process_id => l_bad_process.process_id);
+    l_session_list := l_session_list 
+      || '<LI> session '||l_bad_session.session_id ||' ' ||get_support_feedback_anchor(i_session_id => l_bad_session.session_id);
  
-    UPDATE ms_process 
+    UPDATE sm_session 
     set    notified_flag = 'Y'
-    where  process_id = l_bad_process.process_id;
+    where  session_id = l_bad_session.session_id;
 
   END LOOP; 
 
-  l_body_html := 'The following recent SmartLogger processes have produced errors :'
+  l_body_html := 'The following recent SmartLogger sessiones have produced errors :'
      ||BR
-     ||BR||l_process_list; 
+     ||BR||l_session_list; 
 
  
-  IF l_process_list IS NOT NULL THEN
+  IF l_session_list IS NOT NULL THEN
 
     IF f_config_value(i_name => 'SMTP_MAIL') = 'Y' THEN
 

@@ -1,29 +1,29 @@
 alter session set plsql_ccflags = 'intlog:false';
---alter package ms_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings 
---alter package ms_logger compile PLSQL_CCFlags = 'intlog:false' reuse settings 
+--alter package sm_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings 
+--alter package sm_logger compile PLSQL_CCFlags = 'intlog:false' reuse settings 
  
---Ensure no inlining so ms_logger can be used
+--Ensure no inlining so sm_logger can be used
 alter session set plsql_optimize_level = 1;
 
-create or replace package body ms_logger is
+create or replace package body sm_logger is
 ------------------------------------------------------------------
--- Program  : ms_logger  
+-- Program  : sm_logger  
 -- Name     : Smart logger for PL/SQL
 -- Author   : P.Burgess
 -- Purpose  : Logging for PL/SQL 
 --            Smart logger has a reduced instruction set, that is appropriate for use with 
---            the AOP_PROCESSOR for automated instrumentation of code.
+--            the SM_WEAVER for automated instrumentation of code.
 --
 ------------------------------------------------------------------------
--- This package is not to be instrumented by the AOP_PROCESSOR
+-- This package is not to be instrumented by the SM_WEAVER
 -- @AOP_NEVER 
 
 -- Quiet Mode
--- Any unit set to msg_mode QUIET will not cause traversals to be logged unless:
--- A. An exception occurs in the traversal, or a later unlogged traversal
---    In this case the traversal is logged with msg_mode DEBUG
--- B. A later traversal is to be logged for a DEBUG or NORMAL unit.
---    In this case the traversal is logged with msg_mode QUIET
+-- Any unit set to msg_mode QUIET will not cause calls to be logged unless:
+-- A. An exception occurs in the call, or a later unlogged call
+--    In this case the call is logged with msg_mode DEBUG
+-- B. A later call is to be logged for a DEBUG or NORMAL unit.
+--    In this case the call is logged with msg_mode QUIET
 ------------------------------------------------------------------------
 -- Internal Errors 
 -- If an internal error is detected (internal to this package), then the internal error flag
@@ -55,7 +55,7 @@ TYPE node_stack_typ IS
   TABLE OF node_typ
   INDEX BY BINARY_INTEGER;
  
-  l_current_node  ms_logger.node_typ; 	
+  l_current_node  sm_logger.node_typ; 	
   
  
 
@@ -74,8 +74,8 @@ G_MAX_NESTED_NODES      CONSTANT NUMBER       := 1000;
 
 --NEW CONTROLS
 
-g_empty_process                  ms_process%ROWTYPE; --constant
-g_process                        ms_process%ROWTYPE;
+g_empty_session                  sm_session%ROWTYPE; --constant
+g_session                        sm_session%ROWTYPE;
          
 g_nodes                          node_stack_typ;
  
@@ -95,35 +95,35 @@ g_logger_msg_mode integer := G_MSG_MODE_OVERRIDDEN;
 -- UNIT TYPES (Private)
 ------------------------------------------------------------------------
 --GENERAL UNIT TYPES 
-G_UNIT_TYPE_PACKAGE       CONSTANT ms_unit.unit_type%TYPE := 'PKG';
-G_UNIT_TYPE_PROCEDURE     CONSTANT ms_unit.unit_type%TYPE := 'PROC';
-G_UNIT_TYPE_FUNCTION      CONSTANT ms_unit.unit_type%TYPE := 'FUNC';
---G_UNIT_TYPE_LOOP          CONSTANT ms_unit.unit_type%TYPE := 'LOOP';
---G_UNIT_TYPE_BLOCK         CONSTANT ms_unit.unit_type%TYPE := 'BLOCK';
-G_UNIT_TYPE_TRIGGER       CONSTANT ms_unit.unit_type%TYPE := 'TRIGGER';
-G_UNIT_TYPE_SCRIPT        CONSTANT ms_unit.unit_type%TYPE := 'SCRIPT';
---G_UNIT_TYPE_PASS          CONSTANT ms_unit.unit_type%TYPE := 'PASS';
+G_UNIT_TYPE_PACKAGE       CONSTANT sm_unit.unit_type%TYPE := 'PKG';
+G_UNIT_TYPE_PROCEDURE     CONSTANT sm_unit.unit_type%TYPE := 'PROC';
+G_UNIT_TYPE_FUNCTION      CONSTANT sm_unit.unit_type%TYPE := 'FUNC';
+--G_UNIT_TYPE_LOOP          CONSTANT sm_unit.unit_type%TYPE := 'LOOP';
+--G_UNIT_TYPE_BLOCK         CONSTANT sm_unit.unit_type%TYPE := 'BLOCK';
+G_UNIT_TYPE_TRIGGER       CONSTANT sm_unit.unit_type%TYPE := 'TRIGGER';
+G_UNIT_TYPE_SCRIPT        CONSTANT sm_unit.unit_type%TYPE := 'SCRIPT';
+--G_UNIT_TYPE_PASS          CONSTANT sm_unit.unit_type%TYPE := 'PASS';
  
 --FORM TRIGGER UNIT TYPES 
-G_UNIT_TYPE_FORM_TRIGGER   CONSTANT ms_unit.unit_type%TYPE := 'FORM_TRIG'; 
-G_UNIT_TYPE_BLOCK_TRIGGER  CONSTANT ms_unit.unit_type%TYPE := 'BLOCK_TRIG'; 
-G_UNIT_TYPE_RECORD_TRIGGER CONSTANT ms_unit.unit_type%TYPE := 'REC_TRIG'; 
-G_UNIT_TYPE_ITEM_TRIGGER   CONSTANT ms_unit.unit_type%TYPE := 'ITEM_TRIG'; 
+G_UNIT_TYPE_FORM_TRIGGER   CONSTANT sm_unit.unit_type%TYPE := 'FORM_TRIG'; 
+G_UNIT_TYPE_BLOCK_TRIGGER  CONSTANT sm_unit.unit_type%TYPE := 'BLOCK_TRIG'; 
+G_UNIT_TYPE_RECORD_TRIGGER CONSTANT sm_unit.unit_type%TYPE := 'REC_TRIG'; 
+G_UNIT_TYPE_ITEM_TRIGGER   CONSTANT sm_unit.unit_type%TYPE := 'ITEM_TRIG'; 
 
 --REPORT TRIGGER UNIT TYPES
-G_UNIT_TYPE_REPORT_TRIGGER  CONSTANT ms_unit.unit_type%TYPE := 'REP_TRIG'; 
-G_UNIT_TYPE_FORMAT_TRIGGER  CONSTANT ms_unit.unit_type%TYPE := 'FORMAT_TRG'; 
-G_UNIT_TYPE_GROUP_FILTER    CONSTANT ms_unit.unit_type%TYPE := 'GRP_FILTER'; 
+G_UNIT_TYPE_REPORT_TRIGGER  CONSTANT sm_unit.unit_type%TYPE := 'REP_TRIG'; 
+G_UNIT_TYPE_FORMAT_TRIGGER  CONSTANT sm_unit.unit_type%TYPE := 'FORMAT_TRG'; 
+G_UNIT_TYPE_GROUP_FILTER    CONSTANT sm_unit.unit_type%TYPE := 'GRP_FILTER'; 
  
-G_MODULE_TYPE_PACKAGE     CONSTANT ms_module.module_type%TYPE := 'PACKAGE';
-G_MODULE_TYPE_PROCEDURE   CONSTANT ms_module.module_type%TYPE := 'PROCEDURE';
-G_MODULE_TYPE_FUNCTION    CONSTANT ms_module.module_type%TYPE := 'FUNCTION';
-G_MODULE_TYPE_FORM        CONSTANT ms_module.module_type%TYPE := 'FORM';
-G_MODULE_TYPE_REPORT      CONSTANT ms_module.module_type%TYPE := 'REPORT';
-G_MODULE_TYPE_SCRIPT      CONSTANT ms_module.module_type%TYPE := 'SCRIPT';
-G_MODULE_TYPE_DBTRIGGER   CONSTANT ms_module.module_type%TYPE := 'DB_TRIG';
+G_MODULE_TYPE_PACKAGE     CONSTANT sm_module.module_type%TYPE := 'PACKAGE';
+G_MODULE_TYPE_PROCEDURE   CONSTANT sm_module.module_type%TYPE := 'PROCEDURE';
+G_MODULE_TYPE_FUNCTION    CONSTANT sm_module.module_type%TYPE := 'FUNCTION';
+G_MODULE_TYPE_FORM        CONSTANT sm_module.module_type%TYPE := 'FORM';
+G_MODULE_TYPE_REPORT      CONSTANT sm_module.module_type%TYPE := 'REPORT';
+G_MODULE_TYPE_SCRIPT      CONSTANT sm_module.module_type%TYPE := 'SCRIPT';
+G_MODULE_TYPE_DBTRIGGER   CONSTANT sm_module.module_type%TYPE := 'DB_TRIG';
   
-G_AUTO_WAKE_DEFAULT        ms_unit.auto_wake%TYPE;
+G_AUTO_WAKE_DEFAULT        sm_unit.auto_wake%TYPE;
 G_AUTO_MSG_MODE_DEFAULT    NUMBER(2);
 
 G_MANUAL_MSG_MODE_DEFAULT  NUMBER(2) := G_MSG_MODE_OVERRIDDEN;
@@ -136,10 +136,10 @@ function f_config_value(i_name IN VARCHAR2) return VARCHAR2 IS
 
   cursor cu_config(c_name IN VARCHAR2) is
   select value
-  from   ms_config
+  from   sm_config
   where  name = c_name;
 
-  l_result  ms_config.value%type;
+  l_result  sm_config.value%type;
  
 begin
   open  cu_config(c_name => i_name);
@@ -155,7 +155,7 @@ FUNCTION f_logger_is_asleep RETURN BOOLEAN IS
 BEGIN
   --start_datetime is null when logger is asleep
   --(logger is asleep when the logger package initilises)
-  RETURN g_process.created_date IS NULL;
+  RETURN g_session.created_date IS NULL;
 
 END f_logger_is_asleep; 
 
@@ -168,7 +168,7 @@ FUNCTION f_logger_is_quiet RETURN BOOLEAN IS
 BEGIN
   --Process is cached, but not logged.
   --All nodes have been disabled or quiet.
-  RETURN g_process.process_id is null;
+  RETURN g_session.session_id is null;
 END f_logger_is_quiet; 
 
 FUNCTION f_logger_is_active RETURN BOOLEAN IS
@@ -179,7 +179,7 @@ END f_logger_is_active;
 
 FUNCTION f_internal_error return boolean is
 BEGIN
-  return  g_process.internal_error = 'Y'; 
+  return  g_session.internal_error = 'Y'; 
 END f_internal_error;
  
 ----------------------------------------------------------------------
@@ -249,7 +249,7 @@ FUNCTION new_module_id RETURN NUMBER IS
  
 BEGIN
  
-  RETURN ms_module_seq.NEXTVAL;
+  RETURN sm_module_seq.NEXTVAL;
 
 END new_module_id;
 
@@ -259,19 +259,19 @@ FUNCTION new_unit_id RETURN NUMBER IS
  
 BEGIN
  
-  RETURN ms_unit_seq.NEXTVAL;
+  RETURN sm_unit_seq.NEXTVAL;
 
 END new_unit_id;
 
 ----------------------------------------------------------------------
 
-FUNCTION new_traversal_id RETURN NUMBER IS
+FUNCTION new_call_id RETURN NUMBER IS
  
 BEGIN
  
-  RETURN ms_traversal_seq.NEXTVAL;
+  RETURN sm_call_seq.NEXTVAL;
   
-END new_traversal_id;
+END new_call_id;
 
 ----------------------------------------------------------------------
 
@@ -279,19 +279,19 @@ FUNCTION new_message_id RETURN NUMBER IS
  
 BEGIN
  
-  RETURN ms_message_seq.NEXTVAL;
+  RETURN sm_message_seq.NEXTVAL;
 
 END new_message_id;
 
 
 ------------------------------------------------------------------------
-FUNCTION f_current_traversal_id RETURN NUMBER;  -- FORWARD DECLARATION
+FUNCTION f_current_call_id RETURN NUMBER;  -- FORWARD DECLARATION
 ------------------------------------------------------------------------
 
   
 ------------------------------------------------------------------------
 -- Internal logging routines (private)
--- ms_logger cannot be used to log itself, so an alternative internal syntax exists
+-- sm_logger cannot be used to log itself, so an alternative internal syntax exists
 -- Output is designed for the unit test "ms_test.sql".
 -- These routines are includes in the package only when compiled with intlog:true
 ------------------------------------------------------------------------
@@ -347,9 +347,9 @@ $end
 --COMPILER FLAGGED PROCEDURES - FINISH
 
 
-PROCEDURE err_set_process_internal_error(i_error_message IN VARCHAR2) IS
+PROCEDURE err_set_session_internal_error(i_error_message IN VARCHAR2) IS
   --set internal error
-  --create_ref, create_traversal, log_message will not start 
+  --create_ref, create_call, log_message will not start 
   --while this flag is set.  
   --These procedures are the ONLY gateways to the LOG and PUSH routines
   
@@ -360,17 +360,17 @@ BEGIN
   $if $$intlog $then intlog_debug('INTERNAL ERROR'); $end
   $if $$intlog $then intlog_error(i_error_message);  $end
 
-  --fatal(g_nodes(f_index)  ,'ms_logger Internal Error');
+  --fatal(g_nodes(f_index)  ,'sm_logger Internal Error');
   --warning(g_nodes(f_index),'log_node: exceeded ' ||G_MAX_NESTED_NODES||' nested procs.');
 
-  g_process.internal_error := 'Y'; 
-  g_process.error_message  := i_error_message; 
-  g_process.updated_date   := SYSDATE; 
+  g_session.internal_error := 'Y'; 
+  g_session.error_message  := i_error_message; 
+  g_session.updated_date   := SYSDATE; 
  
-  --NB if g_process_id is NULL,this will do nothing and raise no error, but that is ok.
-  UPDATE ms_process 
-  SET ROW = g_process
-  WHERE process_id   = g_process.process_id
+  --NB if g_session_id is NULL,this will do nothing and raise no error, but that is ok.
+  UPDATE sm_session 
+  SET ROW = g_session
+  WHERE session_id   = g_session.session_id
   AND   internal_error = 'N';
   
   COMMIT;
@@ -383,7 +383,7 @@ PROCEDURE err_raise_internal_error(i_prog_unit IN VARCHAR2
  
 BEGIN 
  
-  err_set_process_internal_error(i_error_message => i_prog_unit||': '||i_message) ;
+  err_set_session_internal_error(i_error_message => i_prog_unit||': '||i_message) ;
  
 END; 
 
@@ -403,16 +403,16 @@ END;
 ------------------------------------------------------------------------
 
 
-FUNCTION get_module(i_module_name  IN VARCHAR2) RETURN ms_module%ROWTYPE RESULT_CACHE RELIES_ON (ms_module)
+FUNCTION get_module(i_module_name  IN VARCHAR2) RETURN sm_module%ROWTYPE RESULT_CACHE RELIES_ON (sm_module)
 IS
 
   CURSOR cu_module(c_module_name  VARCHAR2)
   IS
   SELECT *
-  FROM   ms_module
+  FROM   sm_module
   WHERE  module_name = c_module_name;
  
-  l_module ms_module%ROWTYPE;
+  l_module sm_module%ROWTYPE;
  
 BEGIN
  
@@ -485,10 +485,10 @@ FUNCTION find_module(i_module_name  IN VARCHAR2
                     ,i_revision     IN VARCHAR2 DEFAULT NULL
                     ,i_unit_name    IN VARCHAR2 DEFAULT NULL
                     ,i_create       IN BOOLEAN  DEFAULT TRUE)
-RETURN ms_module%ROWTYPE
+RETURN sm_module%ROWTYPE
 IS
  
-  l_module ms_module%ROWTYPE;
+  l_module sm_module%ROWTYPE;
  
   l_module_exists BOOLEAN;
  
@@ -550,7 +550,7 @@ BEGIN
  
     --insert a new module instance
     $if $$intlog $then intlog_debug('insert module');  $end
-    INSERT INTO ms_module VALUES l_module; 
+    INSERT INTO sm_module VALUES l_module; 
  
   END IF;
   COMMIT;
@@ -571,18 +571,18 @@ END find_module;
 
 ------------------------------------------------------------------------
 FUNCTION get_unit(i_module_id    IN NUMBER
-                 ,i_unit_name    IN VARCHAR2) RETURN ms_unit%ROWTYPE RESULT_CACHE RELIES_ON (ms_unit)
+                 ,i_unit_name    IN VARCHAR2) RETURN sm_unit%ROWTYPE RESULT_CACHE RELIES_ON (sm_unit)
 IS
  
   CURSOR cu_unit(c_module_id    NUMBER
                 ,c_unit_name    VARCHAR2)
   IS
   SELECT *
-  FROM   ms_unit
+  FROM   sm_unit
   WHERE  module_id   = c_module_id
   AND    unit_name   = c_unit_name;
 
-  l_unit ms_unit%ROWTYPE;
+  l_unit sm_unit%ROWTYPE;
  
 BEGIN
   OPEN cu_unit(c_module_id  => i_module_id
@@ -599,10 +599,10 @@ FUNCTION find_unit(i_module_id    IN NUMBER
                  ,i_unit_name    IN VARCHAR2
                  ,i_unit_type    IN VARCHAR2 DEFAULT NULL
                  ,i_create       IN BOOLEAN  DEFAULT TRUE)
-RETURN ms_unit%ROWTYPE
+RETURN sm_unit%ROWTYPE
 IS
  
-  l_unit ms_unit%ROWTYPE;
+  l_unit sm_unit%ROWTYPE;
   l_unit_exists BOOLEAN;
   
   PRAGMA AUTONOMOUS_TRANSACTION;
@@ -630,7 +630,7 @@ BEGIN
     l_unit.manual_msg_mode := G_MSG_MODE_OVERRIDDEN;  --overridden by module manual_msg_mod
 
     --insert a new procedure instance
-    INSERT INTO ms_unit VALUES l_unit;  
+    INSERT INTO sm_unit VALUES l_unit;  
 
   END IF;
 
@@ -653,7 +653,7 @@ FUNCTION find_unit(i_module_name  IN VARCHAR2
                   ,i_unit_name    IN VARCHAR2
                   ,i_unit_type    IN VARCHAR2 DEFAULT NULL
                   ,i_create       IN BOOLEAN  DEFAULT TRUE)
-RETURN ms_unit%ROWTYPE
+RETURN sm_unit%ROWTYPE
 IS
 BEGIN
   RETURN find_unit(i_module_id  => find_module(i_module_name => i_module_name
@@ -674,9 +674,9 @@ END;
 --BLOCK TRIGGER NODE
 FUNCTION block_trigger_node(i_module_name IN VARCHAR2
                           ,i_unit_name   IN VARCHAR2
-						  ,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN ms_logger.node_typ IS
+						  ,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN sm_logger.node_typ IS
   l_call_stack  VARCHAR2(2000) := NVL(i_call_stack, dbms_utility.format_call_stack);
-  l_node ms_logger.node_typ := ms_logger.new_node(i_module_name,i_unit_name,l_call_stack);
+  l_node sm_logger.node_typ := sm_logger.new_node(i_module_name,i_unit_name,l_call_stack);
 BEGIN
   l_node.unit_type := G_UNIT_TYPE_BLOCK_TRIGGER;
  
@@ -687,9 +687,9 @@ END;
 --RECORD TRIGGER NODE
 FUNCTION record_trigger_node(i_module_name IN VARCHAR2
                             ,i_unit_name   IN VARCHAR2
-							,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN ms_logger.node_typ IS
+							,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN sm_logger.node_typ IS
   l_call_stack  VARCHAR2(2000) := NVL(i_call_stack, dbms_utility.format_call_stack);
-  l_node ms_logger.node_typ := ms_logger.new_node(i_module_name,i_unit_name,l_call_stack);
+  l_node sm_logger.node_typ := sm_logger.new_node(i_module_name,i_unit_name,l_call_stack);
 BEGIN
  
   l_node.unit_type := G_UNIT_TYPE_RECORD_TRIGGER;
@@ -701,9 +701,9 @@ END;
 --ITEM TRIGGER NODE
 FUNCTION item_trigger_node(i_module_name IN VARCHAR2
                           ,i_unit_name   IN VARCHAR2
-						  ,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN ms_logger.node_typ IS
+						  ,i_call_stack  IN VARCHAR2 DEFAULT NULL) RETURN sm_logger.node_typ IS
   l_call_stack  VARCHAR2(2000) := NVL(i_call_stack, dbms_utility.format_call_stack);
-  l_node ms_logger.node_typ := ms_logger.new_node(i_module_name,i_unit_name,l_call_stack);
+  l_node sm_logger.node_typ := sm_logger.new_node(i_module_name,i_unit_name,l_call_stack);
 BEGIN
  
   l_node.unit_type := G_UNIT_TYPE_ITEM_TRIGGER;
@@ -730,38 +730,38 @@ END;
 
 
 ----------------------------------------------------------------------
--- f_process_traced
+-- f_session_traced
 ----------------------------------------------------------------------
-FUNCTION f_process_traced(i_process_id IN INTEGER) RETURN BOOLEAN IS
-  CURSOR cu_traversal IS
+FUNCTION f_session_traced(i_session_id IN INTEGER) RETURN BOOLEAN IS
+  CURSOR cu_call IS
   SELECT 1
-  FROM   ms_traversal t  
-  WHERE  t.process_id = i_process_id ;  
+  FROM   sm_call t  
+  WHERE  t.session_id = i_session_id ;  
  				 
   l_dummy  INTEGER;	
   l_result BOOLEAN;  
 				 
 BEGIN
  
-    OPEN cu_traversal;
-    FETCH cu_traversal INTO l_dummy;
-	l_result := cu_traversal%FOUND;
-    CLOSE cu_traversal;
+    OPEN cu_call;
+    FETCH cu_call INTO l_dummy;
+	l_result := cu_call%FOUND;
+    CLOSE cu_call;
     
     RETURN l_result;
    
-END f_process_traced;
+END f_session_traced;
 
 ----------------------------------------------------------------------
--- f_process_exceptions - TRUE if any exceptions
+-- f_session_exceptions - TRUE if any exceptions
 ----------------------------------------------------------------------
-FUNCTION f_process_exceptions(i_process_id IN INTEGER) RETURN BOOLEAN IS
+FUNCTION f_session_exceptions(i_session_id IN INTEGER) RETURN BOOLEAN IS
   CURSOR cu_error_message IS
   SELECT 1
-  FROM   ms_traversal t
-        ,ms_message   m  
-  WHERE  t.process_id = i_process_id 
-  and    m.traversal_id = t.traversal_id
+  FROM   sm_call c
+        ,sm_message   m  
+  WHERE  c.session_id   = i_session_id 
+  and    m.call_id = c.call_id
   and    m.msg_level   >= G_MSG_LEVEL_WARNING;
          
   l_dummy  INTEGER; 
@@ -776,26 +776,26 @@ BEGIN
     
     RETURN l_result;
    
-END f_process_exceptions;
+END f_session_exceptions;
 
  
 ----------------------------------------------------------------------
--- f_process_id
+-- f_session_id
 ----------------------------------------------------------------------
-FUNCTION f_process_id(i_process_id IN INTEGER  DEFAULT NULL
+FUNCTION f_session_id(i_session_id IN INTEGER  DEFAULT NULL
                    --  ,i_ext_ref    IN VARCHAR2 DEFAULT NULL
                    ) RETURN INTEGER IS
 					 
   CURSOR cu_process IS
-  SELECT process_id
-  FROM   ms_process   p
-  WHERE  p.process_id = i_process_id;
+  SELECT session_id
+  FROM   sm_session   p
+  WHERE  p.session_id = i_session_id;
     -- OR  p.ext_ref    = i_ext_ref;  
  				 
   l_result INTEGER;				 
 				 
 BEGIN
-  IF i_process_id IS NOT NULL 
+  IF i_session_id IS NOT NULL 
   -- OR i_ext_ref IS NOT NULL 
 THEN
     OPEN cu_process;
@@ -806,16 +806,16 @@ THEN
    
   ELSE
    
-    RETURN g_process.process_id;
+    RETURN g_session.session_id;
     
   END IF;  
   
-END f_process_id;
+END f_session_id;
  
  
 FUNCTION f_process_is_closed RETURN BOOLEAN IS
 BEGIN
-  RETURN g_process.process_id IS NULL;
+  RETURN g_session.session_id IS NULL;
 END f_process_is_closed;
 
 FUNCTION f_process_is_open RETURN BOOLEAN IS
@@ -838,7 +838,7 @@ PROCEDURE snooze_logger
 IS
 BEGIN
  
-    g_process := g_empty_process;
+    g_session := g_empty_session;
     --Logger is now asleep. 
     --Internal error flag is reset.
     --Logger can be re-awoken.
@@ -855,7 +855,7 @@ IS
 BEGIN
 
   g_nodes.DELETE;  
-  g_nodes(0).traversal.traversal_id := NULL;
+  g_nodes(0).call.call_id := NULL;
   g_nodes(0).logged := FALSE;
  
 END init_node_stack;
@@ -874,15 +874,15 @@ BEGIN
 END;
 
 
-FUNCTION f_current_traversal_id RETURN NUMBER IS 
+FUNCTION f_current_call_id RETURN NUMBER IS 
 BEGIN
-  RETURN g_nodes(f_index).traversal.traversal_id;
+  RETURN g_nodes(f_index).call.call_id;
 END;
  
 ------------------------------------------------------------------------
-FUNCTION f_current_traversal_msg_mode RETURN NUMBER IS 
+FUNCTION f_current_call_msg_mode RETURN NUMBER IS 
 BEGIN
-  RETURN g_nodes(f_index).traversal.msg_mode;
+  RETURN g_nodes(f_index).call.msg_mode;
 END;
 
 FUNCTION f_is_stack_empty RETURN BOOLEAN IS 
@@ -990,11 +990,11 @@ END;
 -- synch_node_stack
 ------------------------------------------------------------------------
  
-PROCEDURE synch_node_stack( i_node IN ms_logger.node_typ) IS
+PROCEDURE synch_node_stack( i_node IN sm_logger.node_typ) IS
 BEGIN 
   --Is the node on the stack??
   IF i_node.node_level is not null then
-    --ENSURE traversals point to current node.
+    --ENSURE calls point to current node.
     pop_descendent_nodes(i_node => i_node);
   end if;
 
@@ -1012,10 +1012,10 @@ PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
 --CACHING ROUTINES
 ------------------------------------------------------------------------
 
-PROCEDURE create_process(io_node  IN OUT node_typ) IS
+PROCEDURE create_session(io_node  IN OUT node_typ) IS
   --Logger is now awake
 BEGIN
-    $if $$intlog $then intlog_start('create_process'); $end
+    $if $$intlog $then intlog_start('create_session'); $end
     $if $$intlog $then intlog_note('io_node.module.module_name',io_node.module.module_name );   $end
     $if $$intlog $then intlog_note('io_node.unit.unit_name'    ,io_node.unit.unit_name );   $end
     $if $$intlog $then intlog_note('io_node.call_stack_hist'   ,io_node.call_stack_hist );   $end
@@ -1025,16 +1025,16 @@ BEGIN
     --$if $$intlog $then intlog_note('format_call_stack'   ,dbms_utility.format_call_stack );   $end
     
 
-    g_process.process_id     := null;
+    g_session.session_id     := null;
     if io_node.module.module_name = 'sm_jotter' then
-      g_process.origin       := io_node.call_stack_parent;
+      g_session.origin       := io_node.call_stack_parent;
     else  
-      g_process.origin         := io_node.module.module_name||' '||io_node.unit.unit_name;
+      g_session.origin         := io_node.module.module_name||' '||io_node.unit.unit_name;
     end if;
-    g_process.username       := USER;
-    g_process.created_date   := SYSDATE;      --This is when the process is cached, rather than when inserted.
-    g_process.internal_error := 'N';  --reset internal error for the new process
-    g_process.keep_yn        := 'N';
+    g_session.username       := USER;
+    g_session.created_date   := SYSDATE;      --This is when the process is cached, rather than when inserted.
+    g_session.internal_error := 'N';  --reset internal error for the new process
+    g_session.keep_yn        := 'N';
  
     init_node_stack; --remove all nodes from the stack.
 
@@ -1044,14 +1044,14 @@ BEGIN
     --@TODO Either log the process now - if the unit is set to DEBUGGING or NORMAL
     --OR wait unit attempt to log node. 
  
-    $if $$intlog $then intlog_end('create_process'); $end
+    $if $$intlog $then intlog_end('create_session'); $end
 
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_warn_oracle_error('create_process');
+    err_warn_oracle_error('create_session');
     
-END create_process;
+END create_session;
 
 
 
@@ -1061,33 +1061,33 @@ END create_process;
 -- These routines write to the logging tables
 ------------------------------------------------------------------------
 
-PROCEDURE log_process is 
+PROCEDURE log_session is 
 
   PRAGMA AUTONOMOUS_TRANSACTION;
  
 BEGIN
-    $if $$intlog $then intlog_start('log_process'); $end
+    $if $$intlog $then intlog_start('log_session'); $end
     --$if $$intlog $then intlog_note('i_origin  ',i_origin   );   $end
     --$if $$intlog $then intlog_note('i_ext_ref ',i_ext_ref  );   $end
     --$if $$intlog $then intlog_note('i_comments',i_comments );   $end
 	
-    --Set the process_id
-    g_process.process_id := ms_process_seq.NEXTVAL;
-	  $if $$intlog $then intlog_note('g_process.process_id',g_process.process_id);           $end
+    --Set the session_id
+    g_session.session_id := sm_session_seq.NEXTVAL;
+	  $if $$intlog $then intlog_note('g_session.session_id',g_session.session_id);           $end
  
     --insert a new process
-    INSERT INTO ms_process VALUES g_process;
+    INSERT INTO sm_session VALUES g_session;
  
     COMMIT;
  
-  	$if $$intlog $then intlog_end('log_process'); $end
+  	$if $$intlog $then intlog_end('log_session'); $end
 
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_warn_oracle_error('log_process');
+    err_warn_oracle_error('log_session');
     
-END log_process;
+END log_session;
 
 
 ------------------------------------------------------------------------
@@ -1099,7 +1099,7 @@ END log_process;
 -- push_message
 ------------------------------------------------------------------------
 PROCEDURE push_message(io_messages  IN OUT NOCOPY message_list
-                      ,i_message    IN            ms_message%ROWTYPE ) IS
+                      ,i_message    IN            sm_message%ROWTYPE ) IS
   l_next_index               BINARY_INTEGER;    
  
 BEGIN
@@ -1144,29 +1144,29 @@ END;
 -- log_message
 ------------------------------------------------------------------------
  
-FUNCTION log_message(i_message  IN ms_message%ROWTYPE
-                    ,i_node     IN ms_logger.node_typ) RETURN BOOLEAN IS
+FUNCTION log_message(i_message  IN sm_message%ROWTYPE
+                    ,i_node     IN sm_logger.node_typ) RETURN BOOLEAN IS
     PRAGMA AUTONOMOUS_TRANSACTION;
 
-  l_message        ms_message%ROWTYPE := i_message;
+  l_message        sm_message%ROWTYPE := i_message;
   l_logged_message BOOLEAN := FALSE;
 BEGIN
   $if $$intlog $then intlog_start('log_message'); $end
   l_message.message_id := new_message_id;
   
   $if $$intlog $then intlog_note('l_message.msg_level',l_message.msg_level);  $end
-  $if $$intlog $then intlog_note('i_node.traversal.msg_mode'    ,i_node.traversal.msg_mode);      $end
+  $if $$intlog $then intlog_note('i_node.call.msg_mode'    ,i_node.call.msg_mode);      $end
  
   IF i_node.logged AND 
-     l_message.msg_level >= i_node.traversal.msg_mode THEN
+     l_message.msg_level >= i_node.call.msg_mode THEN
      --Node is logged and the message's msg_level is at least as great as node's msg_mode
      $if $$intlog $then intlog_debug('Loggable, so log it.' );        $end
  
      l_message.message_id   := new_message_id;
-     l_message.traversal_id := i_node.traversal.traversal_id;
+     l_message.call_id := i_node.call.call_id;
  
      $if $$intlog $then intlog_note('message_id  ',l_message.message_id  ); $end
-     $if $$intlog $then intlog_note('traversal_id',l_message.traversal_id); $end
+     $if $$intlog $then intlog_note('call_id'    ,l_message.call_id); $end
      $if $$intlog $then intlog_note('name        ',l_message.name        ); $end
 	   $if $$intlog $then intlog_note('value       ',l_message.value        ); $end
      $if $$intlog $then intlog_note('message     ',l_message.message     ); $end
@@ -1174,7 +1174,7 @@ BEGIN
      $if $$intlog $then intlog_note('msg_level   ',l_message.msg_level   ); $end
      $if $$intlog $then intlog_note('time_now    ',l_message.time_now   ); $end
     
-     INSERT INTO ms_message VALUES l_message;
+     INSERT INTO sm_message VALUES l_message;
 
      l_logged_message := TRUE;
   
@@ -1203,20 +1203,20 @@ PROCEDURE create_message ( i_name      IN VARCHAR2 DEFAULT NULL
                           ,i_message   IN CLOB     DEFAULT NULL
                           ,i_msg_type  IN VARCHAR2
                           ,i_msg_level IN INTEGER
-                          ,i_node      IN ms_logger.node_typ ) IS
+                          ,i_node      IN sm_logger.node_typ ) IS
  
-  l_message ms_message%ROWTYPE;
+  l_message sm_message%ROWTYPE;
 
 BEGIN
   $if $$intlog $then intlog_start('create_message'); $end
-  IF     g_process.internal_error  = 'N' and 
-     NOT i_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN 
+  IF     g_session.internal_error  = 'N' and 
+     NOT i_node.call.msg_mode = G_MSG_MODE_DISABLED THEN 
  
-      --ms_logger passes node as origin of message  
+      --sm_logger passes node as origin of message  
       synch_node_stack( i_node => i_node);
 
       l_message.message_id   := NULL; 
-      l_message.traversal_id := NULL;         
+      l_message.call_id      := NULL;         
       l_message.name         := SUBSTR(i_name ,1,G_REF_NAME_WIDTH);
       l_message.value        := SUBSTR(i_value ,1,G_REF_VALUE_WIDTH);
       l_message.message      := i_message;
@@ -1225,7 +1225,7 @@ BEGIN
       l_message.time_now     := SYSTIMESTAMP;
 
       IF l_message.msg_level >= G_MSG_LEVEL_FATAL THEN -- message is fatal or worse
-         --log all unlogged traversals using debug mode
+         --log all unlogged calls using debug mode
          dump_nodes(i_index    => f_index
                    ,i_msg_mode => G_MSG_MODE_DEBUG);
       END IF;
@@ -1260,7 +1260,7 @@ END create_message;
 
 PROCEDURE log_node(io_node        IN OUT node_typ
                   ,i_parent_index IN INTEGER) IS
---Log traversal or update it if already logged.
+--Log call or update it if already logged.
 --Log any unlogged refs.
 
   l_message_index     BINARY_INTEGER;
@@ -1292,7 +1292,7 @@ BEGIN
     $if $$intlog $then intlog_debug('Log the process'); $end
     --??if the procedure stack is empty then we'll start a new process
     --PAB - doesn't seem to work like this anymore - but maybe it should.
-    log_process;
+    log_session;
   END IF;
 
   --Now that we can re-log a node, need to test if already logged.
@@ -1300,33 +1300,33 @@ BEGIN
     $if $$intlog $then intlog_debug('Re-logging a Node'); $end
     $if $$intlog $then intlog_note('module_name        ',io_node.module.module_name );           $end
     $if $$intlog $then intlog_note('unit_name          ',io_node.unit.unit_name  );              $end
-    $if $$intlog $then intlog_note('traversal_id       ',io_node.traversal.traversal_id       ); $end
-    $if $$intlog $then intlog_note('unit_id            ',io_node.traversal.unit_id);             $end
-    $if $$intlog $then intlog_note('parent_traversal_id',io_node.traversal.parent_traversal_id); $end
-    $if $$intlog $then intlog_note('process_id         ',io_node.traversal.process_id         ); $end
-    $if $$intlog $then intlog_note('msg_mode           ',io_node.traversal.msg_mode);            $end
+    $if $$intlog $then intlog_note('call_id       '     ,io_node.call.call_id       ); $end
+    $if $$intlog $then intlog_note('unit_id            ',io_node.call.unit_id);             $end
+    $if $$intlog $then intlog_note('parent_call_id'     ,io_node.call.parent_call_id); $end
+    $if $$intlog $then intlog_note('session_id         ',io_node.call.session_id         ); $end
+    $if $$intlog $then intlog_note('msg_mode           ',io_node.call.msg_mode);            $end
 
  
-    UPDATE ms_traversal 
-    SET ROW = io_node.traversal
-    WHERE traversal_id = io_node.traversal.traversal_id;	
+    UPDATE sm_call 
+    SET ROW = io_node.call
+    WHERE call_id = io_node.call.call_id;	
   
   ELSE
     $if $$intlog $then intlog_debug('Log a node first time'); $end
     --fill in the NULLs
-    io_node.traversal.traversal_id        := new_traversal_id; 
-    io_node.traversal.parent_traversal_id := g_nodes(i_parent_index).traversal.traversal_id; 
-    io_node.traversal.process_id          := g_process.process_id;
+    io_node.call.call_id        := new_call_id; 
+    io_node.call.parent_call_id := g_nodes(i_parent_index).call.call_id; 
+    io_node.call.session_id          := g_session.session_id;
     
     $if $$intlog $then intlog_note('module_name        ',io_node.module.module_name );           $end
     $if $$intlog $then intlog_note('unit_name          ',io_node.unit.unit_name  );              $end
-    $if $$intlog $then intlog_note('traversal_id       ',io_node.traversal.traversal_id       ); $end
-    $if $$intlog $then intlog_note('unit_id            ',io_node.traversal.unit_id);             $end
-    $if $$intlog $then intlog_note('parent_traversal_id',io_node.traversal.parent_traversal_id); $end
-    $if $$intlog $then intlog_note('process_id         ',io_node.traversal.process_id         ); $end
-    $if $$intlog $then intlog_note('msg_mode           ',io_node.traversal.msg_mode);            $end
+    $if $$intlog $then intlog_note('call_id       '     ,io_node.call.call_id       ); $end
+    $if $$intlog $then intlog_note('unit_id            ',io_node.call.unit_id);             $end
+    $if $$intlog $then intlog_note('parent_call_id'     ,io_node.call.parent_call_id); $end
+    $if $$intlog $then intlog_note('session_id         ',io_node.call.session_id         ); $end
+    $if $$intlog $then intlog_note('msg_mode           ',io_node.call.msg_mode);            $end
 
-    INSERT INTO ms_traversal VALUES io_node.traversal; 
+    INSERT INTO sm_call VALUES io_node.call; 
   	io_node.logged := TRUE;
 	
   END IF;
@@ -1375,13 +1375,13 @@ END log_node;
 PROCEDURE dump_nodes(i_index    IN BINARY_INTEGER
                     ,i_msg_mode IN NUMBER)IS
  
-  --Log traversals (using the given msg_mode) that have not yet been logged,
+  --Log calls (using the given msg_mode) that have not yet been logged,
   --or were logged at a higher msg_mode.
-  --search back recursively to first logged traversal, at an equal msg_mode
+  --search back recursively to first logged call, at an equal msg_mode
   --log_node will update node with the new msg_mode
   --and log any remaining unlogged messages
 
-  l_traversal_index BINARY_INTEGER;
+  l_call_index BINARY_INTEGER;
 BEGIN
   $if $$intlog $then intlog_start('dump_nodes'); $end
   $if $$intlog $then intlog_note('i_index'   ,i_index);     $end
@@ -1389,12 +1389,12 @@ BEGIN
  
   IF i_index > 0 AND ( 
           NOT g_nodes(i_index).logged 
-	        OR  g_nodes(i_index).traversal.msg_mode > i_msg_mode)  THEN
-    --dump any previous traversals too
+	        OR  g_nodes(i_index).call.msg_mode > i_msg_mode)  THEN
+    --dump any previous calls too
     dump_nodes(i_index    => g_nodes.PRIOR(i_index)
               ,i_msg_mode => i_msg_mode);
   
-    g_nodes(i_index).traversal.msg_mode := i_msg_mode;
+    g_nodes(i_index).call.msg_mode := i_msg_mode;
     log_node(io_node        => g_nodes(i_index)
             ,i_parent_index => g_nodes.PRIOR(i_index));
   END IF;
@@ -1408,7 +1408,7 @@ END;
  
  
 ------------------------------------------------------------------------
--- Traversal operations (private)
+-- call operations (private)
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
@@ -1420,7 +1420,7 @@ END;
 -- (The logger will remain awake for the remainder of the session.)
 ------------------------------------------------------------------------
 
-FUNCTION f_wake_logger(io_node IN OUT ms_logger.node_typ) RETURN BOOLEAN is
+FUNCTION f_wake_logger(io_node IN OUT sm_logger.node_typ) RETURN BOOLEAN is
 BEGIN
   --Open a new process 
   --  A If this unit always wakes the logger
@@ -1430,9 +1430,9 @@ BEGIN
   IF  io_node.auto_wake = G_AUTO_WAKE_FORCE    OR   
      (io_node.auto_wake = G_AUTO_WAKE_YES AND f_logger_is_asleep) THEN
     --Exclude disabled nodes too.
-    IF io_node.traversal.msg_mode <> G_MSG_MODE_DISABLED THEN
+    IF io_node.call.msg_mode <> G_MSG_MODE_DISABLED THEN
       $if $$intlog $then intlog_debug('Wake the logger'); $end
-      create_process(io_node => io_node);
+      create_session(io_node => io_node);
     END IF;
   END IF;
 
@@ -1441,40 +1441,40 @@ BEGIN
 END;  
 
 
-PROCEDURE create_traversal(io_node     IN OUT ms_logger.node_typ ) IS
+PROCEDURE create_call(io_node     IN OUT sm_logger.node_typ ) IS
  
   x_internal_error    EXCEPTION;
   x_node_disabled     EXCEPTION;
   x_logger_asleep     EXCEPTION;
 
 BEGIN
-  $if $$intlog $then intlog_start('create_traversal'); $end
+  $if $$intlog $then intlog_start('create_call'); $end
   $if $$intlog $then intlog_note('io_node.unit.unit_name',io_node.unit.unit_name); $end
   
  
-  --Messages and references, in the SCOPE of this traversal, will be stored.
-  io_node.traversal.traversal_id        := NULL;
-  io_node.traversal.process_id          := NULL;
-  io_node.traversal.unit_id             := io_node.unit.unit_id;
-  io_node.traversal.parent_traversal_id := NULL;
+  --Messages and references, in the SCOPE of this call, will be stored.
+  io_node.call.call_id        := NULL;
+  io_node.call.session_id          := NULL;
+  io_node.call.unit_id             := io_node.unit.unit_id;
+  io_node.call.parent_call_id := NULL;
 
   if g_logger_msg_mode is null then
     --AUTO
     --unit override module, unless null
     io_node.auto_wake                     := NVL(io_node.unit.auto_wake     ,io_node.module.auto_wake);  
-    io_node.traversal.msg_mode            := NVL(io_node.unit.auto_msg_mode ,io_node.module.auto_msg_mode); 
+    io_node.call.msg_mode            := NVL(io_node.unit.auto_msg_mode ,io_node.module.auto_msg_mode); 
        
   ELSE
     --MANUAL
     $if $$intlog $then intlog_debug('Manually set to wakeup, if asleep.'); $end
     io_node.auto_wake                     := G_AUTO_WAKE_YES;
     --unit has precedence over module, module has precedence over g_logger_msg_mode
-    io_node.traversal.msg_mode            := COALESCE(io_node.unit.manual_msg_mode ,io_node.module.manual_msg_mode ,g_logger_msg_mode); 
+    io_node.call.msg_mode            := COALESCE(io_node.unit.manual_msg_mode ,io_node.module.manual_msg_mode ,g_logger_msg_mode); 
     
   end if;  
  
   io_node.logged                        := FALSE;
-  --DEPRECATED io_node.internal_error                := f_internal_error; g_process.internal_error = 'Y';
+  --DEPRECATED io_node.internal_error                := f_internal_error; g_session.internal_error = 'Y';
  
   --Use the call stack to remove any nodes from the stack that are not ancestors
   --This may put the logger to sleep.
@@ -1488,32 +1488,32 @@ BEGIN
     raise x_internal_error;
   END IF;  
  
-  IF io_node.traversal.msg_mode = G_MSG_MODE_DISABLED THEN  
+  IF io_node.call.msg_mode = G_MSG_MODE_DISABLED THEN  
     raise x_node_disabled;
   END IF;
  
-  IF io_node.traversal.msg_mode IN (G_MSG_MODE_DEBUG, G_MSG_MODE_NORMAL)  THEN 
+  IF io_node.call.msg_mode IN (G_MSG_MODE_DEBUG, G_MSG_MODE_NORMAL)  THEN 
     --Log this node, but first log any ancestors that are not yet logged.
     --There may be cached nodes that are not yet logged.
     --Since this may be the first loggable node we've encountered since waking up,
     --need see if there are other nodes already encountered that were cached but not logged.
     --These will be any previous nodes that were set to Quiet Mode.
-    --dump any unlogged traversals in QUIET MODE
+    --dump any unlogged calls in QUIET MODE
     dump_nodes(i_index    => f_index
               ,i_msg_mode => G_MSG_MODE_QUIET);
-    --log the traversal and push it on the traversal stack
+    --log the call and push it on the call stack
     log_node(io_node        => io_node
             ,i_parent_index => f_index);
   
   END IF;
     
-  --Cache the traversal - may or may not already have been logged.
-  --push the traversal onto the stack
+  --Cache the call - may or may not already have been logged.
+  --push the call onto the stack
   push_node(io_node  => io_node);
  
   io_node.node_level := f_index; 
  
-  $if $$intlog $then intlog_end('create_traversal'); $end
+  $if $$intlog $then intlog_end('create_call'); $end
   
 EXCEPTION
   WHEN x_internal_error THEN
@@ -1531,9 +1531,9 @@ EXCEPTION
       NULL ;
 
   WHEN OTHERS THEN
-    err_warn_oracle_error('create_traversal');
+    err_warn_oracle_error('create_call');
  
-END create_traversal;
+END create_call;
 
 
 
@@ -1548,7 +1548,7 @@ FUNCTION new_node(i_module_name IN VARCHAR2
                  ,i_disabled    in boolean  default false
                  ,i_debug       in boolean  default false
                  ,i_normal      in boolean  default false
-                 ,i_quiet       in boolean  default false) RETURN ms_logger.node_typ IS
+                 ,i_quiet       in boolean  default false) RETURN sm_logger.node_typ IS
          
   --When upgraded to 12C may not need to pass any params      
   --In 11g i use function dbms_utility.format_call_stack   
@@ -1556,10 +1556,10 @@ FUNCTION new_node(i_module_name IN VARCHAR2
  
   --must work in SILENT MODE, incase somebody write logic on the app side that depends
   --on l_node                
-  l_node ms_logger.node_typ;  
+  l_node sm_logger.node_typ;  
   
-  l_module_name ms_module.module_name%TYPE := LTRIM(RTRIM(SUBSTR(i_module_name,1,G_MODULE_NAME_WIDTH)));
-  l_unit_name   ms_unit.unit_name%TYPE     := LTRIM(RTRIM(SUBSTR(i_unit_name  ,1,G_UNIT_NAME_WIDTH)));  
+  l_module_name sm_module.module_name%TYPE := LTRIM(RTRIM(SUBSTR(i_module_name,1,G_MODULE_NAME_WIDTH)));
+  l_unit_name   sm_unit.unit_name%TYPE     := LTRIM(RTRIM(SUBSTR(i_unit_name  ,1,G_UNIT_NAME_WIDTH)));  
   
   FUNCTION f_call_stack_level RETURN NUMBER IS
     l_lines   APEX_APPLICATION_GLOBAL.VC_ARR2;
@@ -1640,7 +1640,7 @@ BEGIN
   l_node.call_stack_hist  := f_call_stack_hist;
   l_node.call_stack_parent  := f_call_stack_parent;
  
-  create_traversal(io_node => l_node);
+  create_call(io_node => l_node);
  
   RETURN l_node;
   
@@ -1726,7 +1726,7 @@ END f_dba_source;
 --------------------------------------------------------------------
  
 
-PROCEDURE warn_user_source_error_lines( i_node       IN ms_logger.node_typ
+PROCEDURE warn_user_source_error_lines( i_node       IN sm_logger.node_typ
                                        ,i_prev_lines IN NUMBER
                                        ,i_post_lines IN NUMBER) IS
                                   
@@ -1797,7 +1797,7 @@ END;
 -- debug_error - PRIVATE
 ------------------------------------------------------------------------
 
-PROCEDURE debug_error( i_node            IN ms_logger.node_typ 
+PROCEDURE debug_error( i_node            IN sm_logger.node_typ 
                       ,i_message         IN CLOB DEFAULT NULL
                       ,i_msg_level       IN INTEGER )
 IS
@@ -1829,7 +1829,7 @@ PROCEDURE create_ref ( i_name      IN VARCHAR2
                       ,i_value     IN CLOB
                       ,i_descr     IN CLOB     default null
                       ,i_msg_type  IN VARCHAR2
-                      ,i_node      IN ms_logger.node_typ ) IS
+                      ,i_node      IN sm_logger.node_typ ) IS
 
 BEGIN
   $if $$intlog $then intlog_start('create_ref'); $end
@@ -1873,7 +1873,7 @@ BEGIN
   $if $$intlog $then intlog_note('i_module_id',i_module_id);   $end
   $if $$intlog $then intlog_note('i_msg_mode',i_msg_mode); $end
 
-  UPDATE ms_module
+  UPDATE sm_module
   SET    auto_msg_mode  = i_msg_mode
   WHERE  module_id = i_module_id;
 
@@ -1895,7 +1895,7 @@ BEGIN
   $if $$intlog $then intlog_note('i_unit_id',i_unit_id);   $end
   $if $$intlog $then intlog_note('i_msg_mode',i_msg_mode); $end
 
-  UPDATE ms_unit
+  UPDATE sm_unit
   SET    auto_msg_mode  = i_msg_mode
   WHERE  unit_id   = i_unit_id;
 
@@ -2015,7 +2015,7 @@ END;
 ------------------------------------------------------------------------
 -- Node ROUTINES (Public)
 -- @TODO - Deprecated - remove from spec
--- This is only used in the beforepform logic for reports in AOP_PROCESSOR.
+-- This is only used in the beforepform logic for reports in SM_WEAVER.
 -- Do i even want to support oracle reports anymore?
 -- There may be a better way to do this. Like simply adding an l_node and 
 -- interogating the node after creation.
@@ -2030,9 +2030,9 @@ FUNCTION new_process(i_process_name IN VARCHAR2 DEFAULT NULL
                     ,i_unit_name    IN VARCHAR2 DEFAULT NULL
                     ,i_comments     IN VARCHAR2 DEFAULT NULL       ) RETURN INTEGER IS
  
-  l_origin ms_process.origin%TYPE;
-  l_module ms_module%rowtype;
-  l_unit   ms_unit%rowtype;
+  l_origin sm_session.origin%TYPE;
+  l_module sm_module%rowtype;
+  l_unit   sm_unit%rowtype;
 
 BEGIN
     
@@ -2054,11 +2054,11 @@ BEGIN
 
   l_origin := NVL(TRIM(l_origin),'UNKNOWN ORIGIN');
  
-  log_process(i_origin      => l_origin
+  log_session(i_origin      => l_origin
              ,i_ext_ref      => i_ext_ref    
              ,i_comments     => i_comments);  
  
-  RETURN g_process.process_id;
+  RETURN g_session.session_id;
 					
  		 
 END;
@@ -2070,11 +2070,11 @@ END;
                   ,i_normal      in boolean  default false
                   ,i_quiet       in boolean  default false
                   ,i_disabled    in boolean  default false
-                  ,i_msg_mode    in integer  default null) RETURN ms_logger.node_typ IS
+                  ,i_msg_mode    in integer  default null) RETURN sm_logger.node_typ IS
  
   BEGIN
     
-	RETURN ms_logger.new_node(i_module_name => i_module_name
+	RETURN sm_logger.new_node(i_module_name => i_module_name
                            ,i_unit_name   => i_unit_name
 						            	 ,i_unit_type   => G_UNIT_TYPE_PACKAGE 
                            ,i_debug       => i_debug   
@@ -2092,11 +2092,11 @@ END;
                    ,i_normal      in boolean  default false
                    ,i_quiet       in boolean  default false
                    ,i_disabled    in boolean  default false
-                   ,i_msg_mode    in integer  default null) RETURN ms_logger.node_typ IS
+                   ,i_msg_mode    in integer  default null) RETURN sm_logger.node_typ IS
  
   BEGIN
     
-	RETURN ms_logger.new_node(i_module_name => i_module_name
+	RETURN sm_logger.new_node(i_module_name => i_module_name
                            ,i_unit_name   => i_unit_name
 							             ,i_unit_type   => G_UNIT_TYPE_PROCEDURE
                            ,i_debug       => i_debug   
@@ -2115,11 +2115,11 @@ END;
                    ,i_normal      in boolean  default false
                    ,i_quiet       in boolean  default false
                    ,i_disabled    in boolean  default false
-                   ,i_msg_mode    in integer  default null ) RETURN ms_logger.node_typ IS
+                   ,i_msg_mode    in integer  default null ) RETURN sm_logger.node_typ IS
  
   BEGIN
     
-	RETURN ms_logger.new_node(i_module_name => i_module_name
+	RETURN sm_logger.new_node(i_module_name => i_module_name
                            ,i_unit_name   => i_unit_name
 							             ,i_unit_type   => G_UNIT_TYPE_FUNCTION
                            ,i_debug       => i_debug   
@@ -2137,11 +2137,11 @@ END;
                    ,i_normal      in boolean  default false
                    ,i_quiet       in boolean  default false
                    ,i_disabled    in boolean  default false
-                   ,i_msg_mode    in integer  default null) RETURN ms_logger.node_typ IS
+                   ,i_msg_mode    in integer  default null) RETURN sm_logger.node_typ IS
  
   BEGIN
     
-	RETURN ms_logger.new_node(i_module_name => i_module_name
+	RETURN sm_logger.new_node(i_module_name => i_module_name
                            ,i_unit_name   => i_unit_name
 							             ,i_unit_type   => G_UNIT_TYPE_TRIGGER 
                            ,i_debug       => i_debug   
@@ -2160,11 +2160,11 @@ END;
                      ,i_normal      in boolean  default false
                      ,i_quiet       in boolean  default false
                      ,i_disabled    in boolean  default false
-                     ,i_msg_mode    in integer  default null ) RETURN ms_logger.node_typ IS
+                     ,i_msg_mode    in integer  default null ) RETURN sm_logger.node_typ IS
   
   BEGIN
     
-   RETURN ms_logger.new_node(i_module_name => i_module_name
+   RETURN sm_logger.new_node(i_module_name => i_module_name
                             ,i_unit_name   => i_unit_name
                 					  ,i_unit_type   => G_UNIT_TYPE_SCRIPT 
                             ,i_debug       => i_debug   
@@ -2185,7 +2185,7 @@ END;
 ------------------------------------------------------------------------ 
 -- comment 
 ------------------------------------------------------------------------
-PROCEDURE comment( i_node            IN ms_logger.node_typ 
+PROCEDURE comment( i_node            IN sm_logger.node_typ 
                   ,i_message         IN VARCHAR2 DEFAULT NULL )
 IS
 BEGIN
@@ -2199,7 +2199,7 @@ END comment;
 ------------------------------------------------------------------------
 -- info 
 ------------------------------------------------------------------------
-PROCEDURE info( i_node            IN ms_logger.node_typ 
+PROCEDURE info( i_node            IN sm_logger.node_typ 
                ,i_message         IN VARCHAR2 DEFAULT NULL )
 IS
 BEGIN
@@ -2214,7 +2214,7 @@ END info;
 -- warning  
 ------------------------------------------------------------------------
 
-PROCEDURE warning( i_node         IN ms_logger.node_typ 
+PROCEDURE warning( i_node         IN sm_logger.node_typ 
                   ,i_message      IN VARCHAR2 DEFAULT NULL )
 IS
 BEGIN
@@ -2229,7 +2229,7 @@ END warning;
 -- fatal  
 ------------------------------------------------------------------------
 
-PROCEDURE fatal( i_node            IN     ms_logger.node_typ 
+PROCEDURE fatal( i_node            IN     sm_logger.node_typ 
                 ,i_message         IN     VARCHAR2 DEFAULT NULL )
 IS
 BEGIN
@@ -2244,7 +2244,7 @@ END fatal;
 -- oracle_error 
 ------------------------------------------------------------------------
 
-PROCEDURE oracle_error( i_node            IN ms_logger.node_typ 
+PROCEDURE oracle_error( i_node            IN sm_logger.node_typ 
                        ,i_message         IN VARCHAR2 DEFAULT NULL  )
 IS
 BEGIN
@@ -2265,7 +2265,7 @@ END oracle_error;
 -- warn_error  
 ------------------------------------------------------------------------
 
-PROCEDURE warn_error( i_node            IN ms_logger.node_typ 
+PROCEDURE warn_error( i_node            IN sm_logger.node_typ 
                      ,i_message         IN VARCHAR2 DEFAULT NULL  )
 IS
 BEGIN
@@ -2282,7 +2282,7 @@ END warn_error;
 -- note_error  
 ------------------------------------------------------------------------
 
-PROCEDURE note_error( i_node            IN ms_logger.node_typ 
+PROCEDURE note_error( i_node            IN sm_logger.node_typ 
                      ,i_message         IN VARCHAR2 DEFAULT NULL  )
 IS
 BEGIN
@@ -2301,7 +2301,7 @@ END note_error;
 
 
 --overloaded name, value | [id, descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ   
+PROCEDURE note    ( i_node      IN sm_logger.node_typ   
                    ,i_name      IN VARCHAR2
                    ,i_value     IN VARCHAR2
                    ,i_descr     IN VARCHAR2 DEFAULT NULL )
@@ -2320,7 +2320,7 @@ END note   ;
  
 ------------------------------------------------------------------------
 
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
+PROCEDURE param ( i_node      IN sm_logger.node_typ 
                  ,i_name      IN VARCHAR2
                  ,i_value     IN VARCHAR2  )
 IS
@@ -2335,7 +2335,7 @@ END param;
 
 
 --overloaded name, value | [id, descr] FOR CLOB
-PROCEDURE note_clob( i_node      IN ms_logger.node_typ   
+PROCEDURE note_clob( i_node      IN sm_logger.node_typ   
                     ,i_name      IN VARCHAR2
                     ,i_value     IN CLOB )
 IS
@@ -2352,7 +2352,7 @@ END note_clob   ;
  
 ------------------------------------------------------------------------
 
-PROCEDURE param_clob( i_node      IN ms_logger.node_typ 
+PROCEDURE param_clob( i_node      IN sm_logger.node_typ 
                      ,i_name      IN VARCHAR2
                      ,i_value     IN CLOB  )
 IS
@@ -2367,7 +2367,7 @@ END param_clob;
 
 ------------------------------------------------------------------------
 --overloaded name, num_value | [id, descr] 
-PROCEDURE note    ( i_node      IN ms_logger.node_typ 
+PROCEDURE note    ( i_node      IN sm_logger.node_typ 
                    ,i_name      IN VARCHAR2
                    ,i_num_value IN NUMBER )
 IS
@@ -2382,7 +2382,7 @@ BEGIN
 END note   ;
 
 ------------------------------------------------------------------------ 
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
+PROCEDURE param ( i_node      IN sm_logger.node_typ 
                  ,i_name      IN VARCHAR2
                  ,i_num_value IN NUMBER    )
 IS
@@ -2400,7 +2400,7 @@ END param;
 
 ------------------------------------------------------------------------
 --overloaded name, date_value , descr] 
-PROCEDURE note    ( i_node       IN ms_logger.node_typ 
+PROCEDURE note    ( i_node       IN sm_logger.node_typ 
                    ,i_name       IN VARCHAR2
                    ,i_date_value IN DATE )
 IS
@@ -2422,7 +2422,7 @@ BEGIN
 
 END note   ;
 ------------------------------------------------------------------------
-PROCEDURE param ( i_node       IN ms_logger.node_typ 
+PROCEDURE param ( i_node       IN sm_logger.node_typ 
                  ,i_name       IN VARCHAR2
                  ,i_date_value IN DATE   )
 IS
@@ -2446,7 +2446,7 @@ END param;
 
 ------------------------------------------------------------------------
 --overloaded name, bool_value 
-PROCEDURE note   (i_node      IN ms_logger.node_typ 
+PROCEDURE note   (i_node      IN sm_logger.node_typ 
                  ,i_name       IN VARCHAR2
                  ,i_bool_value IN BOOLEAN  )
 IS
@@ -2460,7 +2460,7 @@ BEGIN
 
 END note   ;
 ------------------------------------------------------------------------
-PROCEDURE param ( i_node      IN ms_logger.node_typ 
+PROCEDURE param ( i_node      IN sm_logger.node_typ 
                  ,i_name      IN VARCHAR2
                  ,i_bool_value IN BOOLEAN )
 IS
@@ -2474,7 +2474,7 @@ BEGIN
 END param;
 ------------------------------------------------------------------------
 --overloaded name
-PROCEDURE note   (i_node      IN ms_logger.node_typ 
+PROCEDURE note   (i_node      IN sm_logger.node_typ 
                  ,i_name      IN VARCHAR2 )
 IS
 BEGIN
@@ -2485,7 +2485,7 @@ BEGIN
 
 END note   ;
 ------------------------------------------------------------------------
-PROCEDURE note_rowcount( i_node      IN ms_logger.node_typ 
+PROCEDURE note_rowcount( i_node      IN sm_logger.node_typ 
                         ,i_name      IN VARCHAR2 ) IS
 BEGIN
 
@@ -2498,7 +2498,7 @@ BEGIN
  
 END note_rowcount;
 ------------------------------------------------------------------------
-FUNCTION f_note_rowcount( i_node      IN ms_logger.node_typ 
+FUNCTION f_note_rowcount( i_node      IN sm_logger.node_typ 
                          ,i_name      IN VARCHAR2   ) RETURN NUMBER IS
   l_rowcount NUMBER := SQL%ROWCOUNT;
 BEGIN
@@ -2515,7 +2515,7 @@ END f_note_rowcount;
 
 ------------------------------------------------------------------------
 
-PROCEDURE note_sqlerrm(i_node      IN ms_logger.node_typ )
+PROCEDURE note_sqlerrm(i_node      IN sm_logger.node_typ )
 IS
 BEGIN
 
@@ -2526,7 +2526,7 @@ BEGIN
 END note_sqlerrm;
 
 ------------------------------------------------------------------------
-PROCEDURE note_length( i_node  IN ms_logger.node_typ 
+PROCEDURE note_length( i_node  IN sm_logger.node_typ 
                       ,i_name  IN VARCHAR2 
                       ,i_value IN CLOB        ) IS
 BEGIN
@@ -2536,6 +2536,40 @@ BEGIN
         ,i_num_value  => LENGTH(i_value)  );
 
 END note_length;
+
+
+
+FUNCTION get_session_id(i_node IN sm_logger.node_typ) return number is
+BEGIN
+  return i_node.call.session_id;
+END;
+
+------------------------------------------------------------------------
+FUNCTION get_session_url(i_node IN sm_logger.node_typ) return varchar2 is
+BEGIN
+  return sm_api.get_smartlogger_trace_URL(i_session_id  => get_session_id(i_node => i_node));
+end;
+
+
+PROCEDURE on_demand(io_node       IN OUT sm_logger.node_typ
+                   ,i_debug       in     boolean  default false
+                   ,i_normal      in     boolean  default false
+                   ,i_quiet       in     boolean  default false
+                   ,i_disabled    in     boolean  default false
+                   ,i_msg_mode    in     integer  default null ) is
+BEGIN
+  
+  --Reinitialise the node with the requested mode.
+  io_node := sm_logger.new_node(i_module_name => io_node.module.module_name
+                               ,i_unit_name   => io_node.unit.unit_name
+                               ,i_unit_type   => io_node.unit.unit_type 
+                               ,i_debug       => i_debug   
+                               ,i_normal      => i_normal  
+                               ,i_quiet       => i_quiet   
+                               ,i_disabled    => i_disabled
+                               ,i_msg_mode    => i_msg_mode);
+
+END;
 
 
 
