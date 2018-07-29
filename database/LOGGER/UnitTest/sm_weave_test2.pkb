@@ -1,6 +1,6 @@
 ALTER SESSION SET plscope_settings='IDENTIFIERS:ALL'
 /
-create or replace package body aop_test2 is
+create or replace package body sm_weave_test2 is
   --@AOP_LOG
   type body_rec_typ is record (adate   date
   	                          ,anum    number
@@ -25,17 +25,17 @@ create or replace package body aop_test2 is
   	l_var :=                  body_simple_var1;
 
     body_simple_var1                   := l_var;
-    aop_test2.body_simple_var1         := l_var;
-    --&&LOGGER_user..aop_test2.body_simple_var := l_var; --'PLS-00302: component 'BODY_SIMPLE_VAR1' must be declared
+    sm_weave_test2.body_simple_var1         := l_var;
+    --&&LOGGER_user..sm_weave_test2.body_simple_var := l_var; --'PLS-00302: component 'BODY_SIMPLE_VAR1' must be declared
 
     spec_simple_var1                   := l_var;
-    aop_test2.spec_simple_var1         := l_var;
-    &&LOGGER_user..aop_test2.spec_simple_var1  := l_var;
+    sm_weave_test2.spec_simple_var1         := l_var;
+    &&LOGGER_user..sm_weave_test2.spec_simple_var1  := l_var;
  
   END;
 
   procedure test(io_var  IN OUT            spec_rec_typ
-                ,io_var2 IN OUT aop_test2.spec_rec_typ) is
+                ,io_var2 IN OUT sm_weave_test2.spec_rec_typ) is
 
     l_nested_rec body_nested_rec_typ;
 
@@ -44,8 +44,8 @@ create or replace package body aop_test2 is
   begin
     io_var.anum  := 1;
     io_var2.anum := 1;
-    aop_test2.scope_test;
-    --&&LOGGER_user..aop_test2.scope_test; --PLS-00302: component 'SCOPE_TEST' must be declared
+    sm_weave_test2.scope_test;
+    --&&LOGGER_user..sm_weave_test2.scope_test; --PLS-00302: component 'SCOPE_TEST' must be declared
     --No need to user the owner in the pu_stack of the package body.
     --Cannot refer to either variables or program units defined in the body by a user prefix, 
     --because this denotes that we are referring to the spec only.
@@ -277,11 +277,11 @@ BEGIN
   
   body_simple_var1 := 1;
 
-  aop_test2.body_simple_var1 := 2;
+  sm_weave_test2.body_simple_var1 := 2;
 
 
-end aop_test2;
+end sm_weave_test2;
 /
 
-execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST2', i_versions => 'HTML,AOP');
-execute ms_api.set_module_debug(i_module_name => 'AOP_TEST2');
+execute aop_processor.reapply_aspect(i_object_name=> 'sm_weave_test2', i_versions => 'HTML,AOP');
+execute ms_api.set_module_debug(i_module_name => 'sm_weave_test2');

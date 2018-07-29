@@ -1,0 +1,144 @@
+.g_logger_msg_mode:                                                             
+BEGAN: find_module                                                              
+.i_module_name:sm_test_quiet_mode                                               
+.i_module_type:                                                                 
+.i_revision   :                                                                 
+.i_unit_name  :anon                                                             
+.i_create  :TRUE                                                                
+!Create a new module                                                            
+!Derive module type                                                             
+!Look up data dictionary                                                        
+.l_module.owner:PACMAN                                                          
+.l_module.module_type:                                                          
+!create the new module record                                                   
+!insert module                                                                  
+ENDED: find_module                                                              
+BEGAN: find_unit                                                                
+.i_module_id  :7                                                                
+.i_unit_name  :anon                                                             
+.i_unit_type  :SCRIPT                                                           
+.i_create  :TRUE                                                                
+!Create a new unit                                                              
+ENDED: find_unit                                                                
+BEGAN: create_call                                                              
+.io_node.unit.unit_name:anon                                                    
+BEGAN: pop_to_parent_node                                                       
+.i_node.unit.unit_name:anon                                                     
+.current call_stack_level:8                                                     
+.f_index:0                                                                      
+.g_nodes(f_index).unit.unit_name:                                               
+!pop_to_parent_node: no parents left.  Put logger to sleep.                     
+ENDED: pop_to_parent_node                                                       
+!Wake the logger                                                                
+BEGAN: create_session                                                           
+.io_node.module.module_name:sm_test_quiet_mode                                  
+.io_node.unit.unit_name:anon                                                    
+.io_node.call_stack_hist:                                                       
+.io_node.call_stack_level:8                                                     
+.io_node.call_stack_parent:                                                     
+!Process created, but not yet logged.                                           
+ENDED: create_session                                                           
+BEGAN: dump_nodes                                                               
+.i_index:0                                                                      
+.i_msg_mode:4                                                                   
+ENDED: dump_nodes                                                               
+BEGAN: log_node                                                                 
+.unit_name          :anon                                                       
+.i_parent_index     :0                                                          
+!Log the process                                                                
+BEGAN: log_session                                                              
+.g_session.session_id:10                                                        
+ENDED: log_session                                                              
+!Log a node first time                                                          
+.module_name        :sm_test_quiet_mode                                         
+.unit_name          :anon                                                       
+.call_id       :43                                                              
+.unit_id            :14                                                         
+.parent_call_id:                                                                
+.session_id         :10                                                         
+.msg_mode           :1                                                          
+ENDED: log_node                                                                 
+BEGAN: push_node                                                                
+.io_node.unit.unit_name:anon                                                    
+.l_next_index:1                                                                 
+ENDED: push_node                                                                
+ENDED: create_call                                                              
+BEGAN: find_module                                                              
+.i_module_name:sm_log_test                                                      
+.i_module_type:                                                                 
+.i_revision   :                                                                 
+.i_unit_name  :                                                                 
+.i_create  :TRUE                                                                
+ENDED: find_module                                                              
+BEGAN: set_module_msg_mode                                                      
+.i_module_id:4                                                                  
+.i_msg_mode:4                                                                   
+ENDED: set_module_msg_mode                                                      
+.g_logger_msg_mode:                                                             
+BEGAN: find_module                                                              
+.i_module_name:SM_LOG_TEST                                                      
+.i_module_type:                                                                 
+.i_revision   :                                                                 
+.i_unit_name  :test_quiet_mode                                                  
+.i_create  :TRUE                                                                
+ENDED: find_module                                                              
+BEGAN: find_unit                                                                
+.i_module_id  :4                                                                
+.i_unit_name  :test_quiet_mode                                                  
+.i_unit_type  :PROC                                                             
+.i_create  :TRUE                                                                
+!Create a new unit                                                              
+ENDED: find_unit                                                                
+BEGAN: create_call                                                              
+.io_node.unit.unit_name:test_quiet_mode                                         
+BEGAN: pop_to_parent_node                                                       
+.i_node.unit.unit_name:test_quiet_mode                                          
+.current call_stack_level:9                                                     
+.f_index:1                                                                      
+.g_nodes(f_index).unit.unit_name:anon                                           
+ENDED: pop_to_parent_node                                                       
+BEGAN: push_node                                                                
+.io_node.unit.unit_name:test_quiet_mode                                         
+.l_next_index:2                                                                 
+ENDED: push_node                                                                
+ENDED: create_call                                                              
+BEGAN: create_message                                                           
+BEGAN: pop_descendent_nodes                                                     
+.i_node.unit.unit_name:test_quiet_mode                                          
+.current call_stack_level:9                                                     
+.f_index:2                                                                      
+.g_nodes(f_index).unit.unit_name:test_quiet_mode                                
+ENDED: pop_descendent_nodes                                                     
+BEGAN: log_message                                                              
+.l_message.msg_level:1                                                          
+.i_node.call.msg_mode:4                                                         
+ENDED: log_message                                                              
+!Not yet loggable, so push it.                                                  
+BEGAN: push_message                                                             
+.l_next_index  :1                                                               
+ENDED: push_message                                                             
+ENDED: create_message                                                           
+BEGAN: create_message                                                           
+BEGAN: pop_descendent_nodes                                                     
+.i_node.unit.unit_name:test_quiet_mode                                          
+.current call_stack_level:9                                                     
+.f_index:2                                                                      
+.g_nodes(f_index).unit.unit_name:test_quiet_mode                                
+ENDED: pop_descendent_nodes                                                     
+BEGAN: log_message                                                              
+.l_message.msg_level:3                                                          
+.i_node.call.msg_mode:4                                                         
+ENDED: log_message                                                              
+!Not yet loggable, so push it.                                                  
+BEGAN: push_message                                                             
+.l_next_index  :2                                                               
+ENDED: push_message                                                             
+ENDED: create_message                                                           
+declare
+*
+ERROR at line 1:
+ORA-01403: no data found 
+ORA-06512: at "PACMAN.SM_LOG_TEST", line 970 
+ORA-06512: at line 14 
+
+

@@ -2,26 +2,23 @@ ALTER SESSION SET
 plscope_settings='IDENTIFIERS:NONE'
 /
 
-create or replace package aop_test is
+create or replace package SM_WEAVE_TEST is
   --@AOP_LOG
-
-
  
-
     TYPE test_typ IS RECORD (
        num      number
       ,name     varchar2(50));
 
-    TYPE test_typ2 IS TABLE OF ms_message%ROWTYPE INDEX BY BINARY_INTEGER;  
+    TYPE test_typ2 IS TABLE OF sm_message%ROWTYPE INDEX BY BINARY_INTEGER;  
 
     TYPE test_tab_typ IS TABLE of test_typ;
 
 
     g_test1 test_typ;
-    g_test2 ms_logger.node_typ;
+    g_test2 sm_logger.node_typ;
     g_test3 number;
     g_test4 varchar2(100);
-    g_test5 ms_message%ROWTYPE;
+    g_test5 sm_message%ROWTYPE;
 
   procedure test1(i_param11 in varchar2
                  ,i_param12 in varchar2
@@ -46,9 +43,9 @@ SELECT *
   FROM all_identifiers ai
  WHERE ai.owner = USER 
  --AND ai.object_type = '<program_type>' 
-  AND ai.object_name = 'AOP_TEST'
+  AND ai.object_name = 'SM_WEAVE_TEST'
 ORDER BY line;
 
 SELECT PLSCOPE_SETTINGS
 FROM USER_PLSQL_OBJECT_SETTINGS
- WHERE NAME='AOP_TEST' AND TYPE='PACKAGE';
+ WHERE NAME='SM_WEAVE_TEST' AND TYPE='PACKAGE';

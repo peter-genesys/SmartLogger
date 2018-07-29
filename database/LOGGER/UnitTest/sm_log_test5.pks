@@ -1,4 +1,4 @@
-create or replace package ms_test5 as
+create or replace package sm_log_test5 as
 --------------------------------------------------------------------------------
 --This package is to be woven, but it is really a test of logger performance.
 --
@@ -9,5 +9,5 @@ create or replace package ms_test5 as
   procedure test_sleeping1;
   procedure test_sleeping2;
   procedure test_sleeping;
-end ms_test5;
+end sm_log_test5;
 /

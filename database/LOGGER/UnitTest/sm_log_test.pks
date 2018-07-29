@@ -1,5 +1,5 @@
-CREATE OR REPLACE PACKAGE  ms_test AS
--- $Id: ms_test.pks 758 2008-04-29 04:37:49Z Peter $
+CREATE OR REPLACE PACKAGE  sm_log_test AS
+-- $Id: sm_log_test.pks 758 2008-04-29 04:37:49Z Peter $
 
  --PROCEDURE PLSQL_UNIT_test;
  
@@ -97,6 +97,6 @@ procedure test(i_logger_debug in boolean  default false
               ,i_logger_quiet in boolean  default false
               ,i_logger_msg_mode in integer default null);
 
-END ms_test;
+END sm_log_test;
 /
 show errors;

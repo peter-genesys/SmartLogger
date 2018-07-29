@@ -1,6 +1,9 @@
-create or replace package body aop_test3 as
+create or replace package body sm_log_test5 as
   --@AOP_LOG
-
+--------------------------------------------------------------------------------
+--This package is to be woven, but it is really a test of logger performance.
+--
+--------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 --to_LCD_from_MINS 
@@ -119,7 +122,7 @@ END;
   	--""Start
   	--??Hi
     
-    for j in 1 .. 4 LOOP
+    for j in 1 .. 2 LOOP
       l_string := null;
       for i in 1 .. 1000 LOOP
         l_string := l_string || 'X';
@@ -139,7 +142,31 @@ END;
   end test_for_quiet_mode;
 
 
-end aop_test3;
+  procedure test_sleeping1 is
+  BEGIN
+    null;
+    --""message1
+  END;
+
+  procedure test_sleeping2 is
+  BEGIN
+    null;
+    --""message1
+  END;
+
+  procedure test_sleeping is
+  BEGIN
+    test_sleeping1;
+    test_sleeping2;
+  END;
+
+BEGIN
+  
+    null;
+    --""initialise
+
+ 
+end sm_log_test5;
 /
-execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST3', i_versions => 'HTML,AOP');
---execute ms_api.set_module_debug(i_module_name => 'AOP_TEST3');
+execute sm_weaver.reapply_aspect(i_object_name=> 'sm_log_test5', i_versions => 'HTML,AOP');
+--execute sm_api.set_module_debug(i_module_name => 'sm_log_test5');

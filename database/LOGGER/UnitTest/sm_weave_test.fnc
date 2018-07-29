@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION F_AOP_TEST(i_module ms_module%ROWTYPE
+CREATE OR REPLACE FUNCTION sm_weave_test(i_module ms_module%ROWTYPE
                                      ,o_unit   out ms_unit%ROWTYPE) return varchar2 is
    --@AOP_LOG
   l_var number;
@@ -27,4 +27,4 @@ begin
 end;
 /
 show errors;
-execute logger.aop_processor.reapply_aspect(i_object_name=> 'F_AOP_TEST');
+execute sm_weaver.reapply_aspect(i_object_name=> 'sm_weave_test');

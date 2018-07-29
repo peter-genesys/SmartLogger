@@ -2,7 +2,7 @@ ALTER SESSION SET
 plscope_settings='IDENTIFIERS:ALL'
 /
 
-CREATE OR REPLACE PACKAGE BODY "AOP_TEST" is
+CREATE OR REPLACE PACKAGE BODY SM_WEAVE_TEST is
   --@AOP_LOG
 
   g$ number;
@@ -19,7 +19,7 @@ procedure test_select_fetch_into is
   from   user_tab_columns;
 
   cursor cu_unit is
-  select * from ms_unit;
+  select * from sm_unit;
 
   l_column_name varchar2(100);
   l_table_name varchar2(100);
@@ -62,11 +62,11 @@ begin
 end;
 
  
-  function test4$(i_module      ms_module%ROWTYPE
-                ,i_module_name  ms_module.module_name%TYPE
+  function test4$(i_module      sm_module%ROWTYPE
+                ,i_module_name  sm_module.module_name%TYPE
                 ,i_name_array  in OWA.vc_arr
-                ,o_unit        out ms_unit%ROWTYPE
-                ,o_unit_name   out ms_unit.unit_name%TYPE) return varchar2 is
+                ,o_unit        out sm_unit%ROWTYPE
+                ,o_unit_name   out sm_unit.unit_name%TYPE) return varchar2 is
     l_var number;
 
     cursor cu_user_tables is
@@ -85,8 +85,8 @@ end;
 
   begin
 
-    AOP_TEST.g_test3 := 1;
-    AOP_TEST.g$ := 1;
+    sm_weave_test.g_test3 := 1;
+    sm_weave_test.g$ := 1;
     l_date_rec1.adate := SYSDATE;
     l_date_rec2 := l_date_rec1;
 
@@ -135,8 +135,8 @@ end;
       l_temp varchar2(1) := trim(' X ');
       x number;
       f# integer;
-      l_unit ms_unit%ROWTYPE;
-      l_unit_name ms_unit.unit_name%TYPE;
+      l_unit sm_unit%ROWTYPE;
+      l_unit_name sm_unit.unit_name%TYPE;
       l_test1 test_typ;
 
     begin
@@ -381,15 +381,15 @@ where max_event_date >= :i_min_qa_date
     PRAGMA AUTONOMOUS_TRANSACTION;
   begin
   
-    insert into MS_PROCESS (process_id) values (-1);
+    insert into sm_session (session_id) values (-1);
     l_insert_count := SQL%ROWCOUNT;
  
-    update MS_PROCESS
+    update sm_session
     SET UPDATED_DATE = SYSDATE
-    WHERE process_id = -1 ;
+    WHERE session_id = -1 ;
     l_update_count := SQL%ROWCOUNT;
  
-    delete from MS_PROCESS where process_id = -1;
+    delete from sm_session where session_id = -1;
     l_delete_count := SQL%ROWCOUNT;
  
     l_result := 'INSERTED '||l_insert_count||' UPDATED '||l_update_count||' DELETED '||l_delete_count;
@@ -400,9 +400,9 @@ where max_event_date >= :i_min_qa_date
 
   END;
 
-  procedure test_param_of_spec_type(i_test  in out aop_test.test_typ
-                                   ,i_test2 in out aop_test.test_typ2 ) is
-    l_test aop_test.test_typ;
+  procedure test_param_of_spec_type(i_test  in out sm_weave_test.test_typ
+                                   ,i_test2 in out sm_weave_test.test_typ2 ) is
+    l_test sm_weave_test.test_typ;
     l_test2         test_typ;
 
   BEGIN
@@ -419,9 +419,9 @@ where max_event_date >= :i_min_qa_date
   END;
 
 
-  procedure test_global_spec_var(i_test  in out aop_test.test_typ
-                                ,i_test2 in out aop_test.test_typ2 )  is
-    l_module ms_module%ROWTYPE;
+  procedure test_global_spec_var(i_test  in out sm_weave_test.test_typ
+                                ,i_test2 in out sm_weave_test.test_typ2 )  is
+    l_module sm_module%ROWTYPE;
   BEGIN
     g_test1.num := 2;
     g_test1     := i_test;
@@ -472,8 +472,8 @@ where max_event_date >= :i_min_qa_date
     
     aname := 'name1';
     name_resolution_simple_var.aname := 'name2';
-    aop_test.name_resolution_simple_var.aname := 'name3';
-    --pacman.aop_test.name_resolution_simple_var.aname := 'name4'; --reference is out of scope
+    sm_weave_test.name_resolution_simple_var.aname := 'name3';
+    --pacman.sm_weave_test.name_resolution_simple_var.aname := 'name4'; --reference is out of scope
 
   END;
 
@@ -499,13 +499,13 @@ where max_event_date >= :i_min_qa_date
 end;
 /
 show errors;
-execute aop_processor.reapply_aspect(i_object_name=> 'AOP_TEST', i_versions => 'HTML,AOP');
-execute ms_api.set_module_debug(i_module_name => 'AOP_TEST');
-select aop_test.test5 from dual;
+execute sm_weaver.reapply_aspect(i_object_name=> 'SM_WEAVE_TEST', i_versions => 'HTML,AOP');
+--execute ms_api.set_module_debug(i_module_name => 'sm_weave_test');
+select sm_weave_test.test5 from dual;
 
 SELECT PLSCOPE_SETTINGS
 FROM USER_PLSQL_OBJECT_SETTINGS
-WHERE NAME='AOP_TEST' AND TYPE='PACKAGE BODY';
+WHERE NAME='SM_WEAVE_TEST' AND TYPE='PACKAGE BODY';
 
 /*
 I used this test to show that variables declared in anonymous blocks do not appear in all_identifiers.

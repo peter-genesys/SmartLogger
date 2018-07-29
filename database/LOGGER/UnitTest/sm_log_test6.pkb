@@ -1,4 +1,4 @@
-create or replace package body ms_test6 as
+create or replace package body sm_log_test6 as
 
 --------------------------------------------------------------------------------
 --This package is a mockup to test the storing of messages 
@@ -67,7 +67,7 @@ END;
 
   function message_caching(i_max in integer) return varchar2 is
 
-    l_node         ms_logger.node_typ := ms_logger.new_func('ms_test6','message_caching');
+    l_node         ms_logger.node_typ := ms_logger.new_func('sm_log_test6','message_caching');
 
     l_ms_message   ms_message%ROWTYPE;
  
@@ -120,7 +120,7 @@ END;
   end message_caching;
 
  
-end ms_test6;
+end sm_log_test6;
 /
  
-select ms_test6.message_caching(100000) from dual;
+select sm_log_test6.message_caching(100000) from dual;

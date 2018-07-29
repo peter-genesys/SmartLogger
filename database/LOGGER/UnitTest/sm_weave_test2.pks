@@ -1,4 +1,4 @@
-create or replace package aop_test2 is
+create or replace package sm_weave_test2 is
 
   type spec_rec_typ is record (adate   date
   	                          ,anum    number
@@ -10,5 +10,5 @@ create or replace package aop_test2 is
   spec_simple_var1 number;
 
 
-end aop_test2;
+end sm_weave_test2;
 /
