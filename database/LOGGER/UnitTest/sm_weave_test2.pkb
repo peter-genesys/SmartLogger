@@ -26,11 +26,11 @@ create or replace package body sm_weave_test2 is
 
     body_simple_var1                   := l_var;
     sm_weave_test2.body_simple_var1         := l_var;
-    --&&LOGGER_user..sm_weave_test2.body_simple_var := l_var; --'PLS-00302: component 'BODY_SIMPLE_VAR1' must be declared
+    --pacman.sm_weave_test2.body_simple_var := l_var; --'PLS-00302: component 'BODY_SIMPLE_VAR1' must be declared
 
     spec_simple_var1                   := l_var;
     sm_weave_test2.spec_simple_var1         := l_var;
-    &&LOGGER_user..sm_weave_test2.spec_simple_var1  := l_var;
+    pacman.sm_weave_test2.spec_simple_var1  := l_var;
  
   END;
 
@@ -39,13 +39,13 @@ create or replace package body sm_weave_test2 is
 
     l_nested_rec body_nested_rec_typ;
 
-    l_tab   aop_test.test_tab_typ; --from spec of another package
+    l_tab   sm_weave_test.test_tab_typ; --from spec of another package
 
   begin
     io_var.anum  := 1;
     io_var2.anum := 1;
     sm_weave_test2.scope_test;
-    --&&LOGGER_user..sm_weave_test2.scope_test; --PLS-00302: component 'SCOPE_TEST' must be declared
+    --PACMAN.sm_weave_test2.scope_test; --PLS-00302: component 'SCOPE_TEST' must be declared
     --No need to user the owner in the pu_stack of the package body.
     --Cannot refer to either variables or program units defined in the body by a user prefix, 
     --because this denotes that we are referring to the spec only.
@@ -205,25 +205,25 @@ create or replace package body sm_weave_test2 is
     l_dummy number;
   BEGIN
     l_dummy := 1;
-    aop_test.g_test3 := 1;
+    sm_weave_test.g_test3 := 1;
  
   END;
 
   procedure test_comment_within_formatting is
   BEGIN
 
-    aop_test. --comment within term (supported)
+    sm_weave_test. --comment within term (supported)
              g_test3 := 1;
 
-    aop_test.  
+    sm_weave_test.  
              g_test3 := 1; --line break within term (supported)
  
-    aop_test.g_test3  := 1; --term on one line (supported)
+    sm_weave_test.g_test3  := 1; --term on one line (supported)
 
-    aop_test.g_test3  
+    sm_weave_test.g_test3  
                       := 1; --assignment on a different line (supported)
 
-    aop_test.g_test3 --comment between term and assign (supported)
+    sm_weave_test.g_test3 --comment between term and assign (supported)
                      --comment between term and assign (supported)
                      := 1;
 
@@ -283,5 +283,5 @@ BEGIN
 end sm_weave_test2;
 /
 
-execute aop_processor.reapply_aspect(i_object_name=> 'sm_weave_test2', i_versions => 'HTML,AOP');
-execute ms_api.set_module_debug(i_module_name => 'sm_weave_test2');
+execute sm_weaver.reapply_aspect(i_object_name=> 'SM_WEAVE_TEST2', i_versions => 'HTML,AOP');
+execute sm_api.set_module_debug(i_module_name => 'SM_WEAVE_TEST2');

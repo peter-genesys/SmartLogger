@@ -5044,6 +5044,10 @@ FUNCTION get_vars_from_compiled_object(i_name       in varchar2
     IF is_PLScoped(i_name => i_name
                   ,i_type => i_type) THEN
       sm_logger.info(l_node,'Object is already PLScoped');
+
+    ELSIF i_name IN ('SM_LOGGER','SM_JOTTER','SM_API','SM_WEAVER') THEN
+      sm_logger.warning(l_node,'Deny recompile of SmartLogger packages');
+
     ELSE
       sm_logger.comment(l_node,'Object is not currently PLScoped');
       --Need to recompile the package spec with plscope set

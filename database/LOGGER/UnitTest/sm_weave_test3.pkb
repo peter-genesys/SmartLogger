@@ -141,5 +141,5 @@ END;
 
 end sm_weave_test3;
 /
-execute aop_processor.reapply_aspect(i_object_name=> 'sm_weave_test3', i_versions => 'HTML,AOP');
---execute ms_api.set_module_debug(i_module_name => 'sm_weave_test3');
+execute sm_weaver.reapply_aspect(i_object_name=> 'SM_WEAVE_TEST3', i_versions => 'HTML,AOP');
+--execute ms_api.set_module_debug(i_module_name => 'SM_WEAVE_TEST3');
