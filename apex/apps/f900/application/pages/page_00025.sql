@@ -1,0 +1,154 @@
+prompt --application/pages/page_00025
+begin
+wwv_flow_api.create_page(
+ p_id=>25
+,p_user_interface_id=>wwv_flow_api.id(37981134484256182)
+,p_name=>'Weave Plain'
+,p_page_mode=>'NORMAL'
+,p_step_title=>'Weave Plain'
+,p_reload_on_submit=>'A'
+,p_warn_on_unsaved_changes=>'N'
+,p_step_sub_title=>'Step 3'
+,p_step_sub_title_type=>'TEXT_WITH_SUBSTITUTIONS'
+,p_first_item=>'NO_FIRST_ITEM'
+,p_autocomplete_on_off=>'ON'
+,p_page_template_options=>'#DEFAULT#'
+,p_dialog_chained=>'Y'
+,p_overwrite_navigation_list=>'N'
+,p_page_is_public_y_n=>'N'
+,p_cache_mode=>'NOCACHE'
+,p_help_text=>'No help is available for this page.'
+,p_last_updated_by=>'PETER'
+,p_last_upd_yyyymmddhh24miss=>'20170506133802'
+);
+wwv_flow_api.create_page_plug(
+ p_id=>wwv_flow_api.id(46712531114844577)
+,p_plug_name=>'Weave Plain'
+,p_region_template_options=>'#DEFAULT#:t-Wizard--hideStepsXSmall'
+,p_plug_template=>wwv_flow_api.id(35570409143315927)
+,p_plug_display_sequence=>20
+,p_include_in_reg_disp_sel_yn=>'N'
+,p_plug_display_point=>'BODY'
+,p_list_id=>wwv_flow_api.id(35720076658393451)
+,p_plug_source_type=>'NATIVE_LIST'
+,p_list_template_id=>wwv_flow_api.id(35604144641315949)
+,p_plug_query_row_template=>1
+);
+wwv_flow_api.create_page_plug(
+ p_id=>wwv_flow_api.id(39000330804740894)
+,p_plug_name=>'Woven for Logger'
+,p_parent_plug_id=>wwv_flow_api.id(46712531114844577)
+,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
+,p_component_template_options=>'#DEFAULT#'
+,p_plug_template=>wwv_flow_api.id(35560371291315922)
+,p_plug_display_sequence=>10
+,p_include_in_reg_disp_sel_yn=>'N'
+,p_plug_display_point=>'BODY'
+,p_plug_query_row_template=>1
+,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
+,p_attribute_01=>'N'
+,p_attribute_02=>'HTML'
+,p_attribute_03=>'N'
+);
+wwv_flow_api.create_page_button(
+ p_id=>wwv_flow_api.id(35737792451424137)
+,p_button_sequence=>10
+,p_button_plug_id=>wwv_flow_api.id(46712531114844577)
+,p_button_name=>'CANCEL'
+,p_button_action=>'REDIRECT_PAGE'
+,p_button_template_options=>'#DEFAULT#'
+,p_button_template_id=>wwv_flow_api.id(35605892992315953)
+,p_button_image_alt=>'Cancel'
+,p_button_position=>'REGION_TEMPLATE_CLOSE'
+,p_button_redirect_url=>'f?p=&APP_ID.:2:&SESSION.::&DEBUG.:::'
+,p_grid_new_grid=>false
+);
+wwv_flow_api.create_page_button(
+ p_id=>wwv_flow_api.id(35738622170424138)
+,p_button_sequence=>40
+,p_button_plug_id=>wwv_flow_api.id(46712531114844577)
+,p_button_name=>'FINISH'
+,p_button_action=>'SUBMIT'
+,p_button_template_options=>'#DEFAULT#:t-Button--success'
+,p_button_template_id=>wwv_flow_api.id(35605892992315953)
+,p_button_image_alt=>'Finish'
+,p_button_position=>'REGION_TEMPLATE_NEXT'
+,p_grid_new_grid=>false
+);
+wwv_flow_api.create_page_button(
+ p_id=>wwv_flow_api.id(35738242932424138)
+,p_button_sequence=>20
+,p_button_plug_id=>wwv_flow_api.id(46712531114844577)
+,p_button_name=>'PREVIOUS'
+,p_button_action=>'SUBMIT'
+,p_button_template_options=>'#DEFAULT#'
+,p_button_template_id=>wwv_flow_api.id(35605787489315951)
+,p_button_image_alt=>'Previous'
+,p_button_position=>'REGION_TEMPLATE_PREVIOUS'
+,p_button_execute_validations=>'N'
+,p_icon_css_classes=>'fa-chevron-left'
+,p_grid_new_grid=>false
+);
+wwv_flow_api.create_page_branch(
+ p_id=>wwv_flow_api.id(39003114431740977)
+,p_branch_name=>'Exit Wizard'
+,p_branch_action=>'f?p=&APP_ID.:2:&SESSION.::&DEBUG.:::&success_msg=#SUCCESS_MSG#'
+,p_branch_point=>'AFTER_PROCESSING'
+,p_branch_type=>'REDIRECT_URL'
+,p_branch_when_button_id=>wwv_flow_api.id(35738622170424138)
+,p_branch_sequence=>1
+);
+wwv_flow_api.create_page_branch(
+ p_id=>wwv_flow_api.id(39003304069740987)
+,p_branch_name=>'Go To Step 2'
+,p_branch_action=>'f?p=&APP_ID.:22:&SESSION.::&DEBUG.:::&success_msg=#SUCCESS_MSG#'
+,p_branch_point=>'BEFORE_VALIDATION'
+,p_branch_type=>'REDIRECT_URL'
+,p_branch_when_button_id=>wwv_flow_api.id(35738242932424138)
+,p_branch_sequence=>10
+);
+wwv_flow_api.create_page_item(
+ p_id=>wwv_flow_api.id(39001104903740915)
+,p_name=>'P25_AOP_OUTPUT'
+,p_item_sequence=>20
+,p_item_plug_id=>wwv_flow_api.id(39000330804740894)
+,p_prompt=>'AOP Output'
+,p_display_as=>'NATIVE_TEXTAREA'
+,p_cSize=>150
+,p_cMaxlength=>128000
+,p_cHeight=>40
+,p_field_template=>wwv_flow_api.id(35605504533315950)
+,p_item_template_options=>'#DEFAULT#'
+,p_help_text=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'The code should now be woven with ms_logger calls and exception blocks.',
+'<BR><BR>',
+'Cut then Paste this code back into your Forms or Reports for testing.'))
+,p_attribute_01=>'Y'
+,p_attribute_02=>'N'
+,p_attribute_03=>'N'
+,p_attribute_04=>'NONE'
+);
+wwv_flow_api.create_page_da_event(
+ p_id=>wwv_flow_api.id(39002229375740965)
+,p_name=>'onLoadPopAopOutput'
+,p_event_sequence=>10
+,p_bind_type=>'bind'
+,p_bind_event_type=>'ready'
+);
+wwv_flow_api.create_page_da_action(
+ p_id=>wwv_flow_api.id(39002526249740972)
+,p_event_id=>wwv_flow_api.id(39002229375740965)
+,p_event_result=>'TRUE'
+,p_action_sequence=>10
+,p_execute_on_page_init=>'N'
+,p_action=>'PLUGIN_APEX_CLOB_LOAD'
+,p_affected_elements_type=>'ITEM'
+,p_affected_elements=>'P25_AOP_OUTPUT'
+,p_attribute_01=>'RENDER'
+,p_attribute_02=>'COLLECTION'
+,p_attribute_03=>'AOP_OUTPUT_CLEAN'
+,p_attribute_08=>'Y'
+,p_stop_execution_on_error=>'Y'
+);
+end;
+/
