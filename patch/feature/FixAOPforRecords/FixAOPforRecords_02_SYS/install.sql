@@ -48,8 +48,10 @@ select user||'@'||global_name Connection from global_name;
 
 PROMPT USERS
 
+WHENEVER SQLERROR CONTINUE
 PROMPT logger.user 
 @&&patch_path.logger.user;
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 COMMIT;
 PROMPT Compiling objects in schema SYS

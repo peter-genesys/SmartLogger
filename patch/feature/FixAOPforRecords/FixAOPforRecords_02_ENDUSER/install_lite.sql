@@ -19,7 +19,7 @@ define patch_name = 'FixAOPforRecords_02_ENDUSER'
 define patch_desc = 'Allow logger files to be installed in schema with any name'
 define patch_path = 'feature/FixAOPforRecords/FixAOPforRecords_02_ENDUSER/'
 SPOOL FixAOPforRecords_02_ENDUSER.log
-CONNECT ENDUSER/&&ENDUSER_password@&&database
+CONNECT &&ENDUSER_user/&&ENDUSER_password@&&database
 set serveroutput on;
 select user||'@'||global_name Connection from global_name;
 

@@ -1,0 +1,24 @@
+prompt --application/user_interfaces
+begin
+wwv_flow_api.create_user_interface(
+ p_id=>wwv_flow_api.id(37981134484256182)
+,p_ui_type_name=>'DESKTOP'
+,p_display_name=>'DESKTOP'
+,p_display_seq=>10
+,p_use_auto_detect=>false
+,p_is_default=>true
+,p_theme_id=>42
+,p_home_url=>'f?p=&APP_ID.:1:&SESSION.'
+,p_theme_style_by_user_pref=>false
+,p_navigation_list_id=>wwv_flow_api.id(35627105929318927)
+,p_navigation_list_position=>'SIDE'
+,p_navigation_list_template_id=>wwv_flow_api.id(35601272099315948)
+,p_nav_list_template_options=>'#DEFAULT#'
+,p_include_legacy_javascript=>true
+,p_include_jquery_migrate=>true
+,p_nav_bar_type=>'NAVBAR'
+,p_nav_bar_list_template_id=>wwv_flow_api.id(35601111888315947)
+,p_nav_bar_template_options=>'#DEFAULT#'
+);
+end;
+/

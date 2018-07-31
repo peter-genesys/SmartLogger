@@ -7,8 +7,8 @@ prompt  APPLICATION 104 - SmartLogger
 --   Exported By:     LOGGER
 --   Flashback:       0
 --   Export Type:     Application Export
---   Version:         4.2.5.00.08
---   Instance ID:     69419748294856
+--   Version:         4.2.6.00.03
+--   Instance ID:     69302217721093
 --
 -- Import:
 --   Using Application Builder

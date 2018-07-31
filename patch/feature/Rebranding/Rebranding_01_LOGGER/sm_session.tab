@@ -1,0 +1,18 @@
+                                                                                                                                                                                    
+  CREATE TABLE SM_SESSION                                                                                                                                                           
+   (	SESSION_ID NUMBER NOT NULL ENABLE,                                                                                                                                             
+	ORIGIN VARCHAR2(100),                                                                                                                                                              
+	USERNAME VARCHAR2(30),                                                                                                                                                             
+	INTERNAL_ERROR VARCHAR2(1) DEFAULT 'N',                                                                                                                                            
+	NOTIFIED_FLAG VARCHAR2(1) DEFAULT 'N',                                                                                                                                             
+	ERROR_MESSAGE CLOB,                                                                                                                                                                
+	CREATED_DATE DATE,                                                                                                                                                                 
+	UPDATED_DATE DATE,                                                                                                                                                                 
+	KEEP_YN VARCHAR2(1) DEFAULT 'N'                                                                                                                                                    
+   ) ;                                                                                                                                                                              
+  ALTER TABLE SM_SESSION ADD CONSTRAINT PROCESS_PK PRIMARY KEY (SESSION_ID)                                                                                                         
+  USING INDEX  ENABLE;                                                                                                                                                              
+                                                                                                                                                                                    
+                                                                                                                                                                                    
+   CREATE SEQUENCE  SM_SESSION_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE  NOPARTITION ;                         
+                                                                                                                                                                                    

@@ -1,0 +1,32 @@
+                                                                                                                                                                                    
+  CREATE TABLE SM_CALL                                                                                                                                                         
+   (	CALL_ID NUMBER NOT NULL ENABLE,                                                                                                                                           
+	SESSION_ID NUMBER NOT NULL ENABLE,                                                                                                                                                 
+	UNIT_ID NUMBER NOT NULL ENABLE,                                                                                                                                                    
+	PARENT_CALL_ID NUMBER,                                                                                                                                                        
+	MSG_MODE NUMBER                                                                                                                                                                    
+   ) ;                                                                                                                                                                              
+  ALTER TABLE SM_CALL ADD CONSTRAINT CALL_PK PRIMARY KEY (CALL_ID)                                                                                                   
+  USING INDEX  ENABLE;                                                                                                                                                              
+  ALTER TABLE SM_CALL ADD CONSTRAINT CALL_UNIT_FK FOREIGN KEY (UNIT_ID)                                                                                                        
+	  REFERENCES SM_UNIT (UNIT_ID) ENABLE;                                                                                                                                             
+  ALTER TABLE SM_CALL ADD CONSTRAINT CALL_CALL_FK FOREIGN KEY (PARENT_CALL_ID)                                                                                            
+	  REFERENCES SM_CALL (CALL_ID) ENABLE;                                                                                                                                   
+  ALTER TABLE SM_CALL ADD CONSTRAINT CALL_SESSION_FK FOREIGN KEY (SESSION_ID)                                                                                                  
+	  REFERENCES SM_SESSION (SESSION_ID) ON DELETE CASCADE ENABLE;                                                                                                                     
+                                                                                                                                                                                    
+                                                                                                                                                                                    
+   CREATE SEQUENCE  SM_CALL_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE  NOPARTITION ;                    
+                                                                                                                                                                                    
+                                                                                                                                                                                    
+  CREATE INDEX CALL_NK1 ON SM_CALL (SESSION_ID)                                                                                                                           
+  ;                                                                                                                                                                                 
+                                                                                                                                                                                    
+                                                                                                                                                                                    
+  CREATE INDEX CALL_NK2 ON SM_CALL (UNIT_ID)                                                                                                                              
+  ;                                                                                                                                                                                 
+                                                                                                                                                                                    
+                                                                                                                                                                                    
+  CREATE INDEX CALL_NK3 ON SM_CALL (PARENT_CALL_ID)                                                                                                                  
+  ;                                                                                                                                                                                 
+                                                                                                                                                                                    
