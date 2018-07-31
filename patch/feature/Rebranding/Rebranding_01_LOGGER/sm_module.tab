@@ -1,0 +1,20 @@
+                                                                                                                                                                                    
+  CREATE TABLE SM_MODULE                                                                                                                                                            
+   (	MODULE_ID NUMBER,                                                                                                                                                              
+	MODULE_NAME VARCHAR2(50),                                                                                                                                                          
+	REVISION VARCHAR2(30),                                                                                                                                                             
+	MODULE_TYPE VARCHAR2(30),                                                                                                                                                          
+	AUTO_WAKE VARCHAR2(1) DEFAULT 'N',                                                                                                                                                 
+	AUTO_MSG_MODE NUMBER,                                                                                                                                                              
+	MANUAL_MSG_MODE NUMBER,                                                                                                                                                            
+	OWNER VARCHAR2(30)                                                                                                                                                                 
+   ) ;                                                                                                                                                                              
+  ALTER TABLE SM_MODULE ADD CONSTRAINT MODULE_PK PRIMARY KEY (MODULE_ID)                                                                                                            
+  USING INDEX  ENABLE;                                                                                                                                                              
+  ALTER TABLE SM_MODULE ADD CHECK (AUTO_MSG_MODE in (1,2,4,99)) ENABLE;                                                                                                             
+  ALTER TABLE SM_MODULE ADD CHECK (MANUAL_MSG_MODE in (1,2,4,99)) ENABLE;                                                                                                           
+  ALTER TABLE SM_MODULE ADD CHECK (AUTO_WAKE in ('F','Y','N')) ENABLE;                                                                                                              
+                                                                                                                                                                                    
+                                                                                                                                                                                    
+   CREATE SEQUENCE  SM_MODULE_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE  NOPARTITION ;                           
+                                                                                                                                                                                    
