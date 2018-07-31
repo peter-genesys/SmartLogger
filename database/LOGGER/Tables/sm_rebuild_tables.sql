@@ -6,7 +6,7 @@ DROP TABLE sm_unit;
 DROP TABLE sm_module;
 DROP TABLE sm_session;
 DROP TABLE sm_source;
---DROP TABLE sm_config;
+DROP TABLE sm_config;
 
 DROP SEQUENCE sm_message_seq;
 DROP SEQUENCE sm_call_seq;
