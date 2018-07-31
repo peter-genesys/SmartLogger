@@ -1,3 +1,4 @@
+--DEFINE LOGGER_user=LOGGER
 create or replace synonym sm_api        for &&LOGGER_user..sm_api;
 create or replace synonym sm_logger     for &&LOGGER_user..sm_logger;
 create or replace synonym sm_weaver     for &&LOGGER_user..sm_processor;
