@@ -5,6 +5,12 @@ wwv_flow_api.create_menu(
 ,p_name=>' Breadcrumb'
 );
 wwv_flow_api.create_menu_option(
+ p_id=>wwv_flow_api.id(25046302152869475)
+,p_short_name=>'Config List'
+,p_link=>'f?p=&APP_ID.:3:&SESSION.'
+,p_page_id=>3
+);
+wwv_flow_api.create_menu_option(
  p_id=>wwv_flow_api.id(36059355922607354)
 ,p_short_name=>'Apex Errors'
 ,p_link=>'f?p=&APP_ID.:6:&SESSION.'

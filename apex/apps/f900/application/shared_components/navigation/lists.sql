@@ -53,6 +53,14 @@ wwv_flow_api.create_list_item(
 ,p_list_item_current_type=>'COLON_DELIMITED_PAGE_LIST'
 ,p_list_item_current_for_pages=>'6'
 );
+wwv_flow_api.create_list_item(
+ p_id=>wwv_flow_api.id(25041794330869439)
+,p_list_item_display_sequence=>70
+,p_list_item_link_text=>'Config List'
+,p_list_item_link_target=>'f?p=&APP_ID.:3:&SESSION.::&DEBUG.'
+,p_list_item_current_type=>'COLON_DELIMITED_PAGE_LIST'
+,p_list_item_current_for_pages=>'3,4'
+);
 wwv_flow_api.create_list(
  p_id=>wwv_flow_api.id(35720076658393451)
 ,p_name=>'Wizard Progress List'
