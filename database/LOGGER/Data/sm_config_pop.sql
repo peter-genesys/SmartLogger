@@ -3,8 +3,8 @@ DELETE FROM sm_config;
 --ACCEPT example CHAR PROMPT "Enter something for this example dynamic config"
 --Insert into sm_config (NAME,VALUE) values ('EXAMPLE','&&example');
  
-Insert into sm_config (NAME,VALUE) values ('ADMIN_EMAIL'        ,'peter.a.burgess@gmail.com');
-Insert into sm_config (NAME,VALUE) values ('EMAIL_FROM'         ,'peter.a.burgess@gmail.com');
+Insert into sm_config (NAME,VALUE) values ('ADMIN_EMAIL'        ,'myemail@mail.com');
+Insert into sm_config (NAME,VALUE) values ('EMAIL_FROM'         ,'myemail@mail.com');
  
 Insert into sm_config (NAME,VALUE) values ('TRAWLER_SUBJECT','SmartLogger Error Report');
  
@@ -17,7 +17,7 @@ Insert into sm_config (NAME,VALUE) values ('SMTP_MAIL' ,'N');
 Insert into sm_config (NAME,VALUE) values ('APEX_MAIL' ,'Y');
 
 Insert into sm_config (NAME,VALUE) values ('LOGGER_WORKSPACE' ,'LOGGER');
-Insert into sm_config (NAME,VALUE) values ('SMARTLOGGER_APP_ALIAS' ,'SMARTLOGGER_DEV');
+Insert into sm_config (NAME,VALUE) values ('LOGGER_APP_ALIAS' ,'SMARTLOGGER_DEV');
 Insert into sm_config (NAME,VALUE) values ('PROMO_LEVEL' ,''); 
 
 Insert into sm_config (NAME,VALUE) values ('DEFAULT_AUTO_DEBUG'    ,'Y');
