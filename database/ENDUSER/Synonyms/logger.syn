@@ -1,4 +1,4 @@
 create or replace synonym sm_api        for &&LOGGER_user..sm_api;
 create or replace synonym sm_logger     for &&LOGGER_user..sm_logger;
-create or replace synonym sm_weaver     for &&LOGGER_user..sm_processor;
+create or replace synonym sm_weaver     for &&LOGGER_user..sm_weaver;
 create or replace synonym sm_jotter     for &&LOGGER_user..sm_jotter;
