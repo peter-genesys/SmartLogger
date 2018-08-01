@@ -19,7 +19,7 @@ wwv_flow_api.create_page(
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180718105313'
+,p_last_upd_yyyymmddhh24miss=>'20180801110045'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(46705851064840825)
@@ -144,7 +144,7 @@ wwv_flow_api.create_page_item(
 ,p_field_template=>wwv_flow_api.id(35605504533315950)
 ,p_item_template_options=>'#DEFAULT#'
 ,p_help_text=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'The code should now be woven with ms_logger calls and exception blocks.',
+'The code should now be woven with sm_logger calls and exception blocks.',
 '<BR><BR>',
 'Cut then Paste this code back into your Forms or Reports for testing.'))
 ,p_attribute_03=>'N'
@@ -240,15 +240,15 @@ wwv_flow_api.create_page_process(
 '  apex_collection.create_or_truncate_collection(p_collection_name=>''AOP_OUTPUT_CLEAN'');',
 '',
 '                                ',
-'  l_woven := aop_processor.weave( io_code         => l_clob',
+'  l_woven := sm_weaver.weave( io_code         => l_clob',
 '                                , i_package_name => :P21_PACKAGE_NAME',
 '                                , i_for_html     => FALSE',
 '                                , i_end_user     => :P21_SCHEMA',
 '                                , i_note_params             =>    :P21_NOTE_PARAMS = ''Y''',
 '                                , i_note_vars               =>    :P21_NOTE_VARS   = ''Y''',
-'                                , i_note_unhandled_errors   =>    :P21_UNHANDLED_ERRORS = ms_logger.G_MSG_LEVEL_COMMENT',
-'                                , i_warn_unhandled_errors   =>    :P21_UNHANDLED_ERRORS = ms_logger.G_MSG_LEVEL_WARNING',
-'                                , i_fatal_unhandled_errors  =>    :P21_UNHANDLED_ERRORS = ms_logger.G_MSG_LEVEL_ORACLE',
+'                                , i_note_unhandled_errors   =>    :P21_UNHANDLED_ERRORS = sm_logger.G_MSG_LEVEL_COMMENT',
+'                                , i_warn_unhandled_errors   =>    :P21_UNHANDLED_ERRORS = sm_logger.G_MSG_LEVEL_WARNING',
+'                                , i_fatal_unhandled_errors  =>    :P21_UNHANDLED_ERRORS = sm_logger.G_MSG_LEVEL_ORACLE',
 '                                , i_note_exception_handlers =>    :P21_NOTE_EX_HANDLERS  = ''Y''',
 ' );           ',
 ' ',

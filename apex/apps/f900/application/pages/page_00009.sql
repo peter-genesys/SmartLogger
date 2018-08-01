@@ -23,7 +23,7 @@ wwv_flow_api.create_page(
 ,p_cache_timeout_seconds=>21600
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180729012656'
+,p_last_upd_yyyymmddhh24miss=>'20180801105551'
 );
 wwv_flow_api.create_report_region(
  p_id=>wwv_flow_api.id(53266261772667692)
@@ -77,12 +77,10 @@ wwv_flow_api.create_report_columns(
 ,p_hidden_column=>'Y'
 ,p_display_as=>'HIDDEN'
 ,p_pk_col_source_type=>'S'
-,p_pk_col_source=>'MS_MODULE_SEQ'
+,p_pk_col_source=>'SM_MODULE_SEQ'
 ,p_derived_column=>'N'
 ,p_include_in_export=>'Y'
-,p_ref_schema=>'TPDS'
-,p_ref_table_name=>'MS_MODULE'
-,p_ref_column_name=>'MODULE_ID'
+,p_ref_table_name=>'SM_MODULE'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(53266660796667692)
@@ -96,8 +94,7 @@ wwv_flow_api.create_report_columns(
 ,p_disable_sort_column=>'N'
 ,p_derived_column=>'N'
 ,p_include_in_export=>'Y'
-,p_ref_table_name=>'MS_MODULE'
-,p_ref_column_name=>'MODULE_ID_DISPLAY'
+,p_ref_table_name=>'SM_MODULE'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(53266754675667692)
@@ -110,9 +107,7 @@ wwv_flow_api.create_report_columns(
 ,p_disable_sort_column=>'N'
 ,p_derived_column=>'N'
 ,p_include_in_export=>'Y'
-,p_ref_schema=>'TPDS'
-,p_ref_table_name=>'MS_MODULE'
-,p_ref_column_name=>'MODULE_NAME'
+,p_ref_table_name=>'SM_MODULE'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(53266841569667692)
@@ -121,9 +116,7 @@ wwv_flow_api.create_report_columns(
 ,p_column_display_sequence=>4
 ,p_hidden_column=>'Y'
 ,p_derived_column=>'N'
-,p_ref_schema=>'TPDS'
-,p_ref_table_name=>'MS_MODULE'
-,p_ref_column_name=>'REVISION'
+,p_ref_table_name=>'SM_MODULE'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(53266959538667692)
@@ -140,7 +133,7 @@ wwv_flow_api.create_report_columns(
 ,p_derived_column=>'N'
 ,p_lov_display_extra=>'YES'
 ,p_include_in_export=>'Y'
-,p_ref_table_name=>'MS_MODULE'
+,p_ref_table_name=>'SM_MODULE'
 ,p_ref_column_name=>'MODULE_TYPE'
 );
 wwv_flow_api.create_report_columns(

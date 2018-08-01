@@ -22,7 +22,7 @@ prompt APPLICATION 900 - SmartLogger
 --     Dynamic Actions:         14
 --   Shared Components:
 --     Logic:
---       Items:                  2
+--       Items:                  3
 --     Navigation:
 --       Lists:                  2
 --       Breadcrumbs:            1

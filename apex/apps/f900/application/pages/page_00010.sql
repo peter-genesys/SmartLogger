@@ -22,7 +22,7 @@ wwv_flow_api.create_page(
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180729012936'
+,p_last_upd_yyyymmddhh24miss=>'20180801105753'
 );
 wwv_flow_api.create_report_region(
  p_id=>wwv_flow_api.id(53271544124677263)
@@ -76,12 +76,10 @@ wwv_flow_api.create_report_columns(
 ,p_hidden_column=>'Y'
 ,p_display_as=>'HIDDEN'
 ,p_pk_col_source_type=>'S'
-,p_pk_col_source=>'MS_UNIT_SEQ'
+,p_pk_col_source=>'SM_UNIT_SEQ'
 ,p_derived_column=>'N'
 ,p_include_in_export=>'Y'
-,p_ref_schema=>'TPDS'
-,p_ref_table_name=>'MS_UNIT'
-,p_ref_column_name=>'UNIT_ID'
+,p_ref_table_name=>'SM_UNIT'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(53271955570677263)
@@ -90,9 +88,7 @@ wwv_flow_api.create_report_columns(
 ,p_column_display_sequence=>3
 ,p_hidden_column=>'Y'
 ,p_derived_column=>'N'
-,p_ref_schema=>'TPDS'
-,p_ref_table_name=>'MS_UNIT'
-,p_ref_column_name=>'UNIT_ID_DISPLAY'
+,p_ref_table_name=>'SM_UNIT'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(53272067039677263)
@@ -105,9 +101,7 @@ wwv_flow_api.create_report_columns(
 ,p_disable_sort_column=>'N'
 ,p_derived_column=>'N'
 ,p_include_in_export=>'Y'
-,p_ref_schema=>'TPDS'
-,p_ref_table_name=>'MS_UNIT'
-,p_ref_column_name=>'UNIT_NAME'
+,p_ref_table_name=>'SM_UNIT'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(53272160792677263)
@@ -122,9 +116,7 @@ wwv_flow_api.create_report_columns(
 ,p_inline_lov=>'STATIC:Procedure;PROC,Function;FUNC,Script;SCRIPT'
 ,p_derived_column=>'N'
 ,p_include_in_export=>'Y'
-,p_ref_schema=>'TPDS'
-,p_ref_table_name=>'MS_UNIT'
-,p_ref_column_name=>'UNIT_TYPE'
+,p_ref_table_name=>'SM_UNIT'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(53272257349677263)
@@ -133,9 +125,7 @@ wwv_flow_api.create_report_columns(
 ,p_column_display_sequence=>6
 ,p_hidden_column=>'Y'
 ,p_derived_column=>'N'
-,p_ref_schema=>'TPDS'
-,p_ref_table_name=>'MS_UNIT'
-,p_ref_column_name=>'MODULE_ID'
+,p_ref_table_name=>'SM_UNIT'
 );
 wwv_flow_api.create_report_columns(
  p_id=>wwv_flow_api.id(48968253876084229)
@@ -361,7 +351,7 @@ wwv_flow_api.create_page_process(
 ,p_region_id=>wwv_flow_api.id(53271544124677263)
 ,p_process_type=>'NATIVE_TABFORM_UPDATE'
 ,p_process_name=>'ApplyMRU'
-,p_attribute_02=>'MS_UNIT'
+,p_attribute_02=>'SM_UNIT'
 ,p_attribute_03=>'UNIT_ID'
 ,p_process_error_message=>'Unable to process update.'
 ,p_process_when_button_id=>wwv_flow_api.id(53272551619677263)
@@ -374,7 +364,7 @@ wwv_flow_api.create_page_process(
 ,p_region_id=>wwv_flow_api.id(53271544124677263)
 ,p_process_type=>'NATIVE_TABFORM_DELETE'
 ,p_process_name=>'ApplyMRD'
-,p_attribute_02=>'MS_UNIT'
+,p_attribute_02=>'SM_UNIT'
 ,p_attribute_03=>'UNIT_ID'
 ,p_process_error_message=>'Unable to process delete.'
 ,p_process_when=>'MULTI_ROW_DELETE'
@@ -388,10 +378,10 @@ wwv_flow_api.create_page_process(
 ,p_process_type=>'NATIVE_PLSQL'
 ,p_process_name=>'SetAllOverridden'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
-'update ms_unit',
-'set auto_wake        = ms_logger.G_MSG_MODE_OVERRIDDEN',
-'   ,auto_msg_mode    = ms_logger.G_MSG_MODE_OVERRIDDEN ',
-'   ,manual_msg_mode  = ms_logger.G_MSG_MODE_OVERRIDDEN ',
+'update SM_unit',
+'set auto_wake        = sm_logger.G_MSG_MODE_OVERRIDDEN',
+'   ,auto_msg_mode    = sm_logger.G_MSG_MODE_OVERRIDDEN ',
+'   ,manual_msg_mode  = sm_logger.G_MSG_MODE_OVERRIDDEN ',
 'where module_id = :P10_MODULE_ID',
 ';',
 '',

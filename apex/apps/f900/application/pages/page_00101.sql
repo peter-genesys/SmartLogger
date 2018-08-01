@@ -21,7 +21,7 @@ wwv_flow_api.create_page(
 ,p_cache_mode=>'NOCACHE'
 ,p_cache_timeout_seconds=>21600
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180731161939'
+,p_last_upd_yyyymmddhh24miss=>'20180801100619'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(53230650992577616)
@@ -143,13 +143,14 @@ wwv_flow_api.create_page_process(
 ,p_process_sequence=>20
 ,p_process_point=>'BEFORE_HEADER'
 ,p_process_type=>'NATIVE_PLSQL'
-,p_process_name=>'SetPromoLevel'
+,p_process_name=>'SetAppLogo'
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
 '--Get promo level based on env config',
 ':PROMO_LEVEL := sm_api.f_config_value(i_name => ''PROMO_LEVEL'');',
+':APP_LOGO    := sm_api.f_config_value(i_name => ''LOGGER_APP_LOGO'');',
 '',
 'IF :PROMO_LEVEL is NULL THEN',
-'  --Not configured at env, so derive from APP_ALIAS instead.',
+'  --Promo Level Not configured at env, so derive from APP_ALIAS instead.',
 '  IF V(''APP_ALIAS'') LIKE ''%DEV'' THEN ',
 '    :PROMO_LEVEL := ''DEV'';',
 '  ELSIF V(''APP_ALIAS'') LIKE ''%TEST'' THEN ',
@@ -160,7 +161,15 @@ wwv_flow_api.create_page_process(
 '    :PROMO_LEVEL := ''?'';',
 '  END IF;',
 '',
-'END IF;'))
+'END IF;',
+'',
+'IF :APP_LOGO is null then',
+'  --App Logo Not configured at env, so derive from PROMO_LEVEL instead.',
+'  :APP_LOGO := ''SmartLogger ''||:PROMO_LEVEL;',
+'END IF;',
+'',
+'',
+''))
 ,p_error_display_location=>'INLINE_IN_NOTIFICATION'
 );
 end;
