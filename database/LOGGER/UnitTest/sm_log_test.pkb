@@ -10,10 +10,10 @@ CREATE OR REPLACE PACKAGE BODY sm_log_test AS
 
    PROCEDURE PLSQL_UNIT_test
    IS
-     l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'$$PLSQL_UNIT');
+     l_node sm_logger.node_typ := sm_logger.new_proc(g_package_name,'PLSQL_UNIT_test');
    BEGIN
  
-     sm_logger.note(l_node,'$$PLSQL_UNIT','$$PLSQL_UNIT');
+     sm_logger.note(l_node,'$$PLSQL_UNIT',$$PLSQL_UNIT);
  
    END;
  

@@ -49,8 +49,8 @@ END;
 ------------------------------------------------------------------------
 -- push_message
 ------------------------------------------------------------------------
-PROCEDURE push_message(io_messages  IN OUT NOCOPY ms_logger.message_list
-                      ,i_message    IN            ms_message%ROWTYPE ) IS
+PROCEDURE push_message(io_messages  IN OUT NOCOPY sm_logger.message_list
+                      ,i_message    IN            sm_message%ROWTYPE ) IS
   l_next_index               BINARY_INTEGER;    
 
 
@@ -67,9 +67,9 @@ END;
 
   function message_caching(i_max in integer) return varchar2 is
 
-    l_node         ms_logger.node_typ := ms_logger.new_func('sm_log_test6','message_caching');
+    l_node         sm_logger.node_typ := sm_logger.new_func('sm_log_test6','message_caching');
 
-    l_ms_message   ms_message%ROWTYPE;
+    l_sm_message   sm_message%ROWTYPE;
  
     l_start_time date;
     l_stop_time  date;
@@ -81,16 +81,16 @@ END;
 
 
 
-    ms_logger.note(l_node,'l_node.traversal.traversal_id', l_node.traversal.traversal_id);
+    sm_logger.note(l_node,'l_node.call.call_id', l_node.call.call_id);
 
     for i in 1..i_max loop
-    l_ms_message.message := to_char(SYS_GUID)
+    l_sm_message.message := to_char(SYS_GUID)
                           ||to_char(SYS_GUID)
                           ||to_char(SYS_GUID)
                           ||to_char(SYS_GUID);
 
       push_message(io_messages  => l_node.unlogged_messages
-                  ,i_message    => l_ms_message);
+                  ,i_message    => l_sm_message);
 
       --Hmm but its not just pushing the messages on the stack its also push the nodes on a stack of unlogged nodes...
       l_node.unlogged_messages.DELETE(l_node.unlogged_messages.count);
@@ -100,10 +100,10 @@ END;
   
     
 
-   --traversal        ms_traversal%ROWTYPE
-   --module           ms_module%ROWTYPE
-   --unit             ms_unit%ROWTYPE
-   --open_process     ms_unit.open_process%TYPE
+   --call             sm_call%ROWTYPE
+   --module           sm_module%ROWTYPE
+   --unit             sm_unit%ROWTYPE
+   --open_process     sm_unit.open_process%TYPE
    --node_level       BINARY_INTEGER
    --logged           BOOLEAN
    --unlogged_messages message_list
