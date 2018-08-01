@@ -1,5 +1,5 @@
-CREATE OR REPLACE FUNCTION sm_weave_test(i_module ms_module%ROWTYPE
-                                     ,o_unit   out ms_unit%ROWTYPE) return varchar2 is
+CREATE OR REPLACE FUNCTION f_sm_weave_test(i_module sm_module%ROWTYPE
+                                          ,o_unit   out sm_unit%ROWTYPE) return varchar2 is
    --@AOP_LOG
   l_var number;
 begin
@@ -27,4 +27,4 @@ begin
 end;
 /
 show errors;
-execute sm_weaver.reapply_aspect(i_object_name=> 'sm_weave_test');
+execute sm_weaver.reapply_aspect(i_object_name=> 'f_sm_weave_test');
