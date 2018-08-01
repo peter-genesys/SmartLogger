@@ -500,7 +500,7 @@ end;
 /
 show errors;
 execute sm_weaver.reapply_aspect(i_object_name=> 'SM_WEAVE_TEST', i_versions => 'HTML,AOP');
---execute ms_api.set_module_debug(i_module_name => 'sm_weave_test');
+--execute sm_api.set_module_debug(i_module_name => 'sm_weave_test');
 select sm_weave_test.test5 from dual;
 
 SELECT PLSCOPE_SETTINGS

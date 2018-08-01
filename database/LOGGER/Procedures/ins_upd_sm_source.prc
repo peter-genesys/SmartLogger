@@ -1,6 +1,9 @@
 create or replace procedure ins_upd_sm_source(i_sm_source IN sm_source%ROWTYPE) IS
-  l_node sm_logger.node_typ := sm_logger.new_proc('aop_processor','ins_upd_sm_source');   
+  l_node sm_logger.node_typ := sm_logger.new_proc('sm_weaver','ins_upd_sm_source');   
 begin
+    --This procedure is standalone, so that it is owner rights.
+    --but will be registered as part of the sm_weaver, which calls it, 
+    --so that it is overridden by settings of sm_weaver
     --update original source
     UPDATE sm_source
     SET   text          = i_sm_source.text  
