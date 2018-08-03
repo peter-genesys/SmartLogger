@@ -157,18 +157,27 @@ FUNCTION f_session_id(i_session_id IN INTEGER  DEFAULT NULL
 PROCEDURE comment( i_node            IN sm_logger.node_typ 
                   ,i_message         IN VARCHAR2 DEFAULT NULL );
 
+PROCEDURE debug( i_node            IN sm_logger.node_typ 
+                ,i_message         IN VARCHAR2 DEFAULT NULL );
+
 ------------------------------------------------------------------------
 -- info 
 ------------------------------------------------------------------------
 PROCEDURE info( i_node            IN sm_logger.node_typ 
                ,i_message         IN     VARCHAR2 DEFAULT NULL );
 
+PROCEDURE information( i_node            IN sm_logger.node_typ 
+                      ,i_message         IN     VARCHAR2 DEFAULT NULL );
+
 ------------------------------------------------------------------------
 -- warning  
 ------------------------------------------------------------------------
 
-PROCEDURE warning( i_node            IN sm_logger.node_typ 
+PROCEDURE warning( i_node         IN sm_logger.node_typ 
                   ,i_message      IN     VARCHAR2 DEFAULT NULL );
+
+PROCEDURE warn( i_node            IN sm_logger.node_typ 
+               ,i_message         IN     VARCHAR2 DEFAULT NULL );
 
 ------------------------------------------------------------------------
 -- fatal  

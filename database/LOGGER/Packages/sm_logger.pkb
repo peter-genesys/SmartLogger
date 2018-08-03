@@ -2192,9 +2192,21 @@ BEGIN
     create_message ( i_message   => i_message
                     ,i_msg_type  => G_MSG_TYPE_MESSAGE
                     ,i_msg_level => G_MSG_LEVEL_COMMENT
-	  ,i_node     => i_node);
+	                ,i_node     => i_node);
  
 END comment;
+
+PROCEDURE debug( i_node            IN sm_logger.node_typ 
+                  ,i_message         IN VARCHAR2 DEFAULT NULL )
+IS
+BEGIN
+    create_message ( i_message   => i_message
+                    ,i_msg_type  => G_MSG_TYPE_MESSAGE
+                    ,i_msg_level => G_MSG_LEVEL_COMMENT
+                    ,i_node     => i_node);
+ 
+END debug;
+
 
 ------------------------------------------------------------------------
 -- info 
@@ -2206,9 +2218,20 @@ BEGIN
     create_message ( i_message   => i_message
                     ,i_msg_type  => G_MSG_TYPE_MESSAGE
                     ,i_msg_level => G_MSG_LEVEL_INFO
-   ,i_node     => i_node);
+                    ,i_node     => i_node);
  
 END info;
+
+PROCEDURE information( i_node            IN sm_logger.node_typ 
+                      ,i_message         IN VARCHAR2 DEFAULT NULL )
+IS
+BEGIN
+    create_message ( i_message   => i_message
+                    ,i_msg_type  => G_MSG_TYPE_MESSAGE
+                    ,i_msg_level => G_MSG_LEVEL_INFO
+                    ,i_node     => i_node);
+ 
+END information;
 
 ------------------------------------------------------------------------
 -- warning  
@@ -2221,9 +2244,20 @@ BEGIN
     create_message ( i_message   => i_message
                     ,i_msg_type  => G_MSG_TYPE_MESSAGE
                     ,i_msg_level => G_MSG_LEVEL_WARNING
-   ,i_node     => i_node);
+                    ,i_node     => i_node);
  
 END warning;
+
+PROCEDURE warn( i_node         IN sm_logger.node_typ 
+                  ,i_message      IN VARCHAR2 DEFAULT NULL )
+IS
+BEGIN
+    create_message ( i_message   => i_message
+                    ,i_msg_type  => G_MSG_TYPE_MESSAGE
+                    ,i_msg_level => G_MSG_LEVEL_WARNING
+   ,i_node     => i_node);
+ 
+END warn;
 
 ------------------------------------------------------------------------
 -- fatal  
