@@ -434,7 +434,7 @@ FUNCTION object_owner(i_object_name IN VARCHAR2) RETURN VARCHAR2 IS
   -- Select 1 owner, with preference to the user
   CURSOR cu_owner IS
   select owner
-  from   dba_objects_v
+  from   dba_objects
   where  object_name = UPPER(i_object_name)
   and    object_type <> 'SYNONYM'
   order by decode(owner,USER,1,2);
@@ -460,7 +460,7 @@ END;
  
     CURSOR cu_type IS
     select object_type
-    from   dba_objects_v
+    from   dba_objects
     where  object_name = UPPER(i_object_name)
     and    object_type <> 'SYNONYM'
     and    owner       = i_owner;
@@ -1692,20 +1692,20 @@ FUNCTION f_dba_source( i_owner   IN   VARCHAR2
                        ,i_name   IN   VARCHAR2
                        ,i_type   IN   VARCHAR2
                        ,i_line   IN   NUMBER)
-  RETURN dba_source_v%ROWTYPE IS
+  RETURN dba_source%ROWTYPE IS
   CURSOR cu_dba_source(
     c_owner  VARCHAR2
    ,c_name   VARCHAR2
    ,c_type   VARCHAR2
    ,c_line   NUMBER) IS
     SELECT *
-      FROM dba_source_v
+      FROM dba_source
      WHERE OWNER = c_owner
        AND NAME = c_name
        AND TYPE = c_type
        AND line = c_line;
 
-  l_result   dba_source_v%ROWTYPE;
+  l_result   dba_source%ROWTYPE;
 BEGIN
   OPEN cu_dba_source(c_owner => i_owner 
                     , c_name  => i_name
@@ -1738,7 +1738,7 @@ PROCEDURE warn_user_source_error_lines( i_node       IN sm_logger.node_typ
   l_error_line   NUMBER;
 
   l_result       VARCHAR2(4000);
-  l_dba_source  dba_source_v%ROWTYPE;
+  l_dba_source  dba_source%ROWTYPE;
   l_line_numbersYN VARCHAR2(1) := 'Y';
    
   l_message  VARCHAR2(2000);

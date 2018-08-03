@@ -5865,7 +5865,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
     CURSOR cu_dba_source is
     select 1
-    from dba_source_v
+    from dba_source
     where NAME = i_object_name
     and type   = i_object_type
     and (text like '%Logging by sm_weaver%' or text like '%@AOP_LOG_WOVEN%');
