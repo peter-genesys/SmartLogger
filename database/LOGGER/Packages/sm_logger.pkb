@@ -1884,6 +1884,28 @@ BEGIN
       ROLLBACK;
       err_warn_oracle_error('set_module_msg_mode');
 END;
+
+ 
+PROCEDURE  set_module_auto_wake(i_module_id IN NUMBER
+                               ,i_auto_wake IN VARCHAR2 )
+IS
+  pragma autonomous_transaction;
+BEGIN
+  $if $$intlog $then intlog_start('set_module_auto_wake'); $end
+  $if $$intlog $then intlog_note('i_module_id',i_module_id);   $end
+  $if $$intlog $then intlog_note('i_auto_wake',i_auto_wake);     $end
+
+  UPDATE sm_module
+  SET    auto_wake  = i_auto_wake
+  WHERE  module_id = i_module_id;
+
+  COMMIT;
+  $if $$intlog $then intlog_end('set_module_auto_wake'); $end
+  EXCEPTION
+    WHEN OTHERS THEN
+      ROLLBACK;
+      err_warn_oracle_error('set_module_auto_wake');
+END;
  
 
 PROCEDURE  set_unit_msg_mode(i_unit_id   IN NUMBER
@@ -1907,6 +1929,28 @@ BEGIN
       err_warn_oracle_error('set_unit_msg_mode');
 END;
 
+
+PROCEDURE  set_unit_auto_wake(i_unit_id IN NUMBER
+                               ,i_auto_wake IN VARCHAR2 )
+IS
+  pragma autonomous_transaction;
+BEGIN
+  $if $$intlog $then intlog_start('set_unit_auto_wake'); $end
+  $if $$intlog $then intlog_note('i_unit_id',i_unit_id);   $end
+  $if $$intlog $then intlog_note('i_auto_wake',i_auto_wake);     $end
+
+  UPDATE sm_unit
+  SET    auto_wake  = i_auto_wake
+  WHERE  unit_id = i_unit_id;
+
+  COMMIT;
+  $if $$intlog $then intlog_end('set_unit_auto_wake'); $end
+  EXCEPTION
+    WHEN OTHERS THEN
+      ROLLBACK;
+      err_warn_oracle_error('set_unit_auto_wake');
+END;
+
 ------------------------------------------------------------------------
 -- Message Mode operations (exposed for ms_api only)
 ------------------------------------------------------------------------
@@ -1921,6 +1965,18 @@ BEGIN
   set_module_msg_mode(i_module_id  => find_module(i_module_name => i_module_name
                                                  ,i_create      => TRUE).module_id
                      ,i_msg_mode => i_msg_mode);
+ 
+END; 
+
+PROCEDURE  set_module_auto_wake(i_module_name IN VARCHAR2
+                              ,i_auto_wake    IN VARCHAR2 ) IS
+                             
+BEGIN
+
+
+  set_module_auto_wake(i_module_id  => find_module(i_module_name => i_module_name
+                                                 ,i_create      => TRUE).module_id
+                      ,i_auto_wake => i_auto_wake);
  
 END; 
 
@@ -1944,11 +2000,25 @@ BEGIN
  
 END; 
 
+PROCEDURE  set_unit_auto_wake(i_module_name IN VARCHAR2
+                             ,i_unit_name   IN VARCHAR2
+                             ,i_auto_wake   IN VARCHAR2 ) IS
+                             
+BEGIN
+
+
+  set_unit_auto_wake(i_unit_id  => find_unit(i_module_name => i_module_name
+                                           ,i_unit_name   => i_unit_name
+                                           ,i_create      => FALSE).unit_id
+                                           ,i_auto_wake    => i_auto_wake);
+ 
+END; 
+
 
 PROCEDURE  set_logger_msg_mode(i_msg_mode   IN NUMBER ) IS
                              
 BEGIN
-
+  --Setting to other than G_MSG_MODE_OVERRIDDEN (null), implies the Logger will WAKE NOW.
   g_logger_msg_mode := i_msg_mode;
  
 END; 

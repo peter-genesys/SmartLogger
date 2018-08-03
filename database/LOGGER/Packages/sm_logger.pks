@@ -117,11 +117,18 @@ FUNCTION new_script(i_module_name IN VARCHAR2
 PROCEDURE  set_module_msg_mode(i_module_name IN VARCHAR2
                               ,i_msg_mode   IN NUMBER );
 
+PROCEDURE  set_module_auto_wake(i_module_name IN VARCHAR2
+                               ,i_auto_wake   IN VARCHAR2 );
+
 ------------------------------------------------------------------------
   
 PROCEDURE  set_unit_msg_mode(i_module_name IN VARCHAR2
                             ,i_unit_name   IN VARCHAR2
                             ,i_msg_mode   IN NUMBER );
+
+PROCEDURE  set_unit_auto_wake(i_module_name IN VARCHAR2
+                             ,i_unit_name   IN VARCHAR2
+                             ,i_auto_wake   IN VARCHAR2 );
 
 PROCEDURE  set_logger_msg_mode(i_msg_mode   IN NUMBER );
 
