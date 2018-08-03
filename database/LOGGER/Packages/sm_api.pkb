@@ -548,7 +548,7 @@ BEGIN
   RETURN get_apex_page_URL(i_server_url  => i_server_url
                           ,i_port        => i_port
                           ,i_dir         => i_dir
-                          ,i_app_no      => f_config_value(i_name => 'SMARTLOGGER_APP_ALIAS')
+                          ,i_app_no      => f_config_value(i_name => 'LOGGER_APP_ALIAS')
                           ,i_page_no     => i_page_no
                           ,i_request     => l_request
                           ,i_clear_cache => 'RIR,RP,'||i_page_no

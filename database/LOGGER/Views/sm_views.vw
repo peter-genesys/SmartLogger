@@ -39,15 +39,19 @@ AND   p.session_id  = t.session_id
 
 CREATE OR REPLACE VIEW sm_call_message_vw
 AS 
-SELECT t.call_id               
-      ,t.session_id   
-      ,t.unit_id               
-      ,t.parent_call_id   
-      ,t.module_name       
-      ,t.unit_name         
-      ,t.unit_type         
+SELECT uc.call_id               
+      ,uc.session_id   
+      ,uc.unit_id               
+      ,uc.parent_call_id   
+      ,uc.module_id
+      ,uc.module_name  
+      ,uc.module_type   
+      ,uc.unit_name         
+      ,uc.unit_type   
+      ,uc.msg_mode       
       ,m.message_id       
-      ,m.name      
+      ,m.name
+      ,m.value      
       ,substr(m.message,1,32000) message --Fix for display in Apex App     
       ,m.msg_type      
       ,m.msg_level   
@@ -57,9 +61,9 @@ SELECT t.call_id
         WHEN 'Message' THEN message
         ELSE RPAD(msg_type,6)||m.name||'=['||m.message||']'
       END                                       message_output
-FROM sm_message         m
-    ,sm_unit_call_vw  t
-WHERE m.call_id = t.call_id
+FROM sm_message       m
+    ,sm_unit_call_vw  uc
+WHERE m.call_id = uc.call_id
 /
 
  
