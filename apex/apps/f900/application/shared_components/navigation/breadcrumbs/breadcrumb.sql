@@ -6,9 +6,30 @@ wwv_flow_api.create_menu(
 );
 wwv_flow_api.create_menu_option(
  p_id=>wwv_flow_api.id(25046302152869475)
-,p_short_name=>'Config List'
-,p_link=>'f?p=&APP_ID.:3:&SESSION.'
+,p_parent_id=>0
+,p_short_name=>'Settings'
+,p_link=>'f?p=&APP_ID.:3:&SESSION.::&DEBUG.:::'
 ,p_page_id=>3
+);
+wwv_flow_api.create_menu_option(
+ p_id=>wwv_flow_api.id(25301237257164985)
+,p_parent_id=>0
+,p_short_name=>'Apex Sessions'
+,p_link=>'f?p=&APP_ID.:30:&SESSION.::&DEBUG.:::'
+,p_page_id=>30
+);
+wwv_flow_api.create_menu_option(
+ p_id=>wwv_flow_api.id(25539554331902916)
+,p_parent_id=>wwv_flow_api.id(25301237257164985)
+,p_short_name=>'Messages'
+,p_link=>'f?p=&APP_ID.:40:&SESSION.'
+,p_page_id=>40
+);
+wwv_flow_api.create_menu_option(
+ p_id=>wwv_flow_api.id(25811729421917962)
+,p_short_name=>'Logger Sessions'
+,p_link=>'f?p=&APP_ID.:35:&SESSION.'
+,p_page_id=>35
 );
 wwv_flow_api.create_menu_option(
  p_id=>wwv_flow_api.id(36059355922607354)
@@ -34,22 +55,22 @@ wwv_flow_api.create_menu_option(
 wwv_flow_api.create_menu_option(
  p_id=>wwv_flow_api.id(38244107090087336)
 ,p_parent_id=>0
-,p_short_name=>'Step 1'
+,p_short_name=>'Original PLSQL'
 ,p_link=>'f?p=&APP_ID.:21:&SESSION.::&DEBUG.:::'
 ,p_page_id=>21
 );
 wwv_flow_api.create_menu_option(
  p_id=>wwv_flow_api.id(38256621699442149)
 ,p_parent_id=>wwv_flow_api.id(38244107090087336)
-,p_short_name=>'Step 2'
+,p_short_name=>'Woven with Highlighting'
 ,p_link=>'f?p=&APP_ID.:22:&SESSION.::&DEBUG.:::'
 ,p_page_id=>22
 );
 wwv_flow_api.create_menu_option(
  p_id=>wwv_flow_api.id(39002120156740958)
 ,p_parent_id=>wwv_flow_api.id(38256621699442149)
-,p_short_name=>'Step 3'
-,p_link=>'f?p=&APP_ID.:25:&SESSION.'
+,p_short_name=>'Woven Plain'
+,p_link=>'f?p=&APP_ID.:25:&SESSION.::&DEBUG.:::'
 ,p_page_id=>25
 );
 wwv_flow_api.create_menu_option(

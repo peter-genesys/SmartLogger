@@ -459,6 +459,7 @@ wwv_flow_api.create_page_da_action(
 'where name = :P23_name ',
 'and type = :P23_type'))
 ,p_attribute_08=>'Y'
+,p_stop_execution_on_error=>'Y'
 );
 wwv_flow_api.create_page_da_action(
  p_id=>wwv_flow_api.id(39185131174846643)
@@ -477,6 +478,7 @@ wwv_flow_api.create_page_da_action(
 'where name = :P23_name ',
 'and type = :P23_type'))
 ,p_attribute_08=>'Y'
+,p_stop_execution_on_error=>'Y'
 );
 wwv_flow_api.create_page_da_action(
  p_id=>wwv_flow_api.id(39208222189715495)
@@ -495,6 +497,7 @@ wwv_flow_api.create_page_da_action(
 'where name = :P23_name ',
 'and type = :P23_type'))
 ,p_attribute_08=>'Y'
+,p_stop_execution_on_error=>'Y'
 );
 wwv_flow_api.create_page_da_action(
  p_id=>wwv_flow_api.id(94040654567612354)
@@ -514,6 +517,7 @@ wwv_flow_api.create_page_da_action(
 'and type = :P23_type',
 ''))
 ,p_attribute_08=>'Y'
+,p_stop_execution_on_error=>'Y'
 );
 wwv_flow_api.create_page_da_event(
  p_id=>wwv_flow_api.id(39187915816186149)

@@ -3,9 +3,9 @@ begin
 wwv_flow_api.create_page(
  p_id=>4
 ,p_user_interface_id=>wwv_flow_api.id(37981134484256182)
-,p_name=>'Config Item'
+,p_name=>'Setting'
 ,p_page_mode=>'MODAL'
-,p_step_title=>'Config Item'
+,p_step_title=>'Setting'
 ,p_step_sub_title_type=>'TEXT_WITH_SUBSTITUTIONS'
 ,p_first_item=>'NO_FIRST_ITEM'
 ,p_autocomplete_on_off=>'OFF'
@@ -17,7 +17,7 @@ wwv_flow_api.create_page(
 ,p_protection_level=>'C'
 ,p_cache_mode=>'NOCACHE'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180801095148'
+,p_last_upd_yyyymmddhh24miss=>'20180807134226'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(25033903163869363)

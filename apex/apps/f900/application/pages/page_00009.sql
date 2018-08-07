@@ -23,7 +23,7 @@ wwv_flow_api.create_page(
 ,p_cache_timeout_seconds=>21600
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180801135407'
+,p_last_upd_yyyymmddhh24miss=>'20180807143239'
 );
 wwv_flow_api.create_report_region(
  p_id=>wwv_flow_api.id(53266261772667692)
@@ -298,6 +298,7 @@ wwv_flow_api.create_page_button(
 ,p_button_template_id=>wwv_flow_api.id(35605892992315953)
 ,p_button_image_alt=>'Purge Old Sessions'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
+,p_button_condition_type=>'NEVER'
 );
 wwv_flow_api.create_page_button(
  p_id=>wwv_flow_api.id(38989825961193362)
@@ -310,6 +311,7 @@ wwv_flow_api.create_page_button(
 ,p_button_image_alt=>'All Debug'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
 ,p_button_execute_validations=>'N'
+,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_button(
  p_id=>wwv_flow_api.id(38989604490187106)
@@ -335,6 +337,7 @@ wwv_flow_api.create_page_button(
 ,p_button_image_alt=>'All Quiet'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
 ,p_button_execute_validations=>'N'
+,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_button(
  p_id=>wwv_flow_api.id(39061629762920532)
@@ -347,6 +350,7 @@ wwv_flow_api.create_page_button(
 ,p_button_image_alt=>'All Disabled'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
 ,p_button_execute_validations=>'N'
+,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_button(
  p_id=>wwv_flow_api.id(38990035311196000)
@@ -359,6 +363,7 @@ wwv_flow_api.create_page_button(
 ,p_button_image_alt=>'Report Std'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
 ,p_button_execute_validations=>'N'
+,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_branch(
  p_id=>wwv_flow_api.id(53268937818667705)
@@ -400,10 +405,11 @@ wwv_flow_api.create_page_item(
 'select DISTINCT initcap(OWNER) display, OWNER value',
 'from SM_MODULE',
 ''))
+,p_lov_display_null=>'YES'
 ,p_cHeight=>1
 ,p_field_template=>wwv_flow_api.id(35605363241315950)
 ,p_item_template_options=>'#DEFAULT#'
-,p_lov_display_extra=>'YES'
+,p_lov_display_extra=>'NO'
 ,p_attribute_01=>'SUBMIT'
 ,p_attribute_03=>'N'
 );

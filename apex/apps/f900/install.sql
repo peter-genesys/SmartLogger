@@ -58,5 +58,8 @@
 @application/pages/page_00023.sql
 @application/pages/page_00024.sql
 @application/pages/page_00025.sql
+@application/pages/page_00030.sql
+@application/pages/page_00035.sql
+@application/pages/page_00040.sql
 @application/pages/page_00101.sql
 @application/end_environment.sql

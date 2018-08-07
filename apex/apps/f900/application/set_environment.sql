@@ -13,20 +13,20 @@ prompt APPLICATION 900 - SmartLogger
 --
 
 -- Application Statistics:
---   Pages:                     14
---     Items:                   30
+--   Pages:                     17
+--     Items:                   36
 --     Validations:              1
---     Processes:               26
---     Regions:                 37
---     Buttons:                 36
---     Dynamic Actions:         14
+--     Processes:               33
+--     Regions:                 47
+--     Buttons:                 46
+--     Dynamic Actions:         18
 --   Shared Components:
 --     Logic:
---       Items:                  3
+--       Items:                  4
 --     Navigation:
 --       Lists:                  2
 --       Breadcrumbs:            1
---         Entries:             11
+--         Entries:             14
 --       NavBar Entries:         1
 --     Security:
 --       Authentication:         3
