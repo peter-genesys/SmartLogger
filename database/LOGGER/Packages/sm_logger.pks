@@ -130,9 +130,9 @@ PROCEDURE  wake_logger(i_node      IN node_typ
                       ,i_msg_mode  IN NUMBER DEFAULT G_MSG_MODE_DEBUG);
 
 ----------------------------------------------------------------------
--- f_session_traced
+-- f_session_logged
 ----------------------------------------------------------------------
-FUNCTION f_session_traced(i_session_id IN INTEGER) RETURN BOOLEAN;
+FUNCTION f_session_logged(i_session_id IN INTEGER) RETURN BOOLEAN;
 
 ----------------------------------------------------------------------
 -- f_session_exceptions - TRUE if any exceptions

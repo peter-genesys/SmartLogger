@@ -486,7 +486,7 @@ END;
  
 
 ------------------------------------------------------------------------
--- get_smartlogger_trace_URL
+-- get_smartlogger_report_URL
 ------------------------------------------------------------------------
 FUNCTION get_smartlogger_report_URL(i_server_url   IN VARCHAR2 DEFAULT NULL
                                    ,i_port         IN VARCHAR2 DEFAULT NULL
@@ -518,7 +518,7 @@ BEGIN
                           ,i_page_no     => i_page_no
                           ,i_request     => l_request
                           ,i_clear_cache => 'RIR,RP,'||i_page_no
-                          ,i_param_names => 'P'||i_page_no||'_session_ID'
+                          ,i_param_names => 'P'||i_page_no||'_SESSION_ID'
                           ,i_param_values => i_session_id);
 
 END; 
@@ -583,7 +583,7 @@ BEGIN
                                        -- ,i_ext_ref    => i_ext_ref 
                                         );  
  
-  IF sm_logger.f_session_traced(i_session_id => l_session_id) THEN
+  IF sm_logger.f_session_logged(i_session_id => l_session_id) THEN
     l_result := get_smartlogger_trace_URL(i_server_url  => i_server_url
                                          ,i_port        => i_port
                                          ,i_dir         => i_dir      
@@ -609,7 +609,7 @@ BEGIN
 
   l_session_id := NVL(i_session_id, sm_logger.f_session_id);
 
-  IF sm_logger.f_session_traced(i_session_id => l_session_id) THEN
+  IF sm_logger.f_session_logged(i_session_id => l_session_id) THEN
   
     RETURN 'Click to view Trace:  '
             ||get_smartlogger_trace_URL(i_server_url  => i_server_url
@@ -636,7 +636,7 @@ BEGIN
 
   l_session_id := NVL(i_session_id, sm_logger.f_session_id);
 
-  IF sm_logger.f_session_traced(i_session_id => l_session_id) THEN
+  IF sm_logger.f_session_logged(i_session_id => l_session_id) THEN
   
     return htf.anchor(curl        => get_smartlogger_trace_URL(i_server_url  => i_server_url
                                                               ,i_port        => i_port
@@ -666,7 +666,7 @@ BEGIN
 
   l_session_id := NVL(i_session_id, sm_logger.f_session_id);
 
-  IF sm_logger.f_session_traced(i_session_id => l_session_id) THEN
+  IF sm_logger.f_session_logged(i_session_id => l_session_id) THEN
   
     return htf.anchor(curl        => get_smartlogger_session_URL(i_server_url  => i_server_url
                                                                 ,i_port        => i_port

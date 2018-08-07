@@ -1,6 +1,6 @@
                                                                                                                                                                                     
   CREATE TABLE SM_SESSION                                                                                                                                                           
-   (	SESSION_ID NUMBER NOT NULL ENABLE,                                                                                                                                             
+   (SESSION_ID NUMBER NOT NULL ENABLE,                                                                                                                                             
 	ORIGIN VARCHAR2(100),                                                                                                                                                              
 	USERNAME VARCHAR2(30),                                                                                                                                                             
 	INTERNAL_ERROR VARCHAR2(1) DEFAULT 'N',                                                                                                                                            
@@ -8,7 +8,16 @@
 	ERROR_MESSAGE CLOB,                                                                                                                                                                
 	CREATED_DATE DATE,                                                                                                                                                                 
 	UPDATED_DATE DATE,                                                                                                                                                                 
-	KEEP_YN VARCHAR2(1) DEFAULT 'N'                                                                                                                                                    
+	KEEP_YN VARCHAR2(1) DEFAULT 'N',
+	APP_USER          VARCHAR2(50),
+	APP_USER_FULLNAME VARCHAR2(50),  
+	APP_USER_EMAIL    VARCHAR2(50), 
+	APP_SESSION       VARCHAR2(50),
+	APP_ID            NUMBER,
+	APP_ALIAS         VARCHAR2(50),
+	APP_TITLE         VARCHAR2(50),
+	APP_PAGE_ID       NUMBER,
+	APP_PAGE_ALIAS    VARCHAR2(50)
    ) ;                                                                                                                                                                              
   ALTER TABLE SM_SESSION ADD CONSTRAINT PROCESS_PK PRIMARY KEY (SESSION_ID)                                                                                                         
   USING INDEX  ENABLE;                                                                                                                                                              

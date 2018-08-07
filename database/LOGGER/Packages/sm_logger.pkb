@@ -730,9 +730,9 @@ END;
 
 
 ----------------------------------------------------------------------
--- f_session_traced
+-- f_session_logged
 ----------------------------------------------------------------------
-FUNCTION f_session_traced(i_session_id IN INTEGER) RETURN BOOLEAN IS
+FUNCTION f_session_logged(i_session_id IN INTEGER) RETURN BOOLEAN IS
   CURSOR cu_call IS
   SELECT 1
   FROM   sm_call t  
@@ -750,7 +750,7 @@ BEGIN
     
     RETURN l_result;
    
-END f_session_traced;
+END f_session_logged;
 
 ----------------------------------------------------------------------
 -- f_session_exceptions - TRUE if any exceptions
@@ -1029,12 +1029,21 @@ BEGIN
     if io_node.module.module_name = 'sm_jotter' then
       g_session.origin       := io_node.call_stack_parent;
     else  
-      g_session.origin         := io_node.module.module_name||' '||io_node.unit.unit_name;
+      g_session.origin         := io_node.module.module_name||'.'||io_node.unit.unit_name;
     end if;
     g_session.username       := USER;
     g_session.created_date   := SYSDATE;      --This is when the process is cached, rather than when inserted.
     g_session.internal_error := 'N';  --reset internal error for the new process
     g_session.keep_yn        := 'N';
+    g_session.app_user       := v('APP_USER');
+    --APP_USER_FULLNAME
+    --APP_USER_EMAIL
+    g_session.app_session    := v('APP_SESSION');
+    g_session.app_id         := v('APP_ID');
+    g_session.app_alias      := v('APP_ALIAS');
+    g_session.app_title      := v('APP_TITLE');
+    g_session.app_page_id    := v('APP_PAGE_ID');
+    g_session.app_page_alias := v('APP_PAGE_ALIAS');
  
     init_node_stack; --remove all nodes from the stack.
 
