@@ -269,7 +269,7 @@ create or replace package body sm_weaver is
 -- table_owner
 --------------------------------------------------------------------
 /** PRIVATE
-* Search all_tables for table i_table_name.
+* Search dba_tables for table i_table_name.
 * Find the most appropriate table owner.
 * Of All Tables (that the end user can see)
 * Select 1 owner, with preference to the end user
@@ -281,7 +281,7 @@ create or replace package body sm_weaver is
 
     CURSOR cu_owner IS
     select owner
-    from   all_tables
+    from   dba_tables
     where  table_name = i_table_name
     order by decode(owner,g_end_user,1,2);
 
@@ -301,7 +301,7 @@ create or replace package body sm_weaver is
 -- object_owner
 --------------------------------------------------------------------
 /** PRIVATE
-* Search all_objects for i_object_name
+* Search dba_objects for i_object_name
 * Find the most appropriate object owner.
 * Of All Objects (that the end user can see)
 * Select 1 owner, with preference to the end user
@@ -315,7 +315,7 @@ create or replace package body sm_weaver is
 
     CURSOR cu_owner IS
     select owner
-    from   all_objects
+    from   dba_objects
     where  object_name = i_object_name
     and    object_type = i_object_type
     order by decode(owner,g_end_user,1,2);
@@ -1085,7 +1085,7 @@ and   t.usage_context_id = v.usage_id
             FOR l_column IN 
               (select lower(column_name) column_name
                      ,data_type
-               from all_tab_columns
+               from dba_tab_columns
                where table_name = l_table_name 
                and   owner      = l_table_owner ) LOOP
                
@@ -1252,7 +1252,7 @@ BEGIN
           FOR l_column IN 
             (select lower(column_name) column_name
                    ,data_type
-             from all_tab_columns
+             from dba_tab_columns
              where table_name = i_param_list(l_index).rowtype 
              and   owner      = l_table_owner ) LOOP
 
@@ -2603,7 +2603,7 @@ BEGIN
             FOR l_column IN 
               (select lower(column_name) column_name
                      ,data_type
-               from all_tab_columns
+               from dba_tab_columns
                where table_name =  l_table_name
                and   column_name = l_column_name 
                and   owner      = l_table_owner ) LOOP
@@ -3153,7 +3153,7 @@ BEGIN
     FOR l_column IN 
       (select lower(column_name) column_name
              ,data_type
-       from all_tab_columns
+       from dba_tab_columns
        where table_name = l_table_name 
        and   owner      = l_table_owner  ) LOOP
 
@@ -3189,7 +3189,7 @@ BEGIN
     FOR l_column IN 
       (select lower(column_name) column_name
              ,data_type
-       from all_tab_columns
+       from dba_tab_columns
        where table_name =  l_table_name
        and   column_name = l_column_name 
        and   owner       = l_table_owner  ) LOOP
@@ -3800,7 +3800,7 @@ PROCEDURE AOP_block(i_indent         IN INTEGER
         FOR l_column IN 
           (select lower(column_name) column_name
                  ,data_type
-           from all_tab_columns
+           from dba_tab_columns
            where table_name = l_var_list(l_var).rowtype 
            and   owner      = l_table_owner  ) LOOP
 
@@ -5865,7 +5865,7 @@ and   t.usage_context_id = v.usage_id ) LOOP
 
     CURSOR cu_dba_source is
     select 1
-    from dba_source_v
+    from dba_source
     where NAME = i_object_name
     and type   = i_object_type
     and (text like '%Logging by sm_weaver%' or text like '%@AOP_LOG_WOVEN%');
@@ -5897,3 +5897,7 @@ set define on;
 
 alter trigger sm_weaver_trg enable;
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
+
+--Most likely will not want logging enabled on the sm_weaver
+execute sm_api.set_module_disabled(i_module_name => 'sm_weaver');
+

@@ -434,7 +434,7 @@ FUNCTION object_owner(i_object_name IN VARCHAR2) RETURN VARCHAR2 IS
   -- Select 1 owner, with preference to the user
   CURSOR cu_owner IS
   select owner
-  from   dba_objects_v
+  from   dba_objects
   where  object_name = UPPER(i_object_name)
   and    object_type <> 'SYNONYM'
   order by decode(owner,USER,1,2);
@@ -460,7 +460,7 @@ END;
  
     CURSOR cu_type IS
     select object_type
-    from   dba_objects_v
+    from   dba_objects
     where  object_name = UPPER(i_object_name)
     and    object_type <> 'SYNONYM'
     and    owner       = i_owner;
@@ -1701,20 +1701,20 @@ FUNCTION f_dba_source( i_owner   IN   VARCHAR2
                        ,i_name   IN   VARCHAR2
                        ,i_type   IN   VARCHAR2
                        ,i_line   IN   NUMBER)
-  RETURN dba_source_v%ROWTYPE IS
+  RETURN dba_source%ROWTYPE IS
   CURSOR cu_dba_source(
     c_owner  VARCHAR2
    ,c_name   VARCHAR2
    ,c_type   VARCHAR2
    ,c_line   NUMBER) IS
     SELECT *
-      FROM dba_source_v
+      FROM dba_source
      WHERE OWNER = c_owner
        AND NAME = c_name
        AND TYPE = c_type
        AND line = c_line;
 
-  l_result   dba_source_v%ROWTYPE;
+  l_result   dba_source%ROWTYPE;
 BEGIN
   OPEN cu_dba_source(c_owner => i_owner 
                     , c_name  => i_name
@@ -1747,7 +1747,7 @@ PROCEDURE warn_user_source_error_lines( i_node       IN sm_logger.node_typ
   l_error_line   NUMBER;
 
   l_result       VARCHAR2(4000);
-  l_dba_source  dba_source_v%ROWTYPE;
+  l_dba_source  dba_source%ROWTYPE;
   l_line_numbersYN VARCHAR2(1) := 'Y';
    
   l_message  VARCHAR2(2000);
@@ -1893,6 +1893,28 @@ BEGIN
       ROLLBACK;
       err_warn_oracle_error('set_module_msg_mode');
 END;
+
+ 
+PROCEDURE  set_module_auto_wake(i_module_id IN NUMBER
+                               ,i_auto_wake IN VARCHAR2 )
+IS
+  pragma autonomous_transaction;
+BEGIN
+  $if $$intlog $then intlog_start('set_module_auto_wake'); $end
+  $if $$intlog $then intlog_note('i_module_id',i_module_id);   $end
+  $if $$intlog $then intlog_note('i_auto_wake',i_auto_wake);     $end
+
+  UPDATE sm_module
+  SET    auto_wake  = i_auto_wake
+  WHERE  module_id = i_module_id;
+
+  COMMIT;
+  $if $$intlog $then intlog_end('set_module_auto_wake'); $end
+  EXCEPTION
+    WHEN OTHERS THEN
+      ROLLBACK;
+      err_warn_oracle_error('set_module_auto_wake');
+END;
  
 
 PROCEDURE  set_unit_msg_mode(i_unit_id   IN NUMBER
@@ -1916,6 +1938,28 @@ BEGIN
       err_warn_oracle_error('set_unit_msg_mode');
 END;
 
+
+PROCEDURE  set_unit_auto_wake(i_unit_id IN NUMBER
+                               ,i_auto_wake IN VARCHAR2 )
+IS
+  pragma autonomous_transaction;
+BEGIN
+  $if $$intlog $then intlog_start('set_unit_auto_wake'); $end
+  $if $$intlog $then intlog_note('i_unit_id',i_unit_id);   $end
+  $if $$intlog $then intlog_note('i_auto_wake',i_auto_wake);     $end
+
+  UPDATE sm_unit
+  SET    auto_wake  = i_auto_wake
+  WHERE  unit_id = i_unit_id;
+
+  COMMIT;
+  $if $$intlog $then intlog_end('set_unit_auto_wake'); $end
+  EXCEPTION
+    WHEN OTHERS THEN
+      ROLLBACK;
+      err_warn_oracle_error('set_unit_auto_wake');
+END;
+
 ------------------------------------------------------------------------
 -- Message Mode operations (exposed for ms_api only)
 ------------------------------------------------------------------------
@@ -1930,6 +1974,18 @@ BEGIN
   set_module_msg_mode(i_module_id  => find_module(i_module_name => i_module_name
                                                  ,i_create      => TRUE).module_id
                      ,i_msg_mode => i_msg_mode);
+ 
+END; 
+
+PROCEDURE  set_module_auto_wake(i_module_name IN VARCHAR2
+                              ,i_auto_wake    IN VARCHAR2 ) IS
+                             
+BEGIN
+
+
+  set_module_auto_wake(i_module_id  => find_module(i_module_name => i_module_name
+                                                 ,i_create      => TRUE).module_id
+                      ,i_auto_wake => i_auto_wake);
  
 END; 
 
@@ -1953,11 +2009,25 @@ BEGIN
  
 END; 
 
+PROCEDURE  set_unit_auto_wake(i_module_name IN VARCHAR2
+                             ,i_unit_name   IN VARCHAR2
+                             ,i_auto_wake   IN VARCHAR2 ) IS
+                             
+BEGIN
+
+
+  set_unit_auto_wake(i_unit_id  => find_unit(i_module_name => i_module_name
+                                           ,i_unit_name   => i_unit_name
+                                           ,i_create      => FALSE).unit_id
+                                           ,i_auto_wake    => i_auto_wake);
+ 
+END; 
+
 
 PROCEDURE  set_logger_msg_mode(i_msg_mode   IN NUMBER ) IS
                              
 BEGIN
-
+  --Setting to other than G_MSG_MODE_OVERRIDDEN (null), implies the Logger will WAKE NOW.
   g_logger_msg_mode := i_msg_mode;
  
 END; 
@@ -2201,9 +2271,21 @@ BEGIN
     create_message ( i_message   => i_message
                     ,i_msg_type  => G_MSG_TYPE_MESSAGE
                     ,i_msg_level => G_MSG_LEVEL_COMMENT
-	  ,i_node     => i_node);
+	                ,i_node     => i_node);
  
 END comment;
+
+PROCEDURE debug( i_node            IN sm_logger.node_typ 
+                  ,i_message         IN VARCHAR2 DEFAULT NULL )
+IS
+BEGIN
+    create_message ( i_message   => i_message
+                    ,i_msg_type  => G_MSG_TYPE_MESSAGE
+                    ,i_msg_level => G_MSG_LEVEL_COMMENT
+                    ,i_node     => i_node);
+ 
+END debug;
+
 
 ------------------------------------------------------------------------
 -- info 
@@ -2215,9 +2297,20 @@ BEGIN
     create_message ( i_message   => i_message
                     ,i_msg_type  => G_MSG_TYPE_MESSAGE
                     ,i_msg_level => G_MSG_LEVEL_INFO
-   ,i_node     => i_node);
+                    ,i_node     => i_node);
  
 END info;
+
+PROCEDURE information( i_node            IN sm_logger.node_typ 
+                      ,i_message         IN VARCHAR2 DEFAULT NULL )
+IS
+BEGIN
+    create_message ( i_message   => i_message
+                    ,i_msg_type  => G_MSG_TYPE_MESSAGE
+                    ,i_msg_level => G_MSG_LEVEL_INFO
+                    ,i_node     => i_node);
+ 
+END information;
 
 ------------------------------------------------------------------------
 -- warning  
@@ -2230,9 +2323,20 @@ BEGIN
     create_message ( i_message   => i_message
                     ,i_msg_type  => G_MSG_TYPE_MESSAGE
                     ,i_msg_level => G_MSG_LEVEL_WARNING
-   ,i_node     => i_node);
+                    ,i_node     => i_node);
  
 END warning;
+
+PROCEDURE warn( i_node         IN sm_logger.node_typ 
+                  ,i_message      IN VARCHAR2 DEFAULT NULL )
+IS
+BEGIN
+    create_message ( i_message   => i_message
+                    ,i_msg_type  => G_MSG_TYPE_MESSAGE
+                    ,i_msg_level => G_MSG_LEVEL_WARNING
+   ,i_node     => i_node);
+ 
+END warn;
 
 ------------------------------------------------------------------------
 -- fatal  

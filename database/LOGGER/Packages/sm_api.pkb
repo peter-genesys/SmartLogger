@@ -127,6 +127,11 @@ PROCEDURE  set_module_debug(i_module_name IN VARCHAR2 ) IS
 BEGIN
   sm_logger.set_module_msg_mode(i_module_name  => i_module_name
                                ,i_msg_mode    => sm_logger.G_MSG_MODE_DEBUG);
+
+  sm_logger.set_module_auto_wake(i_module_name  => i_module_name
+                                ,i_auto_wake    => sm_logger.G_AUTO_WAKE_YES);
+
+ 
 END; 
 
 ------------------------------------------------------------------------
@@ -135,7 +140,11 @@ PROCEDURE  set_module_normal(i_module_name IN VARCHAR2 ) IS
                              
 BEGIN
  sm_logger.set_module_msg_mode(i_module_name  => i_module_name
-                               ,i_msg_mode    => sm_logger.G_MSG_MODE_NORMAL);
+                              ,i_msg_mode    => sm_logger.G_MSG_MODE_NORMAL);
+
+ sm_logger.set_module_auto_wake(i_module_name  => i_module_name
+                               ,i_auto_wake    => sm_logger.G_AUTO_WAKE_YES);
+
 END; 
 
 ------------------------------------------------------------------------
@@ -144,14 +153,20 @@ PROCEDURE  set_module_quiet(i_module_name IN VARCHAR2 ) IS
                              
 BEGIN
   sm_logger.set_module_msg_mode(i_module_name  => i_module_name
-                               ,i_msg_mode    => sm_logger.G_MSG_MODE_QUIET);
+                               ,i_msg_mode     => sm_logger.G_MSG_MODE_QUIET);
+
+ sm_logger.set_module_auto_wake(i_module_name  => i_module_name
+                               ,i_auto_wake    => sm_logger.G_AUTO_WAKE_NO); 
 END; 
  
 PROCEDURE  set_module_disabled(i_module_name IN VARCHAR2 ) IS
                              
 BEGIN
   sm_logger.set_module_msg_mode(i_module_name  => i_module_name
-                               ,i_msg_mode    => sm_logger.G_MSG_MODE_DISABLED);
+                               ,i_msg_mode     => sm_logger.G_MSG_MODE_DISABLED);
+
+ sm_logger.set_module_auto_wake(i_module_name  => i_module_name
+                               ,i_auto_wake    => sm_logger.G_AUTO_WAKE_NO);  
 END; 
 
 ------------------------------------------------------------------------
@@ -165,6 +180,11 @@ BEGIN
   sm_logger.set_unit_msg_mode(i_module_name  => i_module_name
                              ,i_unit_name    => i_unit_name  
                              ,i_msg_mode     => sm_logger.G_MSG_MODE_DEBUG);
+
+  sm_logger.set_unit_auto_wake(i_module_name  => i_module_name
+                              ,i_unit_name    => i_unit_name  
+                              ,i_auto_wake    => sm_logger.G_AUTO_WAKE_YES);
+
 END; 
 
 ------------------------------------------------------------------------
@@ -176,6 +196,10 @@ BEGIN
   sm_logger.set_unit_msg_mode(i_module_name  => i_module_name
                              ,i_unit_name    => i_unit_name  
                              ,i_msg_mode     => sm_logger.G_MSG_MODE_NORMAL);
+
+  sm_logger.set_unit_auto_wake(i_module_name  => i_module_name
+                              ,i_unit_name    => i_unit_name  
+                              ,i_auto_wake    => sm_logger.G_AUTO_WAKE_YES);
 END; 
 
 ------------------------------------------------------------------------
@@ -187,6 +211,11 @@ BEGIN
   sm_logger.set_unit_msg_mode(i_module_name  => i_module_name
                              ,i_unit_name    => i_unit_name  
                              ,i_msg_mode    => sm_logger.G_MSG_MODE_QUIET);
+
+  sm_logger.set_unit_auto_wake(i_module_name  => i_module_name
+                              ,i_unit_name    => i_unit_name  
+                              ,i_auto_wake    => sm_logger.G_AUTO_WAKE_NO);
+
 END; 
  
 PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
@@ -196,6 +225,11 @@ BEGIN
   sm_logger.set_unit_msg_mode(i_module_name  => i_module_name
                              ,i_unit_name    => i_unit_name  
                              ,i_msg_mode     => sm_logger.G_MSG_MODE_DISABLED);
+  
+  sm_logger.set_unit_auto_wake(i_module_name  => i_module_name
+                              ,i_unit_name    => i_unit_name  
+                              ,i_auto_wake    => sm_logger.G_AUTO_WAKE_NO);
+
 END; 
 
 

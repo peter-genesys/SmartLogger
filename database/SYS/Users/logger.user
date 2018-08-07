@@ -17,14 +17,17 @@ grant create trigger to &&LOGGER_user;
 grant create synonym to &&LOGGER_user;
 grant create sequence to &&LOGGER_user;
 grant create view to &&LOGGER_user;
-grant select any table to &&LOGGER_user;
+
+--grant select any table to &&LOGGER_user;      --Used if the all_ views are used.
 --grant select_catalog_role to &&LOGGER_user;   --verify that this helps
 --grant select any dictionary to &&LOGGER_user; --verify that this helps
 
 --OBJECT PRIVILEGES 
---grant select on DBA_TAB_COLUMNS to &&LOGGER_user;
 grant select on DBA_SOURCE to &&LOGGER_user; 
 grant select on DBA_OBJECTS to &&LOGGER_user; 
+grant select on DBA_TAB_COLUMNS to &&LOGGER_user;
+grant select on DBA_TABLES to &&LOGGER_user;
+grant create public synonym to &&LOGGER_user;  --If using public synonyms
 
  
 -- QUOTAS

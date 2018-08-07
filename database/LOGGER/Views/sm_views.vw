@@ -39,15 +39,19 @@ AND   p.session_id  = t.session_id
 
 CREATE OR REPLACE VIEW sm_call_message_vw
 AS 
-SELECT t.call_id               
-      ,t.session_id   
-      ,t.unit_id               
-      ,t.parent_call_id   
-      ,t.module_name       
-      ,t.unit_name         
-      ,t.unit_type         
+SELECT uc.call_id               
+      ,uc.session_id   
+      ,uc.unit_id               
+      ,uc.parent_call_id   
+      ,uc.module_id
+      ,uc.module_name  
+      ,uc.module_type   
+      ,uc.unit_name         
+      ,uc.unit_type   
+      ,uc.msg_mode       
       ,m.message_id       
-      ,m.name      
+      ,m.name
+      ,m.value      
       ,substr(m.message,1,32000) message --Fix for display in Apex App     
       ,m.msg_type      
       ,m.msg_level   
@@ -57,9 +61,9 @@ SELECT t.call_id
         WHEN 'Message' THEN message
         ELSE RPAD(msg_type,6)||m.name||'=['||m.message||']'
       END                                       message_output
-FROM sm_message         m
-    ,sm_unit_call_vw  t
-WHERE m.call_id = t.call_id
+FROM sm_message       m
+    ,sm_unit_call_vw  uc
+WHERE m.call_id = uc.call_id
 /
 
  
@@ -118,24 +122,6 @@ select p.*
 from sm_session p
 order by session_id
 /
-
-create or replace view sm_session_v2 as
-select s.*  
-      ,(select min(call_id) from sm_call where parent_call_id is null and session_id = s.session_id) top_call_id
-      ,(select count(*)
-        from sm_call    c
-            ,sm_message m
-        where c.session_id = s.session_id
-        and   m.call_id = c.call_id
-        and   m.msg_level > 2)                   exception_count
-        ,(select count(*)
-          from sm_call c
-              ,sm_message m
-          where c.session_id = s.session_id
-          and m.call_id = c.call_id )            message_count
-from sm_session s
-/
- 
 
 
 

@@ -6,7 +6,13 @@ from sm_call t
     ,sm_message m
 where t.session_id = p.session_id
 and m.call_id = t.call_id
-and m.msg_level > 2) exception_count
+and m.msg_level = 3) warning_count  
+,(select count(*)
+from sm_call t
+    ,sm_message m
+where t.session_id = p.session_id
+and m.call_id = t.call_id
+and m.msg_level > 3) exception_count
 ,(select count(*)
 from sm_call t
     ,sm_message m
