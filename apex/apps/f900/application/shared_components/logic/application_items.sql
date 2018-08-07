@@ -6,6 +6,11 @@ wwv_flow_api.create_flow_item(
 ,p_protection_level=>'N'
 );
 wwv_flow_api.create_flow_item(
+ p_id=>wwv_flow_api.id(25628439836354265)
+,p_name=>'APP_MODE'
+,p_protection_level=>'I'
+);
+wwv_flow_api.create_flow_item(
  p_id=>wwv_flow_api.id(53236758909590856)
 ,p_name=>'FSP_AFTER_LOGIN_URL'
 );

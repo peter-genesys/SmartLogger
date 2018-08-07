@@ -33,7 +33,7 @@ wwv_flow_api.create_page(
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180807141920'
+,p_last_upd_yyyymmddhh24miss=>'20180807161226'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(78757513162525146)
@@ -337,7 +337,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>100
-,p_report_columns=>'LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:TIME_NOW:MESSAGE:CALL_ID:SESSION_ID:PARENT_CALL_ID'
+,p_report_columns=>'LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:MESSAGE:TIME_NOW:'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -355,7 +355,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_flashback_enabled=>'N'
 );
 wwv_flow_api.create_worksheet_condition(
- p_id=>wwv_flow_api.id(25781905471888853)
+ p_id=>wwv_flow_api.id(26137575146943237)
 ,p_report_id=>wwv_flow_api.id(25776510135874735)
 ,p_name=>'Unit Name'
 ,p_condition_type=>'HIGHLIGHT'
@@ -369,7 +369,7 @@ wwv_flow_api.create_worksheet_condition(
 ,p_column_bg_color=>'#99CCFF'
 );
 wwv_flow_api.create_worksheet_condition(
- p_id=>wwv_flow_api.id(25782307585888853)
+ p_id=>wwv_flow_api.id(26137978089943238)
 ,p_report_id=>wwv_flow_api.id(25776510135874735)
 ,p_name=>'Warning'
 ,p_condition_type=>'HIGHLIGHT'
@@ -384,7 +384,7 @@ wwv_flow_api.create_worksheet_condition(
 ,p_row_bg_color=>'#FF9900'
 );
 wwv_flow_api.create_worksheet_condition(
- p_id=>wwv_flow_api.id(25782728493888854)
+ p_id=>wwv_flow_api.id(26138316552943238)
 ,p_report_id=>wwv_flow_api.id(25776510135874735)
 ,p_name=>'Error'
 ,p_condition_type=>'HIGHLIGHT'
@@ -399,7 +399,7 @@ wwv_flow_api.create_worksheet_condition(
 ,p_row_bg_color=>'#FF3333'
 );
 wwv_flow_api.create_worksheet_condition(
- p_id=>wwv_flow_api.id(25781522374888851)
+ p_id=>wwv_flow_api.id(26137170436943237)
 ,p_report_id=>wwv_flow_api.id(25776510135874735)
 ,p_condition_type=>'FILTER'
 ,p_allow_delete=>'Y'
