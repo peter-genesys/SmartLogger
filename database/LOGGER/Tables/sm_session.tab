@@ -24,4 +24,10 @@
                                                                                                                                                                                     
                                                                                                                                                                                     
    CREATE SEQUENCE  SM_SESSION_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE  NOPARTITION ;                         
-                                                                                                                                                                                    
+                                                                                                                                                                                   
+
+
+CREATE INDEX SM_SESSION_NK1 ON SM_SESSION (APP_SESSION);
+CREATE INDEX SM_SESSION_NK2 ON SM_SESSION (APP_USER);
+CREATE INDEX SM_SESSION_NK3 ON SM_SESSION (APP_ID,APP_PAGE_ID);
+
