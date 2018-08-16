@@ -32,6 +32,13 @@ wwv_flow_api.create_menu_option(
 ,p_page_id=>35
 );
 wwv_flow_api.create_menu_option(
+ p_id=>wwv_flow_api.id(26194982721586297)
+,p_parent_id=>0
+,p_short_name=>'Just Messages'
+,p_link=>'f?p=&APP_ID.:50:&SESSION.::&DEBUG.:::'
+,p_page_id=>50
+);
+wwv_flow_api.create_menu_option(
  p_id=>wwv_flow_api.id(36059355922607354)
 ,p_short_name=>'Apex Errors'
 ,p_link=>'f?p=&APP_ID.:6:&SESSION.'

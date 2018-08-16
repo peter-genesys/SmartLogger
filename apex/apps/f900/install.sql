@@ -41,6 +41,7 @@
 @application/ui_types.sql
 @application/shared_components/plugins/dynamic_action/com_enkitec_clob_load.sql
 @application/shared_components/plugins/item_type/com_oracle_apex_simple_checkbox.sql
+@application/shared_components/plugins/item_type/mho_modal_lov.sql
 @application/shared_components/plugins/dynamic_action/apex_clob_load.sql
 @application/shared_components/plugins/region_type/org_halfabee_clobregion.sql
 @application/user_interfaces.sql
@@ -61,5 +62,6 @@
 @application/pages/page_00030.sql
 @application/pages/page_00035.sql
 @application/pages/page_00040.sql
+@application/pages/page_00050.sql
 @application/pages/page_00101.sql
 @application/end_environment.sql

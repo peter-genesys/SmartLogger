@@ -48,6 +48,14 @@ wwv_flow_api.create_list_item(
 ,p_list_item_current_for_pages=>'35'
 );
 wwv_flow_api.create_list_item(
+ p_id=>wwv_flow_api.id(26194471736583041)
+,p_list_item_display_sequence=>27
+,p_list_item_link_text=>'Just Messages'
+,p_list_item_link_target=>'f?p=&APP_ID.:50:&SESSION.::&DEBUG.::::'
+,p_parent_list_item_id=>wwv_flow_api.id(25645974049487723)
+,p_list_item_current_type=>'TARGET_PAGE'
+);
+wwv_flow_api.create_list_item(
  p_id=>wwv_flow_api.id(36058449663607339)
 ,p_list_item_display_sequence=>60
 ,p_list_item_link_text=>'Apex Errors'
