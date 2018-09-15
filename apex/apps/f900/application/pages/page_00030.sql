@@ -11,11 +11,12 @@ wwv_flow_api.create_page(
 ,p_first_item=>'NO_FIRST_ITEM'
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
+,p_dialog_chained=>'Y'
 ,p_overwrite_navigation_list=>'N'
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
-,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180807160957'
+,p_last_updated_by=>'HEWETTJ'
+,p_last_upd_yyyymmddhh24miss=>'20180906141405'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(24216799638111230)
@@ -42,7 +43,10 @@ wwv_flow_api.create_page_plug(
 ' ,APP_USER||'' ''||APP_SESSION LOG_CONTEXT			 ',
 'from sm_session_v3 s '))
 ,p_plug_source_type=>'NATIVE_IR'
+,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
+,p_plug_display_condition_type=>'ITEM_IS_NULL'
+,p_plug_display_when_condition=>'P30_APP_SESSION'
 ,p_prn_content_disposition=>'ATTACHMENT'
 ,p_prn_document_header=>'APEX'
 ,p_prn_units=>'INCHES'
@@ -225,6 +229,18 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_6=>'ASC'
 ,p_flashback_enabled=>'N'
 );
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(54114983480220424)
+,p_report_id=>wwv_flow_api.id(25360803404299078)
+,p_condition_type=>'FILTER'
+,p_allow_delete=>'Y'
+,p_column_name=>'MESSAGE_COUNT'
+,p_operator=>'>'
+,p_expr=>'0'
+,p_condition_sql=>'"MESSAGE_COUNT" > to_number(#APXWS_EXPR#)'
+,p_condition_display=>'#APXWS_COL_NAME# > #APXWS_EXPR_NUMBER#  '
+,p_enabled=>'Y'
+);
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(25335787867260706)
 ,p_plug_name=>'&P30_LOG_CONTEXT. - Logger Sessions'
@@ -240,6 +256,7 @@ wwv_flow_api.create_page_plug(
 'from sm_session_v2 s ',
 'where app_session = :P30_APP_SESSION'))
 ,p_plug_source_type=>'NATIVE_IR'
+,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
 ,p_plug_display_condition_type=>'ITEM_IS_NOT_NULL'
 ,p_plug_display_when_condition=>'P30_APP_SESSION'
@@ -529,6 +546,18 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_6=>'ASC'
 ,p_flashback_enabled=>'N'
 );
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(54852627581236521)
+,p_report_id=>wwv_flow_api.id(25413639247505575)
+,p_condition_type=>'FILTER'
+,p_allow_delete=>'Y'
+,p_column_name=>'MESSAGE_COUNT'
+,p_operator=>'>'
+,p_expr=>'0'
+,p_condition_sql=>'"MESSAGE_COUNT" > to_number(#APXWS_EXPR#)'
+,p_condition_display=>'#APXWS_COL_NAME# > #APXWS_EXPR_NUMBER#  '
+,p_enabled=>'Y'
+);
 wwv_flow_api.create_worksheet_rpt(
  p_id=>wwv_flow_api.id(25598193212140909)
 ,p_application_user=>'APXWS_ALTERNATIVE'
@@ -552,6 +581,42 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_column_6=>'0'
 ,p_sort_direction_6=>'ASC'
 ,p_flashback_enabled=>'N'
+);
+wwv_flow_api.create_worksheet_rpt(
+ p_id=>wwv_flow_api.id(54888563806420865)
+,p_application_user=>'HEWETTJ'
+,p_name=>'Primary with Messages'
+,p_report_seq=>10
+,p_report_alias=>'548886'
+,p_status=>'PUBLIC'
+,p_is_default=>'N'
+,p_display_rows=>50
+,p_report_columns=>'APP_TITLE:APP_ID:APP_PAGE_ID:ORIGIN:MESSAGE_COUNT:WARNING_COUNT:EXCEPTION_COUNT:CREATED_DATE::LOG_CONTEXT'
+,p_sort_column_1=>'CREATED_DATE'
+,p_sort_direction_1=>'DESC'
+,p_sort_column_2=>'0'
+,p_sort_direction_2=>'ASC'
+,p_sort_column_3=>'0'
+,p_sort_direction_3=>'ASC'
+,p_sort_column_4=>'0'
+,p_sort_direction_4=>'ASC'
+,p_sort_column_5=>'0'
+,p_sort_direction_5=>'ASC'
+,p_sort_column_6=>'0'
+,p_sort_direction_6=>'ASC'
+,p_flashback_enabled=>'N'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(54888945888420867)
+,p_report_id=>wwv_flow_api.id(54888563806420865)
+,p_condition_type=>'FILTER'
+,p_allow_delete=>'Y'
+,p_column_name=>'MESSAGE_COUNT'
+,p_operator=>'>'
+,p_expr=>'0'
+,p_condition_sql=>'"MESSAGE_COUNT" > to_number(#APXWS_EXPR#)'
+,p_condition_display=>'#APXWS_COL_NAME# > #APXWS_EXPR_NUMBER#  '
+,p_enabled=>'Y'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(50586144720321960)
@@ -592,6 +657,19 @@ wwv_flow_api.create_page_button(
 ,p_button_template_id=>wwv_flow_api.id(35605892992315953)
 ,p_button_image_alt=>'Purge Old Sessions'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
+,p_grid_new_grid=>false
+);
+wwv_flow_api.create_page_button(
+ p_id=>wwv_flow_api.id(53825679530327829)
+,p_button_sequence=>10
+,p_button_plug_id=>wwv_flow_api.id(25335787867260706)
+,p_button_name=>'APEX_SESSIONS'
+,p_button_action=>'SUBMIT'
+,p_button_template_options=>'#DEFAULT#:t-Button--warning'
+,p_button_template_id=>wwv_flow_api.id(35605892992315953)
+,p_button_image_alt=>'Apex sessions'
+,p_button_position=>'REGION_TEMPLATE_EDIT'
+,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_button(
  p_id=>wwv_flow_api.id(26084851886357732)
@@ -603,6 +681,16 @@ wwv_flow_api.create_page_button(
 ,p_button_template_id=>wwv_flow_api.id(35605892992315953)
 ,p_button_image_alt=>'Purge All Sessions'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
+,p_grid_new_grid=>false
+);
+wwv_flow_api.create_page_branch(
+ p_id=>wwv_flow_api.id(53825923079327832)
+,p_branch_name=>'Show Apex Sessions'
+,p_branch_action=>'f?p=&APP_ID.:30:&SESSION.::&DEBUG.:RP,30::&success_msg=#SUCCESS_MSG#'
+,p_branch_point=>'AFTER_PROCESSING'
+,p_branch_type=>'REDIRECT_URL'
+,p_branch_when_button_id=>wwv_flow_api.id(53825679530327829)
+,p_branch_sequence=>10
 );
 wwv_flow_api.create_page_item(
  p_id=>wwv_flow_api.id(25338102334260730)

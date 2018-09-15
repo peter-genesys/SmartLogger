@@ -32,8 +32,8 @@ wwv_flow_api.create_page(
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
-,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180816225722'
+,p_last_updated_by=>'HEWETTJ'
+,p_last_upd_yyyymmddhh24miss=>'20180830231213'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(104944836552234866)
@@ -1217,6 +1217,122 @@ wwv_flow_api.create_worksheet_condition(
 wwv_flow_api.create_worksheet_condition(
  p_id=>wwv_flow_api.id(26515987782289077)
 ,p_report_id=>wwv_flow_api.id(104948250417234869)
+,p_name=>'Param'
+,p_condition_type=>'HIGHLIGHT'
+,p_allow_delete=>'Y'
+,p_column_name=>'MSG_TYPE'
+,p_operator=>'='
+,p_expr=>'Param'
+,p_condition_sql=>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) '
+,p_condition_display=>'#APXWS_COL_NAME# = ''Param''  '
+,p_enabled=>'N'
+,p_highlight_sequence=>10
+,p_row_bg_color=>'#FFCCCC'
+);
+wwv_flow_api.create_worksheet_rpt(
+ p_id=>wwv_flow_api.id(54079195371172337)
+,p_application_user=>'HEWETTJ'
+,p_name=>'Ordered By Time'
+,p_report_seq=>10
+,p_report_alias=>'540792'
+,p_status=>'PUBLIC'
+,p_is_default=>'N'
+,p_display_rows=>10
+,p_report_columns=>'APP_USER:APP_SESSION:APP_ID:APP_PAGE_ID:ORIGIN:MODULE_NAME:UNIT_NAME:MSG_TYPE:NAME:VALUE:MESSAGE:TIME_NOW:'
+,p_sort_column_1=>'TIME_NOW'
+,p_sort_direction_1=>'DESC'
+,p_sort_column_2=>'0'
+,p_sort_direction_2=>'ASC'
+,p_sort_column_3=>'0'
+,p_sort_direction_3=>'ASC'
+,p_sort_column_4=>'0'
+,p_sort_direction_4=>'ASC'
+,p_sort_column_5=>'0'
+,p_sort_direction_5=>'ASC'
+,p_sort_column_6=>'0'
+,p_sort_direction_6=>'ASC'
+,p_break_on=>'0:0:0:0:0'
+,p_break_enabled_on=>'0:0:0:0:0'
+,p_flashback_enabled=>'N'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(54079571968172350)
+,p_report_id=>wwv_flow_api.id(54079195371172337)
+,p_name=>'Comment'
+,p_condition_type=>'HIGHLIGHT'
+,p_allow_delete=>'Y'
+,p_column_name=>'MSG_LEVEL_TEXT'
+,p_operator=>'='
+,p_expr=>'Comment'
+,p_condition_sql=>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) '
+,p_condition_display=>'#APXWS_COL_NAME# = ''Comment''  '
+,p_enabled=>'N'
+,p_highlight_sequence=>10
+,p_row_bg_color=>'#CCFFCC'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(54079968857172350)
+,p_report_id=>wwv_flow_api.id(54079195371172337)
+,p_name=>'Info'
+,p_condition_type=>'HIGHLIGHT'
+,p_allow_delete=>'Y'
+,p_column_name=>'MSG_LEVEL_TEXT'
+,p_operator=>'='
+,p_expr=>'Info ?'
+,p_condition_sql=>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) '
+,p_condition_display=>'#APXWS_COL_NAME# = ''Info ?''  '
+,p_enabled=>'N'
+,p_highlight_sequence=>10
+,p_row_bg_color=>'#99CCFF'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(54080329952172352)
+,p_report_id=>wwv_flow_api.id(54079195371172337)
+,p_name=>'Warning'
+,p_condition_type=>'HIGHLIGHT'
+,p_allow_delete=>'Y'
+,p_column_name=>'MSG_LEVEL_TEXT'
+,p_operator=>'='
+,p_expr=>'Warning !'
+,p_condition_sql=>' (case when ("MSG_LEVEL_TEXT" = #APXWS_EXPR#) then #APXWS_HL_ID# end) '
+,p_condition_display=>'#APXWS_COL_NAME# = ''Warning !''  '
+,p_enabled=>'N'
+,p_highlight_sequence=>10
+,p_row_bg_color=>'#FF9900'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(54080793902172353)
+,p_report_id=>wwv_flow_api.id(54079195371172337)
+,p_name=>'Error'
+,p_condition_type=>'HIGHLIGHT'
+,p_allow_delete=>'Y'
+,p_column_name=>'MSG_LEVEL_TEXT'
+,p_operator=>'in'
+,p_expr=>'Oracle Error,Fatal !'
+,p_condition_sql=>' (case when ("MSG_LEVEL_TEXT" in (#APXWS_EXPR_VAL1#, #APXWS_EXPR_VAL2#)) then #APXWS_HL_ID# end) '
+,p_condition_display=>'#APXWS_COL_NAME# #APXWS_OP_NAME# ''Oracle Error, Fatal !''  '
+,p_enabled=>'N'
+,p_highlight_sequence=>10
+,p_row_bg_color=>'#F24343'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(54081111087172353)
+,p_report_id=>wwv_flow_api.id(54079195371172337)
+,p_name=>'Note'
+,p_condition_type=>'HIGHLIGHT'
+,p_allow_delete=>'Y'
+,p_column_name=>'MSG_TYPE'
+,p_operator=>'='
+,p_expr=>'Note'
+,p_condition_sql=>' (case when ("MSG_TYPE" = #APXWS_EXPR#) then #APXWS_HL_ID# end) '
+,p_condition_display=>'#APXWS_COL_NAME# = ''Note''  '
+,p_enabled=>'N'
+,p_highlight_sequence=>10
+,p_row_bg_color=>'#FFFF99'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(54081575337172354)
+,p_report_id=>wwv_flow_api.id(54079195371172337)
 ,p_name=>'Param'
 ,p_condition_type=>'HIGHLIGHT'
 ,p_allow_delete=>'Y'

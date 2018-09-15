@@ -299,6 +299,7 @@ wwv_flow_api.create_page_button(
 ,p_button_image_alt=>'Purge Old Sessions'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
 ,p_button_condition_type=>'NEVER'
+,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_button(
  p_id=>wwv_flow_api.id(38989825961193362)
