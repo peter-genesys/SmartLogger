@@ -1,0 +1,33 @@
+                                                                                                                                                                                    
+CREATE TABLE SM_SESSION                                                                                                                                                           
+   (SESSION_ID NUMBER NOT NULL ENABLE,                                                                                                                                             
+	ORIGIN VARCHAR2(100),                                                                                                                                                              
+	USERNAME VARCHAR2(30),                                                                                                                                                             
+	INTERNAL_ERROR VARCHAR2(1) DEFAULT 'N',                                                                                                                                            
+	NOTIFIED_FLAG VARCHAR2(1) DEFAULT 'N',                                                                                                                                             
+	ERROR_MESSAGE CLOB,                                                                                                                                                                
+	CREATED_DATE DATE,                                                                                                                                                                 
+	UPDATED_DATE DATE,                                                                                                                                                                 
+	KEEP_YN VARCHAR2(1) DEFAULT 'N',
+	APP_USER          VARCHAR2(50),
+	APP_USER_FULLNAME VARCHAR2(50),  
+	APP_USER_EMAIL    VARCHAR2(50), 
+	APP_SESSION       VARCHAR2(50),
+	APP_ID            NUMBER,
+	APP_ALIAS         VARCHAR2(50),
+	APP_TITLE         VARCHAR2(50),
+	APP_PAGE_ID       NUMBER,
+	APP_PAGE_ALIAS    VARCHAR2(50)
+   ) ;                                                                                                                                                                              
+  ALTER TABLE SM_SESSION ADD CONSTRAINT PROCESS_PK PRIMARY KEY (SESSION_ID)                                                                                                         
+  USING INDEX  ENABLE;                                                                                                                                                              
+                                                                                                                                                                                    
+                                                                                                                                                                                    
+CREATE SEQUENCE  SM_SESSION_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE   ;                         
+                                                                                                                                                                                   
+
+
+CREATE INDEX SM_SESSION_NK1 ON SM_SESSION (APP_SESSION);
+CREATE INDEX SM_SESSION_NK2 ON SM_SESSION (APP_USER);
+CREATE INDEX SM_SESSION_NK3 ON SM_SESSION (APP_ID,APP_PAGE_ID);
+

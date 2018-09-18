@@ -1,0 +1,22 @@
+                                                                                                                                                                                    
+CREATE TABLE SM_MESSAGE                                                                                                                                                           
+   (	MESSAGE_ID NUMBER NOT NULL ENABLE,                                                                                                                                             
+	CALL_ID NUMBER NOT NULL ENABLE,                                                                                                                                               
+	NAME VARCHAR2(100),                                                                                                                                                                
+	VALUE VARCHAR2(30),                                                                                                                                                                
+	MESSAGE CLOB,                                                                                                                                                                      
+	MSG_TYPE VARCHAR2(10),                                                                                                                                                             
+	MSG_LEVEL NUMBER(*,0),                                                                                                                                                             
+	TIME_NOW TIMESTAMP (9)                                                                                                                                                             
+   ) ;                                                                                                                                                                              
+  ALTER TABLE SM_MESSAGE ADD CONSTRAINT MESSAGE_PK PRIMARY KEY (MESSAGE_ID)                                                                                                         
+  USING INDEX  ENABLE;                                                                                                                                                              
+  ALTER TABLE SM_MESSAGE ADD CONSTRAINT MESS_TRAV_FK FOREIGN KEY (CALL_ID)                                                                                                     
+	  REFERENCES SM_CALL (CALL_ID) ON DELETE CASCADE ENABLE;                                                                                                                 
+                                                                                                                                                                                    
+                                                                                                                                                                                    
+CREATE SEQUENCE  SM_MESSAGE_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 9327379 NOCACHE  NOORDER  NOCYCLE   ;                     
+                                                                                                                                                                                    
+                                                                                                                                                                                    
+CREATE INDEX MESSAGE_NK1 ON SM_MESSAGE (CALL_ID) ;                                                                                                                                                                                 
+                                                                                                                                                                                    

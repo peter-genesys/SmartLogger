@@ -1,0 +1,12 @@
+                                                                                                                                                                                    
+CREATE TABLE SM_SOURCE                                                                                                                                                           
+   (	OWNER VARCHAR2(30),                                                                                                                                                            
+	NAME VARCHAR2(30),                                                                                                                                                                 
+	TYPE VARCHAR2(12),                                                                                                                                                                 
+	AOP_VER VARCHAR2(10),                                                                                                                                                              
+	VALID_YN VARCHAR2(1),                                                                                                                                                              
+	TEXT CLOB,                                                                                                                                                                         
+	RESULT CLOB,                                                                                                                                                                       
+	LOAD_DATETIME DATE                                                                                                                                                                 
+   ) ;                                                                                                                                                                              
+                                                                                                                                                                                    
