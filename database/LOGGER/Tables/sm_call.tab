@@ -16,7 +16,7 @@
 	  REFERENCES SM_SESSION (SESSION_ID) ON DELETE CASCADE ENABLE;                                                                                                                     
                                                                                                                                                                                     
                                                                                                                                                                                     
-   CREATE SEQUENCE  SM_CALL_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE  NOPARTITION ;                    
+   CREATE SEQUENCE  SM_CALL_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE   ;                    
                                                                                                                                                                                     
                                                                                                                                                                                     
   CREATE INDEX CALL_NK1 ON SM_CALL (SESSION_ID)                                                                                                                           

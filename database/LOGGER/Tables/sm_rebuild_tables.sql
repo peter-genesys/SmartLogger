@@ -1,5 +1,14 @@
 --sm_rebuild_tables.sql
 
+
+DROP TABLE ms_message;
+DROP TABLE ms_traversal;
+DROP TABLE ms_unit;
+DROP TABLE ms_module;
+DROP TABLE ms_process;
+DROP TABLE ms_source;
+DROP TABLE ms_config;
+
 DROP TABLE sm_message;
 DROP TABLE sm_call;
 DROP TABLE sm_unit;
