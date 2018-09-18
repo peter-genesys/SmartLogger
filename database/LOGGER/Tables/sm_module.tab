@@ -1,5 +1,5 @@
                                                                                                                                                                                     
-  CREATE TABLE SM_MODULE                                                                                                                                                            
+CREATE TABLE SM_MODULE                                                                                                                                                            
    (	MODULE_ID NUMBER,                                                                                                                                                              
 	MODULE_NAME VARCHAR2(50),                                                                                                                                                          
 	REVISION VARCHAR2(30),                                                                                                                                                             

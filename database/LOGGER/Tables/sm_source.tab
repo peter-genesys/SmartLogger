@@ -1,5 +1,5 @@
                                                                                                                                                                                     
-  CREATE TABLE SM_SOURCE                                                                                                                                                           
+CREATE TABLE SM_SOURCE                                                                                                                                                           
    (	OWNER VARCHAR2(30),                                                                                                                                                            
 	NAME VARCHAR2(30),                                                                                                                                                                 
 	TYPE VARCHAR2(12),                                                                                                                                                                 

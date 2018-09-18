@@ -1,5 +1,5 @@
                                                                                                                                                                                     
-  CREATE TABLE SM_MESSAGE                                                                                                                                                           
+CREATE TABLE SM_MESSAGE                                                                                                                                                           
    (	MESSAGE_ID NUMBER NOT NULL ENABLE,                                                                                                                                             
 	CALL_ID NUMBER NOT NULL ENABLE,                                                                                                                                               
 	NAME VARCHAR2(100),                                                                                                                                                                
@@ -15,9 +15,8 @@
 	  REFERENCES SM_CALL (CALL_ID) ON DELETE CASCADE ENABLE;                                                                                                                 
                                                                                                                                                                                     
                                                                                                                                                                                     
-   CREATE SEQUENCE  SM_MESSAGE_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 9327379 NOCACHE  NOORDER  NOCYCLE   ;                     
+CREATE SEQUENCE  SM_MESSAGE_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 9327379 NOCACHE  NOORDER  NOCYCLE   ;                     
                                                                                                                                                                                     
                                                                                                                                                                                     
-  CREATE INDEX MESSAGE_NK1 ON SM_MESSAGE (CALL_ID)                                                                                                                             
-  ;                                                                                                                                                                                 
+CREATE INDEX MESSAGE_NK1 ON SM_MESSAGE (CALL_ID) ;                                                                                                                                                                                 
                                                                                                                                                                                     

@@ -1,5 +1,5 @@
                                                                                                                                                                                     
-  CREATE TABLE SM_SESSION                                                                                                                                                           
+CREATE TABLE SM_SESSION                                                                                                                                                           
    (SESSION_ID NUMBER NOT NULL ENABLE,                                                                                                                                             
 	ORIGIN VARCHAR2(100),                                                                                                                                                              
 	USERNAME VARCHAR2(30),                                                                                                                                                             
@@ -23,7 +23,7 @@
   USING INDEX  ENABLE;                                                                                                                                                              
                                                                                                                                                                                     
                                                                                                                                                                                     
-   CREATE SEQUENCE  SM_SESSION_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE   ;                         
+CREATE SEQUENCE  SM_SESSION_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE   ;                         
                                                                                                                                                                                    
 
 
