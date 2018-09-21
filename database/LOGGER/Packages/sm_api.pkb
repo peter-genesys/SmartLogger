@@ -238,14 +238,16 @@ END;
 -------------------------------------------------------------------
 
 
-PROCEDURE purge_old_sessions(i_keep_day_count IN NUMBER DEFAULT 1) IS
+PROCEDURE purge_old_sessions(i_keep_day_count IN NUMBER DEFAULT null) IS
 
  PRAGMA AUTONOMOUS_TRANSACTION;
+
+  l_keep_day_count NUMBER := COALESCE(i_keep_day_count, sm_api.f_config_value(i_name => 'KEEP_DAY_COUNT'), 1);
  
 BEGIN 
 
   delete from sm_session 
-  where  created_date < (SYSDATE - i_keep_day_count)
+  where  created_date < (SYSDATE - l_keep_day_count)
   and    keep_yn = 'N';
  
   COMMIT;

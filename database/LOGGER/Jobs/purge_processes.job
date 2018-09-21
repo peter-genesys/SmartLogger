@@ -1,16 +1,33 @@
 set serveroutput on;
 declare
-  l_job_no NUMBER;
+  l_job_name VARCHAR2(30) := 'PURGE_LOGGER_SESSIONS';
+
 begin
-      dbms_job.submit(  job       => l_job_no
-                       ,what      => 
-      'sm_api.purge_old_processes(i_keep_day_count =>  sm_api.f_config_value(i_name => ''KEEP_DAY_COUNT''));'
-                       ,next_date => SYSDATE + 30/86400           --now + 30 secs
-                       ,interval  => 'SYSDATE + 10/1440'          --every 10 minutes
-                       ,no_parse  => false); 
-  dbms_output.put_line('Job '||l_job_no||' created to purge processes each 10 mins.');
+  
+  --Drop the job, if it already exists.
+  declare
+    x_job_does_not_exist EXCEPTION;
+     PRAGMA EXCEPTION_INIT( x_job_does_not_exist, -27475 );
+  begin
+     dbms_scheduler.drop_job(job_name => l_job_name);
+  exception when x_job_does_not_exist then
+     null;
+  end;
+ 
+  --Re-create the job.
+  dbms_scheduler.create_job (
+       job_name             => l_job_name,
+       job_type             => 'PLSQL_BLOCK',
+       job_action           => 'sm_api.purge_old_sessions;',
+       start_date           => sysdate,
+       repeat_interval      => ' FREQ=HOURLY;INTERVAL=1;',
+       enabled              => TRUE);
+
+  dbms_output.put_line('dbms_scheduler job '||l_job_name||' created to purge Logger Sessions every hour.');
+  dbms_output.put_line('Will keep KEEP_DAY_COUNT days of Logger Sessions. (See sm_config)');
+ 
 exception
   when others then
-  dbms_output.put_line('Failed to create hourly PURGE OLD PROCESSES job: '||SQLERRM);
+  dbms_output.put_line('Failed to create '||l_job_name||' job: '||SQLERRM);
 end;
 /

@@ -79,7 +79,7 @@ PROCEDURE  set_unit_disabled(i_module_name IN VARCHAR2
 -------------------------------------------------------------------
 
 
-PROCEDURE purge_old_sessions(i_keep_day_count IN NUMBER DEFAULT 1);
+PROCEDURE purge_old_sessions(i_keep_day_count IN NUMBER DEFAULT null);
 
 --------------------------------------------------------------------
 --set_session_keep_flag

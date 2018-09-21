@@ -88,8 +88,9 @@ CREATE OR REPLACE PACKAGE  sm_log_test AS
   
   PROCEDURE test_call_stack;
 
-  PROCEDURE test_quiet_mode;
- 
+  PROCEDURE test_quiet_mode(i_param1 in varchar2 default 'X');
+  PROCEDURE test_quiet_mode_oe(i_param1 in varchar2 default 'X');
+
    PROCEDURE test_ondemand_mode(i_logger_debug in boolean) ;
 
 procedure test(i_logger_debug in boolean  default false

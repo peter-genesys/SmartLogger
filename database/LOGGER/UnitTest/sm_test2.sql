@@ -1,44 +1,41 @@
-prompt $Id: ms_test2.sql 986 2009-03-25 02:28:50Z Demo $
-prompt ms_test2
+prompt sm_test2
  
 
 set pages 1000;
 
-prompt register this script  
---execute ms_metacode.register_sql_script('ms_test2.sql','10.0');
- 
+
 prompt start test of internal debugging
 set serveroutput on;
 execute dbms_output.enable(null);
 
-/*
+
 --execute ms_metacode.set_internal_debug;
 --execute ms_test.test_unit_types;
 --execute ms_metacode.reset_internal_debug;
  
  
-execute ms_test.trap_an_oracle_error;
+execute sm_log_test.trap_an_oracle_error;
 
 WHENEVER SQLERROR CONTINUE;
 
-execute ms_test.raise_an_oracle_error;
+execute sm_log_test.raise_an_oracle_error;
 
 prompt THERE SHOULD BE AN ERROR [ORA-01403: no data found] ABOVE THIS LINE.
 
 WHENEVER SQLERROR EXIT;
 
-execute ms_test.raise_then_trap_oracle_error;
+execute sm_log_test.raise_then_trap_oracle_error;
 
 
 
  
 prompt test max recursion raises error and disables package 
-execute ms_test.test_node(i_node_count => 22);
+execute sm_log_test.test_node(i_node_count => 22);
  
 --execute ms_metacode.reset_internal_debug;
  
 prompt Executing test_exception_propagation
-execute ms_test.test_exception_propagation(i_number   => 1234    -
+execute sm_log_test.test_exception_propagation(i_number   => 1234    -
                                           ,i_varchar2 => 'ABCD'  -
                                           ,i_date     => SYSDATE -
                                           ,i_boolean  => FALSE);
@@ -46,21 +43,21 @@ prompt end test of internal debugging
 
 prompt Setting message level at QUIET - test that exceptions still work
 prompt Enabling test_unit_msg_mode
-execute ms_metacode.set_unit_quiet(i_module_name => 'ms_test'   -
+execute sm_api.set_unit_quiet(i_module_name => 'ms_test'   -
                                   ,i_unit_name   => 'error_node');
   
 prompt Executing test_exception_propagation
-execute ms_test.test_exception_propagation(  i_number   => 1234    -
+execute sm_log_test.test_exception_propagation(  i_number   => 1234    -
                                             ,i_varchar2 => 'ABCD'  -
                                             ,i_date     => SYSDATE -
                                             ,i_boolean  => FALSE);
-*/ 
+
 --column my_unique_id_var noprint new_val my_unique_id
 --undefine my_unique_id
 
 --select 'MSTEST.'||ltrim(apex_access_control_seq.nextval) my_unique_id_var from dual;
  
-prompt new_process 
+--prompt new_process 
 --execute ms_metacode.set_internal_debug;
 --execute ms_metacode.new_process(i_module_name => 'ms_test.sql'  -
 --                               ,i_unit_name   => 'ms_test.sql' -
@@ -79,7 +76,7 @@ BEGIN
                                   
 
 
-  ms_test.test_logger_tree(i_number   => 1234     
+  sm_log_test.test_logger_tree(i_number   => 1234     
                           ,i_varchar2 => 'ABCD'  
                           ,i_date     => SYSDATE  
                           ,i_boolean  => FALSE);

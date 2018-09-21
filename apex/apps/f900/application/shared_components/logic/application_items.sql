@@ -19,5 +19,11 @@ wwv_flow_api.create_flow_item(
 ,p_name=>'PROMO_LEVEL'
 ,p_protection_level=>'N'
 );
+wwv_flow_api.create_flow_item(
+ p_id=>wwv_flow_api.id(57760664025288949)
+,p_name=>'SM_APP_SESSION'
+,p_scope=>'GLOBAL'
+,p_protection_level=>'N'
+);
 end;
 /

@@ -18,8 +18,8 @@ wwv_flow_api.create_page(
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
-,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180801110045'
+,p_last_updated_by=>'BURGPETE'
+,p_last_upd_yyyymmddhh24miss=>'20180917134650'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(46705851064840825)
@@ -140,7 +140,7 @@ wwv_flow_api.create_page_item(
 ,p_display_as=>'NATIVE_RICH_TEXT_EDITOR'
 ,p_cSize=>150
 ,p_cMaxlength=>128000
-,p_cHeight=>40
+,p_cHeight=>60
 ,p_field_template=>wwv_flow_api.id(35605504533315950)
 ,p_item_template_options=>'#DEFAULT#'
 ,p_help_text=>wwv_flow_string.join(wwv_flow_t_varchar2(
