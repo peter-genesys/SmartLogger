@@ -15,8 +15,8 @@ wwv_flow_api.create_page(
 ,p_overwrite_navigation_list=>'N'
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
-,p_last_updated_by=>'HEWETTJ'
-,p_last_upd_yyyymmddhh24miss=>'20180906141405'
+,p_last_updated_by=>'BURGPETE'
+,p_last_upd_yyyymmddhh24miss=>'20180921012522'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(24216799638111230)
@@ -98,7 +98,7 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>10
 ,p_column_identifier=>'W'
 ,p_column_label=>'App Session'
-,p_column_link=>'f?p=&APP_ID.:30:&SESSION.::&DEBUG.:RP:P30_APP_SESSION,P30_LOG_CONTEXT:#APPSESSION#,#LOG_CONTEXT#'
+,p_column_link=>'f?p=&APP_ID.:30:&SESSION.::&DEBUG.:RP:P30_APP_SESSION,P30_LOG_CONTEXT,SM_APP_SESSION:#APPSESSION#,#LOG_CONTEXT#,#APPSESSION#'
 ,p_column_linktext=>'#APPSESSION#'
 ,p_column_type=>'STRING'
 ,p_heading_alignment=>'RIGHT'
@@ -145,6 +145,8 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>60
 ,p_column_identifier=>'L'
 ,p_column_label=>'All Messages'
+,p_column_link=>'f?p=&APP_ID.:40:&SESSION.::&DEBUG.:RP,40:SM_APP_SESSION,P40_ID:#APPSESSION#,#APPSESSION#'
+,p_column_linktext=>'#MESSAGE_COUNT#'
 ,p_column_type=>'NUMBER'
 ,p_heading_alignment=>'RIGHT'
 ,p_column_alignment=>'RIGHT'
@@ -253,6 +255,7 @@ wwv_flow_api.create_page_plug(
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'select s.* ',
 '      ,app_user||'' ''||app_session||'' ''||app_title||'' ''||app_page_id||'' ''||origin log_context',
+'      ,app_id||''+''||app_page_id||''+''||top_call_id  id',
 'from sm_session_v2 s ',
 'where app_session = :P30_APP_SESSION'))
 ,p_plug_source_type=>'NATIVE_IR'
@@ -411,7 +414,7 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>130
 ,p_column_identifier=>'L'
 ,p_column_label=>'All Messages'
-,p_column_link=>'f?p=&APP_ID.:40:&SESSION.::&DEBUG.:RP,RIR:P40_SESSION_ID,P40_LOG_CONTEXT,P40_CALL_ID:#SESSION_ID#,#LOG_CONTEXT#,#TOP_CALL_ID#'
+,p_column_link=>'f?p=&APP_ID.:40:&SESSION.::&DEBUG.:RP,RIR:P40_LOG_CONTEXT,P40_ID:#LOG_CONTEXT#,#ID#'
 ,p_column_linktext=>'#MESSAGE_COUNT#'
 ,p_column_type=>'NUMBER'
 ,p_heading_alignment=>'RIGHT'
@@ -423,7 +426,7 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>140
 ,p_column_identifier=>'V'
 ,p_column_label=>'Warnings'
-,p_column_link=>'f?p=&APP_ID.:40:&SESSION.:IR_REPORT_WARN_ERROR:&DEBUG.:RP:P40_SESSION_ID,P40_LOG_CONTEXT,P40_CALL_ID:#SESSION_ID#,#LOG_CONTEXT#,#TOP_CALL_ID#'
+,p_column_link=>'f?p=&APP_ID.:40:&SESSION.:IR_REPORT_WARN_ERROR:&DEBUG.:RP:P40_LOG_CONTEXT,P40_ID:#LOG_CONTEXT#,#TOP_CALL_ID#'
 ,p_column_linktext=>'#WARNING_COUNT#'
 ,p_column_type=>'NUMBER'
 ,p_column_alignment=>'RIGHT'
@@ -434,7 +437,7 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>150
 ,p_column_identifier=>'K'
 ,p_column_label=>'Errors'
-,p_column_link=>'f?p=&APP_ID.:40:&SESSION.:IR_REPORT_ERROR:&DEBUG.:RP:P40_SESSION_ID,P40_LOG_CONTEXT,P40_CALL_ID:#SESSION_ID#,#LOG_CONTEXT#,#TOP_CALL_ID#'
+,p_column_link=>'f?p=&APP_ID.:40:&SESSION.:IR_REPORT_ERROR:&DEBUG.:RP:P40_LOG_CONTEXT,P40_ID:#LOG_CONTEXT#,#TOP_CALL_ID#'
 ,p_column_linktext=>'#EXCEPTION_COUNT#'
 ,p_column_type=>'NUMBER'
 ,p_heading_alignment=>'RIGHT'
@@ -523,6 +526,15 @@ wwv_flow_api.create_worksheet_column(
 ,p_column_type=>'STRING'
 ,p_display_text_as=>'HIDDEN'
 );
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(57764108423829404)
+,p_db_column_name=>'ID'
+,p_display_order=>260
+,p_column_identifier=>'X'
+,p_column_label=>'Id'
+,p_column_type=>'STRING'
+,p_display_text_as=>'HIDDEN'
+);
 wwv_flow_api.create_worksheet_rpt(
  p_id=>wwv_flow_api.id(25413639247505575)
 ,p_application_user=>'APXWS_DEFAULT'
@@ -531,7 +543,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>50
-,p_report_columns=>'APP_TITLE:APP_ID:APP_PAGE_ID:ORIGIN:MESSAGE_COUNT:WARNING_COUNT:EXCEPTION_COUNT:CREATED_DATE::LOG_CONTEXT'
+,p_report_columns=>'APP_TITLE:MESSAGE_COUNT:WARNING_COUNT:EXCEPTION_COUNT:CREATED_DATE:'
 ,p_sort_column_1=>'CREATED_DATE'
 ,p_sort_direction_1=>'DESC'
 ,p_sort_column_2=>'0'
@@ -547,7 +559,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_flashback_enabled=>'N'
 );
 wwv_flow_api.create_worksheet_condition(
- p_id=>wwv_flow_api.id(54852627581236521)
+ p_id=>wwv_flow_api.id(57852145145398428)
 ,p_report_id=>wwv_flow_api.id(25413639247505575)
 ,p_condition_type=>'FILTER'
 ,p_allow_delete=>'Y'
@@ -669,7 +681,6 @@ wwv_flow_api.create_page_button(
 ,p_button_template_id=>wwv_flow_api.id(35605892992315953)
 ,p_button_image_alt=>'Apex sessions'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
-,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_button(
  p_id=>wwv_flow_api.id(26084851886357732)

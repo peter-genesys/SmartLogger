@@ -16,7 +16,7 @@ wwv_flow_api.create_page(
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
 ,p_last_updated_by=>'BURGPETE'
-,p_last_upd_yyyymmddhh24miss=>'20180831102748'
+,p_last_upd_yyyymmddhh24miss=>'20180921010006'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(51129564379178574)
@@ -186,7 +186,7 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>130
 ,p_column_identifier=>'L'
 ,p_column_label=>'All Messages'
-,p_column_link=>'f?p=&APP_ID.:40:&SESSION.::&DEBUG.:RP,RIR:P40_SESSION_ID,P40_LOG_CONTEXT,P40_CALL_ID:#SESSION_ID#,#LOG_CONTEXT#,#TOP_CALL_ID#'
+,p_column_link=>'f?p=&APP_ID.:45:&SESSION.::&DEBUG.:RP,RIR:P45_SESSION_ID,P45_LOG_CONTEXT,P45_CALL_ID:#SESSION_ID#,#LOG_CONTEXT#,#TOP_CALL_ID#'
 ,p_column_linktext=>'#MESSAGE_COUNT#'
 ,p_column_type=>'NUMBER'
 ,p_heading_alignment=>'RIGHT'
@@ -198,7 +198,7 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>140
 ,p_column_identifier=>'V'
 ,p_column_label=>'Warnings'
-,p_column_link=>'f?p=&APP_ID.:40:&SESSION.:IR_REPORT_WARN_ERROR:&DEBUG.:RP:P40_SESSION_ID,P40_LOG_CONTEXT,P40_CALL_ID:#SESSION_ID#,#LOG_CONTEXT#,#TOP_CALL_ID#'
+,p_column_link=>'f?p=&APP_ID.:45:&SESSION.:IR_REPORT_WARN_ERROR:&DEBUG.:RP:P45_SESSION_ID,P45_LOG_CONTEXT,P45_CALL_ID:#SESSION_ID#,#LOG_CONTEXT#,#TOP_CALL_ID#'
 ,p_column_linktext=>'#WARNING_COUNT#'
 ,p_column_type=>'NUMBER'
 ,p_column_alignment=>'RIGHT'
@@ -209,7 +209,7 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>150
 ,p_column_identifier=>'K'
 ,p_column_label=>'Errors'
-,p_column_link=>'f?p=&APP_ID.:40:&SESSION.:IR_REPORT_ERROR:&DEBUG.:RP:P40_SESSION_ID,P40_LOG_CONTEXT,P40_CALL_ID:#SESSION_ID#,#LOG_CONTEXT#,#TOP_CALL_ID#'
+,p_column_link=>'f?p=&APP_ID.:45:&SESSION.:IR_REPORT_ERROR:&DEBUG.:RP:P45_SESSION_ID,P45_LOG_CONTEXT,P45_CALL_ID:#SESSION_ID#,#LOG_CONTEXT#,#TOP_CALL_ID#'
 ,p_column_linktext=>'#EXCEPTION_COUNT#'
 ,p_column_type=>'NUMBER'
 ,p_heading_alignment=>'RIGHT'

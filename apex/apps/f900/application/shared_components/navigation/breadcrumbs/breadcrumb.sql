@@ -107,5 +107,12 @@ wwv_flow_api.create_menu_option(
 ,p_link=>'f?p=&FLOW_ID.:10:&SESSION.'
 ,p_page_id=>10
 );
+wwv_flow_api.create_menu_option(
+ p_id=>wwv_flow_api.id(57836709018223193)
+,p_parent_id=>wwv_flow_api.id(25811729421917962)
+,p_short_name=>'Logger Session Messages'
+,p_link=>'f?p=&APP_ID.:45:&SESSION.'
+,p_page_id=>45
+);
 end;
 /
