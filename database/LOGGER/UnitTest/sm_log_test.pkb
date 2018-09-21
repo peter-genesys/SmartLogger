@@ -960,9 +960,10 @@ END f_elapsed_time;
   end;
   
 
-  PROCEDURE test_quiet_mode is
+  PROCEDURE test_quiet_mode(i_param1 in varchar2 default 'X') is
     l_node sm_logger.node_typ := sm_logger.new_proc($$plsql_unit ,'test_quiet_mode');
   begin --test_quiet_mode
+    sm_logger.param(l_node,'i_param1',i_param1 );
   begin  
     sm_logger.comment(l_node,'About to error');
     raise NO_DATA_FOUND;
@@ -973,10 +974,26 @@ END f_elapsed_time;
       raise;
   end; --test_quiet_mode
 
+
+
+  PROCEDURE test_quiet_mode_oe(i_param1 in varchar2 default 'X') is
+    l_node sm_logger.node_typ := sm_logger.new_proc($$plsql_unit ,'test_quiet_mode_oe');
+  begin --test_quiet_mode_oe
+    sm_logger.param(l_node,'i_param1',i_param1 );
+  begin  
+    sm_logger.comment(l_node,'About to error');
+    raise NO_DATA_FOUND;
+  END;
+  exception
+    when others then
+      sm_logger.oracle_error(l_node);
+      raise;
+  end; --test_quiet_mode_oe
+
  
   PROCEDURE test_ondemand_mode(i_logger_debug in boolean) is
     l_node sm_logger.node_typ := sm_logger.new_proc($$plsql_unit ,'test_ondemand_mode', i_debug => i_logger_debug);
-  begin --test_quiet_mode
+  begin --test_ondemand_mode
   begin  
     sm_logger.comment(l_node,'On demand debugging');
     null;

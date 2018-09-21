@@ -6,12 +6,7 @@ set serveroutput on;
 spool sm_test_quiet_mode.log
 
 declare
-
---_process_id number :=  sm_logger.new_process(i_process_name => 'sm_test_quiet_mode.sql'  
---                                            ,i_process_type   => 'SQL SCRIPT' 
---                                            ,i_ext_ref     => 1 
---                                            ,i_comments    => 'Testing the logger can trap errors in Quiet Mode');
-
+ 
  l_node sm_logger.node_typ := sm_logger.new_script('sm_test_quiet_mode' ,'anon');
 
 begin 
