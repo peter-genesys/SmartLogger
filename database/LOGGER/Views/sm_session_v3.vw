@@ -39,7 +39,7 @@ where  APP_SESSION is not null;
 
 create or replace view sm_session_v3 as
 select  APP_SESSION                         
-       ,min(APP_USER)            APP_USER                        
+       ,lower(max(replace(APP_USER,'nobody','NOBODY'))) APP_USER --pick "nobody" last              
        ,min(APP_USER_FULLNAME)   APP_USER_FULLNAME         
        ,min(APP_USER_EMAIL)      APP_USER_EMAIL           
        ,(select FIRST_VALUE(app_id) IGNORE NULLS OVER (PARTITION BY app_session ORDER BY session_id) 
