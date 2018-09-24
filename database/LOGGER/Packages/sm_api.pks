@@ -24,7 +24,7 @@ create or replace package sm_api is
 --------------------------------------------------------------------------------
 --f_config_value
 --------------------------------------------------------------------------------
-function f_config_value(i_name IN VARCHAR2) return VARCHAR2;
+function f_config_value(i_name IN VARCHAR2) return VARCHAR2 result_cache;
 
 ------------------------------------------------------------------------ 
 -- FUNCTIONS USED IN VIEWS

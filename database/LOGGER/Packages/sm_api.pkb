@@ -29,7 +29,7 @@ G_SMARTLOGGER_TRACE_PAGE_NO   CONSTANT NUMBER := 24;
 --------------------------------------------------------------------------------
 --f_config_value
 --------------------------------------------------------------------------------
-function f_config_value(i_name IN VARCHAR2) return VARCHAR2 IS
+function f_config_value(i_name IN VARCHAR2) return VARCHAR2 result_cache IS
 
   cursor cu_config(c_name IN VARCHAR2) is
   select value

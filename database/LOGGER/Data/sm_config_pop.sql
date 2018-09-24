@@ -24,5 +24,8 @@ Insert into sm_config (NAME,VALUE) values ('DEFAULT_AUTO_DEBUG'    ,'Y');
 Insert into sm_config (NAME,VALUE) values ('DEFAULT_AUTO_NORMAL'   ,'N');
 Insert into sm_config (NAME,VALUE) values ('DEFAULT_AUTO_QUIET'    ,'N');
 Insert into sm_config (NAME,VALUE) values ('DEFAULT_AUTO_DISABLED' ,'N');
+
+Insert into sm_config (NAME,VALUE) values ('PARENT_APP_SESSION_VAR' ,'SM_PARENT_APP_SESSION');
+
  
 COMMIT;

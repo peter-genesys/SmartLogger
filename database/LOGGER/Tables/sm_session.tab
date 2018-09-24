@@ -1,6 +1,6 @@
                                                                                                                                                                                     
 CREATE TABLE SM_SESSION                                                                                                                                                           
-   (SESSION_ID NUMBER NOT NULL ENABLE,                                                                                                                                             
+   (SESSION_ID NUMBER NOT NULL ENABLE,                                                                                                                                    
 	ORIGIN VARCHAR2(100),                                                                                                                                                              
 	USERNAME VARCHAR2(30),                                                                                                                                                             
 	INTERNAL_ERROR VARCHAR2(1) DEFAULT 'N',                                                                                                                                            
@@ -13,6 +13,7 @@ CREATE TABLE SM_SESSION
 	APP_USER_FULLNAME VARCHAR2(50),  
 	APP_USER_EMAIL    VARCHAR2(50), 
 	APP_SESSION       VARCHAR2(50),
+	PARENT_APP_SESSION VARCHAR2(50),
 	APP_ID            NUMBER,
 	APP_ALIAS         VARCHAR2(50),
 	APP_TITLE         VARCHAR2(50),
@@ -21,7 +22,9 @@ CREATE TABLE SM_SESSION
    ) ;                                                                                                                                                                              
   ALTER TABLE SM_SESSION ADD CONSTRAINT PROCESS_PK PRIMARY KEY (SESSION_ID)                                                                                                         
   USING INDEX  ENABLE;                                                                                                                                                              
-                                                                                                                                                                                    
+ 
+ALTER TABLE SM_SESSION add PARENT_APP_SESSION VARCHAR2(50);
+ 
                                                                                                                                                                                     
 CREATE SEQUENCE  SM_SESSION_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE   ;                         
                                                                                                                                                                                    

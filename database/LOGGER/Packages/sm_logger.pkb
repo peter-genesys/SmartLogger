@@ -128,11 +128,12 @@ G_AUTO_MSG_MODE_DEFAULT    NUMBER(2);
 
 G_MANUAL_MSG_MODE_DEFAULT  NUMBER(2) := G_MSG_MODE_OVERRIDDEN;
 
+G_PARENT_APP_SESSION_VAR   VARCHAR2(50);
 
 --------------------------------------------------------------------------------
 --f_config_value
 --------------------------------------------------------------------------------
-function f_config_value(i_name IN VARCHAR2) return VARCHAR2 IS
+function f_config_value(i_name IN VARCHAR2) return VARCHAR2 result_cache IS
 
   cursor cu_config(c_name IN VARCHAR2) is
   select value
@@ -1038,12 +1039,18 @@ BEGIN
     g_session.app_user       := v('APP_USER');
     --APP_USER_FULLNAME
     --APP_USER_EMAIL
-    g_session.app_session    := v('APP_SESSION');
-    g_session.app_id         := v('APP_ID');
-    g_session.app_alias      := v('APP_ALIAS');
-    g_session.app_title      := v('APP_TITLE');
-    g_session.app_page_id    := v('APP_PAGE_ID');
-    g_session.app_page_alias := v('APP_PAGE_ALIAS');
+    g_session.app_session         := v('APP_SESSION');
+    g_session.parent_app_session  := v(G_PARENT_APP_SESSION_VAR);
+    IF g_session.parent_app_session = g_session.app_session then
+      --Ensure parent_app_session IS NEVER SAME app_session
+      --Root session must have no parent session.
+      g_session.parent_app_session := null;
+    END IF;
+    g_session.app_id              := v('APP_ID');
+    g_session.app_alias           := v('APP_ALIAS');
+    g_session.app_title           := v('APP_TITLE');
+    g_session.app_page_id         := v('APP_PAGE_ID');
+    g_session.app_page_alias      := v('APP_PAGE_ALIAS');
  
     init_node_stack; --remove all nodes from the stack.
 
@@ -2706,6 +2713,8 @@ BEGIN
     G_AUTO_WAKE_DEFAULT          := G_AUTO_WAKE_NO;
     G_AUTO_MSG_MODE_DEFAULT      := G_MSG_MODE_DISABLED;
   END IF;  
+
+  G_PARENT_APP_SESSION_VAR       := f_config_value('PARENT_APP_SESSION_VAR');
   
 end;
 /
