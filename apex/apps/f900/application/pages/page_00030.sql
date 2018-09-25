@@ -16,7 +16,7 @@ wwv_flow_api.create_page(
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180924170927'
+,p_last_upd_yyyymmddhh24miss=>'20180925114051'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(24216799638111230)
@@ -111,6 +111,8 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>20
 ,p_column_identifier=>'M'
 ,p_column_label=>'App User'
+,p_column_link=>'f?p=&APP_ID.:5:&SESSION.::&DEBUG.:RP:SM_APP_USER:#APP_USER#'
+,p_column_linktext=>'#APP_USER#'
 ,p_column_type=>'STRING'
 );
 wwv_flow_api.create_worksheet_column(
@@ -146,7 +148,7 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>60
 ,p_column_identifier=>'L'
 ,p_column_label=>'All Messages'
-,p_column_link=>'f?p=&APP_ID.:40:&SESSION.::&DEBUG.:RP,40:SM_APP_SESSION,P40_ID,P40_APP_USER:#APPSESSION#,#APPSESSION#,#APP_USER#'
+,p_column_link=>'f?p=&APP_ID.:40:&SESSION.::&DEBUG.:RP,40:SM_APP_SESSION,P40_ID,P40_APP_USER,SM_APP_USER:#APPSESSION#,#APPSESSION#,#APP_USER#,'
 ,p_column_linktext=>'#MESSAGE_COUNT#'
 ,p_column_type=>'NUMBER'
 ,p_heading_alignment=>'RIGHT'
@@ -214,7 +216,7 @@ wwv_flow_api.create_worksheet_column(
 ,p_db_column_name=>'PARENT_APP_SESSION'
 ,p_display_order=>130
 ,p_column_identifier=>'Y'
-,p_column_label=>'Parent App Session'
+,p_column_label=>'Parent app session'
 ,p_column_type=>'STRING'
 );
 wwv_flow_api.create_worksheet_rpt(

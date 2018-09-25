@@ -13,20 +13,20 @@ prompt APPLICATION 900 - SmartLogger
 --
 
 -- Application Statistics:
---   Pages:                     19
---     Items:                   44
+--   Pages:                     20
+--     Items:                   50
 --     Validations:              1
 --     Processes:               39
---     Regions:                 53
---     Buttons:                 59
+--     Regions:                 56
+--     Buttons:                 61
 --     Dynamic Actions:         24
 --   Shared Components:
 --     Logic:
---       Items:                  5
+--       Items:                  6
 --     Navigation:
 --       Lists:                  2
 --       Breadcrumbs:            1
---         Entries:             16
+--         Entries:             17
 --       NavBar Entries:         1
 --     Security:
 --       Authentication:         3
@@ -43,7 +43,7 @@ prompt APPLICATION 900 - SmartLogger
 --         Button:               3
 --         Report:               9
 --       Shortcuts:              5
---       Plug-ins:               5
+--       Plug-ins:               6
 --     Globalization:
 --     Reports:
 --   Supporting Objects:  Excluded

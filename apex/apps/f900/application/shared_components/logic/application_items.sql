@@ -25,5 +25,11 @@ wwv_flow_api.create_flow_item(
 ,p_scope=>'GLOBAL'
 ,p_protection_level=>'N'
 );
+wwv_flow_api.create_flow_item(
+ p_id=>wwv_flow_api.id(26724078269542932)
+,p_name=>'SM_APP_USER'
+,p_scope=>'GLOBAL'
+,p_protection_level=>'N'
+);
 end;
 /

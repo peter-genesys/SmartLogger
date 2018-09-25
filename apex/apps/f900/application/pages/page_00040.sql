@@ -33,7 +33,7 @@ wwv_flow_api.create_page(
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180924172135'
+,p_last_upd_yyyymmddhh24miss=>'20180925112335'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(78757513162525146)
@@ -65,7 +65,7 @@ wwv_flow_api.create_page_plug(
 '  order siblings by ct.call_ID) a',
 '  ,sm_message_vw m',
 'where m.call_id = a.call_id',
-'and   a.node_type = ''CALL''     '))
+'and   a.node_type IN (''TOPCALL'',''CALL'')     '))
 ,p_plug_source_type=>'NATIVE_IR'
 ,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
@@ -520,14 +520,6 @@ wwv_flow_api.create_worksheet_column(
 ,p_column_type=>'STRING'
 );
 wwv_flow_api.create_worksheet_column(
- p_id=>wwv_flow_api.id(57763985212829402)
-,p_db_column_name=>'LAG_ID'
-,p_display_order=>283
-,p_column_identifier=>'AW'
-,p_column_label=>'Lag id'
-,p_column_type=>'STRING'
-);
-wwv_flow_api.create_worksheet_column(
  p_id=>wwv_flow_api.id(2043939264971425)
 ,p_db_column_name=>'PARENT_APP_SESSION'
 ,p_display_order=>293
@@ -544,7 +536,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>100
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:MESSAGE:TIME_NOW:'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:MESSAGE:TIME_NOW'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -626,7 +618,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>1000
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -768,7 +760,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>1000
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -910,7 +902,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>1000
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -1063,7 +1055,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>1000
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -1224,7 +1216,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>100
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:TIME_NOW:MESSAGE:'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:TIME_NOW:MESSAGE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -1291,7 +1283,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'N'
 ,p_display_rows=>1000
-,p_report_columns=>'MODULE_NAME:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:'
+,p_report_columns=>'MODULE_NAME:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
