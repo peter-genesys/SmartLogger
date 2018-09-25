@@ -23,7 +23,7 @@ wwv_flow_api.create_list_item(
  p_id=>wwv_flow_api.id(26683985950153878)
 ,p_list_item_display_sequence=>1
 ,p_list_item_link_text=>'User Activity'
-,p_list_item_link_target=>'f?p=&APP_ID.:5:&SESSION.::&DEBUG.::::'
+,p_list_item_link_target=>'f?p=&APP_ID.:5:&SESSION.::&DEBUG.::SM_APP_SESSION,SM_APP_USER::'
 ,p_parent_list_item_id=>wwv_flow_api.id(25645974049487723)
 ,p_list_item_current_type=>'COLON_DELIMITED_PAGE_LIST'
 ,p_list_item_current_for_pages=>'5'

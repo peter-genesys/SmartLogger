@@ -10,21 +10,38 @@ wwv_flow_api.create_page(
 ,p_first_item=>'NO_FIRST_ITEM'
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
+,p_dialog_chained=>'Y'
 ,p_overwrite_navigation_list=>'N'
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180925115049'
+,p_last_upd_yyyymmddhh24miss=>'20180925134836'
+);
+wwv_flow_api.create_page_plug(
+ p_id=>wwv_flow_api.id(2044904499971435)
+,p_plug_name=>'User Sessions : &SM_APP_USER.'
+,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
+,p_plug_template=>wwv_flow_api.id(35560371291315922)
+,p_plug_display_sequence=>30
+,p_include_in_reg_disp_sel_yn=>'Y'
+,p_plug_new_grid_row=>false
+,p_plug_display_column=>9
+,p_plug_display_point=>'BODY'
+,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
+,p_plug_display_condition_type=>'ITEM_IS_NOT_NULL'
+,p_plug_display_when_condition=>'SM_APP_USER'
+,p_attribute_01=>'N'
+,p_attribute_02=>'HTML'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(2044159942971427)
 ,p_plug_name=>'User Sessions'
-,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
+,p_parent_plug_id=>wwv_flow_api.id(2044904499971435)
+,p_region_template_options=>'#DEFAULT#:t-Region--removeHeader:t-Region--noBorder:t-Region--scrollBody'
 ,p_plug_template=>wwv_flow_api.id(35560371291315922)
-,p_plug_display_sequence=>20
-,p_include_in_reg_disp_sel_yn=>'Y'
+,p_plug_display_sequence=>10
+,p_include_in_reg_disp_sel_yn=>'N'
 ,p_plug_new_grid_row=>false
-,p_plug_display_column=>9
 ,p_plug_display_point=>'BODY'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'select id                                                      value',
@@ -37,7 +54,9 @@ wwv_flow_api.create_page_plug(
 '         when node_type = ''PAGE''    then ''fa fa-file-o''',
 '         else                            ''fa fa-folder-o''',
 '       end      as icon',
-'      ,null as link',
+'      ,apex_page.get_url(p_page  => 40',
+'                        ,p_items => ''P40_APP_USER,SM_APP_SESSION,SM_APP_USER''',
+'                        ,p_values => app_user||'',''||app_session||'','') as link',
 '      ,level as lvl',
 '      ,parent_id as parent_id ',
 'from sm_call_tree_v',
@@ -45,6 +64,7 @@ wwv_flow_api.create_page_plug(
 'connect by prior id = parent_id',
 'order siblings by call_id'))
 ,p_plug_source_type=>'PLUGIN_COM.MTAG.APEX.FANCYTREEV1.1'
+,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
 ,p_attribute_01=>'N'
 ,p_attribute_05=>'P5_SELECTED_NODE'
@@ -269,6 +289,7 @@ wwv_flow_api.create_page_button(
 ,p_button_template_id=>wwv_flow_api.id(35605892992315953)
 ,p_button_image_alt=>'Purge Old Sessions'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
+,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_button(
  p_id=>wwv_flow_api.id(26760893592645257)
@@ -280,6 +301,7 @@ wwv_flow_api.create_page_button(
 ,p_button_template_id=>wwv_flow_api.id(35605892992315953)
 ,p_button_image_alt=>'Purge All Sessions'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
+,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_item(
  p_id=>wwv_flow_api.id(2044209955971428)

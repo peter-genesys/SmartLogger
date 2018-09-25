@@ -17,7 +17,7 @@ prompt APPLICATION 900 - SmartLogger
 --     Items:                   50
 --     Validations:              1
 --     Processes:               39
---     Regions:                 56
+--     Regions:                 57
 --     Buttons:                 61
 --     Dynamic Actions:         24
 --   Shared Components:
