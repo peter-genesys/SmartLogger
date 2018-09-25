@@ -1,4 +1,5 @@
 @application/init.sql
+@application/set_environment.sql
 @application/delete_application.sql
 @application/ui_types.sql
 @application/create_application.sql
@@ -37,9 +38,11 @@
 @application/shared_components/globalization/dyntranslations.sql
 @application/shared_components/user_interface/shortcuts.sql
 @application/shared_components/security/authentications.sql
+@application/ui_types.sql
 @application/shared_components/plugins/dynamic_action/com_enkitec_clob_load.sql
 @application/shared_components/plugins/item_type/com_oracle_apex_simple_checkbox.sql
 @application/shared_components/plugins/item_type/mho_modal_lov.sql
+@application/shared_components/plugins/region_type/com_mtag_apex_fancytreev1_1.sql
 @application/shared_components/plugins/dynamic_action/apex_clob_load.sql
 @application/shared_components/plugins/region_type/org_halfabee_clobregion.sql
 @application/user_interfaces.sql
@@ -48,6 +51,7 @@
 @application/pages/page_00002.sql
 @application/pages/page_00003.sql
 @application/pages/page_00004.sql
+@application/pages/page_00005.sql
 @application/pages/page_00006.sql
 @application/pages/page_00008.sql
 @application/pages/page_00009.sql
