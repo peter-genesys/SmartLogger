@@ -10,7 +10,7 @@ select
   ,s.*  
   ,to_char(null)                                                                  lag_grp_id   
   from sm_session_call_v s
-  where v('SM_APP_SESSION') in (app_session, parent_app_session)
+  where (app_user = UPPER(v('SM_APP_USER')) OR v('SM_APP_SESSION') in (app_session, parent_app_session))
   and PARENT_CALL_ID is null 
 union all
 select 
@@ -23,7 +23,7 @@ select
   ,s.*     
   ,to_char(null)                                                                  lag_grp_id   
   from sm_session_call_v s
-  where v('SM_APP_SESSION') in (app_session, parent_app_session)
+  where (app_user = UPPER(v('SM_APP_USER')) OR v('SM_APP_SESSION') in (app_session, parent_app_session))
   and PARENT_CALL_ID is not null 
   )
 , all_nodes as (  
@@ -33,7 +33,8 @@ union all
 select * from call_nodes)
 select 
  node_type    
-,sm_call_tree_parent_id(i_node_type   => node_type   
+,sm_call_tree_parent_id(i_node_type   => node_type  
+                       ,i_app_session => app_session 
                        ,i_app_id      => app_id      
                        ,i_app_page_id => app_page_id 
                        ,i_call_id     => call_id     

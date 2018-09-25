@@ -1,4 +1,5 @@
 create or replace function sm_call_tree_parent_id(i_node_type       in varchar2
+                                                 ,i_app_session     in varchar2
                                                  ,i_app_id          in number
                                                  ,i_app_page_id     in number
                                                  ,i_call_id         in number
@@ -6,18 +7,20 @@ create or replace function sm_call_tree_parent_id(i_node_type       in varchar2
   cursor cu_parent_app is
   select id 
   from  sm_extra_nodes_v
-  where node_type = 'APP'
-  and   app_id   = i_app_id
-  and   call_id  <= i_call_id
+  where node_type   = 'APP'
+  and   app_session = i_app_session
+  and   app_id      = i_app_id
+  and   call_id    <= i_call_id
   order by call_id desc ;
 
   cursor cu_parent_page is
   select id 
   from  sm_extra_nodes_v
-  where node_type = 'PAGE'
+  where node_type    = 'PAGE'
+  and   app_session  = i_app_session
   and   app_id       = i_app_id
   and   app_page_id  = i_app_page_id
-  and   call_id  <= i_call_id
+  and   call_id     <= i_call_id
   order by call_id desc ;
 
   l_parent_id varchar2(100);

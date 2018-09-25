@@ -9,7 +9,7 @@ with extra_nodes as (
   ,'Session '||app_session                     long_name   
   ,s.*     
   from sm_session_call_v s
-  where v('SM_APP_SESSION') = app_session
+  where ((app_user = UPPER(v('SM_APP_USER')) and parent_app_session is null) OR v('SM_APP_SESSION') = app_session)
   and PARENT_CALL_ID is null 
   union all
   select
@@ -21,8 +21,9 @@ with extra_nodes as (
   ,'Child Session '||app_session               long_name   
   ,s.*     
   from sm_session_call_v s
-  where v('SM_APP_SESSION') = parent_app_session
+  where (app_user = UPPER(v('SM_APP_USER')) OR v('SM_APP_SESSION') = parent_app_session)
   and PARENT_CALL_ID is null 
+  and parent_app_session is not null
   union all
   select
    'APP'                                                 node_type
@@ -33,7 +34,7 @@ with extra_nodes as (
   ,'App '||APP_ID||' '||APP_ALIAS                        long_name
   ,s.*   
   from sm_session_call_v s
-  where v('SM_APP_SESSION') in (app_session, parent_app_session)
+  where (app_user = UPPER(v('SM_APP_USER')) OR v('SM_APP_SESSION') in (app_session, parent_app_session))
   and PARENT_CALL_ID is null 
   union all
   select
@@ -45,7 +46,7 @@ with extra_nodes as (
   ,'Page '||APP_PAGE_ID||' '||APP_PAGE_ALIAS                       long_name                           
   ,s.*    
   from sm_session_call_v s
-  where v('SM_APP_SESSION') in (app_session, parent_app_session)
+  where (app_user = UPPER(v('SM_APP_USER')) OR v('SM_APP_SESSION') in (app_session, parent_app_session))
   and PARENT_CALL_ID is null )
 select * 
 from (
