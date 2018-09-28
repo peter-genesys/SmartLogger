@@ -33,7 +33,7 @@ wwv_flow_api.create_page(
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180925112335'
+,p_last_upd_yyyymmddhh24miss=>'20180928152639'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(78757513162525146)
@@ -59,10 +59,10 @@ wwv_flow_api.create_page_plug(
 'select level',
 '        ,ct.*',
 '      ,''<span style="padding-left:''||LEVEL*10||''px;">''||ct.unit_name||''</span>'' level_unit_name',
-'  from sm_call_tree_v ct',
+'  from sm_context_tree_v ct',
 '  start with id = :P40_ID',
 '  connect by prior id = parent_id',
-'  order siblings by ct.call_ID) a',
+'  order siblings by id, session_date) a',
 '  ,sm_message_vw m',
 'where m.call_id = a.call_id',
 'and   a.node_type IN (''TOPCALL'',''CALL'')     '))
@@ -527,6 +527,24 @@ wwv_flow_api.create_worksheet_column(
 ,p_column_label=>'Parent app session'
 ,p_column_type=>'STRING'
 );
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(27235819232775014)
+,p_db_column_name=>'APEX_CONTEXT_ID'
+,p_display_order=>303
+,p_column_identifier=>'AY'
+,p_column_label=>'Apex context id'
+,p_column_type=>'STRING'
+);
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(27235912167775015)
+,p_db_column_name=>'SESSION_DATE'
+,p_display_order=>313
+,p_column_identifier=>'AZ'
+,p_column_label=>'Session date'
+,p_column_type=>'DATE'
+,p_column_alignment=>'CENTER'
+,p_tz_dependent=>'N'
+);
 wwv_flow_api.create_worksheet_rpt(
  p_id=>wwv_flow_api.id(25776510135874735)
 ,p_application_user=>'APXWS_ALTERNATIVE'
@@ -536,7 +554,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>100
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:MESSAGE:TIME_NOW'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:MESSAGE:TIME_NOW:APEX_CONTEXT_ID:SESSION_DATE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -618,7 +636,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>1000
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:APEX_CONTEXT_ID:SESSION_DATE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -760,7 +778,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>1000
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:APEX_CONTEXT_ID:SESSION_DATE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -902,7 +920,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>1000
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:APEX_CONTEXT_ID:SESSION_DATE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -1047,6 +1065,9 @@ wwv_flow_api.create_worksheet_condition(
 ,p_condition_display=>'#APXWS_COL_NAME# = ''Message''  '
 ,p_enabled=>'Y'
 );
+end;
+/
+begin
 wwv_flow_api.create_worksheet_rpt(
  p_id=>wwv_flow_api.id(78760927027525149)
 ,p_application_user=>'APXWS_DEFAULT'
@@ -1055,7 +1076,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>1000
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:NAME:VALUE:MESSAGE:APEX_CONTEXT_ID:SESSION_DATE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -1072,9 +1093,6 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_break_enabled_on=>'0:0:0:0:0'
 ,p_flashback_enabled=>'N'
 );
-end;
-/
-begin
 wwv_flow_api.create_worksheet_condition(
  p_id=>wwv_flow_api.id(26595164350579455)
 ,p_report_id=>wwv_flow_api.id(78760927027525149)
@@ -1216,7 +1234,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>100
-,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:TIME_NOW:MESSAGE'
+,p_report_columns=>'APP_ID:APP_PAGE_ID:LEVEL_UNIT_NAME:LEVEL:NAME:VALUE:TIME_NOW:MESSAGE:APEX_CONTEXT_ID:SESSION_DATE'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
@@ -1431,10 +1449,10 @@ wwv_flow_api.create_page_plug(
 '       ,ID as value  ',
 '       ,null as tooltip  ',
 '       ,''f?p=&APP_ID.:40:&SESSION.::&DEBUG.::P40_ID,P40_LOG_CONTEXT:''||ID||'',''||long_name  as link',
-'from sm_call_tree_v',
+'from sm_context_tree_v',
 'start with parent_id is null',
 'connect by prior id = parent_id',
-'order siblings by call_id'))
+'order siblings by id, session_date'))
 ,p_plug_source_type=>'NATIVE_JSTREE'
 ,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'

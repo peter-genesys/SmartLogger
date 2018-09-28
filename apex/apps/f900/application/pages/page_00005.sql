@@ -15,7 +15,7 @@ wwv_flow_api.create_page(
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180925134836'
+,p_last_upd_yyyymmddhh24miss=>'20180928152536'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(2044904499971435)
@@ -24,8 +24,6 @@ wwv_flow_api.create_page_plug(
 ,p_plug_template=>wwv_flow_api.id(35560371291315922)
 ,p_plug_display_sequence=>30
 ,p_include_in_reg_disp_sel_yn=>'Y'
-,p_plug_new_grid_row=>false
-,p_plug_display_column=>9
 ,p_plug_display_point=>'BODY'
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
 ,p_plug_display_condition_type=>'ITEM_IS_NOT_NULL'
@@ -59,10 +57,10 @@ wwv_flow_api.create_page_plug(
 '                        ,p_values => app_user||'',''||app_session||'','') as link',
 '      ,level as lvl',
 '      ,parent_id as parent_id ',
-'from sm_call_tree_v',
+'from sm_context_tree_v',
 'start with parent_id is null',
 'connect by prior id = parent_id',
-'order siblings by call_id'))
+'order siblings by id, session_date'))
 ,p_plug_source_type=>'PLUGIN_COM.MTAG.APEX.FANCYTREEV1.1'
 ,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
@@ -73,7 +71,7 @@ wwv_flow_api.create_page_plug(
 ,p_attribute_16=>'N'
 ,p_attribute_19=>'N'
 ,p_attribute_21=>'N'
-,p_attribute_22=>'N'
+,p_attribute_22=>'Y'
 ,p_attribute_23=>'N'
 ,p_attribute_24=>'N'
 );
@@ -99,7 +97,7 @@ wwv_flow_api.create_page_plug(
 ,p_plug_template=>wwv_flow_api.id(35560371291315922)
 ,p_plug_display_sequence=>10
 ,p_include_in_reg_disp_sel_yn=>'Y'
-,p_plug_grid_column_span=>8
+,p_plug_grid_column_span=>6
 ,p_plug_display_point=>'BODY'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'select ',
@@ -289,7 +287,6 @@ wwv_flow_api.create_page_button(
 ,p_button_template_id=>wwv_flow_api.id(35605892992315953)
 ,p_button_image_alt=>'Purge Old Sessions'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
-,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_button(
  p_id=>wwv_flow_api.id(26760893592645257)
@@ -301,7 +298,6 @@ wwv_flow_api.create_page_button(
 ,p_button_template_id=>wwv_flow_api.id(35605892992315953)
 ,p_button_image_alt=>'Purge All Sessions'
 ,p_button_position=>'REGION_TEMPLATE_EDIT'
-,p_grid_new_grid=>false
 );
 wwv_flow_api.create_page_item(
  p_id=>wwv_flow_api.id(2044209955971428)
