@@ -246,6 +246,9 @@ PROCEDURE purge_old_sessions(i_keep_day_count IN NUMBER DEFAULT null) IS
  
 BEGIN 
 
+  delete from sm_apex_context
+  where  created_date < (SYSDATE - l_keep_day_count);
+
   delete from sm_session 
   where  created_date < (SYSDATE - l_keep_day_count)
   and    keep_yn = 'N';

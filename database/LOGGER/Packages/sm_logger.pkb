@@ -1,4 +1,4 @@
-alter session set plsql_ccflags = 'intlog:false';
+alter session set plsql_ccflags = 'intlog:false';  
 --alter package sm_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings 
 --alter package sm_logger compile PLSQL_CCFlags = 'intlog:false' reuse settings 
  
@@ -39,7 +39,7 @@ create or replace package body sm_logger is
 --System will wait for the code to drop out again.
 ------------------------------------------------------------------------
  
- 
+  
   g_debug_indent          INTEGER;
  
   G_MODULE_NAME_WIDTH     CONSTANT NUMBER := 50;
@@ -49,7 +49,8 @@ create or replace package body sm_logger is
   G_CALL_STACK_WIDTH      CONSTANT NUMBER := 2000;
 
   G_MAX_UNLOGGED_MSG_COUNT  CONSTANT NUMBER := 100;
-  
+
+  G_APEX_CONTEXT_COLLECTION       CONSTANT VARCHAR2(30) :=  'APEX_CONTEXT';
  
 TYPE node_stack_typ IS
   TABLE OF node_typ
@@ -301,9 +302,13 @@ FUNCTION f_current_call_id RETURN NUMBER;  -- FORWARD DECLARATION
 $if $$intlog $then 
 
 PROCEDURE intlog_putline(i_line IN VARCHAR2 ) IS
+   PRAGMA AUTONOMOUS_TRANSACTION;
 --Don't call this directly.
+  l_text varchar2(1000) := SUBSTR(LPAD('+ ',g_debug_indent*2,'+ ')||i_line,1,1000);
 BEGIN 
-    dbms_output.put_line(LPAD('+ ',g_debug_indent*2,'+ ')||i_line);
+    dbms_output.put_line(l_text);
+    insert into sm_log (text) values (l_text);
+    commit;
 END; 
 
  
@@ -373,7 +378,11 @@ BEGIN
   SET ROW = g_session
   WHERE session_id   = g_session.session_id
   AND   internal_error = 'N';
-  
+
+  if sql%rowcount = 0 then
+    insert into sm_session values g_session;
+  end if;
+ 
   COMMIT;
 
 END; 
@@ -1054,8 +1063,8 @@ BEGIN
  
     init_node_stack; --remove all nodes from the stack.
 
-    $if $$intlog $then intlog_debug('Process created, but not yet logged.');   $end 
-
+    $if $$intlog $then intlog_debug('Logger Session created, but not yet logged.');   $end 
+ 
 
     --@TODO Either log the process now - if the unit is set to DEBUGGING or NORMAL
     --OR wait unit attempt to log node. 
@@ -1069,14 +1078,296 @@ EXCEPTION
     
 END create_session;
 
-
-
+ 
 
 ------------------------------------------------------------------------
 -- LOGGING ROUTINES (private)
 -- These routines write to the logging tables
 ------------------------------------------------------------------------
 
+
+------------------------------------------------------------------------
+-- add_node (private)
+-- Add a node to the node stack
+------------------------------------------------------------------------
+procedure add_node( i_apex_context_id    in varchar2 
+                  ,i_apex_context_type   in varchar2 
+                  ,i_parent_context_id   in varchar2 default null
+                  ,i_app_user            in varchar2 default null
+                  ,i_app_user_fullname   in varchar2 default null
+                  ,i_app_user_email      in varchar2 default null
+                  ,i_app_session         in varchar2 default null
+                  ,i_parent_app_session  in varchar2 default null
+                  ,i_app_id              in varchar2 default null     
+                  ,i_app_alias           in varchar2 default null  
+                  ,i_app_title           in varchar2 default null 
+                  ,i_app_page_id         in varchar2 default null
+                  ,i_app_page_alias      in varchar2 default null
+                  ,i_created_date        in date 
+                  ,i_updated_date        in date     default null) is
+BEGIN
+  $if $$intlog $then intlog_start('add_node'); $end
+    
+    APEX_COLLECTION.ADD_MEMBER (
+         p_collection_name => G_APEX_CONTEXT_COLLECTION
+        ,p_c001            => i_apex_context_id  
+        ,p_c002            => i_apex_context_type
+        ,p_c003            => i_parent_context_id 
+        ,p_c004            => i_app_user          
+        ,p_c005            => i_app_user_fullname 
+        ,p_c006            => i_app_user_email    
+        ,p_c007            => i_app_session     
+        ,p_c008            => i_parent_app_session   
+        ,p_c009            => i_app_id            
+        ,p_c010            => i_app_alias         
+        ,p_c011            => i_app_title         
+        ,p_c012            => i_app_page_id       
+        ,p_c013            => i_app_page_alias    
+        ,p_d001            => i_created_date
+        ,p_d002            => i_updated_date
+      );
+  $if $$intlog $then intlog_start('add_node'); $end
+END add_node; 
+
+------------------------------------------------------------------------
+-- check_node_exists (private)
+-- Test node exists in the stack
+------------------------------------------------------------------------
+function check_node_exists(i_app_session in varchar2 default null
+                          ,i_app_id      in varchar2 default null
+                          ,i_app_page_id in varchar2 default null) return boolean is
+
+  cursor cu_node is
+  select * from sm_apex_context_collection_v
+  where  (app_session = i_app_session and apex_context_type IN ('SESSION','CLONE'))
+      or (app_id      = i_app_id      and apex_context_type = 'APP')
+      or (app_page_id = i_app_page_id and apex_context_type = 'PAGE');
+
+  l_dummy  cu_node%ROWTYPE;
+  l_result boolean;
+
+BEGIN
+  $if $$intlog $then intlog_start('check_node_exists'); $end
+  open cu_node;
+  fetch cu_node into l_dummy;
+  l_result := cu_node%FOUND;
+  close cu_node;
+  $if $$intlog $then intlog_end('check_node_exists'); $end
+  return l_result;
+
+end;
+ 
+
+------------------------------------------------------------------------
+-- get_apex_context_id (private)
+-- Finds the node and returns its ID.
+------------------------------------------------------------------------
+function get_apex_context_id(i_app_session in varchar2 default null
+                            ,i_app_id      in varchar2 default null
+                            ,i_app_page_id in varchar2 default null) return varchar2 is
+
+  cursor cu_node is
+  select * from sm_apex_context_collection_v
+  where  (app_session = i_app_session and apex_context_type IN ('SESSION','CLONE'))
+      or (app_id      = i_app_id      and apex_context_type = 'APP')
+      or (app_page_id = i_app_page_id and apex_context_type = 'PAGE');
+
+  l_app_context  SM_APEX_CONTEXT%ROWTYPE;
+ 
+BEGIN
+  $if $$intlog $then intlog_start('get_apex_context_id'); $end
+  open cu_node;
+  fetch cu_node into l_app_context;
+  close cu_node;
+  $if $$intlog $then intlog_end('get_apex_context_id'); $end
+  return l_app_context.APEX_CONTEXT_ID;
+
+end;
+
+procedure delete_nodes(i_keep_count in integer) is
+  l_count integer;
+BEGIN
+  $if $$intlog $then intlog_start('delete_nodes'); $end
+ loop 
+   l_count := APEX_COLLECTION.COLLECTION_MEMBER_COUNT( p_collection_name => G_APEX_CONTEXT_COLLECTION);
+   exit when l_count <= i_keep_count;
+   apex_collection.delete_member( p_collection_name => G_APEX_CONTEXT_COLLECTION, p_seq => l_count);
+ end loop;
+ $if $$intlog $then intlog_end('delete_nodes'); $end
+
+END;
+
+
+
+------------------------------------------------------------------------
+-- construct_apex_context (private)
+-- Setup the apex context node collection
+------------------------------------------------------------------------
+
+Procedure construct_apex_context is
+  
+  l_session_apex_context_id varchar2(50);
+  l_app_apex_context_id     varchar2(50);
+ 
+begin  
+  $if $$intlog $then intlog_start('construct_apex_context'); $end
+
+  $if $$intlog $then intlog_note('g_session.app_session',g_session.app_session);   $end
+  $if $$intlog $then intlog_note('g_session.app_id',g_session.app_id);   $end
+  $if $$intlog $then intlog_note('g_session.app_page_id',g_session.app_page_id);   $end
+ 
+    if g_session.app_session is not null then
+      --Setup the apex context node collection
+      if not apex_collection.collection_exists(p_collection_name => G_APEX_CONTEXT_COLLECTION) then
+        --Create the node collection
+        apex_collection.create_collection(p_collection_name => G_APEX_CONTEXT_COLLECTION);
+      end if;  
+
+      l_session_apex_context_id := get_apex_context_id(i_app_session => g_session.app_session);
+      if l_session_apex_context_id is null then
+
+        l_session_apex_context_id := 'S'||g_session.app_session;
+        --NB i do not prepend session_id which would be useful for ordering 
+        --because the clone session would not be able to identify the parent without doing a lookup.
+
+        $if $$intlog $then intlog_debug('Session not found');   $end
+
+        --Delete all nodes
+        $if $$intlog $then intlog_debug('Delete all nodes');   $end
+        delete_nodes(i_keep_count => 0);
+ 
+        --Create App Session node
+        IF g_session.parent_app_session is null then
+
+          add_node( i_apex_context_id   => l_session_apex_context_id
+                   ,i_apex_context_type => 'SESSION'
+                   ,i_parent_context_id => null
+                   ,i_app_user          => g_session.app_user 
+                   ,i_app_user_fullname => g_session.app_user_fullname 
+                   ,i_app_user_email    => g_session.app_user_email 
+                   ,i_app_session       => g_session.app_session
+                   ,i_parent_app_session=> g_session.parent_app_session
+                   ,i_created_date      => g_session.created_date);
+
+        else
+        
+          add_node( i_apex_context_id   => l_session_apex_context_id
+                   ,i_apex_context_type => 'CLONE'
+                   ,i_parent_context_id => 'S'||g_session.parent_app_session
+                   ,i_app_user          => g_session.app_user 
+                   ,i_app_user_fullname => g_session.app_user_fullname 
+                   ,i_app_user_email    => g_session.app_user_email 
+                   ,i_app_session       => g_session.app_session
+                   ,i_parent_app_session=> g_session.parent_app_session
+                   ,i_created_date      => g_session.created_date );
+ 
+        end if;  
+ 
+      end if;
+ 
+      l_app_apex_context_id := get_apex_context_id(i_app_id =>  g_session.app_id);
+      if l_app_apex_context_id is null then
+        l_app_apex_context_id := 'A'||g_session.session_id
+                               ||'+'||g_session.app_session
+                               ||'+'||g_session.app_id;
+ 
+        $if $$intlog $then intlog_debug('App not found');   $end
+        --Delete ndoes 2 and 3
+        $if $$intlog $then intlog_debug('Delete App and Page nodes');   $end
+        delete_nodes(i_keep_count => 1);
+ 
+         --Create App node 
+          add_node( i_apex_context_id   => l_app_apex_context_id
+                   ,i_apex_context_type => 'APP'
+                   ,i_parent_context_id => l_session_apex_context_id
+                   ,i_app_user          => g_session.app_user 
+                   ,i_app_user_fullname => g_session.app_user_fullname 
+                   ,i_app_user_email    => g_session.app_user_email 
+                   ,i_app_session       => g_session.app_session
+                   ,i_parent_app_session=> g_session.parent_app_session
+                   ,i_app_id            => g_session.app_id 
+                   ,i_app_alias         => g_session.app_alias
+                   ,i_app_title         => g_session.app_title
+                   ,i_created_date      => g_session.created_date  );   
+ 
+      end if;
+ 
+      --Set the actual apex context for every sm_session to the page apex_context
+      g_session.apex_context_id := get_apex_context_id(i_app_page_id => g_session.app_page_id);
+
+      if g_session.apex_context_id is null then
+        --Create the apex conext ID
+        g_session.apex_context_id := 'P'||g_session.session_id
+                                   ||'+'||g_session.app_session
+                                   ||'+'||g_session.app_id
+                                   ||'+'||g_session.app_page_id;
+    
+        $if $$intlog $then intlog_debug('Page not found');   $end
+ 
+        --Delete node 3
+        $if $$intlog $then intlog_debug('Delete Page node');   $end
+        delete_nodes(i_keep_count => 2);
+ 
+        --Create App Page node
+          add_node( i_apex_context_id   => g_session.apex_context_id
+                   ,i_apex_context_type => 'PAGE'
+                   ,i_parent_context_id => l_app_apex_context_id
+                   ,i_app_user          => g_session.app_user 
+                   ,i_app_user_fullname => g_session.app_user_fullname 
+                   ,i_app_user_email    => g_session.app_user_email 
+                   ,i_app_session       => g_session.app_session
+                   ,i_parent_app_session=> g_session.parent_app_session
+                   ,i_app_id            => g_session.app_id 
+                   ,i_app_alias         => g_session.app_alias
+                   ,i_app_title         => g_session.app_title     
+                   ,i_app_page_id       => g_session.app_page_id   
+                   ,i_app_page_alias    => g_session.app_page_alias
+                   ,i_created_date      => g_session.created_date );
+ 
+      end if;
+   end if;
+
+   $if $$intlog $then intlog_end('construct_apex_context'); $end
+end construct_apex_context;
+
+
+------------------------------------------------------------------------
+-- write_apex_context (private)
+-- Write any new context records to the context table
+------------------------------------------------------------------------
+procedure write_apex_context  is
+ 
+  l_apex_context SM_APEX_CONTEXT%ROWTYPE;
+
+  cursor cu_get_node is
+    select *
+    from  sm_apex_context_collection_v;
+ 
+BEGIN
+  $if $$intlog $then intlog_start('write_apex_context'); $end
+  open cu_get_node;
+  loop 
+    fetch cu_get_node into l_apex_context;
+    exit when cu_get_node%notfound;
+
+    begin
+      insert into SM_APEX_CONTEXT values l_apex_context;
+    exception
+      when dup_val_on_index then
+        null;  
+    end;
+
+  end loop;
+ 
+  $if $$intlog $then intlog_end('write_apex_context'); $end
+
+END write_apex_context;
+ 
+ 
+------------------------------------------------------------------------
+-- log_session (private)
+-- Write the session to the database
+------------------------------------------------------------------------
 PROCEDURE log_session is 
 
   PRAGMA AUTONOMOUS_TRANSACTION;
@@ -1086,12 +1377,16 @@ BEGIN
     --$if $$intlog $then intlog_note('i_origin  ',i_origin   );   $end
     --$if $$intlog $then intlog_note('i_ext_ref ',i_ext_ref  );   $end
     --$if $$intlog $then intlog_note('i_comments',i_comments );   $end
-	
+ 
     --Set the session_id
     g_session.session_id := sm_session_seq.NEXTVAL;
 	  $if $$intlog $then intlog_note('g_session.session_id',g_session.session_id);           $end
+
+    construct_apex_context;
+
+    write_apex_context;
  
-    --insert a new process
+    --insert a new logger session
     INSERT INTO sm_session VALUES g_session;
  
     COMMIT;
@@ -2719,3 +3014,5 @@ BEGIN
 end;
 /
 show error;
+
+--alter package sm_logger compile PLSQL_CCFlags = 'intlog:true' reuse settings;

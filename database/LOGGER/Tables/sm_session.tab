@@ -18,12 +18,14 @@ CREATE TABLE SM_SESSION
 	APP_ALIAS         VARCHAR2(50),
 	APP_TITLE         VARCHAR2(50),
 	APP_PAGE_ID       NUMBER,
-	APP_PAGE_ALIAS    VARCHAR2(50)
+	APP_PAGE_ALIAS    VARCHAR2(50),
+	APEX_CONTEXT_ID VARCHAR2(50)
    ) ;                                                                                                                                                                              
   ALTER TABLE SM_SESSION ADD CONSTRAINT PROCESS_PK PRIMARY KEY (SESSION_ID)                                                                                                         
   USING INDEX  ENABLE;                                                                                                                                                              
  
 ALTER TABLE SM_SESSION add PARENT_APP_SESSION VARCHAR2(50);
+ALTER TABLE SM_SESSION add APEX_CONTEXT_ID VARCHAR2(50);
  
                                                                                                                                                                                     
 CREATE SEQUENCE  SM_SESSION_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE   ;                         
