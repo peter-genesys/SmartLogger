@@ -4,7 +4,7 @@ select
   ,case 
     when a.apex_context_type = 'SESSION' then a.parent_context_id
     when a.apex_context_type = 'CLONE'   and v('SM_APP_SESSION') =  a.app_session then null
-    when a.apex_context_type = 'CLONE'   and v('SM_CLONE_AS_SIBLING') = 'Y' then null
+    when a.apex_context_type = 'CLONE'   and APEX_UTIL.GET_PREFERENCE('CLONE_AS_SIBLING') = 'Y' then null
     when a.apex_context_type = 'CLONE'   then a.parent_context_id
     when a.apex_context_type = 'APP'     then a.parent_context_id 
     when a.apex_context_type = 'PAGE'    then a.parent_context_id 
@@ -12,17 +12,17 @@ select
   ,a.apex_context_id                                                                id 
   ,case 
     when a.apex_context_type = 'SESSION' then 'Session '||a.app_session
-    when a.apex_context_type = 'CLONE'   and v('SM_APP_SESSION') =  a.app_session then 'Clone Session '||a.app_session
-    when a.apex_context_type = 'CLONE'   and v('SM_CLONE_AS_SIBLING') = 'Y'       then 'Clone Session '||a.app_session
-    when a.apex_context_type = 'CLONE'                                            then 'Child Session '||a.app_session
+    when a.apex_context_type = 'CLONE'   and v('SM_APP_SESSION') =  a.app_session               then 'Clone Session '||a.app_session
+    when a.apex_context_type = 'CLONE'   and APEX_UTIL.GET_PREFERENCE('CLONE_AS_SIBLING') = 'Y' then 'Clone Session '||a.app_session
+    when a.apex_context_type = 'CLONE'                                                          then 'Child Session '||a.app_session
     when a.apex_context_type = 'APP'     then 'F'||a.app_id 
     when a.apex_context_type = 'PAGE'    then 'P'||a.app_page_id  
    end                                                                               short_name
   ,case 
     when a.apex_context_type = 'SESSION' then 'Session '||a.app_session
-    when a.apex_context_type = 'CLONE'   and v('SM_APP_SESSION') =  a.app_session then 'Clone Session '||a.app_session
-    when a.apex_context_type = 'CLONE'   and v('SM_CLONE_AS_SIBLING') = 'Y'       then 'Clone Session '||a.app_session
-    when a.apex_context_type = 'CLONE'                                            then 'Child Session '||a.app_session
+    when a.apex_context_type = 'CLONE'   and v('SM_APP_SESSION') =  a.app_session               then 'Clone Session '||a.app_session
+    when a.apex_context_type = 'CLONE'   and APEX_UTIL.GET_PREFERENCE('CLONE_AS_SIBLING') = 'Y' then 'Clone Session '||a.app_session
+    when a.apex_context_type = 'CLONE'                                                          then 'Child Session '||a.app_session
     when a.apex_context_type = 'APP'     then 'App '||a.app_id||' '||a.app_alias
     when a.apex_context_type = 'PAGE'    then 'Page '||a.app_page_id||' '||a.app_page_alias 
    end                                                                               long_name
