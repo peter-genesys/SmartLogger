@@ -33,7 +33,7 @@ wwv_flow_api.create_page(
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180928152639'
+,p_last_upd_yyyymmddhh24miss=>'20180929013333'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(78757513162525146)
@@ -62,7 +62,7 @@ wwv_flow_api.create_page_plug(
 '  from sm_context_tree_v ct',
 '  start with id = :P40_ID',
 '  connect by prior id = parent_id',
-'  order siblings by id, session_date) a',
+'  order siblings by session_date, id) a',
 '  ,sm_message_vw m',
 'where m.call_id = a.call_id',
 'and   a.node_type IN (''TOPCALL'',''CALL'')     '))
@@ -1438,7 +1438,7 @@ wwv_flow_api.create_page_plug(
 '            else                           -1',
 '       end as status  ',
 '       ,level   ',
-'       ,DECODE(:P40_SHOW_MODULE_YN,''N'',short_name,long_name) title  ',
+'       ,DECODE(APEX_UTIL.GET_PREFERENCE(''LONG_NAMES''),''N'',short_name,long_name) title  ',
 '       ,case ',
 '         when node_type = ''SESSION'' then ''fa fa-user-circle''',
 '         when node_type = ''CLONE''   then ''fa fa-user-circle-o''',
@@ -1452,7 +1452,7 @@ wwv_flow_api.create_page_plug(
 'from sm_context_tree_v',
 'start with parent_id is null',
 'connect by prior id = parent_id',
-'order siblings by id, session_date'))
+'order siblings by session_date, id;'))
 ,p_plug_source_type=>'NATIVE_JSTREE'
 ,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
@@ -1562,27 +1562,10 @@ wwv_flow_api.create_page_button(
 wwv_flow_api.create_page_item(
  p_id=>wwv_flow_api.id(2044017331971426)
 ,p_name=>'P40_APP_USER'
-,p_item_sequence=>20
+,p_item_sequence=>30
 ,p_item_plug_id=>wwv_flow_api.id(78763716783525152)
 ,p_display_as=>'NATIVE_HIDDEN'
 ,p_attribute_01=>'N'
-);
-wwv_flow_api.create_page_item(
- p_id=>wwv_flow_api.id(25532082624902903)
-,p_name=>'P40_SHOW_MODULE_YN'
-,p_item_sequence=>30
-,p_item_plug_id=>wwv_flow_api.id(78763716783525152)
-,p_item_default=>'Y'
-,p_prompt=>'Show Long Name'
-,p_display_as=>'NATIVE_SELECT_LIST'
-,p_lov=>'STATIC2:Yes;Y,No;N'
-,p_cHeight=>1
-,p_grid_label_column_span=>4
-,p_field_template=>wwv_flow_api.id(35605363241315950)
-,p_item_template_options=>'#DEFAULT#'
-,p_lov_display_extra=>'YES'
-,p_attribute_01=>'SUBMIT'
-,p_attribute_03=>'Y'
 );
 wwv_flow_api.create_page_item(
  p_id=>wwv_flow_api.id(25735448588759242)
@@ -1595,7 +1578,7 @@ wwv_flow_api.create_page_item(
 wwv_flow_api.create_page_item(
  p_id=>wwv_flow_api.id(57764038684829403)
 ,p_name=>'P40_ID'
-,p_item_sequence=>10
+,p_item_sequence=>20
 ,p_item_plug_id=>wwv_flow_api.id(78763716783525152)
 ,p_display_as=>'NATIVE_HIDDEN'
 ,p_attribute_01=>'N'

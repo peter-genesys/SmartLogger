@@ -56,6 +56,7 @@
 @application/pages/page_00008.sql
 @application/pages/page_00009.sql
 @application/pages/page_00010.sql
+@application/pages/page_00011.sql
 @application/pages/page_00021.sql
 @application/pages/page_00022.sql
 @application/pages/page_00023.sql
