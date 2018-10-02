@@ -1,0 +1,22 @@
+                                                                                                                                                                                    
+drop table SM_LOG;
+CREATE TABLE SM_LOG                                                                                                                                                           
+   (ID   NUMBER NOT NULL ENABLE                                                                                                                                                                                                                                                                                                    
+   ,text VARCHAR2(1000)                                                                                                                                                                                                                                                                                                                             
+   ,TIME_NOW TIMESTAMP (9)                                                                                                                                                             
+   ) ;                                                                                                                                                                              
+  ALTER TABLE SM_LOG ADD CONSTRAINT SM_LOG_PK PRIMARY KEY (ID)                                                                                                         
+  USING INDEX  ENABLE;                                                                                                                                                              
+             
+DROP SEQUENCE SM_LOG_SEQ;
+CREATE SEQUENCE  SM_LOG_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE   ;                     
+                                                                                                                           
+CREATE OR REPLACE TRIGGER SM_LOG_BIR_ID BEFORE INSERT ON SM_LOG                                                                                                       
+  FOR EACH ROW                                                                                                                                                                      
+     WHEN (NEW.id IS NULL) BEGIN                                                                                                                                                    
+  :NEW.id   := SM_LOG_SEQ.nextval;   
+  :NEW.TIME_NOW := SYSTIMESTAMP;                                                                                                                                     
+END;                                                                                                                                                                                
+                                                                                                                                                                                    
+/                                                                                                                                                                                   
+ALTER TRIGGER SM_LOG_BIR_ID ENABLE;  

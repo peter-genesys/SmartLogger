@@ -1,0 +1,24 @@
+                                                                                                                                                                                    
+DROP TABLE sm_apex_context;
+CREATE TABLE sm_apex_context                                                                                                                                                         
+   (apex_context_id    varchar2(50),      
+    apex_context_type  varchar2(50),    
+    parent_context_id  varchar2(50),                                                                                                                                                                                                                                                                                                                                                                                                                         
+	app_user           varchar2(50),
+	app_user_fullname  varchar2(50),  
+	app_user_email     varchar2(50), 
+	app_session        varchar2(50),
+	parent_app_session varchar2(50),
+	app_id             varchar2(50),
+	app_alias          varchar2(50),
+	app_title          varchar2(50),
+	app_page_id        varchar2(50),
+	app_page_alias     varchar2(50),
+	created_date       date,                                                                                                                                                                 
+	updated_date       date 
+   ) ;        
+
+ALTER TABLE sm_apex_context ADD CONSTRAINT sm_apex_context_pk PRIMARY KEY (apex_context_id)                                                                                                         
+  USING INDEX  ENABLE;                                                                                                                                                              
+ 
+  
