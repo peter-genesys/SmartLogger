@@ -1268,8 +1268,8 @@ begin
       l_app_apex_context_id := get_apex_context_id(i_app_id =>  g_session.app_id);
       if l_app_apex_context_id is null then
         l_app_apex_context_id := 'A'||g_session.session_id
-                               ||'+'||g_session.app_session
-                               ||'+'||g_session.app_id;
+                               ||'_'||g_session.app_session
+                               ||'_'||g_session.app_id;
  
         $if $$intlog $then intlog_debug('App not found');   $end
         --Delete ndoes 2 and 3
@@ -1298,9 +1298,9 @@ begin
       if g_session.apex_context_id is null then
         --Create the apex conext ID
         g_session.apex_context_id := 'P'||g_session.session_id
-                                   ||'+'||g_session.app_session
-                                   ||'+'||g_session.app_id
-                                   ||'+'||g_session.app_page_id;
+                                   ||'_'||g_session.app_session
+                                   ||'_'||g_session.app_id
+                                   ||'_'||g_session.app_page_id;
     
         $if $$intlog $then intlog_debug('Page not found');   $end
  

@@ -1,4 +1,4 @@
-create or replace view sm_app_context_collection_v as 
+create or replace view sm_apex_context_collection_v as 
 --Matches structure of table sm_apex_context
 select c001  apex_context_id  
       ,c002  apex_context_type
