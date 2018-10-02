@@ -12,17 +12,10 @@ wwv_flow_api.create_menu_option(
 ,p_page_id=>3
 );
 wwv_flow_api.create_menu_option(
- p_id=>wwv_flow_api.id(25301237257164985)
-,p_parent_id=>0
-,p_short_name=>'Apex Sessions'
-,p_link=>'f?p=&APP_ID.:30:&SESSION.::&DEBUG.:::'
-,p_page_id=>30
-);
-wwv_flow_api.create_menu_option(
  p_id=>wwv_flow_api.id(25539554331902916)
-,p_parent_id=>wwv_flow_api.id(25301237257164985)
+,p_parent_id=>wwv_flow_api.id(26684849481153892)
 ,p_short_name=>'Messages'
-,p_link=>'f?p=&APP_ID.:40:&SESSION.'
+,p_link=>'f?p=&APP_ID.:40:&SESSION.::&DEBUG.:::'
 ,p_page_id=>40
 );
 wwv_flow_api.create_menu_option(
@@ -41,9 +34,16 @@ wwv_flow_api.create_menu_option(
 wwv_flow_api.create_menu_option(
  p_id=>wwv_flow_api.id(26684849481153892)
 ,p_parent_id=>0
-,p_short_name=>'User Activity'
+,p_short_name=>'Apex Sessions'
 ,p_link=>'f?p=&APP_ID.:5:&SESSION.::&DEBUG.:::'
 ,p_page_id=>5
+);
+wwv_flow_api.create_menu_option(
+ p_id=>wwv_flow_api.id(28621536192534600)
+,p_parent_id=>wwv_flow_api.id(25811729421917962)
+,p_short_name=>'Messages'
+,p_link=>'f?p=&APP_ID.:46:&SESSION.::&DEBUG.:::'
+,p_page_id=>46
 );
 wwv_flow_api.create_menu_option(
  p_id=>wwv_flow_api.id(36059355922607354)

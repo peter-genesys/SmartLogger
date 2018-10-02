@@ -22,20 +22,11 @@ wwv_flow_api.create_list_item(
 wwv_flow_api.create_list_item(
  p_id=>wwv_flow_api.id(26683985950153878)
 ,p_list_item_display_sequence=>1
-,p_list_item_link_text=>'User Activity'
+,p_list_item_link_text=>'Apex Sessions'
 ,p_list_item_link_target=>'f?p=&APP_ID.:5:&SESSION.::&DEBUG.::SM_APP_SESSION,SM_APP_USER::'
 ,p_parent_list_item_id=>wwv_flow_api.id(25645974049487723)
 ,p_list_item_current_type=>'COLON_DELIMITED_PAGE_LIST'
 ,p_list_item_current_for_pages=>'5'
-);
-wwv_flow_api.create_list_item(
- p_id=>wwv_flow_api.id(25294378698164958)
-,p_list_item_display_sequence=>15
-,p_list_item_link_text=>'Apex Sessions'
-,p_list_item_link_target=>'f?p=&APP_ID.:30:&SESSION.::&DEBUG.:RP,30:::'
-,p_parent_list_item_id=>wwv_flow_api.id(25645974049487723)
-,p_list_item_current_type=>'COLON_DELIMITED_PAGE_LIST'
-,p_list_item_current_for_pages=>'30,40'
 );
 wwv_flow_api.create_list_item(
  p_id=>wwv_flow_api.id(35627438043318929)
@@ -60,7 +51,7 @@ wwv_flow_api.create_list_item(
  p_id=>wwv_flow_api.id(25794152472917912)
 ,p_list_item_display_sequence=>25
 ,p_list_item_link_text=>'Logger Sessions'
-,p_list_item_link_target=>'f?p=&APP_ID.:35:&SESSION.::&DEBUG.::::'
+,p_list_item_link_target=>'f?p=&APP_ID.:35:&SESSION.::&DEBUG.::SM_DB_SESSION,SM_DB_USER::'
 ,p_parent_list_item_id=>wwv_flow_api.id(25645974049487723)
 ,p_list_item_current_type=>'COLON_DELIMITED_PAGE_LIST'
 ,p_list_item_current_for_pages=>'35'

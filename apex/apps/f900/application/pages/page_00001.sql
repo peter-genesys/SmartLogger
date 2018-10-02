@@ -19,15 +19,15 @@ wwv_flow_api.create_page(
 ,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180728234111'
+,p_last_upd_yyyymmddhh24miss=>'20180930023827'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(35941505421734638)
-,p_plug_name=>'Messages'
+,p_plug_name=>'Activity by Module'
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
 ,p_escape_on_http_output=>'Y'
 ,p_plug_template=>wwv_flow_api.id(35560371291315922)
-,p_plug_display_sequence=>40
+,p_plug_display_sequence=>30
 ,p_include_in_reg_disp_sel_yn=>'Y'
 ,p_plug_display_point=>'BODY_3'
 ,p_plug_source_type=>'NATIVE_JET_CHART'
@@ -148,11 +148,11 @@ wwv_flow_api.create_jet_chart_axis(
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(35942392748734647)
-,p_plug_name=>'Sessions'
+,p_plug_name=>'Activity by Date'
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
 ,p_escape_on_http_output=>'Y'
 ,p_plug_template=>wwv_flow_api.id(35560371291315922)
-,p_plug_display_sequence=>60
+,p_plug_display_sequence=>20
 ,p_include_in_reg_disp_sel_yn=>'Y'
 ,p_plug_display_point=>'BODY_3'
 ,p_plug_source_type=>'NATIVE_JET_CHART'
@@ -201,6 +201,28 @@ wwv_flow_api.create_jet_chart_series(
 ,p_line_type=>'auto'
 ,p_marker_rendered=>'auto'
 ,p_marker_shape=>'auto'
+,p_assigned_to_y2=>'on'
+,p_items_label_rendered=>false
+);
+wwv_flow_api.create_jet_chart_series(
+ p_id=>wwv_flow_api.id(28077825637555226)
+,p_chart_id=>wwv_flow_api.id(35942514147734648)
+,p_seq=>20
+,p_name=>'Messages'
+,p_data_source_type=>'SQL_QUERY'
+,p_data_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
+'select null',
+'     , to_char(trunc(created_date),''DD-MON-YYYY'') session_date',
+'     , sum(message_count) message_count',
+'from sm_session_v2',
+'group by trunc(created_date) ',
+'order by trunc(created_date) '))
+,p_items_value_column_name=>'MESSAGE_COUNT'
+,p_items_label_column_name=>'SESSION_DATE'
+,p_line_style=>'solid'
+,p_line_type=>'auto'
+,p_marker_rendered=>'auto'
+,p_marker_shape=>'auto'
 ,p_assigned_to_y2=>'off'
 ,p_items_label_rendered=>false
 );
@@ -209,7 +231,7 @@ wwv_flow_api.create_jet_chart_axis(
 ,p_chart_id=>wwv_flow_api.id(35942514147734648)
 ,p_axis=>'x'
 ,p_is_rendered=>'on'
-,p_title=>'Sessions'
+,p_title=>'Activity Dates'
 ,p_format_scaling=>'auto'
 ,p_scaling=>'linear'
 ,p_baseline_scaling=>'zero'
@@ -224,7 +246,7 @@ wwv_flow_api.create_jet_chart_axis(
 ,p_chart_id=>wwv_flow_api.id(35942514147734648)
 ,p_axis=>'y'
 ,p_is_rendered=>'on'
-,p_title=>'Session Date'
+,p_title=>'Messages'
 ,p_format_scaling=>'auto'
 ,p_scaling=>'linear'
 ,p_baseline_scaling=>'zero'
@@ -232,6 +254,21 @@ wwv_flow_api.create_jet_chart_axis(
 ,p_major_tick_rendered=>'on'
 ,p_minor_tick_rendered=>'off'
 ,p_tick_label_rendered=>'on'
+);
+wwv_flow_api.create_jet_chart_axis(
+ p_id=>wwv_flow_api.id(28077938607555227)
+,p_chart_id=>wwv_flow_api.id(35942514147734648)
+,p_axis=>'y2'
+,p_is_rendered=>'on'
+,p_title=>'Sessions'
+,p_format_scaling=>'auto'
+,p_scaling=>'linear'
+,p_baseline_scaling=>'zero'
+,p_position=>'auto'
+,p_major_tick_rendered=>'on'
+,p_minor_tick_rendered=>'off'
+,p_tick_label_rendered=>'on'
+,p_split_dual_y=>'auto'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(53231866369577623)
@@ -261,6 +298,48 @@ wwv_flow_api.create_page_plug(
 ,p_plug_source_type=>'NATIVE_BREADCRUMB'
 ,p_menu_template_id=>wwv_flow_api.id(35606742937315953)
 ,p_plug_query_row_template=>1
+);
+wwv_flow_api.create_page_button(
+ p_id=>wwv_flow_api.id(28153781527113935)
+,p_button_sequence=>10
+,p_button_plug_id=>wwv_flow_api.id(35942392748734647)
+,p_button_name=>'PURGE_OLD'
+,p_button_action=>'SUBMIT'
+,p_button_template_options=>'#DEFAULT#:t-Button--warning'
+,p_button_template_id=>wwv_flow_api.id(35605892992315953)
+,p_button_image_alt=>'Purge Old Sessions'
+,p_button_position=>'REGION_TEMPLATE_EDIT'
+);
+wwv_flow_api.create_page_button(
+ p_id=>wwv_flow_api.id(28154004937115172)
+,p_button_sequence=>20
+,p_button_plug_id=>wwv_flow_api.id(35942392748734647)
+,p_button_name=>'PURGE_ALL'
+,p_button_action=>'SUBMIT'
+,p_button_template_options=>'#DEFAULT#:t-Button--danger'
+,p_button_template_id=>wwv_flow_api.id(35605892992315953)
+,p_button_image_alt=>'Purge All Sessions'
+,p_button_position=>'REGION_TEMPLATE_EDIT'
+);
+wwv_flow_api.create_page_process(
+ p_id=>wwv_flow_api.id(28154225877116869)
+,p_process_sequence=>10
+,p_process_point=>'AFTER_SUBMIT'
+,p_process_type=>'NATIVE_PLSQL'
+,p_process_name=>'PurgeOldSessions'
+,p_process_sql_clob=>'sm_api.purge_old_sessions;'
+,p_process_when_button_id=>wwv_flow_api.id(28153781527113935)
+,p_process_success_message=>'Purged old messages'
+);
+wwv_flow_api.create_page_process(
+ p_id=>wwv_flow_api.id(28154546112118267)
+,p_process_sequence=>20
+,p_process_point=>'AFTER_SUBMIT'
+,p_process_type=>'NATIVE_PLSQL'
+,p_process_name=>'PurgeAllSessions'
+,p_process_sql_clob=>'sm_api.purge_old_sessions(i_keep_day_count => 0);'
+,p_process_when_button_id=>wwv_flow_api.id(28154004937115172)
+,p_process_success_message=>'Purged all messages'
 );
 end;
 /
