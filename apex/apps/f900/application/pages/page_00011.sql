@@ -16,7 +16,7 @@ wwv_flow_api.create_page(
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
 ,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20180929011526'
+,p_last_upd_yyyymmddhh24miss=>'20180930030700'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(27236484577775020)
@@ -76,6 +76,23 @@ wwv_flow_api.create_page_item(
 ,p_attribute_01=>'NONE'
 ,p_attribute_02=>'N'
 );
+wwv_flow_api.create_page_item(
+ p_id=>wwv_flow_api.id(28078087162555228)
+,p_name=>'P11_FLAT_VIEW'
+,p_item_sequence=>30
+,p_item_plug_id=>wwv_flow_api.id(27236484577775020)
+,p_prompt=>'Show Apex Sessions'
+,p_source=>'FLAT_VIEW'
+,p_source_type=>'PREFERENCE'
+,p_display_as=>'NATIVE_SELECT_LIST'
+,p_lov=>'STATIC2:Flat;Y,Master Detail;N'
+,p_cHeight=>1
+,p_field_template=>wwv_flow_api.id(35605363241315950)
+,p_item_template_options=>'#DEFAULT#'
+,p_lov_display_extra=>'NO'
+,p_attribute_01=>'NONE'
+,p_attribute_02=>'N'
+);
 wwv_flow_api.create_page_process(
  p_id=>wwv_flow_api.id(27237032421775026)
 ,p_process_sequence=>20
@@ -101,8 +118,20 @@ wwv_flow_api.create_page_process(
 ,p_process_when_button_id=>wwv_flow_api.id(27236765882775023)
 );
 wwv_flow_api.create_page_process(
- p_id=>wwv_flow_api.id(27236961910775025)
+ p_id=>wwv_flow_api.id(28078185510555229)
 ,p_process_sequence=>40
+,p_process_point=>'AFTER_SUBMIT'
+,p_process_type=>'NATIVE_USER_PREFERENCES'
+,p_process_name=>'Set Pref FLAT_VIEW'
+,p_attribute_01=>'SET_PREFERENCE_TO_ITEM_VALUE'
+,p_attribute_02=>'FLAT_VIEW'
+,p_attribute_03=>'P11_FLAT_VIEW'
+,p_error_display_location=>'INLINE_IN_NOTIFICATION'
+,p_process_when_button_id=>wwv_flow_api.id(27236765882775023)
+);
+wwv_flow_api.create_page_process(
+ p_id=>wwv_flow_api.id(27236961910775025)
+,p_process_sequence=>50
 ,p_process_point=>'AFTER_SUBMIT'
 ,p_process_type=>'NATIVE_CLOSE_WINDOW'
 ,p_process_name=>'Close Dialog'

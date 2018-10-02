@@ -31,5 +31,17 @@ wwv_flow_api.create_flow_item(
 ,p_scope=>'GLOBAL'
 ,p_protection_level=>'N'
 );
+wwv_flow_api.create_flow_item(
+ p_id=>wwv_flow_api.id(28466168183596175)
+,p_name=>'SM_DB_SESSION'
+,p_scope=>'GLOBAL'
+,p_protection_level=>'N'
+);
+wwv_flow_api.create_flow_item(
+ p_id=>wwv_flow_api.id(28465965734594629)
+,p_name=>'SM_DB_USER'
+,p_scope=>'GLOBAL'
+,p_protection_level=>'N'
+);
 end;
 /
