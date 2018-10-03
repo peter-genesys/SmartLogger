@@ -1,5 +1,4 @@
 @application/init.sql
-@application/set_environment.sql
 @application/delete_application.sql
 @application/ui_types.sql
 @application/create_application.sql
@@ -38,7 +37,6 @@
 @application/shared_components/globalization/dyntranslations.sql
 @application/shared_components/user_interface/shortcuts.sql
 @application/shared_components/security/authentications.sql
-@application/ui_types.sql
 @application/shared_components/plugins/dynamic_action/com_enkitec_clob_load.sql
 @application/shared_components/plugins/item_type/com_oracle_apex_simple_checkbox.sql
 @application/shared_components/plugins/item_type/mho_modal_lov.sql

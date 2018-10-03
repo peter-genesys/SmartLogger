@@ -38,7 +38,7 @@ select
    end                                                                               icon
   ,created_date                                                                    session_date
 from sm_apex_context   
-where app_user = NVL(UPPER(v('SM_APP_USER')),app_user)
+where app_user = NVL(lower(v('SM_APP_USER')),app_user)
 and   NVL(v('SM_APP_SESSION'),app_session) in (app_session, parent_app_session);
 
 
@@ -64,7 +64,7 @@ select
   ,s.created_date                                                                 session_date
   ,s.*  
   from sm_session_call_v s
-  where (app_user = UPPER(v('SM_APP_USER')) OR v('SM_APP_SESSION') in (app_session, parent_app_session))
+  where (app_user = lower(v('SM_APP_USER')) OR v('SM_APP_SESSION') in (app_session, parent_app_session))
   and parent_call_id is null 
 union all
 select 
@@ -81,7 +81,7 @@ select
   ,s.created_date                                                                 session_date
   ,s.*     
   from sm_session_call_v s
-  where (app_user = UPPER(v('SM_APP_USER')) OR v('SM_APP_SESSION') in (app_session, parent_app_session))
+  where (app_user = lower(v('SM_APP_USER')) OR v('SM_APP_SESSION') in (app_session, parent_app_session))
   and PARENT_CALL_ID is not null;
 
 

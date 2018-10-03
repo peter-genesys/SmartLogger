@@ -11,15 +11,16 @@ wwv_flow_api.create_page(
 ,p_first_item=>'NO_FIRST_ITEM'
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
+,p_dialog_chained=>'Y'
 ,p_overwrite_navigation_list=>'N'
 ,p_page_is_public_y_n=>'N'
 ,p_cache_mode=>'NOCACHE'
-,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20181002235357'
+,p_last_updated_by=>'BURGPETE'
+,p_last_upd_yyyymmddhh24miss=>'20181003122404'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(51129564379178574)
-,p_plug_name=>'Logger Sessions'
+,p_plug_name=>'Logger Sessions &SM_DB_USER.'
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
 ,p_component_template_options=>'#DEFAULT#'
 ,p_plug_template=>wwv_flow_api.id(35560371291315922)
@@ -43,7 +44,7 @@ wwv_flow_api.create_page_plug(
 '  ,warning_count			',
 '  ,exception_count		',
 '  ,message_count			',
-'  ,''C''||top_call_id||''_''||to_char(app_session)||''_''||app_id||''_''||app_page_id     id     ',
+'  ,top_call_id     id     ',
 '  ,case ',
 '     when APEX_UTIL.GET_PREFERENCE(''LONG_NAMES'') = ''Y'' then',
 '       origin                                           ',
@@ -54,12 +55,14 @@ wwv_flow_api.create_page_plug(
 ' ,''Session Calls - ''||s.username||'' ''||s.session_id                               tree_heading_user_session	',
 ' ,''Session Calls - ''||s.username                                                  tree_heading_user	',
 'from sm_session_v2      s',
-'where apex_context_id is null;'))
+'where apex_context_id is null',
+'and username = NVL(:SM_DB_USER,username)'))
 ,p_plug_source_type=>'NATIVE_IR'
+,p_ajax_items_to_submit=>'SM_DB_USER'
 ,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
-,p_plug_display_condition_type=>'ITEM_IS_NOT_NULL'
-,p_plug_display_when_condition=>'SM_DB_USER'
+,p_plug_display_condition_type=>'PLSQL_EXPRESSION'
+,p_plug_display_when_condition=>':SM_DB_USER IS NOT NULL OR APEX_UTIL.GET_PREFERENCE(''FLAT_VIEW'') = ''Y'''
 ,p_prn_content_disposition=>'ATTACHMENT'
 ,p_prn_document_header=>'APEX'
 ,p_prn_units=>'INCHES'
@@ -102,7 +105,7 @@ wwv_flow_api.create_worksheet(
 ,p_show_rows_per_page=>'N'
 ,p_show_notify=>'Y'
 ,p_download_formats=>'CSV:HTML:EMAIL:XLS:PDF:RTF'
-,p_detail_link=>'f?p=&APP_ID.:46:&SESSION.::&DEBUG.:RP:P46_TREE_HEADING,P46_MESSAGES_HEADING,P46_ID,SM_DB_USER,SM_DB_SESSION:Session Calls #SESSION_ID#,#TITLE#,#ID#,,#SESSION_ID#'
+,p_detail_link=>'f?p=&APP_ID.:46:&SESSION.::&DEBUG.:RP:P46_TREE_HEADING,P46_MESSAGES_HEADING,P46_ID,SM_DB_USER,SM_DB_SESSION:#TREE_HEADING_USER_SESSION#,#TITLE#,#ID#,,#SESSION_ID#'
 ,p_detail_link_text=>'<span class="#ICON#" title="#TITLE#"></span> '
 ,p_owner=>'PETER'
 ,p_internal_uid=>51129651416178575
@@ -113,8 +116,6 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>10
 ,p_column_identifier=>'A'
 ,p_column_label=>'Session ID'
-,p_column_link=>'f?p=&APP_ID.:40:&SESSION.::&DEBUG.:RP,RIR:P40_SESSION_ID:#SESSION_ID#'
-,p_column_linktext=>'#SESSION_ID#'
 ,p_column_type=>'NUMBER'
 ,p_heading_alignment=>'RIGHT'
 ,p_column_alignment=>'RIGHT'
@@ -134,7 +135,7 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>30
 ,p_column_identifier=>'C'
 ,p_column_label=>'Username'
-,p_column_link=>'f?p=&APP_ID.:46:&SESSION.::&DEBUG.:RP:P46_TREE_HEADING,P46_MESSAGES_HEADING,P46_ID,SM_DB_USER,SM_DB_SESSION:Logger Sessions #USERNAME#,Choose a Session,,#USERNAME#,'
+,p_column_link=>'f?p=&APP_ID.:46:&SESSION.::&DEBUG.:RP:P46_TREE_HEADING,P46_MESSAGES_HEADING,P46_ID,SM_DB_USER,SM_DB_SESSION:#TREE_HEADING_USER#,Choose a Session,,#USERNAME#,'
 ,p_column_linktext=>'#USERNAME#'
 ,p_column_link_attr=>'class="t-Button t-Button--primary t-Button--simple t-Button--small  t-Button--stretch"'
 ,p_column_type=>'STRING'
@@ -251,14 +252,6 @@ wwv_flow_api.create_worksheet_column(
 ,p_column_type=>'STRING'
 );
 wwv_flow_api.create_worksheet_column(
- p_id=>wwv_flow_api.id(28339921937107104)
-,p_db_column_name=>'ID'
-,p_display_order=>300
-,p_column_identifier=>'AB'
-,p_column_label=>'Id'
-,p_column_type=>'STRING'
-);
-wwv_flow_api.create_worksheet_column(
  p_id=>wwv_flow_api.id(28340052348107105)
 ,p_db_column_name=>'TITLE'
 ,p_display_order=>310
@@ -289,6 +282,15 @@ wwv_flow_api.create_worksheet_column(
 ,p_column_identifier=>'AF'
 ,p_column_label=>'Tree heading user'
 ,p_column_type=>'STRING'
+);
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(55281486409101037)
+,p_db_column_name=>'ID'
+,p_display_order=>350
+,p_column_identifier=>'AG'
+,p_column_label=>'Id'
+,p_column_type=>'NUMBER'
+,p_column_alignment=>'RIGHT'
 );
 wwv_flow_api.create_worksheet_rpt(
  p_id=>wwv_flow_api.id(51207415759423443)
@@ -340,11 +342,11 @@ wwv_flow_api.create_page_plug(
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'select ',
 '  username 			 		 ',
-' ,max(CREATED_DATE)  latest_session	',
-' ,count(session_id)  db_session_count',
-' ,sum(WARNING_COUNT) WARNING_COUNT				 ',
+' ,max(CREATED_DATE)    latest_session	',
+' ,count(session_id)    db_session_count',
+' ,sum(WARNING_COUNT)   WARNING_COUNT				 ',
 ' ,sum(EXCEPTION_COUNT) EXCEPTION_COUNT			 ',
-' ,sum(MESSAGE_COUNT) MESSAGE_COUNT	',
+' ,sum(MESSAGE_COUNT)   MESSAGE_COUNT	',
 'from sm_session_v2 s ',
 'where apex_context_id is null',
 'group by username'))
@@ -525,6 +527,7 @@ wwv_flow_api.create_page_da_action(
 '    return text.replace(''1. Primary Report'',my_primary_report_name);',
 '  }); // end of text change',
 '}); // end of option walk'))
+,p_stop_execution_on_error=>'Y'
 );
 end;
 /
