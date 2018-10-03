@@ -1041,11 +1041,11 @@ BEGIN
     else  
       g_session.origin         := io_node.module.module_name||'.'||io_node.unit.unit_name;
     end if;
-    g_session.username       := USER;
+    g_session.username       := lower(USER);
     g_session.created_date   := SYSDATE;      --This is when the process is cached, rather than when inserted.
     g_session.internal_error := 'N';  --reset internal error for the new process
     g_session.keep_yn        := 'N';
-    g_session.app_user       := v('APP_USER');
+    g_session.app_user       := lower(v('APP_USER'));
     --APP_USER_FULLNAME
     --APP_USER_EMAIL
     g_session.app_session         := v('APP_SESSION');

@@ -33,10 +33,11 @@ execute &&PATCH_ADMIN_user..patch_installer.patch_started( -
  ,i_patch_componants   => 'sm_apex_context.tab' -
 ||',sm_log.tab' -
 ||',sm_session.tab' -
-||',sm_apex_context_collection_v.vw' -
 ||',sm_context_tree_v.vw' -
 ||',sm_db_context_tree_v.vw' -
-||',sm_session_v3.vw' -
+||',sm_session_v2.vw' -
+||',sm_source_v.vw' -
+||',sm_views.vw' -
 ||',sm_api.pkb' -
 ||',sm_logger.pkb' -
  ,i_patch_create_date  => '10-03-2018' -
@@ -56,17 +57,17 @@ select user||'@'||global_name Connection from global_name;
 
 PROMPT TABLES
 
-PROMPT sm_apex_context.tab 
-@&&patch_path.sm_apex_context.tab;
-
-PROMPT sm_log.tab 
-@&&patch_path.sm_log.tab;
-
-PROMPT sm_session.tab 
-@&&patch_path.sm_session.tab;
+WHENEVER SQLERROR CONTINUE
+PROMPT sm_rebuild_tables.sql 
+@&&patch_path.sm_rebuild_tables.sql
+WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
 PROMPT VIEWS
 
+ 
+PROMPT sm_views.vw 
+@&&patch_path.sm_views.vw
+ 
 PROMPT sm_apex_context_collection_v.vw 
 @&&patch_path.sm_apex_context_collection_v.vw;
 Show error;
@@ -79,9 +80,15 @@ PROMPT sm_db_context_tree_v.vw
 @&&patch_path.sm_db_context_tree_v.vw;
 Show error;
 
+PROMPT sm_session_v2.vw 
+@&&patch_path.sm_session_v2.vw
+
 PROMPT sm_session_v3.vw 
 @&&patch_path.sm_session_v3.vw;
 Show error;
+
+PROMPT sm_source_v.vw 
+@&&patch_path.sm_source_v.vw
 
 PROMPT PACKAGE BODIES
 
