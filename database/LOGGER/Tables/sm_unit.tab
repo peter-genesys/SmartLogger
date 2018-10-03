@@ -1,25 +1,47 @@
-                                                                                                                                                                                    
-CREATE TABLE SM_UNIT                                                                                                                                                              
-   (	UNIT_ID NUMBER,                                                                                                                                                                
-	UNIT_NAME VARCHAR2(50),                                                                                                                                                            
-	UNIT_TYPE VARCHAR2(10),                                                                                                                                                            
-	MODULE_ID NUMBER,                                                                                                                                                                  
-	AUTO_WAKE VARCHAR2(1) DEFAULT 'N',                                                                                                                                                 
-	AUTO_MSG_MODE NUMBER,                                                                                                                                                              
-	MANUAL_MSG_MODE NUMBER                                                                                                                                                             
-   ) ;                                                                                                                                                                              
-  ALTER TABLE SM_UNIT ADD CONSTRAINT UNIT_PK PRIMARY KEY (UNIT_ID)                                                                                                                  
-  USING INDEX  ENABLE;                                                                                                                                                              
-  ALTER TABLE SM_UNIT ADD CHECK (AUTO_MSG_MODE in (1,2,4,99)) ENABLE;                                                                                                               
-  ALTER TABLE SM_UNIT ADD CHECK (MANUAL_MSG_MODE in (1,2,4,99)) ENABLE;                                                                                                             
-  ALTER TABLE SM_UNIT ADD CHECK (AUTO_WAKE in ('F','Y','N')) ENABLE;                                                                                                                
-  ALTER TABLE SM_UNIT ADD CONSTRAINT UNIT_MOD_FK FOREIGN KEY (MODULE_ID)                                                                                                            
-	  REFERENCES SM_MODULE (MODULE_ID) ON DELETE CASCADE ENABLE;                                                                                                                       
-                                                                                                                                                                                    
-                                                                                                                                                                                    
-   CREATE SEQUENCE  SM_UNIT_SEQ  MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE  NOORDER  NOCYCLE   ;                            
-                                                                                                                                                                                    
-                                                                                                                                                                                    
-  CREATE UNIQUE INDEX UNIT_UK ON SM_UNIT (MODULE_ID, UNIT_NAME)                                                                                                                     
-  ;                                                                                                                                                                                 
-                                                                                                                                                                                    
+CREATE TABLE sm_unit (
+  unit_id           NUMBER
+ ,unit_name         VARCHAR2(50)
+ ,unit_type         VARCHAR2(10)
+ ,module_id         NUMBER
+ ,auto_wake         VARCHAR2(1) DEFAULT 'N'
+ ,auto_msg_mode     NUMBER
+ ,manual_msg_mode   NUMBER
+);
+ALTER TABLE sm_unit
+  ADD CONSTRAINT unit_pk PRIMARY KEY ( unit_id )
+    USING INDEX enable;
+ALTER TABLE sm_unit
+  ADD CHECK ( auto_msg_mode IN (
+    1
+   ,2
+   ,4
+   ,99
+  ) ) ENABLE;
+ALTER TABLE sm_unit
+  ADD CHECK ( manual_msg_mode IN (
+    1
+   ,2
+   ,4
+   ,99
+  ) ) ENABLE;
+ALTER TABLE sm_unit
+  ADD CHECK ( auto_wake IN (
+    'F'
+   ,'Y'
+   ,'N'
+  ) ) ENABLE;
+ALTER TABLE sm_unit
+  ADD CONSTRAINT unit_mod_fk FOREIGN KEY ( module_id )
+    REFERENCES sm_module ( module_id )
+      ON DELETE CASCADE
+  ENABLE;
+
+
+CREATE SEQUENCE sm_unit_seq MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 63 NOCACHE NOORDER NOCYCLE;
+
+
+CREATE UNIQUE INDEX unit_uk ON
+  sm_unit (
+    module_id
+ ,unit_name
+  );

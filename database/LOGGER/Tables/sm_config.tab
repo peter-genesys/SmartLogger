@@ -1,8 +1,7 @@
-                                                                                                                                                                                    
-CREATE TABLE SM_CONFIG                                                                                                                                                            
-   (	NAME VARCHAR2(30) NOT NULL ENABLE,                                                                                                                                             
-	VALUE VARCHAR2(100)                                                                                                                                                                
-   ) ;    
-
-ALTER TABLE SM_CONFIG ADD CONSTRAINT SM_CONFIG_PK PRIMARY KEY (NAME) USING INDEX  ENABLE;                                                                                                                                                              
-                                                                                                                                                                                    
+CREATE TABLE sm_config (
+  name    VARCHAR2(30) NOT NULL ENABLE
+ ,value   VARCHAR2(100)
+);
+ALTER TABLE sm_config
+  ADD CONSTRAINT sm_config_pk PRIMARY KEY ( name )
+    USING INDEX enable;
