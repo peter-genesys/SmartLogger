@@ -4,7 +4,6 @@ wwv_flow_api.create_page(
  p_id=>24
 ,p_user_interface_id=>wwv_flow_api.id(37981134484256182)
 ,p_name=>'User Feedback'
-,p_page_mode=>'NORMAL'
 ,p_step_title=>'User Feedback'
 ,p_reload_on_submit=>'A'
 ,p_warn_on_unsaved_changes=>'N'
@@ -35,10 +34,7 @@ wwv_flow_api.create_page(
 '</script>'))
 ,p_step_template=>wwv_flow_api.id(35525832453315898)
 ,p_page_template_options=>'#DEFAULT#'
-,p_dialog_chained=>'Y'
-,p_overwrite_navigation_list=>'N'
 ,p_page_is_public_y_n=>'Y'
-,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
 ,p_last_upd_yyyymmddhh24miss=>'20180801110323'
@@ -50,8 +46,8 @@ wwv_flow_api.create_page_plug(
 ,p_component_template_options=>'#DEFAULT#'
 ,p_plug_template=>wwv_flow_api.id(35559327458315922)
 ,p_plug_display_sequence=>10
-,p_include_in_reg_disp_sel_yn=>'N'
 ,p_plug_display_point=>'BODY_3'
+,p_query_type=>'SQL'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'select a.* ',
 '      ,m.MESSAGE_ID',
@@ -74,7 +70,6 @@ wwv_flow_api.create_page_plug(
 '  ,sm_message_vw m',
 'where m.call_id = a.call_id'))
 ,p_plug_source_type=>'NATIVE_IR'
-,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
 );
 wwv_flow_api.create_worksheet(
@@ -362,7 +357,6 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_6=>'ASC'
 ,p_break_on=>'LEVEL_UNIT_NAME:0:0:0:0:0'
 ,p_break_enabled_on=>'0:0:0:0:0'
-,p_flashback_enabled=>'N'
 );
 wwv_flow_api.create_worksheet_condition(
  p_id=>wwv_flow_api.id(38795206473417389)
@@ -504,7 +498,6 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_6=>'ASC'
 ,p_break_on=>'LEVEL_UNIT_NAME:0:0:0:0:0'
 ,p_break_enabled_on=>'0:0:0:0:0'
-,p_flashback_enabled=>'N'
 );
 wwv_flow_api.create_worksheet_condition(
  p_id=>wwv_flow_api.id(39104221787281741)
@@ -645,7 +638,6 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_6=>'ASC'
 ,p_break_on=>'LEVEL_UNIT_NAME:0:0:0:0:0'
 ,p_break_enabled_on=>'0:0:0:0:0'
-,p_flashback_enabled=>'N'
 );
 wwv_flow_api.create_worksheet_condition(
  p_id=>wwv_flow_api.id(38797130664417391)
@@ -775,7 +767,6 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_6=>'ASC'
 ,p_break_on=>'LEVEL_UNIT_NAME:0:0:0:0:0'
 ,p_break_enabled_on=>'0:0:0:0:0'
-,p_flashback_enabled=>'N'
 );
 wwv_flow_api.create_worksheet_condition(
  p_id=>wwv_flow_api.id(38798112933417391)
@@ -857,7 +848,6 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_6=>'ASC'
 ,p_break_on=>'LEVEL_UNIT_NAME:0:0:0:0:0'
 ,p_break_enabled_on=>'0:0:0:0:0'
-,p_flashback_enabled=>'N'
 );
 wwv_flow_api.create_worksheet_condition(
  p_id=>wwv_flow_api.id(39106130478285042)

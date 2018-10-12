@@ -4,19 +4,13 @@ wwv_flow_api.create_page(
  p_id=>21
 ,p_user_interface_id=>wwv_flow_api.id(37981134484256182)
 ,p_name=>'Quick Weave'
-,p_page_mode=>'NORMAL'
 ,p_step_title=>'Quick Weave'
 ,p_reload_on_submit=>'A'
 ,p_warn_on_unsaved_changes=>'N'
 ,p_step_sub_title=>'Plugin Step 1'
 ,p_step_sub_title_type=>'TEXT_WITH_SUBSTITUTIONS'
-,p_first_item=>'NO_FIRST_ITEM'
 ,p_autocomplete_on_off=>'ON'
 ,p_page_template_options=>'#DEFAULT#'
-,p_dialog_chained=>'Y'
-,p_overwrite_navigation_list=>'N'
-,p_page_is_public_y_n=>'N'
-,p_cache_mode=>'NOCACHE'
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
 ,p_last_upd_yyyymmddhh24miss=>'20180801105924'
@@ -27,12 +21,10 @@ wwv_flow_api.create_page_plug(
 ,p_region_template_options=>'#DEFAULT#:t-Wizard--hideStepsXSmall'
 ,p_plug_template=>wwv_flow_api.id(35570409143315927)
 ,p_plug_display_sequence=>20
-,p_include_in_reg_disp_sel_yn=>'N'
 ,p_plug_display_point=>'BODY'
 ,p_list_id=>wwv_flow_api.id(35720076658393451)
 ,p_plug_source_type=>'NATIVE_LIST'
 ,p_list_template_id=>wwv_flow_api.id(35604144641315949)
-,p_plug_query_row_template=>1
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(38242834867087334)
@@ -42,9 +34,7 @@ wwv_flow_api.create_page_plug(
 ,p_component_template_options=>'#DEFAULT#'
 ,p_plug_template=>wwv_flow_api.id(35560371291315922)
 ,p_plug_display_sequence=>10
-,p_include_in_reg_disp_sel_yn=>'N'
 ,p_plug_display_point=>'BODY'
-,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
 ,p_attribute_01=>'N'
 ,p_attribute_02=>'HTML'
@@ -228,7 +218,6 @@ wwv_flow_api.create_page_validation(
 ,p_validation=>'P21_RAW_INPUT'
 ,p_validation_type=>'ITEM_NOT_NULL'
 ,p_error_message=>'#LABEL# must be supplied for conversion.'
-,p_always_execute=>'N'
 ,p_validation_condition_type=>'NEVER'
 ,p_associated_item=>wwv_flow_api.id(38245320135098986)
 ,p_error_display_location=>'INLINE_WITH_FIELD_AND_NOTIFICATION'

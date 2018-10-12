@@ -4,17 +4,11 @@ wwv_flow_api.create_page(
  p_id=>6
 ,p_user_interface_id=>wwv_flow_api.id(37981134484256182)
 ,p_name=>'Apex Errors'
-,p_page_mode=>'NORMAL'
 ,p_step_title=>'Apex Errors'
 ,p_step_sub_title=>'Apex Errors'
 ,p_step_sub_title_type=>'TEXT_WITH_SUBSTITUTIONS'
-,p_first_item=>'NO_FIRST_ITEM'
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
-,p_dialog_chained=>'Y'
-,p_overwrite_navigation_list=>'N'
-,p_page_is_public_y_n=>'N'
-,p_cache_mode=>'NOCACHE'
 ,p_last_updated_by=>'PETER'
 ,p_last_upd_yyyymmddhh24miss=>'20170510214522'
 );
@@ -25,12 +19,10 @@ wwv_flow_api.create_page_plug(
 ,p_component_template_options=>'#DEFAULT#'
 ,p_plug_template=>wwv_flow_api.id(35569579936315926)
 ,p_plug_display_sequence=>10
-,p_include_in_reg_disp_sel_yn=>'N'
 ,p_plug_display_point=>'REGION_POSITION_01'
 ,p_menu_id=>wwv_flow_api.id(53231447489577620)
 ,p_plug_source_type=>'NATIVE_BREADCRUMB'
 ,p_menu_template_id=>wwv_flow_api.id(35606742937315953)
-,p_plug_query_row_template=>1
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(36059471976607355)
@@ -38,14 +30,13 @@ wwv_flow_api.create_page_plug(
 ,p_region_template_options=>'#DEFAULT#'
 ,p_plug_template=>wwv_flow_api.id(35559327458315922)
 ,p_plug_display_sequence=>10
-,p_include_in_reg_disp_sel_yn=>'N'
 ,p_plug_display_point=>'BODY'
+,p_query_type=>'SQL'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'SELECT *',
 'FROM APEX_WORKSPACE_ACTIVITY_LOG',
 'WHERE ERROR_MESSAGE IS NOT NULL'))
 ,p_plug_source_type=>'NATIVE_IR'
-,p_plug_query_row_template=>1
 );
 wwv_flow_api.create_worksheet(
  p_id=>wwv_flow_api.id(36059563889607355)
@@ -426,13 +417,11 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_report_alias=>'113196'
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
-,p_display_rows=>50
 ,p_report_columns=>'VIEW_DATE:APEX_USER:APPLICATION_NAME:PAGE_ID:PAGE_NAME:ERROR_MESSAGE:ERROR_ON_COMPONENT_TYPE:ERROR_ON_COMPONENT_NAME:PAGE_VIEW_TYPE:REQUEST_VALUE:'
 ,p_sort_column_1=>'VIEW_DATE'
 ,p_sort_direction_1=>'DESC'
 ,p_sort_column_2=>'SECONDS_AGO'
 ,p_sort_direction_2=>'ASC'
-,p_flashback_enabled=>'N'
 );
 end;
 /

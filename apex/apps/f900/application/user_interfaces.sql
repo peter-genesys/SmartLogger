@@ -14,7 +14,7 @@ wwv_flow_api.create_user_interface(
 ,p_navigation_list_position=>'SIDE'
 ,p_navigation_list_template_id=>wwv_flow_api.id(35601272099315948)
 ,p_nav_list_template_options=>'#DEFAULT#'
-,p_include_legacy_javascript=>true
+,p_include_legacy_javascript=>'PRE18:18'
 ,p_include_jquery_migrate=>true
 ,p_nav_bar_type=>'NAVBAR'
 ,p_nav_bar_list_template_id=>wwv_flow_api.id(35601111888315947)

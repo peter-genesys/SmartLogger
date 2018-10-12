@@ -5,18 +5,18 @@ whenever sqlerror exit sql.sqlcode rollback
 -- ORACLE Application Express (APEX) export file
 --
 -- You should run the script connected to SQL*Plus as the Oracle user
--- APEX_050100 or as the owner (parsing schema) of the application.
+-- APEX_180200 or as the owner (parsing schema) of the application.
 --
 -- NOTE: Calls to apex_application_install override the defaults below.
 --
 --------------------------------------------------------------------------------
 begin
 wwv_flow_api.import_begin (
- p_version_yyyy_mm_dd=>'2016.08.24'
-,p_release=>'5.1.4.00.08'
+ p_version_yyyy_mm_dd=>'2018.05.24'
+,p_release=>'18.2.0.00.12'
 ,p_default_workspace_id=>12287443100895424
 ,p_default_application_id=>900
-,p_default_owner=>'LOGGER'
+,p_default_owner=>'LOGGEROWN'
 );
 end;
 /
@@ -29,7 +29,7 @@ prompt APPLICATION 900 - SmartLogger
 --   Exported By:     LOGGEROWN
 --   Flashback:       0
 --   Export Type:     Application Export
---   Version:         5.1.4.00.08
+--   Version:         18.2.0.00.12
 --   Instance ID:     63712309566204
 --
 
@@ -67,5 +67,6 @@ prompt APPLICATION 900 - SmartLogger
 --       Plug-ins:               6
 --     Globalization:
 --     Reports:
+--     E-Mail:
 --   Supporting Objects:  Excluded
 
