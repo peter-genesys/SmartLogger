@@ -1358,6 +1358,13 @@ BEGIN
     end;
 
   end loop;
+
+  
+  --Update the app_user on any existing context still showing nobody.
+  update SM_APEX_CONTEXT
+    set app_user = g_session.app_user
+  where app_session = g_session.app_session
+  and   LOWER(app_user) = 'nobody';
  
   $if $$intlog $then intlog_end('write_apex_context'); $end
 
