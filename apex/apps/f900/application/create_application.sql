@@ -8,7 +8,7 @@ wwv_flow_api.create_flow(
 ,p_alias=>nvl(wwv_flow_application_install.get_application_alias,'SMARTLOGGER')
 ,p_page_view_logging=>'YES'
 ,p_page_protection_enabled_y_n=>'Y'
-,p_checksum_salt_last_reset=>'20181003122404'
+,p_checksum_salt_last_reset=>'20181022095028'
 ,p_bookmark_checksum_function=>'MD5'
 ,p_max_session_length_sec=>28800
 ,p_compatibility_mode=>'5.1'
@@ -48,7 +48,7 @@ wwv_flow_api.create_flow(
 ,p_substitution_string_06=>'APP_ID_PROD'
 ,p_substitution_value_06=>'902'
 ,p_last_updated_by=>'BURGPETE'
-,p_last_upd_yyyymmddhh24miss=>'20181003122404'
+,p_last_upd_yyyymmddhh24miss=>'20181022095028'
 ,p_file_prefix => nvl(wwv_flow_application_install.get_static_app_file_prefix,'')
 ,p_ui_type_name => null
 );
