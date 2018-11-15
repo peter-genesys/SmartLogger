@@ -5045,7 +5045,8 @@ FUNCTION get_vars_from_compiled_object(i_name       in varchar2
                   ,i_type => i_type) THEN
       sm_logger.info(l_node,'Object is already PLScoped');
 
-    ELSIF i_name IN ('SM_LOGGER','SM_JOTTER','SM_API','SM_WEAVER') THEN
+    ELSIF i_name IN ('SM_LOGGER','SM_JOTTER','SM_API','SM_WEAVER') or 
+          i_owner LIKE 'APEX%' THEN
       sm_logger.warning(l_node,'Deny recompile of SmartLogger packages');
 
     ELSE

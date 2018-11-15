@@ -18,3 +18,5 @@ CREATE TABLE sm_apex_context (
 ALTER TABLE sm_apex_context
   ADD CONSTRAINT sm_apex_context_pk PRIMARY KEY ( apex_context_id )
     USING INDEX enable;
+
+CREATE INDEX  SM_APEX_CONTEXT_UK1 ON SM_APEX_CONTEXT ("PARENT_CONTEXT_ID");
