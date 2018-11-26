@@ -1276,6 +1276,11 @@ begin
         $if $$intlog $then intlog_debug('Delete App and Page nodes');   $end
         delete_nodes(i_keep_count => 1);
  
+        --get a registered module or register this one
+        l_node.module := find_module(i_module_name => g_session.app_id||':'||g_session.app_alias 
+                                    ,i_module_type => 'APEX_APP'); 
+        --store something in the node eg module_id
+ 
          --Create App node 
           add_node( i_apex_context_id   => l_app_apex_context_id
                    ,i_apex_context_type => 'APP'
@@ -1307,6 +1312,13 @@ begin
         --Delete node 3
         $if $$intlog $then intlog_debug('Delete Page node');   $end
         delete_nodes(i_keep_count => 2);
+
+        --get a registered unit or register this one
+        l_node.unit := find_unit(i_module_id   => l_node.module.module_id
+                                ,i_unit_name   => g_session.app_page_id||':'||g_session.app_page_alias ); 
+                                ,i_unit_type   => 'APEX_PAGE');
+        --store something in the node eg unit_id
+        --Make sure this plays a part in waking the logger.
  
         --Create App Page node
           add_node( i_apex_context_id   => g_session.apex_context_id
