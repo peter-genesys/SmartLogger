@@ -5,15 +5,10 @@ wwv_flow_api.create_page(
 ,p_user_interface_id=>wwv_flow_api.id(37981134484256182)
 ,p_name=>'Apex Sessions'
 ,p_alias=>'APEX_SESSIONS'
-,p_page_mode=>'NORMAL'
 ,p_step_title=>'Apex Sessions'
 ,p_step_sub_title_type=>'TEXT_WITH_SUBSTITUTIONS'
-,p_first_item=>'NO_FIRST_ITEM'
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
-,p_overwrite_navigation_list=>'N'
-,p_page_is_public_y_n=>'N'
-,p_cache_mode=>'NOCACHE'
 ,p_last_updated_by=>'PETER'
 ,p_last_upd_yyyymmddhh24miss=>'20181002234224'
 );
@@ -24,12 +19,10 @@ wwv_flow_api.create_page_plug(
 ,p_component_template_options=>'#DEFAULT#'
 ,p_plug_template=>wwv_flow_api.id(35569579936315926)
 ,p_plug_display_sequence=>10
-,p_include_in_reg_disp_sel_yn=>'N'
 ,p_plug_display_point=>'REGION_POSITION_01'
 ,p_menu_id=>wwv_flow_api.id(53231447489577620)
 ,p_plug_source_type=>'NATIVE_BREADCRUMB'
 ,p_menu_template_id=>wwv_flow_api.id(35606742937315953)
-,p_plug_query_row_template=>1
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(27237571483775031)
@@ -41,6 +34,7 @@ wwv_flow_api.create_page_plug(
 ,p_include_in_reg_disp_sel_yn=>'Y'
 ,p_plug_new_grid_row=>false
 ,p_plug_display_point=>'BODY'
+,p_query_type=>'SQL'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'select ',
 '  s.APP_SESSION		 appsession		 ',
@@ -268,11 +262,9 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_report_alias=>'280695'
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
-,p_display_rows=>50
 ,p_report_columns=>'APPUSER:TITLE:MESSAGE_COUNT:WARNING_COUNT:EXCEPTION_COUNT:CREATED_DATE:'
 ,p_sort_column_1=>'CREATED_DATE'
 ,p_sort_direction_1=>'DESC'
-,p_flashback_enabled=>'N'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(50970920155756445)
@@ -284,6 +276,7 @@ wwv_flow_api.create_page_plug(
 ,p_include_in_reg_disp_sel_yn=>'Y'
 ,p_plug_grid_column_span=>6
 ,p_plug_display_point=>'BODY'
+,p_query_type=>'SQL'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'select ',
 '  APP_USER           appuser	 		   ',
@@ -300,7 +293,6 @@ wwv_flow_api.create_page_plug(
 ' ,APP_USER_FULLNAME			 ',
 ' ,APP_USER_EMAIL 	'))
 ,p_plug_source_type=>'NATIVE_IR'
-,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
 ,p_plug_display_condition_type=>'USER_PREF_IN_COND_NOT_EQ_COND2'
 ,p_plug_display_when_condition=>'FLAT_VIEW'
@@ -439,7 +431,6 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_report_alias=>'267596'
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
-,p_display_rows=>50
 ,p_report_columns=>'APPUSER:SESSION_COUNT:MESSAGE_COUNT:WARNING_COUNT:EXCEPTION_COUNT:LATEST_SESSION:'
 ,p_sort_column_1=>'LATEST_SESSION'
 ,p_sort_direction_1=>'DESC'
@@ -453,7 +444,6 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_5=>'ASC'
 ,p_sort_column_6=>'0'
 ,p_sort_direction_6=>'ASC'
-,p_flashback_enabled=>'N'
 );
 wwv_flow_api.create_worksheet_condition(
  p_id=>wwv_flow_api.id(28404492525032270)

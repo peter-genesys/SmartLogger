@@ -5,7 +5,6 @@ wwv_flow_api.create_page(
 ,p_user_interface_id=>wwv_flow_api.id(37981134484256182)
 ,p_tab_set=>'TS1'
 ,p_name=>'Source Library'
-,p_page_mode=>'NORMAL'
 ,p_step_title=>'Source Library'
 ,p_reload_on_submit=>'A'
 ,p_warn_on_unsaved_changes=>'N'
@@ -13,12 +12,7 @@ wwv_flow_api.create_page(
 ,p_first_item=>'AUTO_FIRST_ITEM'
 ,p_autocomplete_on_off=>'ON'
 ,p_page_template_options=>'#DEFAULT#'
-,p_dialog_chained=>'Y'
-,p_overwrite_navigation_list=>'N'
 ,p_nav_list_template_options=>'#DEFAULT#'
-,p_page_is_public_y_n=>'N'
-,p_cache_mode=>'NOCACHE'
-,p_cache_timeout_seconds=>21600
 ,p_help_text=>'No help is available for this page.'
 ,p_last_updated_by=>'PETER'
 ,p_last_upd_yyyymmddhh24miss=>'20180729004015'
@@ -30,8 +24,8 @@ wwv_flow_api.create_page_plug(
 ,p_component_template_options=>'#DEFAULT#'
 ,p_plug_template=>wwv_flow_api.id(35560371291315922)
 ,p_plug_display_sequence=>10
-,p_include_in_reg_disp_sel_yn=>'N'
 ,p_plug_display_point=>'BODY_3'
+,p_query_type=>'SQL'
 ,p_plug_source=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'select ',
 'name',
@@ -59,7 +53,6 @@ wwv_flow_api.create_page_plug(
 'from sm_source_v ',
 '  '))
 ,p_plug_source_type=>'NATIVE_IR'
-,p_plug_query_row_template=>1
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
 );
 wwv_flow_api.create_worksheet(
@@ -205,7 +198,6 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_report_columns=>'NAME:TYPE:ORIG_VALID_YN:ORIG_LOAD_DATETIME:AOP_VALID_YN:AOP_LOAD_DATETIME:HTML_LOAD_DATETIME:USING_AOP::STATUS:ELASPED_MINS'
 ,p_break_on=>'USING_AOP:0:0:0:0:0'
 ,p_break_enabled_on=>'USING_AOP:0:0:0:0:0'
-,p_flashback_enabled=>'N'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(38103025278670916)
@@ -214,12 +206,10 @@ wwv_flow_api.create_page_plug(
 ,p_component_template_options=>'#DEFAULT#'
 ,p_plug_template=>wwv_flow_api.id(35569579936315926)
 ,p_plug_display_sequence=>1
-,p_include_in_reg_disp_sel_yn=>'N'
 ,p_plug_display_point=>'REGION_POSITION_01'
 ,p_menu_id=>wwv_flow_api.id(53231447489577620)
 ,p_plug_source_type=>'NATIVE_BREADCRUMB'
 ,p_menu_template_id=>wwv_flow_api.id(35606742937315953)
-,p_plug_query_row_template=>1
 );
 end;
 /
