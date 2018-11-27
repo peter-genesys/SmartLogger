@@ -1208,6 +1208,7 @@ Procedure construct_apex_context is
   
   l_session_apex_context_id varchar2(50);
   l_app_apex_context_id     varchar2(50);
+  l_node sm_logger.node_typ;  
  
 begin  
   $if $$intlog $then intlog_start('construct_apex_context'); $end
@@ -1315,7 +1316,7 @@ begin
 
         --get a registered unit or register this one
         l_node.unit := find_unit(i_module_id   => l_node.module.module_id
-                                ,i_unit_name   => g_session.app_page_id||':'||g_session.app_page_alias ); 
+                                ,i_unit_name   => g_session.app_page_id||':'||g_session.app_page_alias 
                                 ,i_unit_type   => 'APEX_PAGE');
         --store something in the node eg unit_id
         --Make sure this plays a part in waking the logger.
