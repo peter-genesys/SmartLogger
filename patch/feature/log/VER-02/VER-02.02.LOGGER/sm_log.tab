@@ -1,0 +1,23 @@
+CREATE TABLE sm_log (
+  id         NUMBER NOT NULL ENABLE
+ ,text       VARCHAR2(1000)
+ ,time_now   TIMESTAMP(9)
+);
+ALTER TABLE sm_log
+  ADD CONSTRAINT sm_log_pk PRIMARY KEY ( id )
+    USING INDEX enable;
+
+
+CREATE SEQUENCE sm_log_seq MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 1 NOCACHE NOORDER NOCYCLE;
+
+
+CREATE OR REPLACE TRIGGER sm_log_bir_id BEFORE
+  INSERT ON sm_log
+  FOR EACH ROW
+  WHEN ( new.id IS NULL )
+BEGIN
+  :new.id := sm_log_seq.nextval;
+  :new.time_now := systimestamp;
+END;
+/
+ALTER TRIGGER sm_log_bir_id ENABLE;
