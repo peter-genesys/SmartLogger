@@ -5311,8 +5311,9 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                     and   owner = l_owner
                                     and   type in ('PACKAGE','PACKAGE BODY') --Get refs of both the spec and body
                                     and referenced_type = 'PACKAGE' 
-                                    and referenced_owner NOT IN ( 'SYS' ,'APEX_050100')
-                                    and referenced_name not in ('sm_logger','sm_weaver',i_package_name)) LOOP
+                                    and referenced_owner NOT IN ( 'SYS') 
+                                    and referenced_owner NOT LIKE 'APEX%'
+                                    and LOWER(referenced_name) not in ('sm_logger','sm_weaver',i_package_name)) LOOP
 
         --Get a list of variables from any package spec directly referenced from the spec or body of this package.
         l_var_list := get_vars_from_compiled_object(i_name     => l_referenced_object.referenced_name
@@ -5441,8 +5442,9 @@ and   t.usage_context_id = v.usage_id ) LOOP
                                     and   owner = i_object_owner
                                     and   type in ('PACKAGE','PACKAGE BODY') --Get refs of both the spec and body
                                     and referenced_type = 'PACKAGE' 
-                                    and referenced_owner NOT IN ( 'SYS' ,'APEX_050100')
-                                    and referenced_name not in ('sm_logger','sm_weaver',i_object_name)) LOOP
+                                    and referenced_owner NOT IN ( 'SYS')
+                                    and referenced_owner NOT LIKE 'APEX%'
+                                    and LOWER(referenced_name) not in ('sm_logger','sm_weaver',i_object_name)) LOOP
 
         --Get a list of variables from any package spec directly referenced from the spec or body of this package.
         l_var_list := get_vars_from_compiled_object(i_name     => l_referenced_object.referenced_name
