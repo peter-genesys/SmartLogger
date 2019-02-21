@@ -1,10 +1,17 @@
+--define LOGGER_user=LOGGER
+--define LOGGER_default_tablespace=USR
+--define LOGGER_temp_tablespace=TEMP
+ 
 CREATE USER &&LOGGER_user identified by &&LOGGER_password;
 
 -- USER SQL
-ALTER USER &&LOGGER_user 
-DEFAULT TABLESPACE "USERS"
-TEMPORARY TABLESPACE "TEMP"
+ALTER USER &&LOGGER_user  
+DEFAULT TABLESPACE "&&LOGGER_default_tablespace"
+TEMPORARY TABLESPACE "&&LOGGER_temp_tablespace"
 ACCOUNT UNLOCK ;
+
+-- QUOTAS
+ALTER USER "LOGGER" QUOTA UNLIMITED ON "&&LOGGER_default_tablespace";
 
 -- ROLES
 grant connect to &&LOGGER_user;
@@ -33,7 +40,5 @@ grant create public synonym to &&LOGGER_user;
 
 grant create job to &&LOGGER_user;
 
- 
--- QUOTAS
-ALTER USER &&LOGGER_user QUOTA UNLIMITED ON &&LOGGER_tablespace;
+
 
