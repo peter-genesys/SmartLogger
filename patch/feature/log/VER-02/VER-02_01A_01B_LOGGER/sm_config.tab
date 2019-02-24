@@ -1,7 +1,0 @@
-CREATE TABLE sm_config (
-  name    VARCHAR2(30) NOT NULL ENABLE
- ,value   VARCHAR2(100)
-);
-ALTER TABLE sm_config
-  ADD CONSTRAINT sm_config_pk PRIMARY KEY ( name )
-    USING INDEX enable;
