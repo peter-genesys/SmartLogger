@@ -1,0 +1,33 @@
+{
+	"build_systems":
+	[
+		{
+			"cmd":
+			[
+				"C:\\oracle\\sqlcl\\bin\\sql.exe",
+				"DEMO/oracle@localhost:1521/orcl",
+				"@$project_path\\run_commit_exit.sql",
+				"$file"
+			],
+			"name": "VM DEMO",
+			"selector": "source.plsql.oracle"
+		},
+		{
+			"cmd":
+			[
+				"C:\\oracle\\sqlcl\\bin\\sql.exe",
+				"DEMO/oracle@localhost:1521/orcl",
+				"@$project_path\\run_weave_exit.sql",
+				"$file"
+			],
+			"name": "VM DEMO - weave",
+			"selector": "source.plsql.oracle"
+		}
+	],
+	"folders":
+	[
+		{
+			"path": "../.."
+		}
+	]
+}
