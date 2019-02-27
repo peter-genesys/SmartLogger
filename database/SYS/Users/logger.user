@@ -6,16 +6,16 @@ CREATE USER &&LOGGER_user identified by &&LOGGER_password;
 
 -- USER SQL
 ALTER USER &&LOGGER_user  
-DEFAULT TABLESPACE "&&LOGGER_default_tablespace"
-TEMPORARY TABLESPACE "&&LOGGER_temp_tablespace"
+DEFAULT TABLESPACE &&LOGGER_default_tablespace
+TEMPORARY TABLESPACE &&LOGGER_temp_tablespace
 ACCOUNT UNLOCK ;
 
 -- QUOTAS
-ALTER USER "&&LOGGER_user" QUOTA UNLIMITED ON "&&LOGGER_default_tablespace";
+ALTER USER &&LOGGER_user QUOTA UNLIMITED ON &&LOGGER_default_tablespace;
 
 -- ROLES
 grant connect to &&LOGGER_user;
-ALTER USER &&LOGGER_user DEFAULT ROLE "CONNECT";
+ALTER USER &&LOGGER_user DEFAULT ROLE CONNECT;
 
 -- SYSTEM PRIVILEGES
 grant create table to &&LOGGER_user;
