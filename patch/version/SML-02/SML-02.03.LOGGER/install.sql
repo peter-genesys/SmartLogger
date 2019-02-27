@@ -25,7 +25,7 @@ execute &&APEXRM_user..arm_installer.patch_started( -
   i_patch_name         => 'SML-02.03.LOGGER' -
  ,i_patch_type         => 'version' -
  ,i_db_schema          => 'LOGGER' -
- ,i_app_code           => 'LOG' -
+ ,i_app_code           => 'SML' -
  ,i_branch_name        => 'version/SML-02' -
  ,i_tag_from           => 'SML-02.03A' -
  ,i_tag_to             => 'SML-02.03B' -
