@@ -1,4 +1,4 @@
-create or replace public synonym sm_api        for LOGGEROWN.sm_api;
-create or replace public synonym sm_logger     for LOGGEROWN.sm_logger;
-create or replace public synonym sm_weaver     for LOGGEROWN.sm_processor;
-create or replace public synonym sm_jotter     for LOGGEROWN.sm_jotter;
+create or replace public synonym sm_api        for &&LOGGER_user..sm_api;
+create or replace public synonym sm_logger     for &&LOGGER_user..sm_logger;
+create or replace public synonym sm_weaver     for &&LOGGER_user..sm_weaver;
+create or replace public synonym sm_jotter     for &&LOGGER_user..sm_jotter;
