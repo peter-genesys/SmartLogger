@@ -22,7 +22,7 @@ execute &&APEXRM_user..arm_installer.patch_started( -
   i_patch_name         => 'SML-0.0.2A' -
  ,i_patch_type         => 'release' -
  ,i_db_schema          => 'APEXRM' -
- ,i_app_code           => '' -
+ ,i_app_code           => 'SML' -
  ,i_branch_name        => 'release/SML-0.0.1' -
  ,i_tag_from           => 'VER-01.01B' -
  ,i_tag_to             => 'HEAD' -
