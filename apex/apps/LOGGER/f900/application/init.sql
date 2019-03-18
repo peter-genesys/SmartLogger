@@ -30,7 +30,7 @@ prompt APPLICATION 900 - SmartLogger
 --   Flashback:       0
 --   Export Type:     Application Export
 --   Version:         18.2.0.00.12
---   Instance ID:     63712309566204
+--   Instance ID:     248249685159480
 --
 
 -- Application Statistics:
