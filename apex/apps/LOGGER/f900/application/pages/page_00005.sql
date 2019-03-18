@@ -9,8 +9,8 @@ wwv_flow_api.create_page(
 ,p_step_sub_title_type=>'TEXT_WITH_SUBSTITUTIONS'
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
-,p_last_updated_by=>'PETER'
-,p_last_upd_yyyymmddhh24miss=>'20181002234224'
+,p_last_updated_by=>'BURGPETE'
+,p_last_upd_yyyymmddhh24miss=>'20190318043645'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(26684462065153888)
@@ -42,7 +42,8 @@ wwv_flow_api.create_page_plug(
 ' ,s.APP_USER_FULLNAME			 ',
 ' ,s.APP_USER_EMAIL 			 ',
 ' ,s.APP_ID 					   ',
-' ,s.INTERNAL_ERROR 			 ',
+' ,s.INTERNAL_ERROR 		',
+'  ,INTERNAL_ERROR_COUNT   ',
 ' ,s.CREATED_DATE				 ',
 ' ,s.UPDATED_DATE				 ',
 ' ,s.WARNING_COUNT				 ',
@@ -255,6 +256,27 @@ wwv_flow_api.create_worksheet_column(
 ,p_column_label=>'Icon'
 ,p_column_type=>'STRING'
 );
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(1937623726495603)
+,p_db_column_name=>'INTERNAL_ERROR_COUNT'
+,p_display_order=>170
+,p_column_identifier=>'S'
+,p_column_label=>'Fail Count'
+,p_column_type=>'NUMBER'
+,p_column_alignment=>'RIGHT'
+);
+wwv_flow_api.create_worksheet_rpt(
+ p_id=>wwv_flow_api.id(1946436431535481)
+,p_application_user=>'APXWS_ALTERNATIVE'
+,p_name=>'Internal Failure'
+,p_report_seq=>10
+,p_report_alias=>'19465'
+,p_status=>'PUBLIC'
+,p_is_default=>'Y'
+,p_report_columns=>'TITLE:INTERNAL_ERROR:INTERNAL_ERROR_COUNT:CREATED_DATE:'
+,p_sort_column_1=>'CREATED_DATE'
+,p_sort_direction_1=>'DESC'
+);
 wwv_flow_api.create_worksheet_rpt(
  p_id=>wwv_flow_api.id(28069455129505930)
 ,p_application_user=>'APXWS_DEFAULT'
@@ -262,7 +284,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_report_alias=>'280695'
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
-,p_report_columns=>'APPUSER:TITLE:MESSAGE_COUNT:WARNING_COUNT:EXCEPTION_COUNT:CREATED_DATE:'
+,p_report_columns=>'TITLE:MESSAGE_COUNT:WARNING_COUNT:EXCEPTION_COUNT:CREATED_DATE:'
 ,p_sort_column_1=>'CREATED_DATE'
 ,p_sort_direction_1=>'DESC'
 );
@@ -287,6 +309,8 @@ wwv_flow_api.create_page_plug(
 ' ,sum(WARNING_COUNT) WARNING_COUNT				 ',
 ' ,sum(EXCEPTION_COUNT) EXCEPTION_COUNT			 ',
 ' ,sum(MESSAGE_COUNT) MESSAGE_COUNT	',
+' ,max(INTERNAL_ERROR)            INTERNAL_ERROR',
+' ,sum(INTERNAL_ERROR_COUNT)      INTERNAL_ERROR_COUNT',
 'from sm_session_v3 s ',
 'group by ',
 '  APP_USER			 		   ',
@@ -424,14 +448,32 @@ wwv_flow_api.create_worksheet_column(
 ,p_tz_dependent=>'N'
 ,p_column_comment=>'Latest logger session CREATED_DATE, not latest apex session CREATED_DATE'
 );
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(1937408565495601)
+,p_db_column_name=>'INTERNAL_ERROR'
+,p_display_order=>90
+,p_column_identifier=>'AC'
+,p_column_label=>'Failed'
+,p_column_type=>'STRING'
+);
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(1937574591495602)
+,p_db_column_name=>'INTERNAL_ERROR_COUNT'
+,p_display_order=>100
+,p_column_identifier=>'AD'
+,p_column_label=>'Fail Count'
+,p_column_type=>'NUMBER'
+,p_column_alignment=>'RIGHT'
+);
 wwv_flow_api.create_worksheet_rpt(
- p_id=>wwv_flow_api.id(52114923921944293)
-,p_application_user=>'APXWS_DEFAULT'
+ p_id=>wwv_flow_api.id(1943914801505762)
+,p_application_user=>'APXWS_ALTERNATIVE'
+,p_name=>'Internal Failure'
 ,p_report_seq=>10
-,p_report_alias=>'267596'
+,p_report_alias=>'19440'
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
-,p_report_columns=>'APPUSER:SESSION_COUNT:MESSAGE_COUNT:WARNING_COUNT:EXCEPTION_COUNT:LATEST_SESSION:'
+,p_report_columns=>'APPUSER:SESSION_COUNT:INTERNAL_ERROR:INTERNAL_ERROR_COUNT:LATEST_SESSION:'
 ,p_sort_column_1=>'LATEST_SESSION'
 ,p_sort_direction_1=>'DESC'
 ,p_sort_column_2=>'CREATED_DATE'
@@ -446,7 +488,40 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_6=>'ASC'
 );
 wwv_flow_api.create_worksheet_condition(
- p_id=>wwv_flow_api.id(28404492525032270)
+ p_id=>wwv_flow_api.id(1944343033505766)
+,p_report_id=>wwv_flow_api.id(1943914801505762)
+,p_condition_type=>'FILTER'
+,p_allow_delete=>'Y'
+,p_column_name=>'MESSAGE_COUNT'
+,p_operator=>'>'
+,p_expr=>'0'
+,p_condition_sql=>'"MESSAGE_COUNT" > to_number(#APXWS_EXPR#)'
+,p_condition_display=>'#APXWS_COL_NAME# > #APXWS_EXPR_NUMBER#  '
+,p_enabled=>'Y'
+);
+wwv_flow_api.create_worksheet_rpt(
+ p_id=>wwv_flow_api.id(52114923921944293)
+,p_application_user=>'APXWS_DEFAULT'
+,p_report_seq=>10
+,p_report_alias=>'267596'
+,p_status=>'PUBLIC'
+,p_is_default=>'Y'
+,p_report_columns=>'APPUSER:SESSION_COUNT:MESSAGE_COUNT:EXCEPTION_COUNT:WARNING_COUNT:LATEST_SESSION:'
+,p_sort_column_1=>'LATEST_SESSION'
+,p_sort_direction_1=>'DESC'
+,p_sort_column_2=>'CREATED_DATE'
+,p_sort_direction_2=>'DESC'
+,p_sort_column_3=>'0'
+,p_sort_direction_3=>'ASC'
+,p_sort_column_4=>'0'
+,p_sort_direction_4=>'ASC'
+,p_sort_column_5=>'0'
+,p_sort_direction_5=>'ASC'
+,p_sort_column_6=>'0'
+,p_sort_direction_6=>'ASC'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(1955412346658325)
 ,p_report_id=>wwv_flow_api.id(52114923921944293)
 ,p_condition_type=>'FILTER'
 ,p_allow_delete=>'Y'
