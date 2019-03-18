@@ -19,12 +19,12 @@ define patch_name = 'SML-02.03.LOGGER'
 define patch_desc = 'Public Grants'
 define patch_path = 'version/SML-02/SML-02.03.LOGGER/'
 SPOOL SML-02.03.LOGGER.log
-CONNECT LOGGER/&&LOGGER_password@&&database
+CONNECT &&LOGGER_user/&&LOGGER_password@&&database
 set serveroutput on;
 execute &&APEXRM_user..arm_installer.patch_started( -
   i_patch_name         => 'SML-02.03.LOGGER' -
  ,i_patch_type         => 'version' -
- ,i_db_schema          => 'LOGGER' -
+ ,i_db_schema          => '&&LOGGER_user' -
  ,i_app_code           => 'SML' -
  ,i_branch_name        => 'version/SML-02' -
  ,i_tag_from           => 'SML-02.03A' -
@@ -65,7 +65,7 @@ PROMPT logger.pub.syn
 @&&patch_path.logger.pub.syn;
 
 COMMIT;
-PROMPT Compiling objects in schema LOGGER
+PROMPT Compiling objects in schema &&LOGGER_user
 execute &&APEXRM_user..arm_invoker.compile_post_patch;
 execute &&APEXRM_user..arm_installer.patch_completed;
 COMMIT;
