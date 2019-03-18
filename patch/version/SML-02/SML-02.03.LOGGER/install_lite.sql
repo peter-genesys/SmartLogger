@@ -19,7 +19,7 @@ define patch_name = 'SML-02.03.LOGGER'
 define patch_desc = 'Public Grants'
 define patch_path = 'version/SML-02/SML-02.03.LOGGER/'
 SPOOL SML-02.03.LOGGER.log
-CONNECT LOGGER/&&LOGGER_password@&&database
+CONNECT &&LOGGER_user/&&LOGGER_password@&&database
 set serveroutput on;
 select user||'@'||global_name Connection from global_name;
 
