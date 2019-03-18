@@ -573,7 +573,13 @@ EXCEPTION
 
   WHEN OTHERS THEN
     ROLLBACK;
-    err_warn_oracle_error('find_module');
+    err_warn_oracle_error('find_module'  ||'i_module_name '||i_module_name
+                                         ||'i_module_type '||i_module_type
+                                         ||'i_revision    '||i_revision
+                                         ||'i_unit_name   '||i_unit_name
+                                         ||'i_create      '||f_yn(i_create)
+                   );
+
 	raise;
   
 
@@ -652,7 +658,11 @@ BEGIN
 EXCEPTION
   WHEN OTHERS THEN
     ROLLBACK;
-    err_warn_oracle_error('find_unit');
+    err_warn_oracle_error('find_unit'  ||'i_module_id  '||i_module_id
+                                       ||'i_unit_name  '||i_unit_name
+                                       ||'i_unit_type  '||i_unit_type
+                                       ||'i_create  '   ||f_yn(i_create)
+                   );
 	raise;
 
 END find_unit;
@@ -663,11 +673,22 @@ FUNCTION find_unit(i_module_name  IN VARCHAR2
                   ,i_unit_name    IN VARCHAR2
                   ,i_unit_type    IN VARCHAR2 DEFAULT NULL
                   ,i_create       IN BOOLEAN  DEFAULT TRUE)
-RETURN sm_unit%ROWTYPE
-IS
+RETURN sm_unit%ROWTYPE IS
+  l_module_id number;
 BEGIN
-  RETURN find_unit(i_module_id  => find_module(i_module_name => i_module_name
-                                              ,i_unit_name   => i_unit_name).module_id
+
+  l_module_id := find_module(i_module_name => i_module_name
+                            ,i_unit_name   => i_unit_name).module_id;
+
+  IF l_module_id is null then
+    err_raise_internal_error(i_prog_unit => 'find_unit'
+                            ,i_message   => 'No module_id returned from find_module.' );
+
+    return null;
+  end if;
+
+
+  RETURN find_unit(i_module_id  => l_module_id
                   ,i_unit_name  => i_unit_name  
                   ,i_unit_type  => i_unit_type
                   ,i_create     => i_create); 
@@ -1314,6 +1335,12 @@ begin
         $if $$intlog $then intlog_debug('Delete Page node');   $end
         delete_nodes(i_keep_count => 2);
 
+
+        --get a registered module or register this one
+        l_node.module := find_module(i_module_name => g_session.app_id||':'||g_session.app_alias 
+                                    ,i_module_type => 'APEX_APP'); 
+
+
         --get a registered unit or register this one
         l_node.unit := find_unit(i_module_id   => l_node.module.module_id
                                 ,i_unit_name   => g_session.app_page_id||':'||g_session.app_page_alias 
@@ -1958,12 +1985,12 @@ BEGIN
   $if $$intlog $then intlog_note('g_logger_msg_mode',g_logger_msg_mode); $end
 
   --get a registered module or register this one
-  l_node.module := find_module(i_module_name => i_module_name
-                              ,i_unit_name   => i_unit_name); 
+  l_node.module := find_module(i_module_name => l_module_name
+                              ,i_unit_name   => l_unit_name); 
 
   --get a registered unit or register this one
   l_node.unit := find_unit(i_module_id   => l_node.module.module_id
-                          ,i_unit_name   => i_unit_name  
+                          ,i_unit_name   => l_unit_name  
                           ,i_unit_type   => i_unit_type);
 
 

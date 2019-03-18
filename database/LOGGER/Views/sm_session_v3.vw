@@ -6,7 +6,8 @@ select  APP_SESSION
        ,min(APP_USER_EMAIL)      APP_USER_EMAIL           
        ,(select FIRST_VALUE(app_id) IGNORE NULLS OVER (PARTITION BY app_session ORDER BY session_id) 
          from  sm_session_v2 x where x.APP_SESSION = s.APP_SESSION and rownum = 1) app_id
-       ,max(INTERNAL_ERROR)      INTERNAL_ERROR   
+       ,max(INTERNAL_ERROR)      INTERNAL_ERROR
+       ,sum(decode(INTERNAL_ERROR,'Y',1,0))      INTERNAL_ERROR_COUNT
        ,min(CREATED_DATE)        CREATED_DATE                    
        ,max(UPDATED_DATE)        UPDATED_DATE
        ,sum(WARNING_COUNT)         WARNING_COUNT           

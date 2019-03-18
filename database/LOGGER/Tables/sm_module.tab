@@ -8,6 +8,9 @@ CREATE TABLE sm_module (
  ,manual_msg_mode   NUMBER
  ,owner             VARCHAR2(30)
 );
+
+ALTER TABLE sm_module MODIFY (module_id NOT NULL ENABLE);
+
 ALTER TABLE sm_module
   ADD CONSTRAINT module_pk PRIMARY KEY ( module_id )
     USING INDEX enable;

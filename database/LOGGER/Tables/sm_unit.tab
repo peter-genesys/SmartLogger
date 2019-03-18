@@ -7,6 +7,12 @@ CREATE TABLE sm_unit (
  ,auto_msg_mode     NUMBER
  ,manual_msg_mode   NUMBER
 );
+
+
+ALTER TABLE sm_unit MODIFY (unit_id NOT NULL ENABLE);
+ALTER TABLE sm_unit MODIFY (module_id NOT NULL ENABLE);
+
+
 ALTER TABLE sm_unit
   ADD CONSTRAINT unit_pk PRIMARY KEY ( unit_id )
     USING INDEX enable;
