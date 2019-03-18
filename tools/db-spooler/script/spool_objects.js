@@ -244,7 +244,7 @@ function spool_data_file(binds){
   var fname = binds.DDLfolder + "/" + binds.object_name.toLowerCase() + "." + binds.file_ext;
   var path = fs.getPath(fname);
 
-  var sql_settings      = "\nset echo off heading off feedback off verify off pagesize 0 linesize 300 serveroutput on;"
+  var sql_settings      = "\nset echo off heading off feedback off verify off pagesize 0 linesize 300 serveroutput on TRIMSPOOL ON;"
   var spool_on_command  = "\nspool " + path + " replace ";
   var export_command    = "\nexecute "+binds.object_name.toLowerCase() +"_tapi.unload_data;";
   var spool_off_command = "\nspool off ";
@@ -260,7 +260,7 @@ function spool_data_file(binds){
 
 function spool_append_section(secton_name, sql_script, ddl_path){
 
-  var sql_settings      = "\nSET HEADING OFF PAGESIZE 0 LINESIZE 1000 FEEDBACK OFF VERIFY OFF;"
+  var sql_settings      = "\nSET HEADING OFF PAGESIZE 0 LINESIZE 1000 FEEDBACK OFF VERIFY OFF TRIMSPOOL ON;"
   var spool_on_command  = "\nspool " + ddl_path + " append ";
   var section_label     = "\nprompt"
                         + "\nprompt"
@@ -309,7 +309,7 @@ function append_mview_logs(binds, ddl_path, ddl_fname, section_name) {
 function append_indexes(binds, ddl_path, ddl_fname, section_name) {
   //size limit 4000 chars
   var sql_script   = 
-     " select to_char(dbms_metadata.get_ddl ('INDEX',index_name,owner)) ddl "
+     " select to_char(dbms_metadata.get_ddl ('INDEX',index_name,owner)) ddl " 
   +  " from all_indexes"
   +  " where table_owner = '" + binds.owner + "'"
   +  " and   table_name = '" + binds.object_name + "'"
@@ -328,7 +328,7 @@ function append_big_dep_ddl(binds, ddl_path, ddl_fname, dep_ddl_type,section_nam
     binds.dep_ddl_type = dep_ddl_type;
 
     //Now output the dependant DDL to a temporary file
-    var result = util.executeReturnList("select dbms_metadata.get_dependent_ddl(:dep_ddl_type,:object_name,:owner) ddl from dual",binds);
+    var result = util.executeReturnList("select REPLACE(dbms_metadata.get_dependent_ddl(:dep_ddl_type,:object_name,:owner),' EDITIONABLE','') ddl from dual",binds);
     try {
  
       var blobStream =  result[0].DDL.getAsciiStream();
@@ -479,12 +479,13 @@ function spool_with_dbms_metadata(binds) {
        "select dbms_metadata.get_ddl(:ddl_type,:object_name) ddl from dual",binds);
   } else {
 
-  //Export DDL removing COLLATION clauses.
+  //Export DDL removing COLLATION clauses, and EDITIONABLE 
   var  result = util.executeReturnList(
-     "select REPLACE(REPLACE("
+     "select REPLACE(REPLACE(REPLACE("
      + "dbms_metadata.get_ddl(:ddl_type,:object_name,:owner)"
      +   ",' COLLATE \"USING_NLS_COMP\"','')" 
-     +   ",' DEFAULT COLLATION \"USING_NLS_COMP\"','') ddl from dual",binds);
+     +   ",' DEFAULT COLLATION \"USING_NLS_COMP\"','')"
+     +   ",' EDITIONABLE','') ddl from dual",binds);
   }
 
   var blobStream =  result[0].DDL.getAsciiStream();
