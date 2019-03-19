@@ -68,8 +68,8 @@ wwv_flow_api.create_theme_style(
 ,p_is_public=>true
 ,p_is_accessible=>true
 ,p_theme_roller_input_file_urls=>'#THEME_IMAGES#less/theme/Vita.less'
-,p_theme_roller_config=>'{"customCSS":"","vars":{"@g_Accent-BG":"#8d21cc"}}'
-,p_theme_roller_output_file_url=>'#THEME_DB_IMAGES#11470799695861495.css'
+,p_theme_roller_config=>'{"customCSS":".datetime-nowrap {\nwhite-space:nowrap;\n}","vars":{"@g_Accent-BG":"#8d21cc"}}'
+,p_theme_roller_output_file_url=>'#THEME_DB_IMAGES#36224761038834519.css'
 ,p_theme_roller_read_only=>false
 );
 end;

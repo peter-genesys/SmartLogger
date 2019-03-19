@@ -99,10 +99,12 @@
 @application/pages/page_00004.sql
 @application/pages/page_00005.sql
 @application/pages/page_00006.sql
+@application/pages/page_00007.sql
 @application/pages/page_00008.sql
 @application/pages/page_00009.sql
 @application/pages/page_00010.sql
 @application/pages/page_00011.sql
+@application/pages/page_00012.sql
 @application/pages/page_00013.sql
 @application/pages/page_00021.sql
 @application/pages/page_00022.sql
