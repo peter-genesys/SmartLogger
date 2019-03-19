@@ -10,7 +10,7 @@ wwv_flow_api.create_page(
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
 ,p_last_updated_by=>'BURGPETE'
-,p_last_upd_yyyymmddhh24miss=>'20190318043645'
+,p_last_upd_yyyymmddhh24miss=>'20190319112759'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(26684462065153888)
@@ -30,7 +30,7 @@ wwv_flow_api.create_page_plug(
 ,p_region_template_options=>'#DEFAULT#:t-Region--scrollBody'
 ,p_component_template_options=>'#DEFAULT#'
 ,p_plug_template=>wwv_flow_api.id(35560371291315922)
-,p_plug_display_sequence=>50
+,p_plug_display_sequence=>30
 ,p_include_in_reg_disp_sel_yn=>'Y'
 ,p_plug_new_grid_row=>false
 ,p_plug_display_point=>'BODY'
@@ -262,6 +262,9 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>170
 ,p_column_identifier=>'S'
 ,p_column_label=>'Fail Count'
+,p_column_link=>'f?p=&APP_ID.:7:&SESSION.::&DEBUG.:RP,7:P7_APP_SESSION:#APPSESSION#'
+,p_column_linktext=>'#INTERNAL_ERROR_COUNT#'
+,p_column_link_attr=>'class="t-Button t-Button--primary t-Button--simple t-Button--small  t-Button--stretch"'
 ,p_column_type=>'NUMBER'
 ,p_column_alignment=>'RIGHT'
 );
@@ -277,6 +280,18 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_column_1=>'CREATED_DATE'
 ,p_sort_direction_1=>'DESC'
 );
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(55382593786374223)
+,p_report_id=>wwv_flow_api.id(1946436431535481)
+,p_condition_type=>'FILTER'
+,p_allow_delete=>'Y'
+,p_column_name=>'INTERNAL_ERROR'
+,p_operator=>'='
+,p_expr=>'Y'
+,p_condition_sql=>'"INTERNAL_ERROR" = #APXWS_EXPR#'
+,p_condition_display=>'#APXWS_COL_NAME# = ''Y''  '
+,p_enabled=>'Y'
+);
 wwv_flow_api.create_worksheet_rpt(
  p_id=>wwv_flow_api.id(28069455129505930)
 ,p_application_user=>'APXWS_DEFAULT'
@@ -287,6 +302,21 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_report_columns=>'TITLE:MESSAGE_COUNT:WARNING_COUNT:EXCEPTION_COUNT:CREATED_DATE:'
 ,p_sort_column_1=>'CREATED_DATE'
 ,p_sort_direction_1=>'DESC'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(55383186219375031)
+,p_report_id=>wwv_flow_api.id(28069455129505930)
+,p_name=>'Failure'
+,p_condition_type=>'HIGHLIGHT'
+,p_allow_delete=>'Y'
+,p_column_name=>'INTERNAL_ERROR'
+,p_operator=>'='
+,p_expr=>'Y'
+,p_condition_sql=>' (case when ("INTERNAL_ERROR" = #APXWS_EXPR#) then #APXWS_HL_ID# end) '
+,p_condition_display=>'#APXWS_COL_NAME# = ''Y''  '
+,p_enabled=>'Y'
+,p_highlight_sequence=>10
+,p_row_bg_color=>'#FF7755'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(50970920155756445)
@@ -462,6 +492,9 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>100
 ,p_column_identifier=>'AD'
 ,p_column_label=>'Fail Count'
+,p_column_link=>'f?p=&APP_ID.:7:&SESSION.::&DEBUG.:RP,7:P7_APP_USER:#APPUSER#'
+,p_column_linktext=>'#INTERNAL_ERROR_COUNT#'
+,p_column_link_attr=>'class="t-Button t-Button--primary t-Button--simple t-Button--small  t-Button--stretch"'
 ,p_column_type=>'NUMBER'
 ,p_column_alignment=>'RIGHT'
 );
@@ -488,7 +521,19 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_6=>'ASC'
 );
 wwv_flow_api.create_worksheet_condition(
- p_id=>wwv_flow_api.id(1944343033505766)
+ p_id=>wwv_flow_api.id(55379698423344163)
+,p_report_id=>wwv_flow_api.id(1943914801505762)
+,p_condition_type=>'FILTER'
+,p_allow_delete=>'Y'
+,p_column_name=>'INTERNAL_ERROR'
+,p_operator=>'='
+,p_expr=>'Y'
+,p_condition_sql=>'"INTERNAL_ERROR" = #APXWS_EXPR#'
+,p_condition_display=>'#APXWS_COL_NAME# = ''Y''  '
+,p_enabled=>'Y'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(55380058669344164)
 ,p_report_id=>wwv_flow_api.id(1943914801505762)
 ,p_condition_type=>'FILTER'
 ,p_allow_delete=>'Y'
@@ -521,7 +566,22 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_6=>'ASC'
 );
 wwv_flow_api.create_worksheet_condition(
- p_id=>wwv_flow_api.id(1955412346658325)
+ p_id=>wwv_flow_api.id(55378989880333651)
+,p_report_id=>wwv_flow_api.id(52114923921944293)
+,p_name=>'Failure'
+,p_condition_type=>'HIGHLIGHT'
+,p_allow_delete=>'Y'
+,p_column_name=>'INTERNAL_ERROR'
+,p_operator=>'='
+,p_expr=>'Y'
+,p_condition_sql=>' (case when ("INTERNAL_ERROR" = #APXWS_EXPR#) then #APXWS_HL_ID# end) '
+,p_condition_display=>'#APXWS_COL_NAME# = ''Y''  '
+,p_enabled=>'Y'
+,p_highlight_sequence=>10
+,p_row_bg_color=>'#FF7755'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(55378577119333651)
 ,p_report_id=>wwv_flow_api.id(52114923921944293)
 ,p_condition_type=>'FILTER'
 ,p_allow_delete=>'Y'

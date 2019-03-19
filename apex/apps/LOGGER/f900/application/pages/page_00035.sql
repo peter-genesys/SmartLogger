@@ -10,7 +10,7 @@ wwv_flow_api.create_page(
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
 ,p_last_updated_by=>'BURGPETE'
-,p_last_upd_yyyymmddhh24miss=>'20190318043552'
+,p_last_upd_yyyymmddhh24miss=>'20190319112104'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(51129564379178574)
@@ -302,6 +302,9 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>370
 ,p_column_identifier=>'AI'
 ,p_column_label=>'Fail Count'
+,p_column_link=>'f?p=&APP_ID.:12:&SESSION.::&DEBUG.:RP,12:P12_SESSION_ID:#SESSION_ID#'
+,p_column_linktext=>'#FAIL_COUNT#'
+,p_column_link_attr=>'class="t-Button t-Button--primary t-Button--simple t-Button--small  t-Button--stretch"'
 ,p_column_type=>'NUMBER'
 ,p_column_alignment=>'RIGHT'
 );
@@ -327,6 +330,18 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_column_6=>'0'
 ,p_sort_direction_6=>'ASC'
 );
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(55384808391383545)
+,p_report_id=>wwv_flow_api.id(1954275535644869)
+,p_condition_type=>'FILTER'
+,p_allow_delete=>'Y'
+,p_column_name=>'FAILED'
+,p_operator=>'='
+,p_expr=>'Y'
+,p_condition_sql=>'"FAILED" = #APXWS_EXPR#'
+,p_condition_display=>'#APXWS_COL_NAME# = ''Y''  '
+,p_enabled=>'Y'
+);
 wwv_flow_api.create_worksheet_rpt(
  p_id=>wwv_flow_api.id(51207415759423443)
 ,p_application_user=>'APXWS_DEFAULT'
@@ -347,6 +362,21 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_5=>'ASC'
 ,p_sort_column_6=>'0'
 ,p_sort_direction_6=>'ASC'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(55386829180399261)
+,p_report_id=>wwv_flow_api.id(51207415759423443)
+,p_name=>'Failure'
+,p_condition_type=>'HIGHLIGHT'
+,p_allow_delete=>'Y'
+,p_column_name=>'INTERNAL_ERROR'
+,p_operator=>'='
+,p_expr=>'Y'
+,p_condition_sql=>' (case when ("INTERNAL_ERROR" = #APXWS_EXPR#) then #APXWS_HL_ID# end) '
+,p_condition_display=>'#APXWS_COL_NAME# = ''Y''  '
+,p_enabled=>'Y'
+,p_highlight_sequence=>10
+,p_row_bg_color=>'#FF7755'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(76379921232239828)
@@ -512,6 +542,9 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>80
 ,p_column_identifier=>'AF'
 ,p_column_label=>'Fail Count'
+,p_column_link=>'f?p=&APP_ID.:12:&SESSION.::&DEBUG.:RP,12:P12_USERNAME:#USERNAME#'
+,p_column_linktext=>'#FAIL_COUNT#'
+,p_column_link_attr=>'class="t-Button t-Button--primary t-Button--simple t-Button--small  t-Button--stretch"'
 ,p_column_type=>'NUMBER'
 ,p_column_alignment=>'RIGHT'
 );
@@ -537,6 +570,18 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_column_6=>'0'
 ,p_sort_direction_6=>'ASC'
 );
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(55384044603379704)
+,p_report_id=>wwv_flow_api.id(1952139618608562)
+,p_condition_type=>'FILTER'
+,p_allow_delete=>'Y'
+,p_column_name=>'FAILED'
+,p_operator=>'='
+,p_expr=>'Y'
+,p_condition_sql=>'"FAILED" = #APXWS_EXPR#'
+,p_condition_display=>'#APXWS_COL_NAME# = ''Y''  '
+,p_enabled=>'Y'
+);
 wwv_flow_api.create_worksheet_rpt(
  p_id=>wwv_flow_api.id(80568607209462502)
 ,p_application_user=>'APXWS_DEFAULT'
@@ -557,6 +602,21 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_sort_direction_5=>'ASC'
 ,p_sort_column_6=>'0'
 ,p_sort_direction_6=>'ASC'
+);
+wwv_flow_api.create_worksheet_condition(
+ p_id=>wwv_flow_api.id(55385574276386830)
+,p_report_id=>wwv_flow_api.id(80568607209462502)
+,p_name=>'Failure'
+,p_condition_type=>'HIGHLIGHT'
+,p_allow_delete=>'Y'
+,p_column_name=>'FAILED'
+,p_operator=>'='
+,p_expr=>'Y'
+,p_condition_sql=>' (case when ("FAILED" = #APXWS_EXPR#) then #APXWS_HL_ID# end) '
+,p_condition_display=>'#APXWS_COL_NAME# = ''Y''  '
+,p_enabled=>'Y'
+,p_highlight_sequence=>10
+,p_row_bg_color=>'#FF7755'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(119493652839111345)
