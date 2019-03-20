@@ -1,0 +1,57 @@
+CREATE TABLE sm_session (
+  session_id           NUMBER NOT NULL ENABLE
+ ,origin               VARCHAR2(100)
+ ,username             VARCHAR2(30)
+ ,internal_error       VARCHAR2(1) DEFAULT 'N'
+ ,notified_flag        VARCHAR2(1) DEFAULT 'N'
+ ,error_message        CLOB
+ ,created_date         DATE
+ ,updated_date         DATE
+ ,keep_yn              VARCHAR2(1) DEFAULT 'N'
+ ,app_user             VARCHAR2(50)
+ ,app_user_fullname    VARCHAR2(50)
+ ,app_user_email       VARCHAR2(50)
+ ,app_session          VARCHAR2(50)
+ ,parent_app_session   VARCHAR2(50)
+ ,app_id               NUMBER
+ ,app_alias            VARCHAR2(50)
+ ,app_title            VARCHAR2(50)
+ ,app_page_id          NUMBER
+ ,app_page_alias       VARCHAR2(50)
+ ,apex_context_id      VARCHAR2(50)
+);
+ALTER TABLE sm_session
+  ADD CONSTRAINT process_pk PRIMARY KEY ( session_id )
+    USING INDEX enable;
+
+--Operating system client user name
+alter table sm_session add OS_USER  VARCHAR2(30);  
+--Operating system machine name    
+alter table sm_session add HOST VARCHAR2(64);  
+
+
+COMMENT ON COLUMN sm_session.OS_USER IS 'Operating system user name of the client process that initiated the database session.';
+COMMENT ON COLUMN sm_session.HOST    IS 'Name of the host machine from which the client has connected.';
+ 
+CREATE SEQUENCE sm_session_seq MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 488 NOCACHE NOORDER NOCYCLE;
+
+
+CREATE INDEX sm_session_nk1 ON
+  sm_session (
+    app_session
+  );
+
+
+CREATE INDEX sm_session_nk2 ON
+  sm_session (
+    app_user
+  );
+
+
+CREATE INDEX sm_session_nk3 ON
+  sm_session (
+    app_id
+ ,app_page_id
+  );
+
+comment on 
