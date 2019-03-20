@@ -1081,6 +1081,8 @@ BEGIN
     g_session.app_title           := v('APP_TITLE');
     g_session.app_page_id         := v('APP_PAGE_ID');
     g_session.app_page_alias      := v('APP_PAGE_ALIAS');
+    g_session.host                := SYS_CONTEXT ('USERENV', 'HOST') ;
+    g_session.os_user             := SYS_CONTEXT ('USERENV', 'OS_USER') ;
  
     init_node_stack; --remove all nodes from the stack.
 
@@ -1088,7 +1090,7 @@ BEGIN
  
 
     --@TODO Either log the process now - if the unit is set to DEBUGGING or NORMAL
-    --OR wait unit attempt to log node. 
+    --OR wait until attempt to log node. 
  
     $if $$intlog $then intlog_end('create_session'); $end
 

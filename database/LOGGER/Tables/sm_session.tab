@@ -24,7 +24,15 @@ ALTER TABLE sm_session
   ADD CONSTRAINT process_pk PRIMARY KEY ( session_id )
     USING INDEX enable;
 
+--Operating system client user name
+alter table sm_session add OS_USER  VARCHAR2(30);  
+--Operating system machine name    
+alter table sm_session add HOST VARCHAR2(64);  
 
+
+COMMENT ON COLUMN sm_session.OS_USER IS 'Operating system user name of the client process that initiated the database session.';
+COMMENT ON COLUMN sm_session.HOST    IS 'Name of the host machine from which the client has connected.';
+ 
 CREATE SEQUENCE sm_session_seq MINVALUE 1 MAXVALUE 9999999999999999999999999999 INCREMENT BY 1 START WITH 488 NOCACHE NOORDER NOCYCLE;
 
 
@@ -45,3 +53,5 @@ CREATE INDEX sm_session_nk3 ON
     app_id
  ,app_page_id
   );
+
+comment on 
