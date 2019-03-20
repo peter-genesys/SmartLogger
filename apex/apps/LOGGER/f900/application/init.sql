@@ -14,9 +14,9 @@ begin
 wwv_flow_api.import_begin (
  p_version_yyyy_mm_dd=>'2018.05.24'
 ,p_release=>'18.2.0.00.12'
-,p_default_workspace_id=>12287443100895424
+,p_default_workspace_id=>1823510417640457
 ,p_default_application_id=>900
-,p_default_owner=>'LOGGEROWN'
+,p_default_owner=>'LOGGER'
 );
 end;
 /
@@ -26,11 +26,11 @@ prompt APPLICATION 900 - SmartLogger
 -- Application Export:
 --   Application:     900
 --   Name:            SmartLogger
---   Exported By:     LOGGEROWN
+--   Exported By:     LOGGER
 --   Flashback:       0
 --   Export Type:     Application Export
 --   Version:         18.2.0.00.12
---   Instance ID:     63712309566204
+--   Instance ID:     270101937255479
 --
 
 -- Application Statistics:
