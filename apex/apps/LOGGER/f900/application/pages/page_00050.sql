@@ -27,8 +27,8 @@ wwv_flow_api.create_page(
 '}'))
 ,p_page_template_options=>'#DEFAULT#'
 ,p_help_text=>'No help is available for this page.'
-,p_last_updated_by=>'HEWETTJ'
-,p_last_upd_yyyymmddhh24miss=>'20180920124212'
+,p_last_updated_by=>'PETER'
+,p_last_upd_yyyymmddhh24miss=>'20190320074307'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(104944836552234866)
@@ -451,6 +451,38 @@ wwv_flow_api.create_worksheet_column(
 ,p_display_order=>243
 ,p_column_identifier=>'AS'
 ,p_column_label=>'Level unit name'
+,p_column_type=>'STRING'
+);
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(5452225904557726)
+,p_db_column_name=>'PARENT_APP_SESSION'
+,p_display_order=>253
+,p_column_identifier=>'AT'
+,p_column_label=>'Parent App Session'
+,p_column_type=>'STRING'
+);
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(5452351862557727)
+,p_db_column_name=>'APEX_CONTEXT_ID'
+,p_display_order=>263
+,p_column_identifier=>'AU'
+,p_column_label=>'Apex Context Id'
+,p_column_type=>'STRING'
+);
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(5452490598557728)
+,p_db_column_name=>'OS_USER'
+,p_display_order=>273
+,p_column_identifier=>'AV'
+,p_column_label=>'Os User'
+,p_column_type=>'STRING'
+);
+wwv_flow_api.create_worksheet_column(
+ p_id=>wwv_flow_api.id(5452569149557729)
+,p_db_column_name=>'HOST'
+,p_display_order=>283
+,p_column_identifier=>'AW'
+,p_column_label=>'Host'
 ,p_column_type=>'STRING'
 );
 wwv_flow_api.create_worksheet_rpt(
@@ -1028,6 +1060,9 @@ wwv_flow_api.create_worksheet_condition(
 ,p_highlight_sequence=>10
 ,p_row_bg_color=>'#99CCFF'
 );
+end;
+/
+begin
 wwv_flow_api.create_worksheet_condition(
  p_id=>wwv_flow_api.id(26517751714291727)
 ,p_report_id=>wwv_flow_api.id(26507116643282099)
@@ -1058,9 +1093,6 @@ wwv_flow_api.create_worksheet_condition(
 ,p_highlight_sequence=>10
 ,p_row_bg_color=>'#F24343'
 );
-end;
-/
-begin
 wwv_flow_api.create_worksheet_condition(
  p_id=>wwv_flow_api.id(26518520854291728)
 ,p_report_id=>wwv_flow_api.id(26507116643282099)
@@ -1111,7 +1143,7 @@ wwv_flow_api.create_worksheet_rpt(
 ,p_status=>'PUBLIC'
 ,p_is_default=>'Y'
 ,p_display_rows=>500
-,p_report_columns=>'APP_USER:APP_SESSION:APP_ID:APP_PAGE_ID:ORIGIN:MODULE_NAME:UNIT_NAME:MSG_TYPE:MSG_LEVEL_TEXT:NAME:VALUE:MESSAGE:'
+,p_report_columns=>'APP_USER:APP_SESSION:APP_ID:APP_PAGE_ID:ORIGIN:MODULE_NAME:UNIT_NAME:MSG_TYPE:MSG_LEVEL_TEXT:NAME:VALUE:MESSAGE::PARENT_APP_SESSION:APEX_CONTEXT_ID:OS_USER:HOST'
 ,p_sort_column_1=>'MESSAGE_ID'
 ,p_sort_direction_1=>'ASC'
 ,p_sort_column_2=>'0'
