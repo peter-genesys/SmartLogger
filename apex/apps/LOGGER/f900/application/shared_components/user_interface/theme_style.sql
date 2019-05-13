@@ -15,7 +15,7 @@ wwv_flow_api.create_theme_style(
  p_id=>wwv_flow_api.id(35607278535315958)
 ,p_theme_id=>42
 ,p_name=>'Vita'
-,p_is_current=>false
+,p_is_current=>true
 ,p_is_public=>true
 ,p_is_accessible=>true
 ,p_theme_roller_input_file_urls=>'#THEME_IMAGES#less/theme/Vita.less'
@@ -64,7 +64,7 @@ wwv_flow_api.create_theme_style(
  p_id=>wwv_flow_api.id(36224761038834519)
 ,p_theme_id=>42
 ,p_name=>'Vita Purple'
-,p_is_current=>true
+,p_is_current=>false
 ,p_is_public=>true
 ,p_is_accessible=>true
 ,p_theme_roller_input_file_urls=>'#THEME_IMAGES#less/theme/Vita.less'
