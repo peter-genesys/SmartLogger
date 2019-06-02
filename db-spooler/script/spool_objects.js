@@ -19,6 +19,14 @@ function config_by_object_name(binds) {
         binds.default_folder   = "data";
         binds.file_ext = "pop";
         binds.ddl_type = "DATA";
+        debug("DATA");
+        try {
+          binds.file_suffix = "_" + args[6];
+        } catch (err) {
+          debug("No 6th param for DATA");
+          binds.file_suffix = ""
+
+        }
         break;
     case "ROLE":
         binds.object_type = "ROLE";
@@ -241,7 +249,7 @@ function spool_data_file(binds){
   
   var fs      = java.nio.file.FileSystems.getDefault();
   var f       = java.nio.file.Files;
-  var fname = binds.DDLfolder + "/" + binds.object_name.toLowerCase() + "." + binds.file_ext;
+  var fname = binds.DDLfolder + "/" + binds.object_name.toLowerCase() + binds.file_suffix + "." + binds.file_ext;
   var path = fs.getPath(fname);
 
   var sql_settings      = "\nset echo off heading off feedback off verify off pagesize 0 linesize 300 serveroutput on TRIMSPOOL ON;"
@@ -313,7 +321,8 @@ function append_indexes(binds, ddl_path, ddl_fname, section_name) {
   +  " from all_indexes"
   +  " where table_owner = '" + binds.owner + "'"
   +  " and   table_name = '" + binds.object_name + "'"
-  +  " and   index_type = 'NORMAL';";
+//  +  " and   index_type = 'NORMAL'"
+  +  ";";
   debug(sql_script);
 
   spool_append_section(section_name, sql_script, ddl_path);
@@ -457,12 +466,12 @@ function spool_with_dbms_metadata(binds) {
  "\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'EMIT_SCHEMA'         , false);"
 +"\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'PRETTY'              , true );"
 +"\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'SQLTERMINATOR'       , true );"
-+"\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'SEGMENT_ATTRIBUTES'  , false);"
 +"\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'CONSTRAINTS'         , false);"
 +"\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'REF_CONSTRAINTS'     , false);"
 +"\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'CONSTRAINTS_AS_ALTER', false);"
++"\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'SEGMENT_ATTRIBUTES'  , true);"
 +"\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'STORAGE'             , false);"
-+"\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'TABLESPACE'          , false);"
++"\nexecute DBMS_METADATA.SET_TRANSFORM_PARAM(dbms_metadata.SESSION_TRANSFORM, 'TABLESPACE'          , true);"
 );
 
   sqlcl.run();
