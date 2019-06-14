@@ -1,4 +1,4 @@
-PROMPT LOG TO os_user.01.LOGGER.log
+PROMPT LOG TO SML-001.01.LOGGER.log
 PROMPT .
 SET AUTOCOMMIT OFF
 SET AUTOPRINT ON
@@ -15,22 +15,22 @@ SET verify off echo off define on
 WHENEVER OSERROR EXIT FAILURE ROLLBACK
 WHENEVER SQLERROR EXIT FAILURE ROLLBACK
 
-define patch_name = 'os_user.01.LOGGER'
-define patch_desc = 'OS_USER and HOST'
-define patch_path = 'feature/os_user/os_user.01.LOGGER/'
-SPOOL os_user.01.LOGGER.log
+define patch_name = 'SML-001.01.LOGGER'
+define patch_desc = 'SML-001 and HOST'
+define patch_path = 'feature/SML-001/SML-001.01.LOGGER/'
+SPOOL SML-001.01.LOGGER.log
 CONNECT &&LOGGER_user/&&LOGGER_password@&&database
 set serveroutput on;
 execute &&APEXRM_user..arm_installer.patch_started( -
-  i_patch_name         => 'os_user.01.LOGGER' -
+  i_patch_name         => 'SML-001.01.LOGGER' -
  ,i_patch_type         => 'feature' -
  ,i_db_schema          => '&&LOGGER_user' -
  ,i_app_code           => 'SML' -
- ,i_branch_name        => 'feature/os_user' -
- ,i_tag_from           => 'os_user.01A' -
- ,i_tag_to             => 'os_user.01B' -
+ ,i_branch_name        => 'feature/SML-001' -
+ ,i_tag_from           => 'SML-001.01A' -
+ ,i_tag_to             => 'SML-001.01B' -
  ,i_suffix             => '' -
- ,i_patch_desc         => 'OS_USER and HOST' -
+ ,i_patch_desc         => 'SML-001 and HOST' -
  ,i_patch_components   => 'sm_session.tab' -
 ||',sm_views.vw' -
 ||',sm_logger.pkb' -
@@ -46,11 +46,11 @@ execute &&APEXRM_user..arm_installer.patch_started( -
 PROMPT
 PROMPT Checking Prerequisite patch SDEPLOY-41.01.LOGGER
 execute &&APEXRM_user..arm_installer.add_prereq_best_order( -
-i_patch_name     => 'os_user.01.LOGGER' -
+i_patch_name     => 'SML-001.01.LOGGER' -
 ,i_prereq_patch  => 'SDEPLOY-41.01.LOGGER' );
 PROMPT Ensure ARM is late enough for this patch
 execute &&APEXRM_user..arm_installer.add_prereq_best_order( -
-i_patch_name     => 'os_user.01.LOGGER' -
+i_patch_name     => 'SML-001.01.LOGGER' -
 ,i_prereq_patch  => 'ARM-01.02.APEXRM' );
 select user||'@'||global_name Connection from global_name;
 
