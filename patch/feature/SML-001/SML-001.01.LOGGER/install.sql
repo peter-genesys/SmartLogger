@@ -79,6 +79,13 @@ PROMPT Compiling objects in schema &&LOGGER_user
 execute &&APEXRM_user..arm_invoker.compile_post_patch;
 execute &&APEXRM_user..arm_installer.patch_completed;
 COMMIT;
+
+PROMPT Enqueue Apex App 900
+execute &&APEXRM_user..arm_installer.add_apex_app( -
+i_patch_name     => 'SML-001.01.LOGGER' -
+,i_app_id     => '900' -
+,i_schema  => 'LOGGER' );
+
 PROMPT 
 PROMPT install.sql - COMPLETED.
 spool off;
