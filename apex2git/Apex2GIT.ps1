@@ -27,32 +27,63 @@ function Progress($message) {
 #-- ApexExportCommit
 #------------------------
 
-function ApexExportCommit ( $CONNECTION ,$USER ,$pword ,$APP_ID ,$SCRIPT_DIR, $DBNAME, $SID, $APPS_DIR) {
+function ApexExportCommit ( $CONNECTION ,$USER ,$pword ,$ORIG_APP_ID ,$SCRIPT_DIR, $DBNAME, $SID, $APPS_DIR ) {
            $Host.UI.RawUI.BackgroundColor = "Black"
            $Host.UI.RawUI.ForegroundColor = "DarkGray"
 
+  Debug "ApexExportCommit"
+
+  Debug $chosenApp.new_app_id 
+  Debug $chosenApp.orig_app_id 
+  Debug $chosenApp.app_name 
+  Debug $chosenApp.new_app_alias 
+  Debug $chosenApp.orig_app_alias 
+  Debug $chosenApp.env_name 
+  Debug $chosenApp.promo 
+ 
   Debug $SCRIPT_DIR  
   Debug $CONNECTION
   Debug $USER      
   Debug $pword  
-  Debug $APP_ID    
+  Debug $ORIG_APP_ID    
   Debug $APPS_DIR  
   Debug $DBNAME    
   Debug $SID
  
   Debug "APEX file export and commit - uses ApexSplitExport.sql"
 
-  $ORIG_APP_ID = Read-Host "To export with Original Ids, enter the original app_id? (null for current)"
- 
-  if ($ORIG_APP_ID) {
-    $APP = "f$ORIG_APP_ID"
-    $APP_SQL = "f$APP_ID.sql"
-    $UNCLEAN_SQL = "f$ORIG_APP_ID.unclean.sql"
-  } else {
-    $APP = "f$APP_ID"
-    $APP_SQL = "f$APP_ID.sql"
-    $UNCLEAN_SQL = "f$APP_ID.unclean.sql"
+  ## SET EXPORT APP_ID
+  ## ------------- 
+  $NEW_APP_ID = $chosenApp.new_app_id
+  if (!($NEW_APP_ID)) { #new_app_id is not mandatory
+    #new app_id is not given, so prompt the user.
+    $NEW_APP_ID = Read-Host "To export with Original Ids to ORIGINAL APP $ORIG_APP_ID, enter the CURRENT APP to export from? (null for normal export)"
   }
+  if ($NEW_APP_ID -eq $ORIG_APP_ID) {
+    #new and orig are the same, so nothing to do.
+    Debug "No change of app id"
+    $NEW_APP_ID = ""
+    $EXPORT_APP_ID = $ORIG_APP_ID
+  } 
+
+
+  if ($NEW_APP_ID ) {
+    Info "Setting Export App Id to $NEW_APP_ID"
+    $EXPORT_APP_ID = $NEW_APP_ID
+
+    Debug "Exporting from current App $EXPORT_APP_ID to orginal App $ORIG_APP_ID"
+    $APP_TEMP = "f$EXPORT_APP_ID"
+    $APP = "f$ORIG_APP_ID"
+    $APP_SQL = "f$EXPORT_APP_ID.sql"
+    $UNCLEAN_SQL = "f$ORIG_APP_ID.unclean.sql"
+
+  } else {
+    Debug "Exporting from orginal App $ORIG_APP_ID"
+    $APP = "f$ORIG_APP_ID"
+    $APP_SQL = "f$ORIG_APP_ID.sql"
+    $UNCLEAN_SQL = "f$ORIG_APP_ID.unclean.sql"
+  }
+ 
  
   Debug "Remove the application directory $APPS_DIR\$APP" 
   Remove-Item -Recurse -Force -ErrorAction 0 @("$APPS_DIR\$APP")          #Remove application dir - apps dir
@@ -60,25 +91,29 @@ function ApexExportCommit ( $CONNECTION ,$USER ,$pword ,$APP_ID ,$SCRIPT_DIR, $D
   Remove-Item -Recurse -Force -ErrorAction 0 @("$APPS_DIR\$APP_SQL")      #Remove app export file - apps dir
   Remove-Item -Recurse -Force -ErrorAction 0 @("$APPS_DIR\$UNCLEAN_SQL")  #Remove app export file - apps dir - unclean name    
  
-  if ($ORIG_APP_ID) {
+  if ($NEW_APP_ID) {
  
-    Warn "YOU ARE EXPORTING f$APP_ID AND COMMITTING APP AS $APP IN GIT"
+    Warn "YOU ARE EXPORTING f$EXPORT_APP_ID AND COMMITTING APP AS ORIGINAL $APP IN GIT"
 
-    #Pipe APP_ID to ApexSplitExport as param 
-    echo "$APP_ID" | & $Config.sqlcl_path "$user/$pword@$connection" "@$SCRIPT_DIR\ApexSplitExportOrigIds.sql" 
+    #Pipe EXPORT_APP_ID to ApexSplitExport as param 
+    echo "$EXPORT_APP_ID" | & $Config.sqlcl_path "$user/$pword@$connection" "@$SCRIPT_DIR\ApexSplitExportOrigIds.sql" 
+    #Move from current app folder to original app folder.
+    Debug "Rename $APPS_DIR\$APP_TEMP to $APP"
+    Rename-Item -path $APPS_DIR\$APP_TEMP -newName $APP
  
   } else {
-    Debug "Exporting and splitting the Apex App $APP_ID FROM $DBNAME"
+    Debug "Exporting and splitting the Apex App $EXPORT_APP_ID FROM $DBNAME"
 
-    #Pipe APP_ID to ApexSplitExport as param 
-    echo "$APP_ID" | & $Config.sqlcl_path "$user/$pword@$connection" "@$SCRIPT_DIR\ApexSplitExport.sql" 
+    #Pipe EXPORT_APP_ID to ApexSplitExport as param 
+    echo "$EXPORT_APP_ID" | & $Config.sqlcl_path "$user/$pword@$connection" "@$SCRIPT_DIR\ApexSplitExport.sql" 
 
   }
 
  
   #Move full export to apps dir
+  Debug "Move full export to apps dir"
   Move-Item "$APPS_DIR\$APP_SQL" "$APPS_DIR\$UNCLEAN_SQL"  
-
+  
   Debug "Extracting App Name from init.sql"
   #Look for this line in the f101/application/init.sql
   #"prompt APPLICATION 9221 - Marketing Reports"
@@ -89,10 +124,10 @@ function ApexExportCommit ( $CONNECTION ,$USER ,$pword ,$APP_ID ,$SCRIPT_DIR, $D
   $matched_lines = Get-Content "$env_filename" | Select-String "$search" -SimpleMatch
   $matched_line = $matched_lines[0].line
   Debug $matched_line 
-
+  
   $app_id_name = $matched_line.Substring($pos+1)
   Debug $app_id_name 
-
+  
   Info "Adding new files to GIT" 
   TortoiseGitProc.exe /command:"add" /path:"$APPS_DIR/$APP"  | Out-Null
    
@@ -109,6 +144,18 @@ function ApexExportCommit ( $CONNECTION ,$USER ,$pword ,$APP_ID ,$SCRIPT_DIR, $D
 #------------------------
 function InstallApexApp ( $CONNECTION ,$USER ,$pword ,$APP_ID, $DBNAME, $SID, $APPS_DIR, $SQLCL_PATH, $WORKSPACE) {
 
+  Debug "InstallApexApp"
+
+  Debug $chosenApp.new_app_id 
+  Debug $chosenApp.orig_app_id 
+  Debug $chosenApp.app_name 
+  Debug $chosenApp.new_app_alias 
+  Debug $chosenApp.orig_app_alias 
+  Debug $chosenApp.env_name 
+  Debug $chosenApp.promo 
+
+
+  $APP_ID = $chosenApp.orig_app_id
  
   Debug $CONNECTION
   Debug $USER
@@ -125,92 +172,82 @@ function InstallApexApp ( $CONNECTION ,$USER ,$pword ,$APP_ID, $DBNAME, $SID, $A
   $APP_SQL = "f$APP_ID.sql"
   $SPLIT_SQL = "f$APP_ID.sql"
 
+ 
+  ## SET WORKSPACE
+  ## ------------- 
   if ($WORKSPACE) {
     Info "Importing $APP into Database $dbname and Workspace $WORKSPACE"
-    $NEW_APP_ID = Read-Host "Please enter New Apex App No, if required? (null for original)"
-
-    $APP_PAGE_ID = Read-Host "For single page import - enter Page No, if required? (null for full app)"
-    
+$install_mod = @"
+declare 
+ v_workspace_id NUMBER; 
+begin 
+ select workspace_id into v_workspace_id 
+ from apex_workspaces where workspace = '$WORKSPACE'; 
+ apex_application_install.set_workspace_id (v_workspace_id); 
+ apex_util.set_security_group_id 
+ (p_security_group_id => apex_application_install.get_workspace_id); 
+ apex_application_install.set_schema('$USER'); 
+end; 
+/
+"@
   } else {  
     Info "Importing $APP into Database $dbname"
   }
- 
-  If (Test-Path "$APPS_DIR\$APP"){
-    If (Test-Path "$APPS_DIR\$APP\install.sql"){
-        Info "Ready to import $APP into $DBNAME"
-        #TODO ifelse below does not yet match that above...
-        if ($NEW_APP_ID) {
-          Warn "YOU ARE ABOUT TO IMPORT $APP AND OVERWRITE APP $NEW_APP_ID IN $DBNAME"
-        } else {
-          
-          if ($APP_PAGE_ID) {
-            $APP_PAGE_ID_FORMATTED=([string]$APP_PAGE_ID).PadLeft(5,'0')
-            Warn "YOU ARE ABOUT TO IMPORT PAGE $APP_PAGE_ID_FORMATTED for APP $APP TO OVERWRITE THE PAGE IN $DBNAME"
-          } else {
-            Warn "YOU ARE ABOUT TO IMPORT $APP AND OVERWRITE APP $APP IN $DBNAME"
-          }
-        }
-        write-host
-        $confirmation = Read-Host "Are you Sure You Want To Proceed"
-        if ($confirmation -eq 'y') {
- 
-           Progress "Ok - Importing ..."
-           write-host
-           Set-Location "$APPS_DIR\$APP"
 
-           $Host.UI.RawUI.BackgroundColor = "Black"
-           $Host.UI.RawUI.ForegroundColor = "DarkGray"
 
-           if ($WORKSPACE) {
-            
-             Info "Writing to workspace $WORKSPACE"
-
-             if ($NEW_APP_ID) {
-
-               #Set the Workspace, schema, app_id and app_alias
-#TODO - rationalise the code below using new technique
+  ## SET APP_ID
+  ## ------------- 
+  $NEW_APP_ID = $chosenApp.new_app_id
+  if (!($NEW_APP_ID)) {
+    #new app_id is not given, so prompt the user.
+    $NEW_APP_ID = Read-Host "To import with a new app_id, enter a New Apex App No. (null for original)"
+  }
+  if ($NEW_APP_ID -eq $chosenApp.orig_app_id) {
+    #new and orig are the same, so nothing to do.
+    Debug "No change of app id"
+    $NEW_APP_ID = ""
+  } 
+  if ($NEW_APP_ID ) {
+    Info "Setting App Id to $NEW_APP_ID"
 $install_mod = @"
-declare 
- v_workspace_id NUMBER; 
+$install_mod
 begin 
- select workspace_id into v_workspace_id 
- from apex_workspaces where workspace = '$WORKSPACE'; 
- apex_application_install.set_workspace_id (v_workspace_id); 
- apex_util.set_security_group_id 
- (p_security_group_id => apex_application_install.get_workspace_id); 
- apex_application_install.set_schema('$USER'); 
  apex_application_install.set_application_id($NEW_APP_ID); 
  apex_application_install.generate_offset; 
- apex_application_install.set_application_alias('F$NEW_APP_ID'); 
-end; 
+end;  
 /
 "@
+  }
 
-             } else {
-
-               #Set the Workspace and schema only.
-
+  ## SET APP_ALIAS
+  ## ------------- 
+  $NEW_APP_ALIAS = $chosenApp.new_app_alias
+  if (!($NEW_APP_ALIAS)) {
+    #new app_alias is not given, so prompt the user.
+    $NEW_APP_ALIAS = Read-Host "To import with a new app_alias, enter a New Apex Alias. (null for original)"
+  }
+  if ($NEW_APP_ALIAS -eq $chosenApp.orig_app_alias) {
+    #new and orig are the same, so nothing to do.
+    Debug "No change of app alias"
+    $NEW_APP_ALIAS = ""
+  } 
+  if ($NEW_APP_ALIAS ) {
+    Info "Setting App ALIAS to $NEW_APP_ALIAS"
 $install_mod = @"
-declare 
- v_workspace_id NUMBER; 
+$install_mod
 begin 
- select workspace_id into v_workspace_id 
- from apex_workspaces where workspace = '$WORKSPACE'; 
- apex_application_install.set_workspace_id (v_workspace_id); 
- apex_util.set_security_group_id 
- (p_security_group_id => apex_application_install.get_workspace_id); 
- apex_application_install.set_schema('$USER'); 
- --apex_application_install.set_application_id($NEW_APP_ID); 
- --apex_application_install.generate_offset; 
- --apex_application_install.set_application_alias('F$NEW_APP_ID'); 
+  apex_application_install.set_application_alias('$NEW_APP_ALIAS'); 
 end; 
 /
 "@
-             }
+  }
 
+  ## SET SINGLE PAGE OR FULL APP
+  ## ---------------------------
+  $APP_PAGE_ID = Read-Host "For a single page import - enter Page No. (null for Full import)"
 
-          if ($APP_PAGE_ID) {
- 
+  if ($APP_PAGE_ID) {
+   Info "Installing just page $APP_PAGE_ID"
 $install_mod = @"
 $install_mod
 @application\init.sql;
@@ -223,15 +260,44 @@ end;
 @application\end_environment.sql;
 "@
 
-          } else {
+   } else {
+   Info "Installing full app "
  $install_mod = @"
 $install_mod
 @install.sql
 "@
-          }
+   }
  
+ 
+  ## CONFIRM START
+  ## -------------
+  If (Test-Path "$APPS_DIR\$APP"){
+    If (Test-Path "$APPS_DIR\$APP\install.sql"){
+        Info "Ready to import $APP into $DBNAME"
+   
+        if ($NEW_APP_ID) {
+          Warn "YOU ARE ABOUT TO IMPORT $APP AND TO OVERWRITE NEW APP $NEW_APP_ID IN $DBNAME"
+        } else {
+          
+          if ($APP_PAGE_ID) {
+            $APP_PAGE_ID_FORMATTED=([string]$APP_PAGE_ID).PadLeft(5,'0')
+            Warn "YOU ARE ABOUT TO IMPORT PAGE $APP_PAGE_ID_FORMATTED for APP $APP TO OVERWRITE THE PAGE IN $DBNAME"
+          } else {
+            Warn "YOU ARE ABOUT TO IMPORT $APP AND OVERWRITE SAME APP $APP IN $DBNAME"
+          }
+        }
+        write-host
+        $confirmation = Read-Host "Are you Sure You Want To Proceed"
+        if ($confirmation -eq 'y') {
+ 
+           Progress "Ok - Importing ..."
+           write-host
+           Set-Location "$APPS_DIR\$APP"
 
-$install_mod | Set-Content 'install_mod.sql' 
+           $Host.UI.RawUI.BackgroundColor = "Black"
+           $Host.UI.RawUI.ForegroundColor = "DarkGray"
+ 
+           $install_mod | Set-Content 'install_mod.sql' 
  
            #Using the call operator: &
            #Pipe exit to sqlplus to make the script finish.
@@ -239,12 +305,12 @@ $install_mod | Set-Content 'install_mod.sql'
            echo "exit;" | & "$SQLCL_PATH" "$user/$pword@$connection" "@install_mod.sql"
  
 
-           } else {
-             #Using the call operator: &
-             #Pipe exit to sqlplus to make the script finish.
-             echo "exit;" | & "$SQLCL_PATH" "$user/$pword@$connection" "@install.sql"
+          ##} else {
+          ##  #Using the call operator: &
+          ##  #Pipe exit to sqlplus to make the script finish.
+          ##  echo "exit;" | & "$SQLCL_PATH" "$user/$pword@$connection" "@install.sql"
 
-           }
+          ##}
 
  
         } else {
@@ -366,8 +432,17 @@ While ($true) {
    
   Info "Known apps"
   foreach ($app in $Config.apps) {
-    $line = $app.app_id + " " + $app.app_name
-    Info $line
+ 
+    if (($app.promo -eq $promo_name) -or !($app.promo)  ) {
+ 
+      if (($app.new_app_id) -and ($app.orig_app_id -ne $app.new_app_id)) {
+        $line = $app.orig_app_id + " " + $app.app_name + " - In $promo_name uses APP_ID => " + $app.new_app_id
+      } else {
+        $line = $app.orig_app_id + " " + $app.app_name
+      }
+
+      Info $line
+    }
   }
  
   write-host
@@ -379,20 +454,35 @@ While ($true) {
   $level = $null;
  
   foreach ($app in $Config.apps) {
-    if ($app.app_id -eq $appno){
-      Debug "Found known app $appno";
-      $count = -1; 
-      foreach ($env in $envs) {
-        #First index will be 0
-        $count = $count + 1;  
-        if ($env.env_name -eq $app.env_name) {
-          Debug "Found env";
-          $level = $count;
-          Debug $level  
+    if ($app.orig_app_id -eq $appno) { 
+      Debug "app.orig_app_id=" + $app.orig_app_id
+      if (($app.promo -eq $promo_name) -or !($app.promo)  ) {
+        Debug "Found known app $appno";
+        Debug "app.env_name $app.env_name"
+        $chosenApp = $app
+        $count = -1; 
+        foreach ($env in $envs) {
+          Debug "env.env_name $env.env_name"
+          #First index will be 0
+          $count = $count + 1;  
+          if ($env.env_name -eq $app.env_name) {
+            Debug "Found env";
+            $level = $count;
+            Debug $level  
+          }
         }
       }
+    
     }
   }
+
+  Debug $chosenApp.new_app_id 
+  Debug $chosenApp.orig_app_id 
+  Debug $chosenApp.app_name 
+  Debug $chosenApp.new_app_alias 
+  Debug $chosenApp.orig_app_alias 
+  Debug $chosenApp.env_name 
+  Debug $chosenApp.promo 
 
   if ($level -eq $null) {
 
@@ -472,10 +562,10 @@ While ($true) {
   }
   
   Debug "App dir=$apps_dir"
-  Debug $appno
+  Debug "App No=$appno"
 
   if ($op -eq "Export") {
-    ApexExportCommit "$connection" "$user" "$pword" "$appno" "$script_dir" "$dbname" "$sid" "$apps_dir"
+    ApexExportCommit "$connection" "$user" "$pword" "$appno" "$script_dir" "$dbname" "$sid" "$apps_dir" 
   } else {
     InstallApexApp "$connection" "$user" "$pword" "$appno" "$dbname" "$sid" "$apps_dir" "$sqlcl_path" "$workspace"
   }
