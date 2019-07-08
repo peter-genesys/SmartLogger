@@ -355,7 +355,7 @@ $sqlcl_path = $Config.sqlcl_path;
 
 # Check the configuration
 if (!($Config)) {
-  Warn "The Base configuration file is missing!"  
+  Warn "The Base configuration file is missing!  Please copy eg-env.json to $BaseConfig, then customise the file."  
 }
 
 #Get the current dir
