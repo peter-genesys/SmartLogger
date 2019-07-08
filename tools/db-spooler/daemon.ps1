@@ -52,7 +52,7 @@ $debugging = $Config.debugging
 
 # Check the configuration
 if (!($Config)) {
-  Warn "The Base configuration file is missing!"  
+  Warn "The Base configuration file is missing!  Please copy eg-env.json to $BaseConfig, then customise the file."  
 }
 
 
